@@ -15,12 +15,10 @@
         android:theme="@style/Theme.ScadaMobile"
         tools:targetApi="31">
 
-        <!-- URL по умолчанию для TWA -->
-        <!-- DEV: http://127.0.0.1:8000/ (локальный сервер) -->
-        <!-- PROD: https://your-domain.com/ (публичный HTTPS домен) -->
+        <!-- Обновленный URL для GitHub Pages -->
         <meta-data
             android:name="android.support.customtabs.trusted.DEFAULT_URL"
-            android:value="http://127.0.0.1:8000/" />
+            android:value="https://savushkin-dev.github.io/scada-mobile/" />
 
         <activity
             android:name=".MainActivity"
@@ -30,28 +28,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Intent filter для TWA -->
-            <!-- ВАЖНО: autoVerify работает ТОЛЬКО с HTTPS и публичными доменами! -->
-            <!-- Для локальной разработки (http://127.0.0.1) autoVerify не работает -->
-            <!-- Раскомментируйте autoVerify только при публикации на HTTPS домен -->
-            <intent-filter>
-                <!-- <intent-filter android:autoVerify="true"> для PRODUCTION с HTTPS -->
+            <!-- Intent-filter для Digital Asset Links с HTTPS -->
+            <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-
-                <!-- DEV: локальный сервер -->
-                <data
-                    android:scheme="http"
-                    android:host="127.0.0.1"
-                    android:port="8000" />
-
-                <!-- PROD: раскомментируйте и замените на ваш домен -->
-                <!--
                 <data
                     android:scheme="https"
-                    android:host="your-domain.com" />
-                -->
+                    android:host="savushkin-dev.github.io"
+                    android:pathPrefix="/scada-mobile" />
             </intent-filter>
 
         </activity>

@@ -10,17 +10,12 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // URL PWA приложения
-        // DEV: локальный сервер (запустите "npm run dev" в папке pwa-app)
-        // PROD: замените на https://your-domain.com/
-        val twaUrl = "http://127.0.0.1:8000/"
+        // Обновляем URL на публичный адрес GitHub Pages
+        val twaUrl = "https://savushkin-dev.github.io/scada-mobile/"
 
-        // TwaLauncher управляет подключением к сервису Custom Tabs 
-        // и запуском Trusted Web Activity.
         val launcher = TwaLauncher(this)
         launcher.launch(twaUrl.toUri())
         
-        // После запуска TWA в Chrome, наша активность больше не нужна.
         finish()
     }
 }
