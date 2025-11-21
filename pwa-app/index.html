@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SCADA Mobile - Progressive Web Application">
+    <meta name="theme-color" content="#2196F3">
+    
+    <title>SCADA Mobile</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.webmanifest">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="assets/icons/icon-512x512.png">
+    <link rel="apple-touch-icon" href="assets/icons/icon-192x192.png">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="64" height="64" rx="12" fill="#2196F3"/>
+                    <path d="M32 16L48 28V48H16V28L32 16Z" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="32" cy="36" r="4" fill="white"/>
+                </svg>
+            </div>
+            <h1>SCADA Mobile</h1>
+            <p class="subtitle">Progressive Web Application</p>
+        </header>
+
+        <main>
+            <div class="welcome-card">
+                <h2>Добро пожаловать!</h2>
+                <p>Это минималистичное PWA приложение для управления SCADA системами.</p>
+                
+                <div class="features">
+                    <div class="feature">
+                        <span class="icon">📱</span>
+                        <span>Адаптивный дизайн</span>
+                    </div>
+                    <div class="feature">
+                        <span class="icon">⚡</span>
+                        <span>Работает оффлайн</span>
+                    </div>
+                    <div class="feature">
+                        <span class="icon">🔒</span>
+                        <span>Безопасное соединение</span>
+                    </div>
+                </div>
+
+                <button id="actionButton" class="primary-button">
+                    Начать работу
+                </button>
+                
+                <div id="status" class="status-message"></div>
+            </div>
+
+            <div class="install-prompt" id="installPrompt" style="display: none;">
+                <p>Установите приложение на главный экран для быстрого доступа</p>
+                <button id="installButton" class="secondary-button">Установить</button>
+            </div>
+        </main>
+
+        <footer>
+            <p>SCADA Mobile PWA &copy; 2024</p>
+            <p class="online-status">
+                <span class="status-indicator" id="onlineStatus"></span>
+                <span id="statusText">Проверка подключения...</span>
+            </p>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/app.js"></script>
+</body>
+</html>
