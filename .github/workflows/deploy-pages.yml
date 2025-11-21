@@ -1,38 +1,3 @@
-name: Deploy PWA to GitHub Pages
-
-# WORKFLOW CONFIGURATION (v2)
-# Automatic PWA deployment to GitHub Pages on push to main branch
-# All actions are explicitly pinned to their latest stable versions
-# No deprecated v3 artifact actions are used in this workflow
-# This file has been completely rewritten to ensure GitHub clears all cached action metadata
-
-# Trigger events for this workflow
-on:
-  # Push trigger on main branch
-  push:
-    branches: [main]
-    # Only trigger on pwa-app or workflow file changes
-    paths:
-      - "pwa-app/**"
-      - ".github/workflows/deploy-pages.yml"
-
-  # Manual trigger for emergency deployments
-  workflow_dispatch:
-
-# Permissions required by GitHub Actions
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-# Concurrency control - ensure only one deployment at a time
-# Previous runs will be cancelled if new push is triggered
-concurrency:
-  group: "pages"
-  cancel-in-progress: true
-
-# ========================== BEGIN JOBS ==========================
-
 jobs:
   # ==== STAGE 1: PREPARE AND VALIDATE ====
   prepare:
@@ -43,6 +8,13 @@ jobs:
       build_timestamp: ${{ steps.timestamp.outputs.timestamp }}
 
     steps:
+      # ====== NEW: Force-clear GitHub Actions cache ======
+      - name: Clear GitHub Actions Cache
+        run: |
+          echo "🧹 Clearing all old Actions caches..."
+          rm -rf $HOME/.cache/actions
+          echo "✅ Cache cleared successfully"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
