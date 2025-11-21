@@ -125,6 +125,29 @@ jobs:
           npm ci --omit=dev
           echo "✓ Dependencies installed"
 
+      # Создаём директории кэша перед их кэшированием
+      - name: Ensure cache directories exist
+        if: steps.check_build.outputs.has_build == 'true'
+        run: |
+          mkdir -p ~/.npm
+          mkdir -p ~/.cache/yarn
+          mkdir -p .yarn/cache
+          mkdir -p node_modules
+
+      # Кэшируем зависимости для ускорения последующих запусков
+      - name: Cache dependencies
+        if: steps.check_build.outputs.has_build == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            ~/.npm
+            ~/.cache/yarn
+            .yarn/cache
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       # Проверка линтинга (опционально)
       - name: Lint PWA
         if: steps.check_build.outputs.has_build == 'true'
