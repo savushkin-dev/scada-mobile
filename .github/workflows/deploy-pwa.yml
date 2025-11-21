@@ -1,73 +1,236 @@
-name: Deploy PWA from pwa-app to GitHub Pages
+name: Deploy PWA to GitHub Pages
 
+# Триггеры запуска workflow
 on:
+  # Запуск при push в main branch
   push:
-    branches:
-      - main
+    branches: [main]
+    # Оптимизация: триггер только при изменении pwa-app
+    paths:
+      - "pwa-app/**"
+      - ".github/workflows/deploy-pwa.yml"
+
+  # Ручной запуск (для экстренных ситуаций)
   workflow_dispatch:
 
+# Разрешения для GitHub Actions
 permissions:
   contents: read
   pages: write
   id-token: write
 
+# Единовременное выполнение (предыдущие запуски будут отменены)
 concurrency:
-  group: deploy-pwa
+  group: "pages"
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  # Job 1: Подготовка и валидация
+  prepare:
+    name: Prepare PWA Build
     runs-on: ubuntu-latest
 
+    outputs:
+      # Экспортируем версию для использования в других jobs
+      build_timestamp: ${{ steps.timestamp.outputs.timestamp }}
+
     steps:
+      # Проверка кода из репозитория
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # Генерируем timestamp для кэша и логов
+      - name: Generate timestamp
+        id: timestamp
+        run: echo "timestamp=$(date -u +'%Y%m%d_%H%M%S')" >> $GITHUB_OUTPUT
+
+      # Проверяем наличие критических файлов в pwa-app
+      - name: Validate PWA structure
+        run: |
+          echo "✓ Checking PWA application structure..."
+
+          required_files=(
+            "pwa-app/index.html"
+            "pwa-app/manifest.webmanifest"
+            "pwa-app/service-worker.js"
+            "pwa-app/.well-known/assetlinks.json"
+          )
+
+          for file in "${required_files[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "✗ ERROR: Required file missing: $file"
+              exit 1
+            fi
+            echo "✓ Found: $file"
+          done
+
+          echo ""
+          echo "✓ All required files present!"
+
+      # Проверяем JSON файлы на валидность
+      - name: Validate JSON files
+        run: |
+          echo "✓ Validating JSON files..."
+
+          # Проверить manifest.webmanifest
+          jq empty pwa-app/manifest.webmanifest && echo "✓ manifest.webmanifest is valid" || {
+            echo "✗ ERROR: manifest.webmanifest has invalid JSON"
+            exit 1
+          }
+
+          # Проверить assetlinks.json
+          jq empty pwa-app/.well-known/assetlinks.json && echo "✓ assetlinks.json is valid" || {
+            echo "✗ ERROR: assetlinks.json has invalid JSON"
+            exit 1
+          }
+
+  # Job 2: Сборка (если нужна)
+  build:
+    name: Build PWA
+    runs-on: ubuntu-latest
+    needs: prepare
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Если в pwa-app есть package.json, проверяем и устанавливаем зависимости
+      - name: Check for build dependencies
+        id: check_build
+        run: |
+          if [ -f "pwa-app/package.json" ]; then
+            echo "has_build=true" >> $GITHUB_OUTPUT
+            echo "✓ Found package.json in pwa-app"
+          else
+            echo "has_build=false" >> $GITHUB_OUTPUT
+            echo "ℹ No package.json found - using PWA as-is"
+          fi
+
+      # Setup Node.js (если нужна сборка)
       - name: Setup Node.js
+        if: steps.check_build.outputs.has_build == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "18"
+          cache: "npm"
+          cache-dependency-path: "pwa-app/package-lock.json"
 
-      - name: Install dependencies (if package.json exists)
-        if: fileExists('pwa-app/package.json')
+      # Установка зависимостей
+      - name: Install dependencies
+        if: steps.check_build.outputs.has_build == 'true'
         run: |
           cd pwa-app
-          npm ci
+          npm ci --omit=dev
+          echo "✓ Dependencies installed"
 
-      - name: Build (if build script exists)
-        if: fileExists('pwa-app/package.json')
+      # Проверка линтинга (опционально)
+      - name: Lint PWA
+        if: steps.check_build.outputs.has_build == 'true'
         run: |
-          # Run build only when a build script exists
-          if node -e "process.exit(!(require('./pwa-app/package.json').scripts && require('./pwa-app/package.json').scripts.build))"; then
-            npm --prefix pwa-app run build
+          cd pwa-app
+          # Если есть скрипт lint, запускаем его
+          if grep -q '"lint"' package.json; then
+            npm run lint
+            echo "✓ Linting passed"
           else
-            echo "No build script found — publishing pwa-app directory as-is"
+            echo "ℹ No lint script defined"
           fi
+        continue-on-error: true
 
-      - name: Detect publish directory
-        run: |
-          # Prefer common build output folders, fallback to pwa-app
-          if [ -d "pwa-app/dist" ]; then
-            echo "DEPLOY_DIR=pwa-app/dist" >> $GITHUB_ENV
-          elif [ -d "pwa-app/build" ]; then
-            echo "DEPLOY_DIR=pwa-app/build" >> $GITHUB_ENV
-          elif [ -d "pwa-app/public" ]; then
-            echo "DEPLOY_DIR=pwa-app/public" >> $GITHUB_ENV
-          else
-            echo "DEPLOY_DIR=pwa-app" >> $GITHUB_ENV
-          fi
-
-      - name: Upload artifact for GitHub Pages
-        uses: actions/upload-pages-artifact@v1
+      # Загружаем артефакты (папку pwa-app) для следующего job
+      - name: Upload PWA artifacts
+        uses: actions/upload-artifact@v3
         with:
-          path: ${{ env.DEPLOY_DIR }}
+          name: pwa-build
+          path: pwa-app
+          retention-days: 1
+          if-no-files-found: error
 
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v1
+  # Job 3: Деплой на GitHub Pages
+  deploy:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: [prepare, build]
 
-      - name: Post-deploy info
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Скачиваем артефакты сборки
+      - name: Download PWA artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: pwa-build
+          path: ./pwa-app
+
+      # Подготавливаем содержимое для Pages
+      # (копируем содержимое pwa-app в корень для публикации)
+      - name: Prepare deployment
         run: |
-          echo "Published site from: $DEPLOY_DIR"
-          echo "Public URL (GitHub Pages): https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+          echo "✓ Preparing PWA for deployment..."
+
+          # Показываем структуру перед публикацией
+          echo ""
+          echo "📦 PWA structure:"
+          ls -la pwa-app/
+          echo ""
+
+          # Проверяем критические файлы еще раз
+          if [ -f "pwa-app/index.html" ]; then
+            echo "✓ index.html found"
+          else
+            echo "✗ ERROR: index.html not found!"
+            exit 1
+          fi
+
+          if [ -f "pwa-app/manifest.webmanifest" ]; then
+            echo "✓ manifest.webmanifest found"
+          else
+            echo "✗ ERROR: manifest.webmanifest not found!"
+            exit 1
+          fi
+
+          if [ -f "pwa-app/.well-known/assetlinks.json" ]; then
+            echo "✓ .well-known/assetlinks.json found (TWA support)"
+          fi
+
+          echo ""
+          echo "✓ All files ready for deployment"
+
+      # Настраиваем Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      # Загружаем артефакты в Pages
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: "./pwa-app"
+
+      # Деплоим на Pages
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
+
+      # Отправляем уведомление об успешном деплое
+      - name: Deployment summary
+        run: |
+          echo ""
+          echo "═══════════════════════════════════════════════════════"
+          echo "✓ PWA successfully deployed to GitHub Pages!"
+          echo "═══════════════════════════════════════════════════════"
+          echo ""
+          echo "📱 Access your PWA at:"
+          echo "   https://savushkin-dev.github.io/scada-mobile/"
+          echo ""
+          echo "🔗 Digital Asset Links:"
+          echo "   https://savushkin-dev.github.io/scada-mobile/.well-known/assetlinks.json"
+          echo ""
+          echo "🐧 Deployment URL: ${{ steps.deployment.outputs.page_url }}"
+          echo ""
