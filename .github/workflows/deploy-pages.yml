@@ -1,12 +1,11 @@
 name: Построение PWA в GitHub Pages
 
-# Trigger events for this workflow
 on:
   push:
     branches: [main]
     paths:
       - "pwa-app/**"
-      - ".github/workflows/deploy-pages.yml"
+      - ".github/workflows/deploy-pwa.yml"
   workflow_dispatch:
 
 permissions:
@@ -66,7 +65,6 @@ jobs:
       - name: Validate JSON files
         run: |
           echo "✓ Validating JSON files..."
-          # jq может отсутствовать в раннере — устанавливаем при необходимости
           if ! command -v jq >/dev/null 2>&1; then
             sudo apt-get update -y
             sudo apt-get install -y jq
@@ -90,11 +88,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # <-- дополнительная очистка кеша пакетов/apt и метаданных (может помочь при "залипании" старых action'ов) -->
-      - name: Clear cached packages (helper)
-        uses: awalsh128/cache-apt-pkgs-action@v1.4.3
-        with:
-          clear-cache: true
+      # <-- заменённый шаг: принудительная очистка кеша раннера вручную -->
+      - name: Force clear runner caches and apt lists
+        run: |
+          echo "🧹 Clearing runner local actions cache..."
+          rm -rf $HOME/.cache/actions || true
+          rm -rf $HOME/.npm || true
+          rm -rf $HOME/.cache || true
+
+          echo "🧹 Cleaning apt caches to avoid stale cached packages..."
+          sudo apt-get clean -y || true
+          sudo rm -rf /var/lib/apt/lists/* || true
+          sudo apt-get update -y || true
+
+          echo "✅ Runner caches and apt lists cleared"
 
       - name: Check for build dependencies
         id: check_build
@@ -183,7 +190,7 @@ jobs:
         uses: actions/configure-pages@v4
 
       - name: Upload to GitHub Pages
-        # попробуем v3, т.к. в некоторых кейсах v2 transitively тянет deprecated upload-artifact:v3
+        # используем v3 — в ряде случаев это решает транзитивную проблему с устаревшими upload-artifact:v3
         uses: actions/upload-pages-artifact@v3
         with:
           path: "./pwa-app"
