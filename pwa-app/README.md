@@ -46,8 +46,9 @@ npm run dev
 
 Сервер автоматически покажет адреса для доступа:
 
-- **Локально на ПК**: `http://localhost:8000/`
-- **С телефона в одной сети**: `http://<IP-адрес-ПК>:8000/` (адрес будет показан в консоли)
+- **Локально на ПК**: `http://localhost:8000/` (dev)
+- **С телефона в одной сети**: `http://<IP-адрес-ПК>:8000/` (dev)
+- **Production (GitHub Pages)**: `https://savushkin-dev.github.io/scada-mobile/`
 
 ### Альтернативные способы запуска
 
@@ -62,10 +63,16 @@ npx http-server -p 8000
 php -S localhost:8000
 ```
 
-Затем откройте браузер:
+Затем откройте браузер (dev):
 
 ```text
 http://localhost:8000/
+```
+
+Или откройте production URL (если приложение задеплоено):
+
+```text
+https://savushkin-dev.github.io/scada-mobile/
 ```
 
 ### Запуск с Live Server (VS Code)

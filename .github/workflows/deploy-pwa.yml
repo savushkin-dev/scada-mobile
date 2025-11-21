@@ -1,0 +1,73 @@
+name: Deploy PWA from pwa-app to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: deploy-pwa
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install dependencies (if package.json exists)
+        if: fileExists('pwa-app/package.json')
+        run: |
+          cd pwa-app
+          npm ci
+
+      - name: Build (if build script exists)
+        if: fileExists('pwa-app/package.json')
+        run: |
+          # Run build only when a build script exists
+          if node -e "process.exit(!(require('./pwa-app/package.json').scripts && require('./pwa-app/package.json').scripts.build))"; then
+            npm --prefix pwa-app run build
+          else
+            echo "No build script found — publishing pwa-app directory as-is"
+          fi
+
+      - name: Detect publish directory
+        run: |
+          # Prefer common build output folders, fallback to pwa-app
+          if [ -d "pwa-app/dist" ]; then
+            echo "DEPLOY_DIR=pwa-app/dist" >> $GITHUB_ENV
+          elif [ -d "pwa-app/build" ]; then
+            echo "DEPLOY_DIR=pwa-app/build" >> $GITHUB_ENV
+          elif [ -d "pwa-app/public" ]; then
+            echo "DEPLOY_DIR=pwa-app/public" >> $GITHUB_ENV
+          else
+            echo "DEPLOY_DIR=pwa-app" >> $GITHUB_ENV
+          fi
+
+      - name: Upload artifact for GitHub Pages
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: ${{ env.DEPLOY_DIR }}
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v1
+
+      - name: Post-deploy info
+        run: |
+          echo "Published site from: $DEPLOY_DIR"
+          echo "Public URL (GitHub Pages): https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
