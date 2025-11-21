@@ -1,4 +1,0 @@
-﻿2025-11-21T16:26:58.7217473Z ##[group]Run echo "timestamp=$(date -u +'%Y%m%d_%H%M%S')" >> $GITHUB_OUTPUT
-2025-11-21T16:26:58.7219697Z [36;1mecho "timestamp=$(date -u +'%Y%m%d_%H%M%S')" >> $GITHUB_OUTPUT[0m
-2025-11-21T16:26:58.7259688Z shell: /usr/bin/bash -e {0}
-2025-11-21T16:26:58.7260810Z ##[endgroup]
