@@ -109,33 +109,32 @@ jobs:
         with:
           node-version: "18"
 
+      - name: Prepare cache directories
+        if: steps.check_build.outputs.has_build == 'true'
+        run: |
+          mkdir -p ~/.npm
+          mkdir -p ~/.cache/yarn
+          mkdir -p pwa-app/node_modules
+          echo "✓ Cache directories prepared"
+
+      - name: Cache NPM dependencies
+        if: steps.check_build.outputs.has_build == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            pwa-app/node_modules
+            ~/.npm
+            ~/.cache/yarn
+          key: ${{ runner.os }}-npm-${{ hashFiles('pwa-app/package-lock.json', 'pwa-app/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
       - name: Install dependencies
         if: steps.check_build.outputs.has_build == 'true'
         run: |
           cd pwa-app
           npm install --omit=dev
           echo "✓ Dependencies installed"
-
-      - name: Ensure cache directories exist
-        if: steps.check_build.outputs.has_build == 'true'
-        run: |
-          mkdir -p ~/.npm
-          mkdir -p ~/.cache/yarn
-          mkdir -p .yarn/cache
-          mkdir -p node_modules
-
-      - name: Cache dependencies
-        if: steps.check_build.outputs.has_build == 'true'
-        uses: actions/cache@v4
-        with:
-          path: |
-            node_modules
-            ~/.npm
-            ~/.cache/yarn
-            .yarn/cache
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
 
       - name: Lint PWA
         if: steps.check_build.outputs.has_build == 'true'
