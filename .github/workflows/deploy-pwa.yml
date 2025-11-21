@@ -120,7 +120,7 @@ jobs:
         if: steps.check_build.outputs.has_build == 'true'
         run: |
           cd pwa-app
-          npm ci --omit=dev
+          npm install --omit=dev
           echo "✓ Dependencies installed"
 
       # Создаём директории кэша перед их кэшированием
