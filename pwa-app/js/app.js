@@ -70,14 +70,20 @@ function showStatus(message, type = 'info') {
     statusElement.textContent = message;
     statusElement.className = `status-message ${type}`;
     
-    // Auto-hide after 3 seconds
+    // Auto-hide after 3 seconds with fade out
     setTimeout(() => {
-        statusElement.style.display = 'none';
+        statusElement.style.opacity = '0';
+        statusElement.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => {
+            statusElement.style.display = 'none';
+            statusElement.style.opacity = '1';
+        }, 300);
     }, 3000);
 }
 
 // PWA Install Prompt
 let deferredPrompt;
+let installButtonListenerAdded = false;
 
 window.addEventListener('beforeinstallprompt', (e) => {
     console.log('beforeinstallprompt event fired');
@@ -95,28 +101,32 @@ function showInstallPrompt() {
     
     installPrompt.style.display = 'block';
     
-    installButton.addEventListener('click', async () => {
-        if (!deferredPrompt) {
-            return;
-        }
-        
-        // Show the install prompt
-        deferredPrompt.prompt();
-        
-        // Wait for the user to respond to the prompt
-        const { outcome } = await deferredPrompt.userChoice;
-        console.log(`User response to the install prompt: ${outcome}`);
-        
-        if (outcome === 'accepted') {
-            showStatus('Приложение установлено!', 'success');
-        } else {
-            showStatus('Установка отменена', 'info');
-        }
-        
-        // Clear the deferred prompt
-        deferredPrompt = null;
-        installPrompt.style.display = 'none';
-    });
+    // Only add event listener once
+    if (!installButtonListenerAdded) {
+        installButtonListenerAdded = true;
+        installButton.addEventListener('click', async () => {
+            if (!deferredPrompt) {
+                return;
+            }
+            
+            // Show the install prompt
+            deferredPrompt.prompt();
+            
+            // Wait for the user to respond to the prompt
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to the install prompt: ${outcome}`);
+            
+            if (outcome === 'accepted') {
+                showStatus('Приложение установлено!', 'success');
+            } else {
+                showStatus('Установка отменена', 'info');
+            }
+            
+            // Clear the deferred prompt
+            deferredPrompt = null;
+            installPrompt.style.display = 'none';
+        });
+    }
 }
 
 // Detect if app is running in standalone mode
