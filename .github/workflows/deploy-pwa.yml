@@ -141,7 +141,7 @@ jobs:
 
       # Загружаем артефакты (папку pwa-app) для следующего job
       - name: Upload PWA artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: pwa-build
           path: pwa-app
