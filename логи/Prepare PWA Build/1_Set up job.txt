@@ -1,0 +1,29 @@
+﻿2025-11-21T16:26:56.2355063Z Current runner version: '2.329.0'
+2025-11-21T16:26:56.2380366Z ##[group]Runner Image Provisioner
+2025-11-21T16:26:56.2381181Z Hosted Compute Agent
+2025-11-21T16:26:56.2381832Z Version: 20251016.436
+2025-11-21T16:26:56.2382452Z Commit: 8ab8ac8bfd662a3739dab9fe09456aba92132568
+2025-11-21T16:26:56.2383108Z Build Date: 2025-10-15T20:44:12Z
+2025-11-21T16:26:56.2383709Z ##[endgroup]
+2025-11-21T16:26:56.2384302Z ##[group]Operating System
+2025-11-21T16:26:56.2384816Z Ubuntu
+2025-11-21T16:26:56.2385424Z 24.04.3
+2025-11-21T16:26:56.2386016Z LTS
+2025-11-21T16:26:56.2386471Z ##[endgroup]
+2025-11-21T16:26:56.2387019Z ##[group]Runner Image
+2025-11-21T16:26:56.2387639Z Image: ubuntu-24.04
+2025-11-21T16:26:56.2388164Z Version: 20251112.124.1
+2025-11-21T16:26:56.2389306Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20251112.124/images/ubuntu/Ubuntu2404-Readme.md
+2025-11-21T16:26:56.2390730Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20251112.124
+2025-11-21T16:26:56.2391972Z ##[endgroup]
+2025-11-21T16:26:56.2393110Z ##[group]GITHUB_TOKEN Permissions
+2025-11-21T16:26:56.2395177Z Contents: read
+2025-11-21T16:26:56.2396125Z Metadata: read
+2025-11-21T16:26:56.2396663Z Pages: write
+2025-11-21T16:26:56.2397205Z ##[endgroup]
+2025-11-21T16:26:56.2399304Z Secret source: Actions
+2025-11-21T16:26:56.2400385Z Prepare workflow directory
+2025-11-21T16:26:56.2732205Z Prepare all required actions
+2025-11-21T16:26:56.2770601Z Getting action download info
+2025-11-21T16:26:56.5761859Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2025-11-21T16:26:57.5195947Z Complete job name: Prepare PWA Build

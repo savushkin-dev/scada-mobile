@@ -1,0 +1,76 @@
+﻿2025-11-21T16:26:57.5991665Z ##[group]Run actions/checkout@v4
+2025-11-21T16:26:57.5992574Z with:
+2025-11-21T16:26:57.5992993Z   fetch-depth: 0
+2025-11-21T16:26:57.5993467Z   repository: savushkin-dev/scada-mobile
+2025-11-21T16:26:57.5994199Z   token: ***
+2025-11-21T16:26:57.5994618Z   ssh-strict: true
+2025-11-21T16:26:57.5995051Z   ssh-user: git
+2025-11-21T16:26:57.5995505Z   persist-credentials: true
+2025-11-21T16:26:57.5996181Z   clean: true
+2025-11-21T16:26:57.5996628Z   sparse-checkout-cone-mode: true
+2025-11-21T16:26:57.5997161Z   fetch-tags: false
+2025-11-21T16:26:57.5997590Z   show-progress: true
+2025-11-21T16:26:57.5998028Z   lfs: false
+2025-11-21T16:26:57.5998425Z   submodules: false
+2025-11-21T16:26:57.5998887Z   set-safe-directory: true
+2025-11-21T16:26:57.5999603Z ##[endgroup]
+2025-11-21T16:26:57.7100482Z Syncing repository: savushkin-dev/scada-mobile
+2025-11-21T16:26:57.7102385Z ##[group]Getting Git version info
+2025-11-21T16:26:57.7103185Z Working directory is '/home/runner/work/scada-mobile/scada-mobile'
+2025-11-21T16:26:57.7104346Z [command]/usr/bin/git version
+2025-11-21T16:26:57.8313957Z git version 2.51.2
+2025-11-21T16:26:57.8342872Z ##[endgroup]
+2025-11-21T16:26:57.8366582Z Temporarily overriding HOME='/home/runner/work/_temp/ea2b6a17-cbf5-4318-8a3f-4de952df7e07' before making global git config changes
+2025-11-21T16:26:57.8369343Z Adding repository directory to the temporary git global config as a safe directory
+2025-11-21T16:26:57.8373351Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/scada-mobile/scada-mobile
+2025-11-21T16:26:57.8461118Z Deleting the contents of '/home/runner/work/scada-mobile/scada-mobile'
+2025-11-21T16:26:57.8466332Z ##[group]Initializing the repository
+2025-11-21T16:26:57.8470977Z [command]/usr/bin/git init /home/runner/work/scada-mobile/scada-mobile
+2025-11-21T16:26:57.9207223Z hint: Using 'master' as the name for the initial branch. This default branch name
+2025-11-21T16:26:57.9208592Z hint: is subject to change. To configure the initial branch name to use in all
+2025-11-21T16:26:57.9209777Z hint: of your new repositories, which will suppress this warning, call:
+2025-11-21T16:26:57.9210602Z hint:
+2025-11-21T16:26:57.9211195Z hint: 	git config --global init.defaultBranch <name>
+2025-11-21T16:26:57.9211889Z hint:
+2025-11-21T16:26:57.9212546Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2025-11-21T16:26:57.9213975Z hint: 'development'. The just-created branch can be renamed via this command:
+2025-11-21T16:26:57.9214974Z hint:
+2025-11-21T16:26:57.9215426Z hint: 	git branch -m <name>
+2025-11-21T16:26:57.9216272Z hint:
+2025-11-21T16:26:57.9217003Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2025-11-21T16:26:57.9264331Z Initialized empty Git repository in /home/runner/work/scada-mobile/scada-mobile/.git/
+2025-11-21T16:26:57.9279101Z [command]/usr/bin/git remote add origin https://github.com/savushkin-dev/scada-mobile
+2025-11-21T16:26:57.9373560Z ##[endgroup]
+2025-11-21T16:26:57.9375053Z ##[group]Disabling automatic garbage collection
+2025-11-21T16:26:57.9378966Z [command]/usr/bin/git config --local gc.auto 0
+2025-11-21T16:26:57.9408021Z ##[endgroup]
+2025-11-21T16:26:57.9409397Z ##[group]Setting up auth
+2025-11-21T16:26:57.9416274Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-11-21T16:26:57.9446927Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-11-21T16:26:58.1642504Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-11-21T16:26:58.1672142Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-11-21T16:26:58.1889852Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2025-11-21T16:26:58.1926290Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2025-11-21T16:26:58.2159678Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2025-11-21T16:26:58.2196531Z ##[endgroup]
+2025-11-21T16:26:58.2204848Z ##[group]Fetching the repository
+2025-11-21T16:26:58.2207694Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+2025-11-21T16:26:58.6517431Z From https://github.com/savushkin-dev/scada-mobile
+2025-11-21T16:26:58.6519847Z  * [new branch]      gh-pages   -> origin/gh-pages
+2025-11-21T16:26:58.6521883Z  * [new branch]      main       -> origin/main
+2025-11-21T16:26:58.6619612Z [command]/usr/bin/git branch --list --remote origin/main
+2025-11-21T16:26:58.6642642Z   origin/main
+2025-11-21T16:26:58.6651430Z [command]/usr/bin/git rev-parse refs/remotes/origin/main
+2025-11-21T16:26:58.6670062Z b3ccc777d1922dcc8d6808f8a9bd6a64ac08e57b
+2025-11-21T16:26:58.6676386Z ##[endgroup]
+2025-11-21T16:26:58.6678156Z ##[group]Determining the checkout info
+2025-11-21T16:26:58.6680659Z ##[endgroup]
+2025-11-21T16:26:58.6681812Z [command]/usr/bin/git sparse-checkout disable
+2025-11-21T16:26:58.6769666Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2025-11-21T16:26:58.6794465Z ##[group]Checking out the ref
+2025-11-21T16:26:58.6797828Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2025-11-21T16:26:58.6944616Z Switched to a new branch 'main'
+2025-11-21T16:26:58.6947337Z branch 'main' set up to track 'origin/main'.
+2025-11-21T16:26:58.6956063Z ##[endgroup]
+2025-11-21T16:26:58.6989428Z [command]/usr/bin/git log -1 --format=%H
+2025-11-21T16:26:58.7011632Z b3ccc777d1922dcc8d6808f8a9bd6a64ac08e57b

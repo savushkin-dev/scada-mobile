@@ -1,0 +1,11 @@
+﻿2025-11-21T16:27:06.4323846Z ##[group]Run if [ -f "pwa-app/package.json" ]; then
+2025-11-21T16:27:06.4325137Z [36;1mif [ -f "pwa-app/package.json" ]; then[0m
+2025-11-21T16:27:06.4326444Z [36;1m  echo "has_build=true" >> $GITHUB_OUTPUT[0m
+2025-11-21T16:27:06.4327579Z [36;1m  echo "✓ Found package.json in pwa-app"[0m
+2025-11-21T16:27:06.4328585Z [36;1melse[0m
+2025-11-21T16:27:06.4329390Z [36;1m  echo "has_build=false" >> $GITHUB_OUTPUT[0m
+2025-11-21T16:27:06.4330806Z [36;1m  echo "ℹ No package.json found - using PWA as-is"[0m
+2025-11-21T16:27:06.4331885Z [36;1mfi[0m
+2025-11-21T16:27:06.4368515Z shell: /usr/bin/bash -e {0}
+2025-11-21T16:27:06.4369396Z ##[endgroup]
+2025-11-21T16:27:06.4448882Z ✓ Found package.json in pwa-app

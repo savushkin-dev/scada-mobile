@@ -1,0 +1,7 @@
+﻿2025-11-21T16:27:12.3177786Z ##[group]Run mkdir -p ~/.npm
+2025-11-21T16:27:12.3178149Z [36;1mmkdir -p ~/.npm[0m
+2025-11-21T16:27:12.3178408Z [36;1mmkdir -p ~/.cache/yarn[0m
+2025-11-21T16:27:12.3178667Z [36;1mmkdir -p .yarn/cache[0m
+2025-11-21T16:27:12.3178917Z [36;1mmkdir -p node_modules[0m
+2025-11-21T16:27:12.3211773Z shell: /usr/bin/bash -e {0}
+2025-11-21T16:27:12.3212054Z ##[endgroup]

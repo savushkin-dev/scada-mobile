@@ -1,0 +1,29 @@
+﻿2025-11-21T16:26:58.7435521Z ##[group]Run echo "✓ Checking PWA application structure..."
+2025-11-21T16:26:58.7437362Z [36;1mecho "✓ Checking PWA application structure..."[0m
+2025-11-21T16:26:58.7438890Z [36;1m[0m
+2025-11-21T16:26:58.7439656Z [36;1mrequired_files=([0m
+2025-11-21T16:26:58.7440622Z [36;1m  "pwa-app/index.html"[0m
+2025-11-21T16:26:58.7441714Z [36;1m  "pwa-app/manifest.webmanifest"[0m
+2025-11-21T16:26:58.7442922Z [36;1m  "pwa-app/service-worker.js"[0m
+2025-11-21T16:26:58.7444149Z [36;1m  "pwa-app/.well-known/assetlinks.json"[0m
+2025-11-21T16:26:58.7445314Z [36;1m)[0m
+2025-11-21T16:26:58.7446270Z [36;1m[0m
+2025-11-21T16:26:58.7447137Z [36;1mfor file in "${required_files[@]}"; do[0m
+2025-11-21T16:26:58.7448336Z [36;1m  if [ ! -f "$file" ]; then[0m
+2025-11-21T16:26:58.7449555Z [36;1m    echo "✗ ERROR: Required file missing: $file"[0m
+2025-11-21T16:26:58.7450784Z [36;1m    exit 1[0m
+2025-11-21T16:26:58.7451597Z [36;1m  fi[0m
+2025-11-21T16:26:58.7452412Z [36;1m  echo "✓ Found: $file"[0m
+2025-11-21T16:26:58.7453465Z [36;1mdone[0m
+2025-11-21T16:26:58.7454220Z [36;1m[0m
+2025-11-21T16:26:58.7454946Z [36;1mecho ""[0m
+2025-11-21T16:26:58.7456082Z [36;1mecho "✓ All required files present!"[0m
+2025-11-21T16:26:58.7489595Z shell: /usr/bin/bash -e {0}
+2025-11-21T16:26:58.7490584Z ##[endgroup]
+2025-11-21T16:26:58.7553307Z ✓ Checking PWA application structure...
+2025-11-21T16:26:58.7554801Z ✓ Found: pwa-app/index.html
+2025-11-21T16:26:58.7556597Z ✓ Found: pwa-app/manifest.webmanifest
+2025-11-21T16:26:58.7558417Z ✓ Found: pwa-app/service-worker.js
+2025-11-21T16:26:58.7559657Z ✓ Found: pwa-app/.well-known/assetlinks.json
+2025-11-21T16:26:58.7560495Z 
+2025-11-21T16:26:58.7560899Z ✓ All required files present!

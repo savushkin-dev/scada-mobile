@@ -14,7 +14,7 @@ on:
     # Only trigger on pwa-app or workflow file changes
     paths:
       - "pwa-app/**"
-      - ".github/workflows/deploy-pwa.yml"
+      - ".github/workflows/deploy-pages.yml"
 
   # Manual trigger for emergency deployments
   workflow_dispatch:

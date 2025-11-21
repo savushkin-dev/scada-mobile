@@ -1,0 +1,34 @@
+﻿2025-11-21T16:27:21.4121753Z Current runner version: '2.329.0'
+2025-11-21T16:27:21.4146289Z ##[group]Runner Image Provisioner
+2025-11-21T16:27:21.4147306Z Hosted Compute Agent
+2025-11-21T16:27:21.4148056Z Version: 20251016.436
+2025-11-21T16:27:21.4148647Z Commit: 8ab8ac8bfd662a3739dab9fe09456aba92132568
+2025-11-21T16:27:21.4149398Z Build Date: 2025-10-15T20:44:12Z
+2025-11-21T16:27:21.4149980Z ##[endgroup]
+2025-11-21T16:27:21.4150553Z ##[group]Operating System
+2025-11-21T16:27:21.4151068Z Ubuntu
+2025-11-21T16:27:21.4151615Z 24.04.3
+2025-11-21T16:27:21.4152073Z LTS
+2025-11-21T16:27:21.4152475Z ##[endgroup]
+2025-11-21T16:27:21.4153027Z ##[group]Runner Image
+2025-11-21T16:27:21.4153578Z Image: ubuntu-24.04
+2025-11-21T16:27:21.4154076Z Version: 20251112.124.1
+2025-11-21T16:27:21.4155127Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20251112.124/images/ubuntu/Ubuntu2404-Readme.md
+2025-11-21T16:27:21.4156562Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20251112.124
+2025-11-21T16:27:21.4158094Z ##[endgroup]
+2025-11-21T16:27:21.4159220Z ##[group]GITHUB_TOKEN Permissions
+2025-11-21T16:27:21.4161050Z Contents: read
+2025-11-21T16:27:21.4161583Z Metadata: read
+2025-11-21T16:27:21.4162095Z Pages: write
+2025-11-21T16:27:21.4162626Z ##[endgroup]
+2025-11-21T16:27:21.4164617Z Secret source: Actions
+2025-11-21T16:27:21.4165318Z Prepare workflow directory
+2025-11-21T16:27:21.4486970Z Prepare all required actions
+2025-11-21T16:27:21.4525288Z Getting action download info
+2025-11-21T16:27:21.9829138Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2025-11-21T16:27:22.7030011Z Download action repository 'actions/download-artifact@v4' (SHA:d3f86a106a0bac45b974a628896c90dbdf5c8093)
+2025-11-21T16:27:23.2514802Z Download action repository 'actions/configure-pages@v4' (SHA:1f0c5cde4bc74cd7e1254d0cb4de8d49e9068c7d)
+2025-11-21T16:27:23.7652818Z Download action repository 'actions/upload-pages-artifact@v2' (SHA:a753861a5debcf57bf8b404356158c8e1e33150c)
+2025-11-21T16:27:24.2574356Z Download action repository 'actions/deploy-pages@v2' (SHA:de14547edc9944350dc0481aa5b7afb08e75f254)
+2025-11-21T16:27:24.8832772Z Getting action download info
+2025-11-21T16:27:25.0690181Z ##[error]This request has been automatically failed because it uses a deprecated version of `actions/upload-artifact: v3`. Learn more: https://github.blog/changelog/2024-04-16-deprecation-notice-v3-of-the-artifact-actions/
