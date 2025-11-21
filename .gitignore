@@ -1,14 +1,27 @@
+# Root .gitignore — объединённый
+# Содержимое объединено из корневых и подкаталогов
+
+# -----------------
 # OS files
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# IDE files
+# IDE files (VSCode, JetBrains и пр.)
 .vscode/
 .idea/
+*.iml
 *.swp
 *.swo
 *~
+
+# JetBrains specific (fine-grained)
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
 
 # Temporary files
 /tmp/
@@ -25,6 +38,14 @@ dist/
 build/
 *.min.js
 *.min.css
+
+# Android / Gradle / TWA
+.gradle
+/local.properties
+local.properties
+/captures
+.externalNativeBuild
+.cxx
 
 # Python
 __pycache__/
