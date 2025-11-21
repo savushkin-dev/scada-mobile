@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - "pwa-app/**"
-      - ".github/workflows/deploy-pwa.yml"
+      - ".github/workflows/deploy-pages.yml"
   workflow_dispatch:
 
 permissions:
