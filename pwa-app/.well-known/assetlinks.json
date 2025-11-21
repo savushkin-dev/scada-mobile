@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.savushkin.scada.mobile",
+      "sha256_cert_fingerprints": [
+        "A5:42:03:8F:8F:29:DD:B8:C3:BF:CA:3C:9F:21:1D:9B:F4:82:13:18:A8:94:DB:EE:56:3F:25:D1:07:3E:2D:E4"
+      ]
+    }
+  }
+]
