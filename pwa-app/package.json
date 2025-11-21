@@ -1,0 +1,19 @@
+{
+  "name": "scada-mobile-pwa",
+  "version": "1.0.0",
+  "description": "SCADA Mobile Progressive Web Application",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "keywords": [
+    "pwa",
+    "scada",
+    "mobile"
+  ],
+  "author": "",
+  "license": "ISC"
+}
