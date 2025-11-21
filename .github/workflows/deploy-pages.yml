@@ -1,37 +1,22 @@
 name: Построение PWA в GitHub Pages
 
-# WORKFLOW CONFIGURATION (v2)
-# Automatic PWA deployment to GitHub Pages on push to main branch
-# All actions are explicitly pinned to their latest stable versions
-# No deprecated v3 artifact actions are used in this workflow
-# This file has been completely rewritten to ensure GitHub clears all cached action metadata
-
 # Trigger events for this workflow
 on:
-  # Push trigger on main branch
   push:
     branches: [main]
-    # Only trigger on pwa-app or workflow file changes
     paths:
       - "pwa-app/**"
       - ".github/workflows/deploy-pages.yml"
-
-  # Manual trigger for emergency deployments
   workflow_dispatch:
 
-# Permissions required by GitHub Actions
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Concurrency control - ensure only one deployment at a time
-# Previous runs will be cancelled if new push is triggered
 concurrency:
   group: "pages"
   cancel-in-progress: true
-
-# ========================== BEGIN JOBS ==========================
 
 jobs:
   # ==== STAGE 1: PREPARE AND VALIDATE ====
@@ -51,6 +36,13 @@ jobs:
       - name: Generate timestamp
         id: timestamp
         run: echo "timestamp=$(date -u +'%Y%m%d_%H%M%S')" >> $GITHUB_OUTPUT
+
+      # FORCE: очистка локального кэша runner'а перед загрузкой action'ов
+      - name: Force clear local actions cache
+        run: |
+          echo "🧹 Clearing runner local actions cache..."
+          rm -rf $HOME/.cache/actions || true
+          echo "✅ Local actions cache cleared"
 
       - name: Validate PWA structure
         run: |
@@ -74,6 +66,11 @@ jobs:
       - name: Validate JSON files
         run: |
           echo "✓ Validating JSON files..."
+          # jq может отсутствовать в раннере — устанавливаем при необходимости
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update -y
+            sudo apt-get install -y jq
+          fi
           jq empty pwa-app/manifest.webmanifest && echo "✓ manifest.webmanifest is valid" || {
             echo "✗ ERROR: manifest.webmanifest has invalid JSON"
             exit 1
@@ -84,7 +81,6 @@ jobs:
           }
 
   # ==== STAGE 2: BUILD ====
-jobs:
   build:
     name: Build PWA
     runs-on: ubuntu-latest
@@ -94,8 +90,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # <-- принудительная очистка кэша GitHub Actions -->
-      - name: Clear cached packages
+      # <-- дополнительная очистка кеша пакетов/apt и метаданных (может помочь при "залипании" старых action'ов) -->
+      - name: Clear cached packages (helper)
         uses: awalsh128/cache-apt-pkgs-action@v1.4.3
         with:
           clear-cache: true
@@ -187,7 +183,8 @@ jobs:
         uses: actions/configure-pages@v4
 
       - name: Upload to GitHub Pages
-        uses: actions/upload-pages-artifact@v2
+        # попробуем v3, т.к. в некоторых кейсах v2 transitively тянет deprecated upload-artifact:v3
+        uses: actions/upload-pages-artifact@v3
         with:
           path: "./pwa-app"
 
