@@ -194,6 +194,50 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: "./pwa-app"
+      
+      - name: Wait for artifact registration (poll GitHub API)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+          RUN_ID: ${{ github.run_id }}
+          ARTIFACT_NAME: github-pages
+        run: |
+          echo "⏳ Waiting for artifact '${ARTIFACT_NAME}' to appear for run ${RUN_ID}..."
+          set -euo pipefail
+
+          MAX_RETRIES=20      # сколько попыток
+          SLEEP_SECONDS=5     # пауза между попытками (5s => в сумме ~100s)
+          attempt=0
+
+          while [ $attempt -lt $MAX_RETRIES ]; do
+            attempt=$((attempt + 1))
+            echo "--- try #$attempt ---"
+
+            resp=$(curl -s -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+                       -H "Accept: application/vnd.github.v3+json" \
+                       "https://api.github.com/repos/${OWNER}/${REPO}/actions/runs/${RUN_ID}/artifacts")
+
+            # Проверяем, есть ли поле total_count > 0 и имя артефакта
+            total=$(echo "$resp" | jq -r '.total_count // 0')
+            echo "Found total_count: $total"
+
+            if [ "$total" -gt 0 ]; then
+              found=$(echo "$resp" | jq -r --arg NAME "$ARTIFACT_NAME" '.artifacts[] | select(.name == $NAME) | .id' || true)
+              if [ -n "$found" ]; then
+                echo "✅ Artifact '$ARTIFACT_NAME' is registered (id=$found). Continuing..."
+                exit 0
+              fi
+            fi
+
+            echo "Artifact not found yet; sleeping ${SLEEP_SECONDS}s..."
+            sleep $SLEEP_SECONDS
+          done
+
+          echo "❌ Timeout: artifact '${ARTIFACT_NAME}' did not appear after $((MAX_RETRIES * SLEEP_SECONDS))s."
+          echo "Full response from last attempt:"
+          echo "$resp" | jq .
+          exit 1
 
       - name: Deploy to GitHub Pages
         id: deployment
