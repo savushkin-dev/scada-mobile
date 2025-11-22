@@ -13,32 +13,37 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.ScadaMobile"
-        tools:targetApi="31">
-
-        <!-- Обновленный URL для GitHub Pages -->
-        <meta-data
-            android:name="android.support.customtabs.trusted.DEFAULT_URL"
-            android:value="https://savushkin-dev.github.io/scada-mobile/" />
+        tools:targetApi="31"
+        tools:ignore="GoogleAppIndexingWarning">
 
         <activity
-            android:name=".MainActivity"
+            android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
             android:exported="true">
+
+            <!-- Edit android:value to change the url opened by the Trusted Web Activity -->
+            <meta-data
+                android:name="android.support.customtabs.trusted.DEFAULT_URL"
+                android:value="https://savushkin-dev.github.io/scada-mobile/" />
+
+            <!-- This intent-filter adds the Trusted Web Activity to the Android Launcher -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Intent-filter для Digital Asset Links с HTTPS -->
+            <!--
+              This intent-filter allows the Trusted Web Activity to handle Intents to open site
+            -->
             <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
+                <category android:name="android.intent.category.BROWSABLE"/>
+
+                <!-- Edit android:host to handle links to the target URL-->
                 <data
                     android:scheme="https"
-                    android:host="savushkin-dev.github.io"
-                    android:pathPrefix="/scada-mobile" />
+                    android:host="savushkin-dev.github.io" />
             </intent-filter>
-
         </activity>
     </application>
 
