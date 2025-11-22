@@ -34,7 +34,7 @@
 
 ## 🛠️ Установка и запуск
 
-### Рекомендуемый способ (Node.js сервер)
+### Локальная разработка (Node.js сервер)
 
 ```bash
 # 1. Установите зависимости (только первый раз)
@@ -46,10 +46,21 @@ npm run dev
 
 Сервер автоматически покажет адреса для доступа:
 
-- **Локально на ПК**: `http://localhost:8000/`
-- **С телефона в одной сети**: `http://<IP-адрес-ПК>:8000/` (адрес будет показан в консоли)
+- **Локально на ПК**: `http://localhost:8000/` (dev)
+- **С телефона в одной сети**: `http://<IP-адрес-ПК>:8000/` (dev)
+- **Production (GitHub Pages)**: `https://savushkin-dev.github.io/scada-mobile/`
 
-### Альтернативные способы запуска
+### Автоматический деплой на GitHub Pages
+
+Проект настроен на автоматический деплой при push в main branch:
+
+1. **Любые изменения в папке `pwa-app/`** → GitHub Actions автоматически деплоит
+2. **Production URL**: `https://savushkin-dev.github.io/scada-mobile/`
+3. **Digital Asset Links**: `https://savushkin-dev.github.io/scada-mobile/.well-known/assetlinks.json`
+
+**Workflow:** `.github/workflows/deploy-pwa.yml` (запускается автоматически при push)
+
+### Альтернативные способы локального запуска
 
 ```bash
 # Используя Python
@@ -62,16 +73,22 @@ npx http-server -p 8000
 php -S localhost:8000
 ```
 
-Затем откройте браузер:
+Затем откройте браузер (dev):
 
 ```text
 http://localhost:8000/
 ```
 
+Или откройте production URL (если приложение задеплоено):
+
+```text
+https://savushkin-dev.github.io/scada-mobile/
+```
+
 ### Запуск с Live Server (VS Code)
 
 1. Установите расширение "Live Server" в VS Code
-2. Откройте папку проекта
+2. Откройте папку `pwa-app`
 3. Правой кнопкой мыши на `index.html` → "Open with Live Server"
 
 ## 📱 Установка PWA
