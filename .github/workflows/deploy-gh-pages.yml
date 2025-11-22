@@ -3,6 +3,11 @@ on:
   push:
     branches:
       - main
+    paths:
+      - "pwa-app/**"
+      - ".github/workflows/deploy.yml"
+  # ручной запуск при необходимости
+  workflow_dispatch:
 
 permissions:
   contents: write
