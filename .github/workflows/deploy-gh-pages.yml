@@ -1,0 +1,26 @@
+name: Deploy to gh-pages (from pwa-app)
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # не нужно билдить — просто публикуем pwa-app/
+      - name: Deploy pwa-app to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: ./pwa-app
+          # optional: set user/email for commits:
+          # committer_name: github-actions
+          # committer_email: github-actions@github.com
