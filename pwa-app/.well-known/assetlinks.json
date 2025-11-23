@@ -5,8 +5,7 @@
       "namespace": "android_app",
       "package_name": "com.savushkin.scada.mobile",
       "sha256_cert_fingerprints": [
-        "00:73:3D:D0:45:B7:BE:FD:BE:BA:ED:88:46:E4:B4:5F:2E:50:A7:0D:C5:73:CB:6C:50:E1:F0:A8:C2:95:28:05", 
-        "A5:42:03:8F:8F:29:DD:B8:C3:BF:CA:3C:9F:21:1D:9B:F4:82:13:18:A8:94:DB:EE:56:3F:25:D1:07:3E:2D:E4"
+        "ТУТ_БУДЕТ_ВАШ_СЕРТИФИКАТ_В_ФОРМАТЕ_SHA256"
       ]
     }
   }
