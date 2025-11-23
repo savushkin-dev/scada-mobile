@@ -1,59 +1,104 @@
-# Root .gitignore — объединённый
-# Содержимое объединено из корневых и подкаталогов
+# Root .gitignore — unified for this repository
 
-# -----------------
-# OS files
+########################################
+# OS / Editor
+########################################
+# macOS
 .DS_Store
+# Windows
 Thumbs.db
 desktop.ini
 
-# IDE files (VSCode, JetBrains и пр.)
-.vscode/
-.idea/
-*.iml
+# Vim swap files, backups
 *.swp
 *.swo
 *~
 
-# JetBrains specific (fine-grained)
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+# Visual Studio Code
+.vscode/
+
+# JetBrains IDEs
+.idea/
+*.iml
+
+########################################
+# Node / PWA
+########################################
+# dependencies
+node_modules/
+
+# npm/yarn logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# dotenv
+.env
+.env.*
+
+# build outputs
+dist/
+build/
+
+########################################
+# Android / TWA / Gradle
+########################################
+# Gradle build folders
+.gradle/
+**/build/
+
+# Local Android/Gradle files that must not be committed
+local.properties
+android.keystore
+*.keystore
+*.jks
+key.properties
+
+# Generated packages / artifacts
+*.apk
+*.apks
+*.aab
+app-release-*.apk
+*.idsig
+
+# Android Studio captures and intermediate
+/captures/
+.externalNativeBuild/
+.cxx/
+
+########################################
+# Signing keys and secrets
+########################################
+# Never commit keystores, signing keys or credential files
+**/android.keystore
+**/*.keystore
+**/*.jks
+**/key.properties
+
+########################################
+# IDE / Tooling
+########################################
+# macOS Finder, Thumbs, etc already above
+.idea/
+.vscode/
+/.classpath
+/.project
+/.settings/
+
+########################################
+# Misc
+########################################
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
 
 # Temporary files
 /tmp/
 *.tmp
 *.log
 
-# Node modules (if added in future)
-node_modules/
-package-lock.json
-yarn.lock
+# CI / GitHub Actions artifacts (optional)
+# .github/workflows/*.retry
 
-# Build artifacts
-dist/
-build/
-*.min.js
-*.min.css
-
-# Android / Gradle / TWA
-.gradle
-/local.properties
-local.properties
-/captures
-.externalNativeBuild
-.cxx
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-.Python
-venv/
-env/
-
-# Dependencies cache
-.cache/
+# Keep lock files committed (package-lock.json / yarn.lock) — do not ignore them
