@@ -2,8 +2,8 @@
   "name": "SCADA Mobile Application",
   "short_name": "SCADA Mobile",
   "description": "Модуль выполнения бизнес-логики для мобильного приложения SCADA",
-  "start_url": "/scada-mobile/",
-  "scope": "/scada-mobile/",
+  "start_url": "./",
+  "scope": "./",
 
   "display": "standalone",
 
