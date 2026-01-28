@@ -7,14 +7,17 @@
 ⚠️ Проект находится в активной разработке.
 
 - Сервер (Java/Spring) **ещё не реализован** — папка [backend/](backend/) пока пустая заготовка.
-- Веб‑часть в [frontend/](frontend/) — **тестовый статический PWA**, предназначенный для проверки связки PWA↔TWA (manifest, service worker, offline‑кэш, assetlinks).
+- Веб‑часть в [frontend/](frontend/) — **тестовый статический PWA** (HTML/CSS/JS), предназначенный для проверки связки PWA↔TWA (manifest, service worker, offline‑кэш, assetlinks). Целевой стек: React 18 + TypeScript 5 + Vite (см. [STRUCTURE.md](STRUCTURE.md)).
 - Android‑оболочка в [android/](android/) — TWA‑контейнер, который запускает веб‑приложение.
 
-Основной актуальный документ по целевой архитектуре и правилам разработки: [STRUCTURE.md](STRUCTURE.md).
+**Основные документы проекта:**
+
+- [STRUCTURE.md](STRUCTURE.md) — целевая архитектура и правила разработки
+- [PROJECT_DIAGRAM.md](PROJECT_DIAGRAM.md) — визуальные диаграммы архитектуры и структуры репозитория (Mermaid)
 
 ## Что уже есть в репозитории
 
-- [frontend/](frontend/) — статический PWA (HTML/CSS/JS) + Service Worker + Web Manifest.
+- [frontend/](frontend/) — статический PWA (HTML/CSS/JS) + Service Worker + Web Manifest. *Текущее состояние — заглушка; целевая архитектура (React/TS) описана в [STRUCTURE.md](STRUCTURE.md).*
 - [android/](android/) — TWA‑проект (Gradle) для упаковки PWA в Android‑приложение.
 - [backend/](backend/) — место под будущий Spring Boot сервер.
 
@@ -25,10 +28,13 @@
 
 ## Целевая архитектура (кратко)
 
-Полная версия — [STRUCTURE.md](STRUCTURE.md). Ключевые принципы:
+Полная версия — [STRUCTURE.md](STRUCTURE.md). Визуальные диаграммы — [PROJECT_DIAGRAM.md](PROJECT_DIAGRAM.md).
+
+**Ключевые принципы:**
 
 - Frontend: только UI и состояние, без секретов и бизнес‑логики.
-- Backend: вся бизнес‑логика, авторизация, валидация, маппинг, real‑time (WebSocket).
+- Backend: вся бизнес‑логика, авторизация, валидация, маппинг, real‑time (WebSocket), интеграция с PrintSrv.
+- PrintSrv: внешний сервер маркировки — источник данных (тегов). Backend подключается к нему как TCP-клиент.
 - Ошибки API: единый формат **Problem+JSON (RFC 7807)**, централизованно через `@ControllerAdvice`.
 
 ## Быстрая проверка текущего прототипа
@@ -59,14 +65,15 @@ python -m http.server 8000
 - Реализовать Spring Boot backend (API + WebSocket) и интеграцию с сервером маркировки (PrintSrv).
 - Перевести веб‑часть от тестового PWA к полноценному UI (React/TS) согласно [STRUCTURE.md](STRUCTURE.md).
 - Стабилизировать процессы CI/CD, генерацию OpenAPI → TypeScript типов, единый формат ошибок.
+- Создать дополнительную документацию: ARCHITECTURE.md, SECURITY.md, ANDROID.md, KEYSTORE.md (см. список в [STRUCTURE.md](STRUCTURE.md)).
 
-**Детали:** Информация о сборке, настройке Digital Asset Links, подписании APK и деплою находятся в файле `twa-mobile/README.md`.
+**Детали:** Информация о сборке, настройке Digital Asset Links, подписании APK и деплою находятся в [android/README.md](android/README.md).
 
 ---
 
-## 6. Тестирование Приложения
+## Тестирование Приложения
 
-### 6.1. Загрузка и Установка APK
+### Загрузка и Установка APK
 
 Для облегчения тестирования преподавателем и другими пользователями, **APK-файл приложения доступен в релизах репозитория** и готов к установке на любое Android-устройство.
 
@@ -79,7 +86,7 @@ python -m http.server 8000
 5. Приложение появится на главном экране
 6. Запустите и протестируйте функциональность
 
-### 6.2. Испытание Функциональности
+### Испытание Функциональности
 
 После установки рекомендуется проверить:
 
@@ -90,7 +97,7 @@ python -m http.server 8000
 
 ---
 
-## 7. Скриншоты
+## Скриншоты
 
 Приложение в работе на мобильном устройстве:
 
