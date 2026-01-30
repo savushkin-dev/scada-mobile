@@ -1,104 +1,207 @@
-# Root .gitignore — unified for this repository
+# Root .gitignore — unified for monorepo
+# Contains rules for: Frontend (PWA), Backend (Kotlin/Spring), Android (TWA)
 
 ########################################
 # OS / Editor
 ########################################
 # macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+
 # Windows
 Thumbs.db
 desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
 
-# Vim swap files, backups
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# Vim/Emacs
 *.swp
 *.swo
 *~
+\#*\#
+.#*
+
+########################################
+# IDE / Tooling
+########################################
+# JetBrains IDEs (IntelliJ IDEA, WebStorm, Android Studio)
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
 
 # Visual Studio Code
 .vscode/
+*.code-workspace
 
-# JetBrains IDEs
-.idea/
-*.iml
+# Eclipse
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+bin/
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
 
 ########################################
-# Node / PWA
+# Node / JavaScript / PWA (Frontend)
 ########################################
-# dependencies
+# Dependencies
 node_modules/
+jspm_packages/
 
-# npm/yarn logs
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
 
-# dotenv
+# Environment variables (may contain secrets!)
 .env
 .env.*
+!.env.example
 
-# build outputs
+# Build outputs
 dist/
-build/
+.cache/
+.parcel-cache/
+
+# Service Worker cache (if generated)
+workbox-*.js
+
+########################################
+# Kotlin / Gradle / Spring Boot (Backend)
+########################################
+# Gradle
+.gradle/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Gradle Kotlin DSL
+.kotlin/
+
+# Spring Boot
+*.log
+*.gz
+spring-shell.log
+
+# Maven (if used)
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
 
 ########################################
 # Android / TWA / Gradle
 ########################################
-# Gradle build folders
-.gradle/
-**/build/
-
-# Local Android/Gradle files that must not be committed
+# Local configuration files
 local.properties
+
+# Gradle build folders (already covered above, but being explicit)
+android/.gradle/
+android/**/build/
+android/app/build/
+
+# Generated APKs, AABs, and signatures
+*.apk
+*.apks
+*.aab
+*.ap_
+*.idsig
+app-release-*.apk
+app-release-*.aab
+
+# Android Studio captures and native build
+captures/
+.externalNativeBuild/
+.cxx/
+
+# NDK
+obj/
+
+# Manifest checksum (generated)
+manifest-checksum.txt
+
+########################################
+# SECURITY: Signing Keys & Secrets
+########################################
+# NEVER commit keystores, signing keys, or credentials!
 android.keystore
 *.keystore
 *.jks
 key.properties
-
-# Generated packages / artifacts
-*.apk
-*.apks
-*.aab
-app-release-*.apk
-*.idsig
-
-# Android Studio captures and intermediate
-/captures/
-.externalNativeBuild/
-.cxx/
-
-########################################
-# Signing keys and secrets
-########################################
-# Never commit keystores, signing keys or credential files
 **/android.keystore
 **/*.keystore
 **/*.jks
 **/key.properties
 
-########################################
-# IDE / Tooling
-########################################
-# macOS Finder, Thumbs, etc already above
-.idea/
-.vscode/
-/.classpath
-/.project
-/.settings/
+# Google Services (if using Firebase, etc.)
+google-services.json
+GoogleService-Info.plist
 
 ########################################
-# Misc
+# Python (if any scripts)
 ########################################
-# Python
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
 
+########################################
+# Temporary & System Files
+########################################
 # Temporary files
-/tmp/
+tmp/
 *.tmp
+*.temp
+*.bak
+*.cache
+
+# Logs
 *.log
 
-# CI / GitHub Actions artifacts (optional)
+# OS-specific
+.Spotlight-V100
+.Trashes
+
+########################################
+# CI/CD & Deployment
+########################################
+# CI artifacts (optional — uncomment if needed)
 # .github/workflows/*.retry
 
-# Keep lock files committed (package-lock.json / yarn.lock) — do not ignore them
+# Deployment files (optional)
+# .netlify/
+
+########################################
+# KEEP COMMITTED (do NOT ignore)
+########################################
+# Lock files — SHOULD be committed for reproducible builds
+# package-lock.json
+# yarn.lock
+# gradle/wrapper/gradle-wrapper.jar
