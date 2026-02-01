@@ -5,10 +5,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Objects;
 
-public class QueryAllRequestDTO {
-    private final String deviceName;
-    private final String command;
-
+/**
+ * DTO запроса для команды QueryAll.
+ * Считывает ВСЕ теги ВСЕХ юнитов устройства.
+ */
+public record QueryAllRequestDTO(String deviceName, String command) {
     @JsonCreator
     public QueryAllRequestDTO(
             @JsonProperty("DeviceName") String deviceName,
@@ -18,23 +19,10 @@ public class QueryAllRequestDTO {
         this.command = command;
     }
 
-    public String getDeviceName() {
-        return deviceName;
-    }
-
-    public String getCommand() {
-        return command;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (!(o instanceof QueryAllRequestDTO that)) return false;
         return Objects.equals(deviceName, that.deviceName) && Objects.equals(command, that.command);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(deviceName, command);
     }
 
     @Override

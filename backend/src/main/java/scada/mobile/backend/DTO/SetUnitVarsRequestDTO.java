@@ -5,14 +5,16 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Objects;
 
-public class SetUnitVarsDTO {
-    private final String deviceName;
-    private final int unit;
-    private final String command;
-    private final ParametersDTO parameters;
-
+/**
+ * DTO запроса для команды SetUnitVars.
+ * <p>
+ * ВАЖНО: Unit — целое число (1, 2, 3...), НЕ строка "u1"!
+ * Нумерация 1-based: Unit=1 соответствует юниту "u1".
+ * Можно передавать несколько параметров сразу.
+ */
+public record SetUnitVarsRequestDTO(String deviceName, int unit, String command, ParametersDTO parameters) {
     @JsonCreator
-    public SetUnitVarsDTO(
+    public SetUnitVarsRequestDTO(
             @JsonProperty("DeviceName") String deviceName,
             @JsonProperty("Unit") int unit,
             @JsonProperty("Command") String command,
@@ -24,36 +26,15 @@ public class SetUnitVarsDTO {
         this.parameters = parameters;
     }
 
-    public String getDeviceName() {
-        return deviceName;
-    }
-
-    public int getUnit() {
-        return unit;
-    }
-
-    public String getCommand() {
-        return command;
-    }
-
-    public ParametersDTO getParameters() {
-        return parameters;
-    }
-
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof SetUnitVarsDTO that)) return false;
+        if (!(o instanceof SetUnitVarsRequestDTO that)) return false;
         return unit == that.unit && Objects.equals(deviceName, that.deviceName) && Objects.equals(command, that.command) && Objects.equals(parameters, that.parameters);
     }
 
     @Override
-    public int hashCode() {
-        return Objects.hash(deviceName, unit, command, parameters);
-    }
-
-    @Override
     public String toString() {
-        return "SetUnitVarsDTO{" +
+        return "SetUnitVarsRequestDTO{" +
                 "deviceName='" + deviceName + '\'' +
                 ", unit=" + unit +
                 ", command='" + command + '\'' +

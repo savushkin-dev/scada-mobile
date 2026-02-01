@@ -1,23 +1,34 @@
 package scada.mobile.backend.DTO;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Objects;
+import java.util.Optional;
 
+/**
+ * DTO для юнита в ответах PrintSrv.
+ * <p>
+ * ВАЖНО: Поле counter является Optional потому что:
+ * - QueryAll_response: содержит Counter
+ * - SetUnitVars_response: НЕ содержит Counter (отсутствует в JSON)
+ * <p>
+ * JsonInclude(NON_NULL) гарантирует, что Null поля не сериализуются в JSON.
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class UnitsDTO {
     private final String state;
     private final String task;
-    private final int counter;
+    private final Integer counter;  // Integer (not int) - может быть null в SetUnitVars ответе
     private final PropertiesDTO properties;
 
     @JsonCreator
     public UnitsDTO(
             @JsonProperty("State") String state,
             @JsonProperty("Task") String task,
-            @JsonProperty("Counter") int counter,
-            @JsonProperty("Properties") PropertiesDTO properties
-    ) {
+            @JsonProperty("Counter") Integer counter,
+            @JsonProperty("Properties") PropertiesDTO properties) {
         this.state = state;
         this.task = task;
         this.counter = counter;
@@ -32,8 +43,12 @@ public class UnitsDTO {
         return task;
     }
 
-    public int getCounter() {
-        return counter;
+    /**
+     * Счётчик операций юнита.
+     * Optional потому что в ответе SetUnitVars это поле отсутствует.
+     */
+    public Optional<Integer> getCounter() {
+        return Optional.ofNullable(counter);
     }
 
     public PropertiesDTO getProperties() {
@@ -42,8 +57,11 @@ public class UnitsDTO {
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof UnitsDTO unitsDTO)) return false;
-        return counter == unitsDTO.counter && Objects.equals(state, unitsDTO.state) && Objects.equals(task, unitsDTO.task) && Objects.equals(properties, unitsDTO.properties);
+        if (!(o instanceof UnitsDTO that)) return false;
+        return Objects.equals(counter, that.counter)
+                && Objects.equals(state, that.state)
+                && Objects.equals(task, that.task)
+                && Objects.equals(properties, that.properties);
     }
 
     @Override

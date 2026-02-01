@@ -9,17 +9,17 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * DTO ответа на команду QueryAll.
- * Содержит полный снимок состояния всех юнитов устройства.
+ * DTO ответа на команду SetUnitVars.
+ * Содержит ТОЛЬКО изменённые поля (частичный ответ).
+ * Для получения полного состояния используйте QueryAll.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record QueryAllResponseDTO(String deviceName, String command, Map<String, UnitsDTO> units) {
+public record SetUnitVarsResponseDTO(String deviceName, String command, Map<String, UnitsDTO> units) {
     @JsonCreator
-    public QueryAllResponseDTO(
+    public SetUnitVarsResponseDTO(
             @JsonProperty("DeviceName") String deviceName,
             @JsonProperty("Command") String command,
-            @JsonProperty("Units") Map<String, UnitsDTO> units
-    ) {
+            @JsonProperty("Units") Map<String, UnitsDTO> units) {
         this.deviceName = deviceName;
         this.command = command;
         this.units = new HashMap<>(units);
@@ -32,13 +32,13 @@ public record QueryAllResponseDTO(String deviceName, String command, Map<String,
 
     @Override
     public boolean equals(Object o) {
-        if (!(o instanceof QueryAllResponseDTO that)) return false;
+        if (!(o instanceof SetUnitVarsResponseDTO that)) return false;
         return Objects.equals(deviceName, that.deviceName) && Objects.equals(command, that.command) && Objects.equals(units, that.units);
     }
 
     @Override
     public String toString() {
-        return "QueryAllResponseDTO{" +
+        return "SetUnitVarsResponseDTO{" +
                 "deviceName='" + deviceName + '\'' +
                 ", command='" + command + '\'' +
                 ", units=" + units +

@@ -1,7 +1,7 @@
 # Документация API PrintSrv
 
-> **Документация составлена на основе реверс-инжиниринга сервера MarkPrintServer.exe и тестирования протокола.**  
-> Последнее обновление: 30 января 2026 г.
+> **Документация составлена на основе реверс-инжиниринга сервера MarkPrintServer.exe и тестирования протокола.**
+> Последнее обновление: 1 февраля 2026 г.
 
 ## Общая информация
 
@@ -84,7 +84,7 @@ Device (устройство, например "Line")
 }
 ```
 
-**Ответ:**
+**Ответ (реальный пример):**
 
 ```json
 {
@@ -96,14 +96,29 @@ Device (устройство, например "Line")
       "Task": "",
       "Counter": 0,
       "Properties": {
-        "command": "555",
-        "message": "555",
+        "command": "766",
         "Error": "0",
         "ErrorMessage": "",
         "CurItem": "1605 | 147 | 19.08.2025",
+        "message": "766",
+        "batchIdCodesQueue": "0",
+        "setBatchID": "0",
+        "devChangeBatch": "",
+        "devType": "10",
         "batchId": "",
+        "devsChangeBatchIDQueueControl": "",
         "cmdsuccess": "0",
-        "ST": "0"
+        "ST": "0",
+        "enableErrors": "0",
+        "OnChangeBatchPrinters": "Level1Printers",
+        "Level1Printers": "Printer11,Printer12,Printer13,Printer14",
+        "Level2Printers": "Printer2",
+        "OnChangeBatchCams": "Level1Cams",
+        "Level1Cams": "CamChecker1,CamChecker2,CamAgregation1,CamAgregation2",
+        "Level2Cams": "",
+        "SignalCams": "",
+        "LineDevices": "CamChecker1,CamChecker2,CamAgregation1,CamAgregationBox1,CamAgregationBox2,Printer11,Printer12,Printer13,Printer14",
+        "LineID": "5"
       }
     }
   }
@@ -114,7 +129,6 @@ Device (устройство, например "Line")
 
 - Возвращает ВСЕ юниты со ВСЕМИ тегами
 - Нет возможности запросить только один юнит (такой команды нет)
-- Используйте для: мониторинга, проверки результата после SetUnitVars
 
 ---
 
@@ -139,34 +153,27 @@ Device (устройство, например "Line")
 - Нумерация **1-based**: Unit=1 соответствует юниту "u1"
 - Можно передавать несколько параметров сразу
 
-**Ответ:**
-
-```
-Fail
-```
-
-⚠️ **ОСОБЕННОСТЬ СЕРВЕРА:** Команда SetUnitVars **всегда возвращает `"Fail"`**, даже при успешном выполнении! Это баг/особенность сервера.
-
-**Как проверить, что команда выполнилась:**
-
-1. Отправьте SetUnitVars
-2. Игнорируйте ответ "Fail"
-3. Сделайте QueryAll
-4. Проверьте, изменилось ли значение тега
-
-**Пример установки нескольких тегов:**
+**Ответ (реальный пример):**
 
 ```json
 {
   "DeviceName": "Line",
-  "Unit": 1,
   "Command": "SetUnitVars",
-  "Parameters": {
-    "command": "777",
-    "batchId": "12345"
+  "Units": {
+    "u1": {
+      "State": "",
+      "Task": "",
+      "Properties": {
+        "command": "1111"
+      }
+    }
   }
 }
 ```
+
+**Важное примечание:
+
+Ответ на `SetUnitVars` возвращает **только изменённые поля** (т.е. те, которые были переданы в запросе). Это **частичный ответ**, а не полный снимок состояния. Для получения полного состояния используйте `QueryAll`.
 
 ---
 
@@ -174,14 +181,32 @@ Fail
 
 | Тег | Описание |
 |-----|----------|
-| `command` | Команда для выполнения (целое число) |
+| `command` | Команда для выполнения (целое число в виде строки) |
 | `message` | Результат обработки (копируется из command скриптом) |
 | `Error` | Код ошибки ("0" = нет ошибки) |
 | `ErrorMessage` | Текст ошибки |
-| `cmdsuccess` | Признак успешного выполнения |
-| `CurItem` | Текущий элемент |
-| `batchId` | ID партии |
+| `cmdsuccess` | Признак успешного выполнения ("0" = нет, "1" = да) |
 | `ST` | Статус |
+| `Counter` | Счётчик операций юнита (число) |
+| `State` | Состояние юнита |
+| `Task` | Задача юнита |
+| `batchId` | ID текущей партии |
+| `CurItem` | Текущий элемент (формат: "код | кол-во | дата") |
+| `batchIdCodesQueue` | Очередь ID партий |
+| `setBatchID` | Установка ID партии |
+| `devChangeBatch` | Изменение партии устройством |
+| `devsChangeBatchIDQueueControl` | Контроль очереди смены партий |
+| `devType` | Тип устройства (строка, например "10") |
+| `LineID` | ID линии (строка, например "5") |
+| `OnChangeBatchPrinters` | Используемая группа принтеров при смене партии |
+| `Level1Printers` | Принтеры уровня 1 (через запятую) |
+| `Level2Printers` | Принтеры уровня 2 |
+| `OnChangeBatchCams` | Используемая группа камер при смене партии |
+| `Level1Cams` | Камеры уровня 1 (через запятую) |
+| `Level2Cams` | Камеры уровня 2 |
+| `SignalCams` | Сигнальные камеры |
+| `LineDevices` | Все устройства на линии (через запятую) |
+| `enableErrors` | Включить обработку ошибок ("0" = нет, "1" = да) |
 
 ---
 
@@ -205,97 +230,6 @@ if 'command' in a:
             unit1.setProperty('message', 'Error')
             debugsys('Except: ' + traceback.format_exc())
     unit1.setProperty('cmdsuccess', '0')
-```
-
----
-
-## Пример Java-клиента
-
-```java
-public class PrintServerClient {
-    private static final byte[] MAGIC = {'P', '0', '0', '1'};
-    private static final Charset CHARSET = Charset.forName("windows-1251");
-    
-    private final String host;
-    private final int port;
-    
-    public PrintServerClient(String host, int port) {
-        this.host = host;
-        this.port = port;
-    }
-    
-    /**
-     * Отправляет команду и получает ответ
-     */
-    public String sendCommand(String json) throws IOException {
-        try (Socket socket = new Socket(host, port)) {
-            socket.setSoTimeout(5000);
-            DataOutputStream out = new DataOutputStream(socket.getOutputStream());
-            DataInputStream in = new DataInputStream(socket.getInputStream());
-            
-            // Отправка
-            byte[] data = json.getBytes(CHARSET);
-            out.write(MAGIC);
-            out.writeInt(data.length);  // Big Endian по умолчанию в Java
-            out.write(data);
-            out.flush();
-            
-            // Получение ответа
-            byte[] magic = new byte[4];
-            in.readFully(magic);
-            int length = in.readInt();
-            byte[] response = new byte[length];
-            in.readFully(response);
-            
-            return new String(response, CHARSET);
-        }
-    }
-    
-    /**
-     * Получить все теги устройства
-     */
-    public String queryAll(String deviceName) throws IOException {
-        String json = String.format(
-            "{\"DeviceName\":\"%s\",\"Command\":\"QueryAll\"}", 
-            deviceName
-        );
-        return sendCommand(json);
-    }
-    
-    /**
-     * Установить значение тега
-     * @param unitNumber номер юнита (1-based: 1=u1, 2=u2, ...)
-     * 
-     * ВАЖНО: Возвращает "Fail" даже при успехе! Проверяйте через queryAll.
-     */
-    public String setUnitVar(String deviceName, int unitNumber, 
-                             String tagName, String value) throws IOException {
-        String json = String.format(
-            "{\"DeviceName\":\"%s\",\"Unit\":%d,\"Command\":\"SetUnitVars\"," +
-            "\"Parameters\":{\"%s\":\"%s\"}}", 
-            deviceName, unitNumber, tagName, value
-        );
-        return sendCommand(json);
-    }
-}
-```
-
-### Использование
-
-```java
-PrintServerClient client = new PrintServerClient("127.0.0.1", 10101);
-
-// 1. Читаем текущие значения
-String before = client.queryAll("Line");
-System.out.println("До: " + extractCommandValue(before));
-
-// 2. Устанавливаем новое значение (Unit=1 для u1!)
-String result = client.setUnitVar("Line", 1, "command", "999");
-// result будет "Fail" - это нормально!
-
-// 3. Проверяем через QueryAll
-String after = client.queryAll("Line");
-System.out.println("После: " + extractCommandValue(after));
 ```
 
 ---
@@ -331,11 +265,6 @@ new String(response, StandardCharsets.UTF_8);
 // ✅ ПРАВИЛЬНО
 new String(response, Charset.forName("windows-1251"));
 ```
-
-### ❌ SetUnitVars возвращает "Fail"
-
-**Это НЕ ошибка!** Сервер всегда возвращает "Fail" для SetUnitVars.  
-Проверяйте результат через QueryAll.
 
 ---
 
@@ -378,7 +307,6 @@ new String(response, Charset.forName("windows-1251"));
 1. Принимать REST-запросы от мобильного приложения
 2. Преобразовывать их в TCP-команды для PrintSrv
 3. Кешировать данные QueryAll (сервер отдаёт ВСЕ данные)
-4. Обрабатывать особенность с "Fail" ответом
 
 ---
 
@@ -399,13 +327,12 @@ new String(response, Charset.forName("windows-1251"));
 │ SetUnitVars:  {"DeviceName":"Line","Unit":1,                 │
 │                "Command":"SetUnitVars",                      │
 │                "Parameters":{"command":"555"}}               │
-│               → возвращает "Fail" (это нормально!)           │
-│               → проверяйте результат через QueryAll          │
+│               → возвращает ТОЛЬКО изменённые поля           │
+│               → для полного состояния используйте QueryAll   │
 ├──────────────────────────────────────────────────────────────┤
 │ ВАЖНО:                                                       │
 │ • Unit — ЧИСЛО (1,2,3...), не строка "u1"!                   │
 │ • Нумерация 1-based: Unit=1 → u1                             │
-│ • SetUnitVars всегда "Fail" — это баг сервера                │
 │ • Нет команды для чтения одного юнита — только QueryAll      │
 └──────────────────────────────────────────────────────────────┘
 ```

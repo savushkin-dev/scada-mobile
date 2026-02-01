@@ -2,93 +2,110 @@ package scada.mobile.backend.DTO;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.util.Objects;
 
-public class PropertiesDTO {
-    private final int command;
-    private final int message;
-    private final String error;
-    private final String errorMessage;
-    private final String curItem;
-    private final String batchId;
-    private final String cmdSuccess;
-    private final String ST;
-
+/**
+ * DTO для свойств юнита.
+ * Все поля строковые для совместимости с JSON-форматом PrintSrv.
+ * Поля могут отсутствовать в некоторых ответах (например, SetUnitVars возвращает только изменённые поля).
+ *
+ * @param command               Основные поля состояния
+ * @param error                 Поля ошибок
+ * @param st                    Поля статуса ST - статус
+ * @param batchId               Поля партии
+ * @param devType               Поля устройства
+ * @param onChangeBatchPrinters Поля принтеров
+ * @param onChangeBatchCams     Поля камер
+ * @param lineDevices           Общие устройства
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public record PropertiesDTO(String command, String message, String error, String errorMessage, String cmdSuccess,
+                            String st, String batchId, String curItem, String batchIdCodesQueue, String setBatchId,
+                            String devChangeBatch, String devsChangeBatchIdQueueControl, String devType, String lineId,
+                            String onChangeBatchPrinters, String level1Printers, String level2Printers,
+                            String onChangeBatchCams, String level1Cams, String level2Cams, String signalCams,
+                            String lineDevices, String enableErrors) {
     @JsonCreator
     public PropertiesDTO(
-            @JsonProperty("command") int command,
-            @JsonProperty("message") int message,
+            @JsonProperty("command") String command,
+            @JsonProperty("message") String message,
             @JsonProperty("Error") String error,
             @JsonProperty("ErrorMessage") String errorMessage,
-            @JsonProperty("CurItem") String curItem,
-            @JsonProperty("batchId") String batchId,
             @JsonProperty("cmdsuccess") String cmdSuccess,
-            @JsonProperty("ST") String ST) {
+            @JsonProperty("ST") String st,
+            @JsonProperty("batchId") String batchId,
+            @JsonProperty("CurItem") String curItem,
+            @JsonProperty("batchIdCodesQueue") String batchIdCodesQueue,
+            @JsonProperty("setBatchID") String setBatchId,
+            @JsonProperty("devChangeBatch") String devChangeBatch,
+            @JsonProperty("devsChangeBatchIDQueueControl") String devsChangeBatchIdQueueControl,
+            @JsonProperty("devType") String devType,
+            @JsonProperty("LineID") String lineId,
+            @JsonProperty("OnChangeBatchPrinters") String onChangeBatchPrinters,
+            @JsonProperty("Level1Printers") String level1Printers,
+            @JsonProperty("Level2Printers") String level2Printers,
+            @JsonProperty("OnChangeBatchCams") String onChangeBatchCams,
+            @JsonProperty("Level1Cams") String level1Cams,
+            @JsonProperty("Level2Cams") String level2Cams,
+            @JsonProperty("SignalCams") String signalCams,
+            @JsonProperty("LineDevices") String lineDevices,
+            @JsonProperty("enableErrors") String enableErrors
+    ) {
         this.command = command;
         this.message = message;
         this.error = error;
         this.errorMessage = errorMessage;
-        this.curItem = curItem;
-        this.batchId = batchId;
         this.cmdSuccess = cmdSuccess;
-        this.ST = ST;
+        this.st = st;
+        this.batchId = batchId;
+        this.curItem = curItem;
+        this.batchIdCodesQueue = batchIdCodesQueue;
+        this.setBatchId = setBatchId;
+        this.devChangeBatch = devChangeBatch;
+        this.devsChangeBatchIdQueueControl = devsChangeBatchIdQueueControl;
+        this.devType = devType;
+        this.lineId = lineId;
+        this.onChangeBatchPrinters = onChangeBatchPrinters;
+        this.level1Printers = level1Printers;
+        this.level2Printers = level2Printers;
+        this.onChangeBatchCams = onChangeBatchCams;
+        this.level1Cams = level1Cams;
+        this.level2Cams = level2Cams;
+        this.signalCams = signalCams;
+        this.lineDevices = lineDevices;
+        this.enableErrors = enableErrors;
     }
 
-    public int getCommand() {
-        return command;
-    }
-
-    public int getMessage() {
-        return message;
-    }
-
-    public String getError() {
-        return error;
-    }
-
-    public String getErrorMessage() {
-        return errorMessage;
-    }
-
-    public String getCurItem() {
-        return curItem;
-    }
-
-    public String getBatchId() {
-        return batchId;
-    }
-
-    public String getCmdSuccess() {
-        return cmdSuccess;
-    }
-
-    public String getST() {
-        return ST;
-    }
+    // Getters
 
     @Override
     public boolean equals(Object o) {
         if (!(o instanceof PropertiesDTO that)) return false;
-        return command == that.command && message == that.message && Objects.equals(error, that.error) && Objects.equals(errorMessage, that.errorMessage) && Objects.equals(curItem, that.curItem) && Objects.equals(batchId, that.batchId) && Objects.equals(cmdSuccess, that.cmdSuccess) && Objects.equals(ST, that.ST);
+        return Objects.equals(command, that.command)
+                && Objects.equals(message, that.message)
+                && Objects.equals(error, that.error)
+                && Objects.equals(errorMessage, that.errorMessage)
+                && Objects.equals(cmdSuccess, that.cmdSuccess)
+                && Objects.equals(st, that.st)
+                && Objects.equals(batchId, that.batchId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(command, message, error, errorMessage, curItem, batchId, cmdSuccess, ST);
+        return Objects.hash(command, message, error, errorMessage, cmdSuccess, st, batchId);
     }
 
     @Override
     public String toString() {
         return "PropertiesDTO{" +
-                "command=" + command +
-                ", message=" + message +
+                "command='" + command + '\'' +
+                ", message='" + message + '\'' +
                 ", error='" + error + '\'' +
                 ", errorMessage='" + errorMessage + '\'' +
-                ", curItem='" + curItem + '\'' +
-                ", batchId='" + batchId + '\'' +
                 ", cmdSuccess='" + cmdSuccess + '\'' +
-                ", ST='" + ST + '\'' +
-                '}';
+                ", st='" + st + '\'' +
+                ", ...}";
     }
 }
