@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: scada.mobile.backend
+
+
+# Configuration для PrintSrvClient
+printsrv:
+  ip: 127.0.0.1
+  port: 10101
