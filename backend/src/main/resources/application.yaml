@@ -7,3 +7,9 @@ spring:
 printsrv:
   ip: 127.0.0.1
   port: 10101
+  pool:
+    size: 5
+
+logging:
+  level:
+    dev.savushkin.scada.mobile.backend.client: DEBUG
