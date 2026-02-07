@@ -12,14 +12,14 @@ import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
 @Component
-public class SocketTransport_new {
+public class SocketTransport {
 
     private static final byte[] MAGIC = new byte[]{'P', '0', '0', '1'};
     private static final Charset CHARSET = Charset.forName("windows-1251");
 
-    private final SocketManager_new socketManager;
+    private final SocketManager socketManager;
 
-    public SocketTransport_new(SocketManager_new socketManager) {
+    public SocketTransport(SocketManager socketManager) {
         this.socketManager = socketManager;
     }
 

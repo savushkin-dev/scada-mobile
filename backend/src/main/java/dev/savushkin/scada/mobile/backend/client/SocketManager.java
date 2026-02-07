@@ -8,12 +8,12 @@ import java.io.IOException;
 import java.net.Socket;
 
 @Component
-public class SocketManager_new {
+public class SocketManager {
     private final String IP;
     private final int PORT;
     private Socket socket;
 
-    private SocketManager_new(
+    private SocketManager(
             @Value("${printsrv.ip}") String ip,
             @Value("${printsrv.port}") int port
     ) {

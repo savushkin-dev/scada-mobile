@@ -5,10 +5,11 @@ import dev.savushkin.scada.mobile.backend.dto.SetUnitVarsResponseDTO;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
+// TODO: выполнять запрос раз в секунду и сохранять значения
 @Component
-public class SetUnitVars_new extends AbstractSocketCommand_new<SetUnitVarsRequestDTO, SetUnitVarsResponseDTO> {
+public class SetUnitVars extends AbstractSocketCommand<SetUnitVarsRequestDTO, SetUnitVarsResponseDTO> {
 
-    public SetUnitVars_new(SocketTransport_new socketTransport, ObjectMapper objectMapper) {
+    public SetUnitVars(SocketTransport socketTransport, ObjectMapper objectMapper) {
         super(socketTransport, objectMapper);
     }
 

@@ -5,10 +5,11 @@ import dev.savushkin.scada.mobile.backend.dto.QueryAllResponseDTO;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 
+// TODO: выполнять запрос раз в секунду и сохранять значения
 @Component
-public class QueryAllCommand_new extends AbstractSocketCommand_new<QueryAllRequestDTO, QueryAllResponseDTO> {
+public class QueryAllCommand extends AbstractSocketCommand<QueryAllRequestDTO, QueryAllResponseDTO> {
 
-    public QueryAllCommand_new(SocketTransport_new socketTransport, ObjectMapper objectMapper) {
+    public QueryAllCommand(SocketTransport socketTransport, ObjectMapper objectMapper) {
         super(socketTransport, objectMapper);
     }
 
