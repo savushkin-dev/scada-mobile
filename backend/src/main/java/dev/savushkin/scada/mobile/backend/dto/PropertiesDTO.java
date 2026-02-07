@@ -3,15 +3,16 @@ package dev.savushkin.scada.mobile.backend.dto;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.jspecify.annotations.NonNull;
 
 import java.util.Objects;
 
 /**
  * DTO для свойств юнита.
- * Все поля строковые для совместимости с JSON-форматом PrintSrv.
  * Поля могут отсутствовать в некоторых ответах (например, SetUnitVars возвращает только изменённые поля).
+ * ВАЖНО: command - Integer (целое число), не String!
  *
- * @param command               Основные поля состояния
+ * @param command               Команда (целое число)
  * @param error                 Поля ошибок
  * @param st                    Поля статуса ST - статус
  * @param batchId               Поля партии
@@ -21,7 +22,7 @@ import java.util.Objects;
  * @param lineDevices           Общие устройства
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record PropertiesDTO(String command, String message, String error, String errorMessage, String cmdSuccess,
+public record PropertiesDTO(Integer command, String message, String error, String errorMessage, String cmdSuccess,
                             String st, String batchId, String curItem, String batchIdCodesQueue, String setBatchId,
                             String devChangeBatch, String devsChangeBatchIdQueueControl, String devType, String lineId,
                             String onChangeBatchPrinters, String level1Printers, String level2Printers,
@@ -29,7 +30,7 @@ public record PropertiesDTO(String command, String message, String error, String
                             String lineDevices, String enableErrors) {
     @JsonCreator
     public PropertiesDTO(
-            @JsonProperty("command") String command,
+            @JsonProperty("command") Integer command,
             @JsonProperty("message") String message,
             @JsonProperty("Error") String error,
             @JsonProperty("ErrorMessage") String errorMessage,
@@ -98,7 +99,7 @@ public record PropertiesDTO(String command, String message, String error, String
     }
 
     @Override
-    public String toString() {
+    public @NonNull String toString() {
         return "PropertiesDTO{" +
                 "command='" + command + '\'' +
                 ", message='" + message + '\'' +

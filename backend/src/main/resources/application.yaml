@@ -10,4 +10,4 @@ printsrv:
 
 logging:
   level:
-    dev.savushkin.scada.mobile.backend.client: DEBUG
+    dev.savushkin.scada.mobile.backend: DEBUG

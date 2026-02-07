@@ -97,7 +97,7 @@ Device (устройство, например "Line")
       "Task": "",
       "Counter": 0,
       "Properties": {
-        "command": "766",
+          "command": 766,
         "Error": "0",
         "ErrorMessage": "",
         "CurItem": "1605 | 147 | 19.08.2025",
@@ -143,7 +143,7 @@ Device (устройство, например "Line")
   "Unit": 1,
   "Command": "SetUnitVars",
   "Parameters": {
-    "command": "555"
+      "command": 555
   }
 }
 ```
@@ -151,6 +151,7 @@ Device (устройство, например "Line")
 ⚠️ **КРИТИЧЕСКИ ВАЖНО:**
 
 - `Unit` — **целое число** (1, 2, 3...), НЕ строка "u1"!
+- `command` в `Parameters` — **целое число** (555, 1111...), НЕ строка "555"!
 - Нумерация **1-based**: Unit=1 соответствует юниту "u1"
 - Можно передавать несколько параметров сразу
 
@@ -165,7 +166,7 @@ Device (устройство, например "Line")
       "State": "",
       "Task": "",
       "Properties": {
-        "command": "1111"
+          "command": 1111
       }
     }
   }
@@ -328,7 +329,7 @@ new String(response, Charset.forName("windows-1251"));
 │                                                              │
 │ SetUnitVars:  {"DeviceName":"Line","Unit":1,                 │
 │                "Command":"SetUnitVars",                      │
-│                "Parameters":{"command":"555"}}               │
+│                "Parameters":{"command":555}}                 │
 │               → возвращает ТОЛЬКО изменённые поля           │
 │               → для полного состояния используйте QueryAll   │
 ├──────────────────────────────────────────────────────────────┤
