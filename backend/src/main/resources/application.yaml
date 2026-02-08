@@ -7,6 +7,16 @@ spring:
 printsrv:
   ip: 127.0.0.1
   port: 10101
+  # Retry configuration для восстановления соединения
+  retry:
+    max-attempts: 5                    # Количество попыток переподключения
+    initial-delay-ms: 200              # Начальная задержка для экспоненциального backoff
+    max-delay-ms: 5000                 # Максимальная задержка между попытками
+    recovery-check-interval-ms: 60000  # Интервал проверки в режиме recovery (1 минута)
+  # Таймауты для Socket операций
+  socket:
+    connect-timeout-ms: 5000           # Таймаут на установку соединения
+    read-timeout-ms: 5000              # Таймаут на чтение данных
 
 logging:
   level:
