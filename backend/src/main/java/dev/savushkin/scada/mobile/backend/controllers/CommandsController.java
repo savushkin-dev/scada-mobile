@@ -43,7 +43,8 @@ public class CommandsController {
      * Получает текущий snapshot состояния PrintSrv.
      * <p>
      * Данные берутся из in-memory хранилища, которое автоматически
-     * обновляется каждые 500ms через ScadaDataPollingService.
+     * обновляется через {@link dev.savushkin.scada.mobile.backend.services.polling.PrintSrvPollingScheduler}
+     * с интервалом, заданным в конфигурации (<code>printsrv.polling.fixed-delay-ms</code>).
      *
      * @return ResponseEntity с полным состоянием PrintSrv (все units и их свойства)
      * @throws IllegalStateException если snapshot еще не загружен (приложение только запустилось)
@@ -61,7 +62,8 @@ public class CommandsController {
      * Изменяет значение команды для указанного unit в PrintSrv.
      * <p>
      * Команда выполняется синхронно через socket-соединение.
-     * Обновленное состояние появится в snapshot при следующем опросе (через ~500ms).
+     * Обновленное состояние появится в snapshot при следующем опросе
+     * (интервал задаётся в конфигурации: <code>printsrv.polling.fixed-delay-ms</code>).
      *
      * @param unit  номер unit (1-based, например: 1 = u1, 2 = u2)
      * @param value новое значение команды (целое число)

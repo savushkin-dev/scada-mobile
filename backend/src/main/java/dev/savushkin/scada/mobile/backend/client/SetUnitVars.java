@@ -17,7 +17,8 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li><b>Синхронное выполнение</b>: вызывается только по REST запросу клиента</li>
  *   <li><b>Частичный ответ</b>: PrintSrv возвращает только измененные поля</li>
- *   <li><b>Автоматическое обновление</b>: полное состояние обновится при следующем polling (~500ms)</li>
+ *   <li><b>Автоматическое обновление</b>: полное состояние обновится при следующем polling
+ *   (интервал задаётся в конфигурации: <code>printsrv.polling.fixed-delay-ms</code>)</li>
  * </ul>
  * <p>
  * Формат запроса: <code>{"DeviceName":"Line","Unit":1,"Command":"SetUnitVars","Parameters":{"command":555}}</code><br>

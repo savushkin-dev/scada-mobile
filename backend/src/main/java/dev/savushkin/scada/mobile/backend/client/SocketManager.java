@@ -93,7 +93,7 @@ public class SocketManager {
      * </ul>
      * <p>
      * <b>Thread-safe:</b> метод синхронизирован для безопасного использования
-     * из нескольких потоков (ScadaDataPollingService + SetUnitVars).
+     * из нескольких потоков (PrintSrvPollingScheduler + SetUnitVars).
      *
      * @return socket-соединение с PrintSrv
      * @throws IOException если не удалось создать соединение

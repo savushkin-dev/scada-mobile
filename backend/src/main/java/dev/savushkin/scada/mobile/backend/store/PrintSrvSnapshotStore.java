@@ -12,14 +12,16 @@ import java.util.concurrent.atomic.AtomicReference;
  * <p>
  * Особенности реализации:
  * <ul>
- *   <li><b>Thread-safe</b>: используется {@link AtomicReference} для безопасного concurrent доступа</li>
+ *   <li><b>Thread-safe</b>: используется {@link java.util.concurrent.atomic.AtomicReference} для безопасного concurrent доступа</li>
  *   <li><b>Без истории</b>: хранит только последний snapshot (экономия памяти)</li>
- *   <li><b>Автоматическое обновление</b>: snapshot обновляется через {@link dev.savushkin.scada.mobile.backend.services.ScadaDataPollingService}</li>
+ *   <li><b>Автоматическое обновление</b>: snapshot обновляется через
+ *   {@link dev.savushkin.scada.mobile.backend.services.polling.PrintSrvPollingScheduler}</li>
  * </ul>
  * <p>
  * Паттерн использования:
  * <ol>
- *   <li>ScadaDataPollingService обновляет snapshot каждые 500ms</li>
+ *   <li>PrintSrvPollingScheduler обновляет snapshot с интервалом, заданным в конфигурации
+ *   (<code>printsrv.polling.fixed-delay-ms</code>)</li>
  *   <li>CommandsService читает snapshot по запросу клиента</li>
  *   <li>Concurrent доступ безопасен благодаря AtomicReference</li>
  * </ol>
@@ -48,7 +50,7 @@ public class PrintSrvSnapshotStore {
      * Сохраняет snapshot состояния PrintSrv.
      * <p>
      * Метод thread-safe и может безопасно вызываться из разных потоков
-     * (например, из scheduled task ScadaDataPollingService).
+     * (например, из scheduled task PrintSrvPollingScheduler).
      * <p>
      * Старый snapshot полностью заменяется новым (без слияния).
      *
@@ -76,7 +78,8 @@ public class PrintSrvSnapshotStore {
      * (например, из REST контроллеров).
      * <p>
      * <b>Важно:</b> Возвращает snapshot на момент вызова метода.
-     * Данные могут устареть через ~500ms (частота polling).
+     * Данные могут устареть примерно на величину интервала polling
+     * (<code>printsrv.polling.fixed-delay-ms</code>).
      *
      * @return последний snapshot или null, если данных ещё нет
      * (приложение только запустилось и первый опрос не выполнен)
