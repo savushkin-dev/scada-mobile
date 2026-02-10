@@ -104,7 +104,7 @@ public class CommandsService {
      * @param unit  номер юнита (1-based, например: 1 = u1, 2 = u2)
      * @param value новое значение команды (целое число)
      * @return acknowledgment ответ с переданными значениями (НЕ реальное состояние из PrintSrv)
-     * @throws IllegalStateException если буфер переполнен (PrintSrv недоступен длительное время)
+     * @throws dev.savushkin.scada.mobile.backend.exception.BufferOverflowException если буфер переполнен (PrintSrv недоступен длительное время)
      */
     public SetUnitVarsResponseDTO setUnitVars(int unit, int value) {
         log.info("Adding SetUnitVars command to buffer: unit={}, value={}", unit, value);
@@ -121,10 +121,7 @@ public class CommandsService {
 
         // Возвращаем acknowledgment ответ (БЕЗ реальных данных из PrintSrv)
         // Клиент узнает результат при следующем GET /query-all
-        PropertiesDTO properties = new PropertiesDTO(
-                value,  // command value
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
-        );
+        PropertiesDTO properties = PropertiesDTO.withCommand(value);
 
         UnitsDTO unitDTO = new UnitsDTO(
                 null,       // state - не известно

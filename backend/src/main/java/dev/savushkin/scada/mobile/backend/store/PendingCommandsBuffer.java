@@ -1,5 +1,6 @@
 package dev.savushkin.scada.mobile.backend.store;
 
+import dev.savushkin.scada.mobile.backend.exception.BufferOverflowException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -50,8 +51,8 @@ public class PendingCommandsBuffer {
      * Это гарантирует, что в PrintSrv будет записано актуальное значение.
      *
      * @param command команда для добавления
-     * @throws IllegalStateException если буфер переполнен (размер >= MAX_BUFFER_SIZE)
-     * @throws NullPointerException  если command == null
+     * @throws BufferOverflowException если буфер переполнен (размер >= MAX_BUFFER_SIZE)
+     * @throws NullPointerException    если command == null
      */
     public void add(PendingWriteCommand command) {
         if (command == null) {
@@ -66,7 +67,7 @@ public class PendingCommandsBuffer {
                     buffer.size(), MAX_BUFFER_SIZE
             );
             log.error(errorMsg);
-            throw new IllegalStateException(errorMsg);
+            throw new BufferOverflowException(errorMsg);
         }
 
         // putIfAbsent + replace для атомарной замены

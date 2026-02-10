@@ -2,6 +2,7 @@ package dev.savushkin.scada.mobile.backend.controllers;
 
 import dev.savushkin.scada.mobile.backend.dto.QueryAllResponseDTO;
 import dev.savushkin.scada.mobile.backend.dto.SetUnitVarsResponseDTO;
+import dev.savushkin.scada.mobile.backend.exception.BufferOverflowException;
 import dev.savushkin.scada.mobile.backend.services.CommandsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,7 +89,7 @@ public class CommandsController {
      * @param unit  номер unit (1-based, например: 1 = u1, 2 = u2)
      * @param value новое значение команды (целое число)
      * @return ResponseEntity с acknowledgment ответом (НЕ реальное состояние из PrintSrv)
-     * @throws IllegalStateException если буфер переполнен (HTTP 503 SERVICE_UNAVAILABLE)
+     * @throws BufferOverflowException если буфер переполнен (HTTP 503 SERVICE_UNAVAILABLE)
      */
     @PostMapping("/setUnitVars")
     public ResponseEntity<SetUnitVarsResponseDTO> setUnitVars(
@@ -110,8 +111,8 @@ public class CommandsController {
      * @param e исключение переполнения буфера
      * @return ResponseEntity с HTTP 503 и сообщением об ошибке
      */
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<Map<String, String>> handleBufferOverflow(IllegalStateException e) {
+    @ExceptionHandler(BufferOverflowException.class)
+    public ResponseEntity<Map<String, String>> handleBufferOverflow(BufferOverflowException e) {
         log.error("Buffer overflow: {}", e.getMessage());
         return ResponseEntity
                 .status(HttpStatus.SERVICE_UNAVAILABLE)

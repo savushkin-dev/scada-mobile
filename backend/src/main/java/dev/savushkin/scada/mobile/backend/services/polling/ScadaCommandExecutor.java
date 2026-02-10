@@ -99,10 +99,21 @@ public class ScadaCommandExecutor {
      *
      * @param command pending команда
      * @return готовый DTO для отправки в PrintSrv
+     * @throws IllegalArgumentException если properties не содержат 'command' или значение не Integer
      */
     private SetUnitVarsRequestDTO buildSetUnitVarsRequest(PendingWriteCommand command) {
-        // Извлекаем command value из properties
-        Integer commandValue = (Integer) command.properties().get("command");
+        // Извлекаем command value из properties с валидацией
+        Object commandObj = command.properties().get("command");
+        if (commandObj == null) {
+            throw new IllegalArgumentException("Command properties must contain 'command' field");
+        }
+        if (!(commandObj instanceof Integer)) {
+            throw new IllegalArgumentException(
+                    "Command value must be Integer, got: " + commandObj.getClass().getSimpleName()
+            );
+        }
+
+        Integer commandValue = (Integer) commandObj;
 
         // Создаем ParametersDTO с command value
         ParametersDTO parameters = new ParametersDTO(commandValue);
