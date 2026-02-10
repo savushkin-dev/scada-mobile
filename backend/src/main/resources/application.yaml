@@ -22,4 +22,5 @@ printsrv:
 
 logging:
   level:
-    dev.savushkin.scada.mobile.backend: DEBUG
+    root: INFO
+    dev.savushkin.scada.mobile.backend: TRACE

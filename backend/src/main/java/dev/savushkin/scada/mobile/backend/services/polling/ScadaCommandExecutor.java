@@ -4,13 +4,14 @@ import dev.savushkin.scada.mobile.backend.client.QueryAllCommand;
 import dev.savushkin.scada.mobile.backend.client.SetUnitVars;
 import dev.savushkin.scada.mobile.backend.dto.*;
 import dev.savushkin.scada.mobile.backend.store.PendingWriteCommand;
+import org.jetbrains.annotations.Contract;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Executor для выполнения SCADA/PrintSrv команд в scan cycle.
@@ -36,8 +37,8 @@ public class ScadaCommandExecutor {
             QueryAllCommand queryAllCommand,
             SetUnitVars setUnitVarsCommand
     ) {
-        this.queryAllCommand = Objects.requireNonNull(queryAllCommand, "queryAllCommand");
-        this.setUnitVarsCommand = Objects.requireNonNull(setUnitVarsCommand, "setUnitVarsCommand");
+        this.queryAllCommand = queryAllCommand;
+        this.setUnitVarsCommand = setUnitVarsCommand;
         log.info("ScadaCommandExecutor initialized");
     }
 
@@ -101,19 +102,18 @@ public class ScadaCommandExecutor {
      * @return готовый DTO для отправки в PrintSrv
      * @throws IllegalArgumentException если properties не содержат 'command' или значение не Integer
      */
-    private SetUnitVarsRequestDTO buildSetUnitVarsRequest(PendingWriteCommand command) {
+    @Contract("_ -> new")
+    private @NonNull SetUnitVarsRequestDTO buildSetUnitVarsRequest(@NonNull PendingWriteCommand command) {
         // Извлекаем command value из properties с валидацией
         Object commandObj = command.properties().get("command");
         if (commandObj == null) {
             throw new IllegalArgumentException("Command properties must contain 'command' field");
         }
-        if (!(commandObj instanceof Integer)) {
+        if (!(commandObj instanceof Integer commandValue)) {
             throw new IllegalArgumentException(
                     "Command value must be Integer, got: " + commandObj.getClass().getSimpleName()
             );
         }
-
-        Integer commandValue = (Integer) commandObj;
 
         // Создаем ParametersDTO с command value
         ParametersDTO parameters = new ParametersDTO(commandValue);

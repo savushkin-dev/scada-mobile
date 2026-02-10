@@ -53,7 +53,7 @@ public class PrintSrvConnectionManager {
             @Value("${printsrv.retry.max-delay-ms}") int maxDelayMs,
             @Value("${printsrv.retry.recovery-check-interval-ms}") long recoveryCheckIntervalMs
     ) {
-        this.socketManager = Objects.requireNonNull(socketManager, "socketManager");
+        this.socketManager = socketManager;
         this.maxRetryAttempts = maxRetryAttempts;
         this.initialDelayMs = initialDelayMs;
         this.maxDelayMs = maxDelayMs;

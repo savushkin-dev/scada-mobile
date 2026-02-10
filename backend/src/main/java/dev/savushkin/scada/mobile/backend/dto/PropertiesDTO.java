@@ -2,6 +2,8 @@ package dev.savushkin.scada.mobile.backend.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.jetbrains.annotations.Contract;
+import org.jspecify.annotations.NonNull;
 
 /**
  * DTO для свойств юнита.
@@ -68,7 +70,8 @@ public record PropertiesDTO(
      * @param commandValue значение команды
      * @return PropertiesDTO с заполненным только command полем
      */
-    public static PropertiesDTO withCommand(Integer commandValue) {
+    @Contract("_ -> new")
+    public static @NonNull PropertiesDTO withCommand(Integer commandValue) {
         return new PropertiesDTO(
                 commandValue,
                 null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null

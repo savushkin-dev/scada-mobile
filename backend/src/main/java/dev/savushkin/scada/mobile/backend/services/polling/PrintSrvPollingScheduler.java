@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Scan Cycle планировщик для PrintSrv.
@@ -50,10 +49,10 @@ public class PrintSrvPollingScheduler {
             PrintSrvSnapshotStore snapshotStore,
             @Value("${printsrv.polling.fixed-delay-ms:5000}") long pollingFixedDelayMs
     ) {
-        this.connectionManager = Objects.requireNonNull(connectionManager, "connectionManager");
-        this.commandExecutor = Objects.requireNonNull(commandExecutor, "commandExecutor");
-        this.pendingCommandsBuffer = Objects.requireNonNull(pendingCommandsBuffer, "pendingCommandsBuffer");
-        this.snapshotStore = Objects.requireNonNull(snapshotStore, "snapshotStore");
+        this.connectionManager = connectionManager;
+        this.commandExecutor = commandExecutor;
+        this.pendingCommandsBuffer = pendingCommandsBuffer;
+        this.snapshotStore = snapshotStore;
 
         log.info("PrintSrvPollingScheduler initialized - scan cycle interval: {}ms", pollingFixedDelayMs);
     }

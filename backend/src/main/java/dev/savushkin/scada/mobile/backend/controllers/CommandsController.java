@@ -4,12 +4,14 @@ import dev.savushkin.scada.mobile.backend.dto.QueryAllResponseDTO;
 import dev.savushkin.scada.mobile.backend.dto.SetUnitVarsResponseDTO;
 import dev.savushkin.scada.mobile.backend.exception.BufferOverflowException;
 import dev.savushkin.scada.mobile.backend.services.CommandsService;
+import dev.savushkin.scada.mobile.backend.services.HealthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
 import java.util.Map;
 
 /**
@@ -35,14 +37,17 @@ public class CommandsController {
     private static final Logger log = LoggerFactory.getLogger(CommandsController.class);
 
     private final CommandsService commandsService;
+    private final HealthService healthService;
 
     /**
      * Конструктор контроллера с внедрением зависимостей.
      *
      * @param commandsService сервис для работы с командами PrintSrv
+     * @param healthService    сервис для проверки состояния приложения
      */
-    public CommandsController(CommandsService commandsService) {
+    public CommandsController(CommandsService commandsService, HealthService healthService) {
         this.commandsService = commandsService;
+        this.healthService = healthService;
         log.info("CommandsController initialized");
     }
 
@@ -103,23 +108,33 @@ public class CommandsController {
     }
 
     /**
-     * Обработчик исключений для переполнения буфера команд.
+     * Liveness probe: приложение запущено и отвечает на запросы.
      * <p>
-     * Возвращает HTTP 503 SERVICE_UNAVAILABLE, указывая клиенту,
-     * что PrintSrv недоступен длительное время и буфер переполнен.
-     *
-     * @param e исключение переполнения буфера
-     * @return ResponseEntity с HTTP 503 и сообщением об ошибке
+     * Не проверяет внешние зависимости (PrintSrv).
      */
-    @ExceptionHandler(BufferOverflowException.class)
-    public ResponseEntity<Map<String, String>> handleBufferOverflow(BufferOverflowException e) {
-        log.error("Buffer overflow: {}", e.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.SERVICE_UNAVAILABLE)
-                .body(Map.of(
-                        "error", "SERVICE_UNAVAILABLE",
-                        "message", e.getMessage(),
-                        "hint", "PrintSrv is unavailable. Please try again later."
-                ));
+    @GetMapping("/health/live")
+    public ResponseEntity<Map<String, Object>> live() {
+        boolean alive = healthService.isAlive();
+        return ResponseEntity.ok(Map.of(
+                "status", alive ? "UP" : "DOWN",
+                "timestamp", Instant.now().toString()
+        ));
+    }
+
+    /**
+     * Readiness probe: приложение готово обслуживать запросы по данным.
+     * <p>
+     * Для текущей архитектуры "готовность" означает, что хотя бы один snapshot уже
+     * получен через polling/scan cycle и сохранён в {@code PrintSrvSnapshotStore}.
+     */
+    @GetMapping("/health/ready")
+    public ResponseEntity<Map<String, Object>> ready() {
+        boolean ready = healthService.isReady();
+        HttpStatus status = ready ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
+        return ResponseEntity.status(status).body(Map.of(
+                "status", ready ? "UP" : "DOWN",
+                "timestamp", Instant.now().toString(),
+                "ready", ready
+        ));
     }
 }
