@@ -8,7 +8,7 @@ printsrv:
   ip: 127.0.0.1
   port: 10101
   polling:
-    fixed-delay-ms: 500               # Интервал polling (fixedDelay) для PrintSrv snapshot
+    fixed-delay-ms: 5000              # Интервал scan cycle (fixedDelay) для PrintSrv - 5 секунд
   # Retry configuration для восстановления соединения
   retry:
     max-attempts: 5                    # Количество попыток переподключения
