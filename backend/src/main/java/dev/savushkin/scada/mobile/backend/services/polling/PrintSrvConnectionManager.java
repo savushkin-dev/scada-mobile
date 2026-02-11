@@ -1,6 +1,6 @@
 package dev.savushkin.scada.mobile.backend.services.polling;
 
-import dev.savushkin.scada.mobile.backend.client.SocketManager;
+import dev.savushkin.scada.mobile.backend.printsrv.client.SocketManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;

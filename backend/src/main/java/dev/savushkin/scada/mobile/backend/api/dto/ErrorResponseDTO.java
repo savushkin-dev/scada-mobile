@@ -1,4 +1,4 @@
-package dev.savushkin.scada.mobile.backend.dto;
+package dev.savushkin.scada.mobile.backend.api.dto;
 
 import java.time.LocalDateTime;
 

@@ -1,6 +1,6 @@
 package dev.savushkin.scada.mobile.backend.store;
 
-import dev.savushkin.scada.mobile.backend.dto.QueryAllResponseDTO;
+import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -8,7 +8,15 @@ import org.springframework.stereotype.Component;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * In-memory хранилище snapshot состояния PrintSrv.
+ * In-memory хранилище snapshot состояния SCADA системы.
+ * <p>
+ * Теперь хранит domain модель {@link DeviceSnapshot} вместо DTO.
+ * Это обеспечивает:
+ * <ul>
+ *   <li><b>Независимость от протокола</b>: изменения PrintSrv DTO не влияют на store</li>
+ *   <li><b>Типобезопасность</b>: domain модели обеспечивают строгие инварианты</li>
+ *   <li><b>Чистую архитектуру</b>: store не зависит от внешних слоев</li>
+ * </ul>
  * <p>
  * Особенности реализации:
  * <ul>
@@ -22,7 +30,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * <ol>
  *   <li>PrintSrvPollingScheduler обновляет snapshot с интервалом, заданным в конфигурации
  *   (<code>printsrv.polling.fixed-delay-ms</code>)</li>
- *   <li>CommandsService читает snapshot по запросу клиента</li>
+ *   <li>Application Service читает snapshot по запросу клиента</li>
  *   <li>Concurrent доступ безопасен благодаря AtomicReference</li>
  * </ol>
  */
@@ -34,7 +42,7 @@ public class PrintSrvSnapshotStore {
     /**
      * Атомарная ссылка на последний snapshot (thread-safe)
      */
-    private final AtomicReference<QueryAllResponseDTO> latestSnapshot = new AtomicReference<>();
+    private final AtomicReference<DeviceSnapshot> latestSnapshot = new AtomicReference<>();
 
     /**
      * Конструктор хранилища.
@@ -47,16 +55,16 @@ public class PrintSrvSnapshotStore {
     }
 
     /**
-     * Сохраняет snapshot состояния PrintSrv.
+     * Сохраняет snapshot состояния SCADA системы.
      * <p>
      * Метод thread-safe и может безопасно вызываться из разных потоков
      * (например, из scheduled task PrintSrvPollingScheduler).
      * <p>
      * Старый snapshot полностью заменяется новым (без слияния).
      *
-     * @param snapshot новый snapshot состояния PrintSrv (не null)
+     * @param snapshot новый snapshot состояния (не null)
      */
-    public void saveSnapshot(QueryAllResponseDTO snapshot) {
+    public void saveSnapshot(DeviceSnapshot snapshot) {
         // Проверяем, это первый snapshot или обновление
         boolean isFirstSnapshot = latestSnapshot.get() == null;
 
@@ -65,17 +73,17 @@ public class PrintSrvSnapshotStore {
 
         // Логируем по-разному для первого snapshot и обновлений
         if (isFirstSnapshot) {
-            log.info("First snapshot saved with {} units", snapshot.units().size());
+            log.info("First snapshot saved with {} units", snapshot.getUnitCount());
         } else {
-            log.trace("Snapshot updated with {} units", snapshot.units().size());
+            log.trace("Snapshot updated with {} units", snapshot.getUnitCount());
         }
     }
 
     /**
-     * Получает последний snapshot состояния PrintSrv.
+     * Получает последний snapshot состояния SCADA системы.
      * <p>
      * Метод thread-safe и может безопасно вызываться из разных потоков
-     * (например, из REST контроллеров).
+     * (например, из application services).
      * <p>
      * <b>Важно:</b> Возвращает snapshot на момент вызова метода.
      * Данные могут устареть примерно на величину интервала polling
@@ -84,15 +92,15 @@ public class PrintSrvSnapshotStore {
      * @return последний snapshot или null, если данных ещё нет
      * (приложение только запустилось и первый опрос не выполнен)
      */
-    public QueryAllResponseDTO getSnapshot() {
+    public DeviceSnapshot getSnapshot() {
         // Атомарно читаем ссылку (thread-safe)
-        QueryAllResponseDTO snapshot = latestSnapshot.get();
+        DeviceSnapshot snapshot = latestSnapshot.get();
 
         // Логируем результат
         if (snapshot == null) {
             log.warn("Attempted to get snapshot but store is empty");
         } else {
-            log.trace("Snapshot retrieved with {} units", snapshot.units().size());
+            log.trace("Snapshot retrieved with {} units", snapshot.getUnitCount());
         }
 
         return snapshot;

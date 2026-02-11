@@ -1,4 +1,4 @@
-package dev.savushkin.scada.mobile.backend.client;
+package dev.savushkin.scada.mobile.backend.printsrv.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;

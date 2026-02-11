@@ -1,8 +1,8 @@
-package dev.savushkin.scada.mobile.backend.client;
+package dev.savushkin.scada.mobile.backend.printsrv.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.savushkin.scada.mobile.backend.dto.QueryAllRequestDTO;
-import dev.savushkin.scada.mobile.backend.dto.QueryAllResponseDTO;
+import dev.savushkin.scada.mobile.backend.printsrv.dto.QueryAllRequestDTO;
+import dev.savushkin.scada.mobile.backend.printsrv.dto.QueryAllResponseDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;

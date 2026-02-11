@@ -1,4 +1,4 @@
-package dev.savushkin.scada.mobile.backend.dto;
+package dev.savushkin.scada.mobile.backend.printsrv.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
