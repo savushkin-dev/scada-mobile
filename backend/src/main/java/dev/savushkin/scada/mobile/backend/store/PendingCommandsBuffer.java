@@ -1,5 +1,6 @@
 package dev.savushkin.scada.mobile.backend.store;
 
+import dev.savushkin.scada.mobile.backend.domain.model.WriteCommand;
 import dev.savushkin.scada.mobile.backend.exception.BufferOverflowException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,11 +11,19 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Thread-safe буфер для накопления команд записи в PrintSrv.
+ * Thread-safe буфер для накопления команд записи в SCADA систему.
+ * <p>
+ * Теперь использует domain модель {@link WriteCommand} вместо {@code PendingWriteCommand}.
+ * Это обеспечивает:
+ * <ul>
+ *   <li><b>Независимость от инфраструктуры</b>: буфер работает с бизнес-сущностями</li>
+ *   <li><b>Типобезопасность</b>: domain модели обеспечивают строгие инварианты</li>
+ *   <li><b>Чистую архитектуру</b>: буфер не зависит от DTO</li>
+ * </ul>
  * <p>
  * Используется для изоляции клиентских запросов от scan cycle:
  * <ul>
- *   <li>REST-потоки добавляют команды через {@link #add(PendingWriteCommand)}</li>
+ *   <li>REST-потоки добавляют команды через {@link #add(WriteCommand)}</li>
  *   <li>Scheduler-поток забирает команды через {@link #getAndClear()}</li>
  * </ul>
  * <p>
@@ -22,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <ul>
  *   <li><b>Map вместо Queue</b>: Last-Write-Wins для одного unit (нет дубликатов)</li>
  *   <li><b>ConcurrentHashMap</b>: thread-safety без explicit locks</li>
- *   <li><b>MAX_BUFFER_SIZE</b>: защита от переполнения при недоступности PrintSrv</li>
+ *   <li><b>MAX_BUFFER_SIZE</b>: защита от переполнения при недоступности SCADA</li>
  * </ul>
  * <p>
  * Команды, добавленные во время выполнения {@link #getAndClear()}, попадут в следующий цикл.
@@ -34,36 +43,36 @@ public class PendingCommandsBuffer {
 
     /**
      * Максимальный размер буфера.
-     * Защищает от переполнения памяти при длительной недоступности PrintSrv.
+     * Защищает от переполнения памяти при длительной недоступности SCADA.
      */
     private static final int MAX_BUFFER_SIZE = 100;
 
     /**
-     * Буфер команд: ключ = unitId, значение = команда.
+     * Буфер команд: ключ = unitNumber, значение = команда.
      * ConcurrentHashMap обеспечивает thread-safety для concurrent add() и getAndClear().
      */
-    private final ConcurrentHashMap<Integer, PendingWriteCommand> buffer = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Integer, WriteCommand> buffer = new ConcurrentHashMap<>();
 
     /**
      * Добавляет команду в буфер.
      * <p>
      * Если для данного unit уже есть команда, она будет заменена (Last-Write-Wins).
-     * Это гарантирует, что в PrintSrv будет записано актуальное значение.
+     * Это гарантирует, что в SCADA будет записано актуальное значение.
      *
      * @param command команда для добавления
      * @throws BufferOverflowException если буфер переполнен (размер >= MAX_BUFFER_SIZE)
      * @throws NullPointerException    если command == null
      */
-    public void add(PendingWriteCommand command) {
+    public void add(WriteCommand command) {
         if (command == null) {
             throw new NullPointerException("Command cannot be null");
         }
 
         // Проверка переполнения ДО добавления
-        // Это предотвращает бесконечное накопление команд при недоступности PrintSrv
-        if (buffer.size() >= MAX_BUFFER_SIZE && !buffer.containsKey(command.unit())) {
+        // Это предотвращает бесконечное накопление команд при недоступности SCADA
+        if (buffer.size() >= MAX_BUFFER_SIZE && !buffer.containsKey(command.getUnitNumber())) {
             String errorMsg = String.format(
-                    "Буфер команд переполнен (size=%d, max=%d). PrintSrv недоступен длительное время.",
+                    "Буфер команд переполнен (size=%d, max=%d). SCADA недоступна длительное время.",
                     buffer.size(), MAX_BUFFER_SIZE
             );
             log.error(errorMsg);
@@ -71,13 +80,13 @@ public class PendingCommandsBuffer {
         }
 
         // putIfAbsent + replace для атомарной замены
-        PendingWriteCommand previous = buffer.put(command.unit(), command);
+        WriteCommand previous = buffer.put(command.getUnitNumber(), command);
 
         if (previous == null) {
-            log.debug("Added new pending command for unit {}: {}", command.unit(), command.properties());
+            log.debug("Added new pending command for unit {}: {}", command.getUnitNumber(), command.getProperties());
         } else {
             log.debug("Replaced pending command for unit {} (Last-Write-Wins): {} -> {}",
-                    command.unit(), previous.properties(), command.properties());
+                    command.getUnitNumber(), previous.getProperties(), command.getProperties());
         }
     }
 
@@ -89,9 +98,9 @@ public class PendingCommandsBuffer {
      *
      * @return снимок буфера на момент вызова (immutable Map)
      */
-    public Map<Integer, PendingWriteCommand> getAndClear() {
+    public Map<Integer, WriteCommand> getAndClear() {
         // Создаем snapshot перед очисткой
-        Map<Integer, PendingWriteCommand> snapshot = new HashMap<>(buffer);
+        Map<Integer, WriteCommand> snapshot = new HashMap<>(buffer);
 
         // Очищаем буфер атомарно
         buffer.clear();

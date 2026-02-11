@@ -1,7 +1,7 @@
 package dev.savushkin.scada.mobile.backend.controllers;
 
-import dev.savushkin.scada.mobile.backend.dto.QueryAllResponseDTO;
-import dev.savushkin.scada.mobile.backend.dto.SetUnitVarsResponseDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.ChangeCommandResponseDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.QueryStateResponseDTO;
 import dev.savushkin.scada.mobile.backend.exception.BufferOverflowException;
 import dev.savushkin.scada.mobile.backend.services.CommandsService;
 import dev.savushkin.scada.mobile.backend.services.HealthService;
@@ -15,7 +15,7 @@ import java.time.Instant;
 import java.util.Map;
 
 /**
- * REST контроллер для работы с командами PrintSrv.
+ * REST контроллер для работы с командами SCADA системы.
  * <p>
  * Предоставляет API endpoints:
  * <ul>
@@ -42,7 +42,7 @@ public class CommandsController {
     /**
      * Конструктор контроллера с внедрением зависимостей.
      *
-     * @param commandsService сервис для работы с командами PrintSrv
+     * @param commandsService сервис для работы с командами SCADA
      * @param healthService    сервис для проверки состояния приложения
      */
     public CommandsController(CommandsService commandsService, HealthService healthService) {
@@ -52,32 +52,32 @@ public class CommandsController {
     }
 
     /**
-     * Получает текущий snapshot состояния PrintSrv.
+     * Получает текущий snapshot состояния SCADA системы.
      * <p>
      * Данные берутся из in-memory хранилища, которое автоматически
      * обновляется через
      * {@link dev.savushkin.scada.mobile.backend.services.polling.PrintSrvPollingScheduler}
      * с интервалом scan cycle (настраивается через <code>printsrv.polling.fixed-delay-ms</code>).
      * <p>
-     * Snapshot содержит актуальное состояние PrintSrv на момент последнего scan cycle.
+     * Snapshot содержит актуальное состояние SCADA на момент последнего scan cycle.
      * Изменения, сделанные через {@link #setUnitVars(int, int)}, появятся здесь
      * после следующего scan cycle (до 5 секунд задержки).
      *
-     * @return ResponseEntity с полным состоянием PrintSrv (все units и их свойства)
+     * @return ResponseEntity с полным состоянием SCADA системы (все units и их свойства)
      * @throws IllegalStateException если snapshot еще не загружен (приложение только запустилось)
      */
     @GetMapping("/queryAll")
-    public ResponseEntity<QueryAllResponseDTO> queryAll() {
+    public ResponseEntity<QueryStateResponseDTO> queryAll() {
         log.info("Received GET /queryAll request");
-        QueryAllResponseDTO response = commandsService.queryAll();
-        log.info("Returning QueryAll response with {} units", response.units().size());
+        QueryStateResponseDTO response = commandsService.queryAll();
+        log.info("Returning QueryAll response");
         return ResponseEntity.ok(response);
     }
 
     /**
      * Добавляет команду изменения значения в буфер для выполнения в следующем Scan Cycle.
      * <p>
-     * Метод возвращает HTTP 200 немедленно (< 50ms), не дожидаясь записи в PrintSrv.
+     * Метод возвращает HTTP 200 немедленно (< 50ms), не дожидаясь записи в SCADA.
      * Команда будет выполнена в следующем scan cycle (до 5 секунд задержки).
      * <p>
      * Клиент может проверить результат выполнения через GET /queryAll
@@ -88,21 +88,21 @@ public class CommandsController {
      *   <li><b>Fast Response</b>: возврат управления < 50ms</li>
      *   <li><b>Eventual Consistency</b>: изменения видны через ≤ 5 секунд</li>
      *   <li><b>Last-Write-Wins</b>: если для одного unit отправлено несколько команд,
-     *       в PrintSrv будет записана только последняя</li>
+     *       в SCADA будет записана только последняя</li>
      * </ul>
      *
      * @param unit  номер unit (1-based, например: 1 = u1, 2 = u2)
      * @param value новое значение команды (целое число)
-     * @return ResponseEntity с acknowledgment ответом (НЕ реальное состояние из PrintSrv)
+     * @return ResponseEntity с acknowledgment ответом (НЕ реальное состояние из SCADA)
      * @throws BufferOverflowException если буфер переполнен (HTTP 503 SERVICE_UNAVAILABLE)
      */
     @PostMapping("/setUnitVars")
-    public ResponseEntity<SetUnitVarsResponseDTO> setUnitVars(
+    public ResponseEntity<ChangeCommandResponseDTO> setUnitVars(
             @RequestParam int unit,
             @RequestParam int value
     ) {
         log.info("Received POST /setUnitVars request: unit={}, value={}", unit, value);
-        SetUnitVarsResponseDTO response = commandsService.setUnitVars(unit, value);
+        ChangeCommandResponseDTO response = commandsService.setUnitVars(unit, value);
         log.info("SetUnitVars command accepted for unit={} (will be executed in next scan cycle)", unit);
         return ResponseEntity.ok(response);
     }
@@ -110,7 +110,7 @@ public class CommandsController {
     /**
      * Liveness probe: приложение запущено и отвечает на запросы.
      * <p>
-     * Не проверяет внешние зависимости (PrintSrv).
+     * Не проверяет внешние зависимости (SCADA).
      */
     @GetMapping("/health/live")
     public ResponseEntity<Map<String, Object>> live() {

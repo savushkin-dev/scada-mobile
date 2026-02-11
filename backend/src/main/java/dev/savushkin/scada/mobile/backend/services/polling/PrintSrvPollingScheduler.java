@@ -1,8 +1,8 @@
 package dev.savushkin.scada.mobile.backend.services.polling;
 
-import dev.savushkin.scada.mobile.backend.dto.QueryAllResponseDTO;
+import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
+import dev.savushkin.scada.mobile.backend.domain.model.WriteCommand;
 import dev.savushkin.scada.mobile.backend.store.PendingCommandsBuffer;
-import dev.savushkin.scada.mobile.backend.store.PendingWriteCommand;
 import dev.savushkin.scada.mobile.backend.store.PrintSrvSnapshotStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,11 +14,17 @@ import java.io.IOException;
 import java.util.Map;
 
 /**
- * Scan Cycle планировщик для PrintSrv.
+ * Scan Cycle планировщик для SCADA системы.
+ * <p>
+ * Теперь работает с domain моделями вместо DTO:
+ * <ul>
+ *   <li>{@link DeviceSnapshot} - вместо QueryAllResponseDTO</li>
+ *   <li>{@link WriteCommand} - вместо PendingWriteCommand</li>
+ * </ul>
  * <p>
  * Реализует классический PLC Scan Cycle паттерн:
  * <ol>
- *   <li>[1] READ из PrintSrv (QueryAll)</li>
+ *   <li>[1] READ из PrintSrv (QueryAll) → DeviceSnapshot</li>
  *   <li>[2] BUSINESS LOGIC (слияние с pending командами)</li>
  *   <li>[3] WRITE в PrintSrv (SetUnitVars если есть команды)</li>
  *   <li>[4] UPDATE snapshot (независимо от успеха записи)</li>
@@ -67,12 +73,12 @@ public class PrintSrvPollingScheduler {
         try {
             log.trace("🔄 Starting scan cycle");
 
-            // [1] READ из PrintSrv - получаем свежие данные
-            QueryAllResponseDTO freshData = connectionManager.executeWithRetry(commandExecutor::queryAllSnapshot);
-            log.trace("✅ [1/4] READ completed: {} units received", freshData.units().size());
+            // [1] READ из PrintSrv - получаем свежие данные как domain модель
+            DeviceSnapshot freshData = connectionManager.executeWithRetry(commandExecutor::queryAllSnapshot);
+            log.trace("✅ [1/4] READ completed: {} units received", freshData.getUnitCount());
 
             // [2] BUSINESS LOGIC - получаем pending команды из буфера
-            Map<Integer, PendingWriteCommand> pendingWrites = pendingCommandsBuffer.getAndClear();
+            Map<Integer, WriteCommand> pendingWrites = pendingCommandsBuffer.getAndClear();
             log.trace("📋 [2/4] BUSINESS LOGIC: {} pending command(s) retrieved", pendingWrites.size());
 
             // [3] WRITE в PrintSrv - если есть команды для записи

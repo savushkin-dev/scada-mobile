@@ -1,6 +1,6 @@
 package dev.savushkin.scada.mobile.backend.exception;
 
-import dev.savushkin.scada.mobile.backend.dto.ErrorResponseDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.ErrorResponseDTO;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
