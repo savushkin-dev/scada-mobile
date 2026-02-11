@@ -6,8 +6,6 @@ import dev.savushkin.scada.mobile.backend.printsrv.PrintSrvMapper;
 import dev.savushkin.scada.mobile.backend.printsrv.client.QueryAllCommand;
 import dev.savushkin.scada.mobile.backend.printsrv.client.SetUnitVars;
 import dev.savushkin.scada.mobile.backend.printsrv.dto.*;
-import org.jetbrains.annotations.Contract;
-import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -118,8 +116,7 @@ public class ScadaCommandExecutor {
      * @return готовый DTO для отправки в PrintSrv
      * @throws IllegalArgumentException если properties не содержат 'command' или значение не Integer
      */
-    @Contract("_ -> new")
-    private @NonNull SetUnitVarsRequestDTO buildSetUnitVarsRequest(@NonNull WriteCommand command) {
+    private SetUnitVarsRequestDTO buildSetUnitVarsRequest(WriteCommand command) {
         // Извлекаем command value из properties с валидацией
         Object commandObj = command.getProperties().get("command");
         if (commandObj == null) {

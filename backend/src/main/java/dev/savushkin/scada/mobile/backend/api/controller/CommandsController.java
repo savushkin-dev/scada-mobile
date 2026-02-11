@@ -1,4 +1,4 @@
-package dev.savushkin.scada.mobile.backend.controllers;
+package dev.savushkin.scada.mobile.backend.api.controller;
 
 import dev.savushkin.scada.mobile.backend.api.dto.ChangeCommandResponseDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.QueryStateResponseDTO;
