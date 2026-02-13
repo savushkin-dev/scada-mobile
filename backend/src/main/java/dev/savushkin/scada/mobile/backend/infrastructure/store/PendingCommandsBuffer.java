@@ -1,4 +1,4 @@
-package dev.savushkin.scada.mobile.backend.store;
+package dev.savushkin.scada.mobile.backend.infrastructure.store;
 
 import dev.savushkin.scada.mobile.backend.application.ports.PendingWriteCommandsDrainPort;
 import dev.savushkin.scada.mobile.backend.application.ports.PendingWriteCommandsPort;

@@ -3,6 +3,7 @@ package dev.savushkin.scada.mobile.backend.api.controller;
 import dev.savushkin.scada.mobile.backend.api.dto.ChangeCommandResponseDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.QueryStateResponseDTO;
 import dev.savushkin.scada.mobile.backend.exception.BufferOverflowException;
+import dev.savushkin.scada.mobile.backend.infrastructure.polling.PrintSrvPollingScheduler;
 import dev.savushkin.scada.mobile.backend.services.CommandsService;
 import dev.savushkin.scada.mobile.backend.services.HealthService;
 import org.slf4j.Logger;
@@ -56,7 +57,7 @@ public class CommandsController {
      * <p>
      * Данные берутся из in-memory хранилища, которое автоматически
      * обновляется через
-     * {@link dev.savushkin.scada.mobile.backend.services.polling.PrintSrvPollingScheduler}
+     * {@link PrintSrvPollingScheduler}
      * с интервалом scan cycle (настраивается через <code>printsrv.polling.fixed-delay-ms</code>).
      * <p>
      * Snapshot содержит актуальное состояние SCADA на момент последнего scan cycle.

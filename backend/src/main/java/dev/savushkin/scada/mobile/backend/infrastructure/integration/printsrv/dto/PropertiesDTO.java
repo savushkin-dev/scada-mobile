@@ -1,4 +1,4 @@
-package dev.savushkin.scada.mobile.backend.printsrv.dto;
+package dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -61,17 +61,4 @@ public record PropertiesDTO(
         @JsonProperty("LineDevices") String lineDevices,
         @JsonProperty("enableErrors") String enableErrors
 ) {
-    /**
-     * Factory method для создания PropertiesDTO только с command полем.
-     * Остальные поля устанавливаются в null.
-     *
-     * @param commandValue значение команды
-     * @return PropertiesDTO с заполненным только command полем
-     */
-    public static PropertiesDTO withCommand(Integer commandValue) {
-        return new PropertiesDTO(
-                commandValue,
-                null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
-        );
-    }
 }

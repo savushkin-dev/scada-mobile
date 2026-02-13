@@ -1,8 +1,9 @@
-package dev.savushkin.scada.mobile.backend.store;
+package dev.savushkin.scada.mobile.backend.infrastructure.store;
 
 import dev.savushkin.scada.mobile.backend.application.ports.DeviceSnapshotReader;
 import dev.savushkin.scada.mobile.backend.application.ports.DeviceSnapshotWriter;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
+import dev.savushkin.scada.mobile.backend.infrastructure.polling.PrintSrvPollingScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -25,7 +26,7 @@ import java.util.concurrent.atomic.AtomicReference;
  *   <li><b>Thread-safe</b>: используется {@link java.util.concurrent.atomic.AtomicReference} для безопасного concurrent доступа</li>
  *   <li><b>Без истории</b>: хранит только последний snapshot (экономия памяти)</li>
  *   <li><b>Автоматическое обновление</b>: snapshot обновляется через
- *   {@link dev.savushkin.scada.mobile.backend.services.polling.PrintSrvPollingScheduler}</li>
+ *   {@link PrintSrvPollingScheduler}</li>
  * </ul>
  * <p>
  * Паттерн использования:

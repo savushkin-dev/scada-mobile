@@ -1,11 +1,11 @@
-package dev.savushkin.scada.mobile.backend.printsrv;
+package dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv;
 
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitProperties;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitSnapshot;
-import dev.savushkin.scada.mobile.backend.printsrv.dto.PropertiesDTO;
-import dev.savushkin.scada.mobile.backend.printsrv.dto.QueryAllResponseDTO;
-import dev.savushkin.scada.mobile.backend.printsrv.dto.UnitsDTO;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.PropertiesDTO;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.QueryAllResponseDTO;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.UnitsDTO;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;

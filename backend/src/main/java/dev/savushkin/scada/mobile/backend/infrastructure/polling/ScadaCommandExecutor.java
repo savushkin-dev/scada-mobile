@@ -1,14 +1,14 @@
-package dev.savushkin.scada.mobile.backend.services.polling;
+package dev.savushkin.scada.mobile.backend.infrastructure.polling;
 
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import dev.savushkin.scada.mobile.backend.domain.model.WriteCommand;
-import dev.savushkin.scada.mobile.backend.printsrv.PrintSrvMapper;
-import dev.savushkin.scada.mobile.backend.printsrv.client.QueryAllCommand;
-import dev.savushkin.scada.mobile.backend.printsrv.client.SetUnitVars;
-import dev.savushkin.scada.mobile.backend.printsrv.dto.ParametersDTO;
-import dev.savushkin.scada.mobile.backend.printsrv.dto.QueryAllRequestDTO;
-import dev.savushkin.scada.mobile.backend.printsrv.dto.QueryAllResponseDTO;
-import dev.savushkin.scada.mobile.backend.printsrv.dto.SetUnitVarsRequestDTO;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.PrintSrvMapper;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.client.QueryAllCommand;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.client.SetUnitVars;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.ParametersDTO;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.QueryAllRequestDTO;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.QueryAllResponseDTO;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.SetUnitVarsRequestDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

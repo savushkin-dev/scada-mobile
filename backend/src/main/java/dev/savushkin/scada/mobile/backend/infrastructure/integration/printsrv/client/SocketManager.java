@@ -1,4 +1,4 @@
-package dev.savushkin.scada.mobile.backend.printsrv.client;
+package dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.client;
 
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;

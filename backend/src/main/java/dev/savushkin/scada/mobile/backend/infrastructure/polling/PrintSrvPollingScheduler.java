@@ -1,4 +1,4 @@
-package dev.savushkin.scada.mobile.backend.services.polling;
+package dev.savushkin.scada.mobile.backend.infrastructure.polling;
 
 import dev.savushkin.scada.mobile.backend.application.ports.DeviceSnapshotWriter;
 import dev.savushkin.scada.mobile.backend.application.ports.PendingWriteCommandsDrainPort;
@@ -71,15 +71,11 @@ public class PrintSrvPollingScheduler {
     @Scheduled(fixedDelayString = "${printsrv.polling.fixed-delay-ms:5000}")
     public void scanCycle() {
         try {
-            log.trace("🔄 Starting scan cycle");
-
             // [1] READ из PrintSrv - получаем свежие данные как domain модель
             DeviceSnapshot freshData = connectionManager.executeWithRetry(commandExecutor::queryAllSnapshot);
-            log.trace("✅ [1/4] READ completed: {} units received", freshData.getUnitCount());
 
             // [2] BUSINESS LOGIC - получаем pending команды из буфера
             Map<Integer, WriteCommand> pendingWrites = pendingCommandsDrain.drain();
-            log.trace("📋 [2/4] BUSINESS LOGIC: {} pending command(s) retrieved", pendingWrites.size());
 
             // [3] WRITE в PrintSrv - если есть команды для записи
             if (!pendingWrites.isEmpty()) {
@@ -88,26 +84,19 @@ public class PrintSrvPollingScheduler {
                         commandExecutor.executeSetUnitVars(pendingWrites);
                         return null; // void operation
                     });
-                    log.debug("✅ [3/4] WRITE completed: {} command(s) written to PrintSrv",
-                            pendingWrites.size());
                 } catch (IOException e) {
                     // WRITE failed - команды потеряны
                     // PrintSrv не получил новые значения
                     // Snapshot обновится из READ (старые значения)
-                    log.error("❌ [3/4] WRITE failed: {} command(s) lost - {} - {}",
+                    log.error("❌ [WRITE] failed: {} command(s) lost - {} - {}",
                             pendingWrites.size(), e.getClass().getSimpleName(), e.getMessage());
                     log.warn("Lost commands for units: {}", pendingWrites.keySet());
                 }
-            } else {
-                log.trace("⏭️ [3/4] WRITE skipped: no pending commands");
             }
 
             // [4] UPDATE snapshot - ВСЕГДА обновляем snapshot из READ
             // Это источник правды: если WRITE не удался, клиенты увидят старые значения
             snapshotWriter.save(freshData);
-            log.trace("✅ [4/4] UPDATE snapshot completed");
-
-            log.debug("🔄 Scan cycle completed successfully");
 
         } catch (IllegalStateException recoverySkip) {
             // Recovery mode - это ожидаемая ситуация при длительной недоступности PrintSrv
@@ -117,7 +106,7 @@ public class PrintSrvPollingScheduler {
             // READ failed - PrintSrv недоступен
             // Snapshot НЕ обновляется → клиенты получают stale data
             // Pending команды остаются в буфере до следующего цикла
-            log.error("❌ Scan cycle failed (PrintSrv unavailable): {} - {}",
+            log.error("❌ [READ] scan cycle failed (PrintSrv unavailable): {} - {}",
                     e.getClass().getSimpleName(), e.getMessage());
             log.debug("Pending commands remain in buffer (will retry in next cycle)");
         }

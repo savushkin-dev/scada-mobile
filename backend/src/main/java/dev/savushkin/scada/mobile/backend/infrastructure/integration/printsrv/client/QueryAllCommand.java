@@ -1,8 +1,9 @@
-package dev.savushkin.scada.mobile.backend.printsrv.client;
+package dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import dev.savushkin.scada.mobile.backend.printsrv.dto.QueryAllRequestDTO;
-import dev.savushkin.scada.mobile.backend.printsrv.dto.QueryAllResponseDTO;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.QueryAllRequestDTO;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.QueryAllResponseDTO;
+import dev.savushkin.scada.mobile.backend.infrastructure.polling.PrintSrvPollingScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -13,7 +14,7 @@ import org.springframework.stereotype.Component;
  * Выполняет опрос всех units и их свойств через socket-соединение.
  * Используется в двух сценариях:
  * <ul>
- *   <li><b>Автоматический опрос</b>: {@link dev.savushkin.scada.mobile.backend.services.polling.PrintSrvPollingScheduler}
+ *   <li><b>Автоматический опрос</b>: {@link PrintSrvPollingScheduler}
  *       вызывает с интервалом, заданным в конфигурации (<code>printsrv.polling.fixed-delay-ms</code>),
  *       для обновления snapshot</li>
  *   <li><b>По требованию</b>: может быть вызвана явно, если нужны актуальные данные</li>
