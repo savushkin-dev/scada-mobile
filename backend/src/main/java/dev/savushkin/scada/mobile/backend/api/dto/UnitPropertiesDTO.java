@@ -4,10 +4,10 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * API DTO for unit properties exposed through the REST API.
+ * API DTO для свойств модуля, открытых через REST API.
  * <p>
- * This is a simplified view of unit properties for API clients.
- * It can be customized independently from the internal domain model.
+ * Это упрощённый вид свойств модуля для клиентов API.
+ * Может быть настроен независимо от внутренней доменной модели.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record UnitPropertiesDTO(

@@ -1,6 +1,6 @@
 package dev.savushkin.scada.mobile.backend.services;
 
-import dev.savushkin.scada.mobile.backend.store.PrintSrvSnapshotStore;
+import dev.savushkin.scada.mobile.backend.application.ScadaApplicationService;
 import org.springframework.stereotype.Service;
 
 
@@ -13,10 +13,10 @@ import org.springframework.stereotype.Service;
 @Service
 public class HealthService {
 
-    private final PrintSrvSnapshotStore snapshotStore;
+    private final ScadaApplicationService applicationService;
 
-    public HealthService(PrintSrvSnapshotStore snapshotStore) {
-        this.snapshotStore = snapshotStore;
+    public HealthService(ScadaApplicationService applicationService) {
+        this.applicationService = applicationService;
     }
 
     /**
@@ -36,7 +36,6 @@ public class HealthService {
      * @return true, если snapshot уже загружен.
      */
     public boolean isReady() {
-        return snapshotStore.getSnapshot() != null;
+        return applicationService.isReady();
     }
 }
-

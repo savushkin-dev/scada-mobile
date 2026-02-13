@@ -4,15 +4,15 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * API DTO representing the state of a single SCADA unit.
+ * API DTO, представляющий состояние отдельного модуля SCADA.
  * <p>
- * This is the public API representation of a unit's state,
- * independent of the internal PrintSrv protocol format.
+ * Это публичное API представление состояния модуля,
+ * независимое от формата внутреннего протокола PrintSrv.
  *
- * @param state      current state of the unit
- * @param task       current task of the unit
- * @param counter    operation counter (may be null)
- * @param properties unit properties
+ * @param state      текущее состояние модуля
+ * @param task       текущая задача модуля
+ * @param counter    счётчик операций (может быть null)
+ * @param properties свойства модуля
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record UnitStateDTO(

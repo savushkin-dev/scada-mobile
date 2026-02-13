@@ -1,193 +1,194 @@
-# DTO Architecture Refactoring - Completed ✅
+# Рефакторинг архитектуры DTO - Завершено ✅
 
-## Overview
+## Обзор
 
-Successfully completed a comprehensive architectural refactoring of the SCADA Mobile Backend, transforming it from a tightly-coupled DTO-based architecture to a clean, layered architecture with proper separation of concerns.
+Успешно завершён комплексный архитектурный рефакторинг SCADA Mobile Backend, трансформирующий его из плотно связанной архитектуры на основе DTO в чистую многоуровневую архитектуру с надлежащим разделением ответственности.
 
-## What Was Achieved
+## Что было достигнуто
 
-### 1. Domain Layer (Core Business Logic)
-- ✅ Created pure domain models free from framework dependencies
-- ✅ `WriteCommand` - immutable command model with strict invariants
-- ✅ `UnitSnapshot` - represents unit state with non-null guarantees
-- ✅ `UnitProperties` - builder pattern for complex property construction
-- ✅ `DeviceSnapshot` - represents complete device state
+### 1. Доменный слой (основная бизнес-логика)
+- ✅ Созданы чистые доменные модели без зависимостей от фреймворков
+- ✅ `WriteCommand` - неизменяемая модель команды со строгими инвариантами
+- ✅ `UnitSnapshot` - представляет состояние модуля с гарантией не-null
+- ✅ `UnitProperties` - паттерн Builder для сложного конструирования свойств
+- ✅ `DeviceSnapshot` - представляет полное состояние устройства
 
-**Key Benefits:**
-- No Spring/Jackson annotations in domain models
-- Thread-safe immutable objects
-- Business invariants enforced at construction time
-- Easy to test without framework mocking
+**Ключевые преимущества:**
+- Без аннотаций Spring/Jackson в доменных моделях
+- Неизменяемые объекты, потокобезопасные
+- Бизнес-инварианты обеспечиваются при конструировании
+- Легко тестировать без мокирования фреймворков
 
-### 2. API Layer (REST Public Contract)
-- ✅ Created separate API DTOs in `api/dto/`
-- ✅ `QueryStateResponseDTO` - public API for device state
-- ✅ `ChangeCommandRequestDTO/ResponseDTO` - public API for commands
-- ✅ `ApiMapper` - converts domain models to API DTOs
-- ✅ Moved controllers to `api/controller/`
+### 2. Слой API (публичный контракт REST)
+- ✅ Созданы отдельные API DTO в `api/dto/`
+- ✅ `QueryStateResponseDTO` - публичный API для состояния устройства
+- ✅ `ChangeCommandRequestDTO/ResponseDTO` - публичный API для команд
+- ✅ `ApiMapper` - преобразует доменные модели в API DTO
+- ✅ Контроллеры перемещены в `api/controller/`
 
-**Key Benefits:**
-- API contract independent of internal implementation
-- Can evolve API without changing domain
-- Cleaner controller code focused on HTTP concerns
+**Ключевые преимущества:**
+- Контракт API независим от внутренней реализации
+- API может развиваться без изменения доменного слоя
+- Более чистый код контроллеров, сосредоточенный на HTTP проблемах
 
-### 3. PrintSrv Integration Layer
-- ✅ Moved all PrintSrv DTOs to `printsrv/dto/`
-- ✅ Moved socket clients to `printsrv/client/`
-- ✅ `PrintSrvMapper` - converts PrintSrv DTOs to domain models
+### 3. Слой интеграции PrintSrv
+- ✅ Все DTO PrintSrv перемещены в `printsrv/dto/`
+- ✅ Socket-клиенты перемещены в `printsrv/client/`
+- ✅ `PrintSrvMapper` - преобразует DTO PrintSrv в доменные модели
 
-**Key Benefits:**
-- Protocol changes isolated from domain and API
-- Clear boundaries between integration and business logic
-- Easier to swap protocols or add new integrations
+**Ключевые преимущества:**
+- Изменения протокола изолированы от доменной и API логики
+- Четкие границы между интеграцией и бизнес-логикой
+- Проще заменить протоколы или добавить новые интеграции
 
-### 4. Application Service Layer
-- ✅ Created `ScadaApplicationService` for use case orchestration
-- ✅ Coordinates domain, store, and infrastructure
-- ✅ Provides clear business operations (getCurrentState, submitWriteCommand)
+### 4. Слой прикладного сервиса
+- ✅ Создан `ScadaApplicationService` для координации сценариев использования
+- ✅ Координирует доменный слой, хранилище и инфраструктуру
+- ✅ Предоставляет четкие бизнес-операции (getCurrentState, submitWriteCommand)
 
-**Key Benefits:**
-- Single place for use case logic
-- Clear API for controllers to consume
-- Easy to add cross-cutting concerns
+**Ключевые преимущества:**
+- Единственное место для логики сценариев использования
+- Четкий API для потребления контроллерами
+- Легко добавлять сквозные проблемы
 
-### 5. Infrastructure Updates
-- ✅ Updated `PrintSrvSnapshotStore` to store `DeviceSnapshot` domain models
-- ✅ Updated `PendingCommandsBuffer` to use `WriteCommand` domain models
-- ✅ Updated `PrintSrvPollingScheduler` to work with domain models
-- ✅ Updated `ScadaCommandExecutor` to use mappers
+### 5. Обновления инфраструктуры
+- ✅ Обновлён `PrintSrvSnapshotStore` для хранения `DeviceSnapshot` доменных моделей
+- ✅ Обновлён `PendingCommandsBuffer` для использования `WriteCommand` доменных моделей
+- ✅ Обновлён `PrintSrvPollingScheduler` для работы с доменными моделями
+- ✅ Обновлён `ScadaCommandExecutor` для использования маппов
 
-**Key Benefits:**
-- Infrastructure works with business models, not DTOs
-- Cleaner separation of concerns
-- Easier to test storage logic
+**Ключевые преимущества:**
+- Инфраструктура работает с бизнес-моделями, а не с DTO
+- Чистое разделение ответственности
+- Проще тестировать логику хранения
 
-### 6. Complete Cleanup
-- ✅ Removed old `dto/` package (8 files)
-- ✅ Removed old `client/` package (5 files)
-- ✅ Removed old `controllers/` package (1 file)
-- ✅ Removed deprecated `PendingWriteCommand` class
-- ✅ All imports and references updated
-- ✅ Project builds successfully
-- ✅ All tests pass
+### 6. Полная очистка
+- ✅ Удалён старый пакет `dto/` (8 файлов)
+- ✅ Удалён старый пакет `client/` (5 файлов)
+- ✅ Удалён старый пакет `controllers/` (1 файл)
+- ✅ Удалён устаревший класс `PendingWriteCommand`
+- ✅ Все импорты и ссылки обновлены
+- ✅ Проект успешно компилируется
+- ✅ Все тесты проходят
 
-## Architecture Invariants Achieved
+## Достигнутые архитектурные инварианты
 
-1. ✅ **Domain Independence**: Domain models have no dependencies on Spring, Jackson, or protocols
-2. ✅ **REST API Independence**: REST API can change without affecting PrintSrv
-3. ✅ **Protocol Independence**: PrintSrv protocol can change without affecting domain or API
-4. ✅ **Clean Storage**: Store holds domain objects, not DTOs
-5. ✅ **Business Logic Independence**: Domain logic is framework-free
+1. ✅ **Независимость доменного слоя**: доменные модели не имеют зависимостей от Spring, Jackson или протоколов
+2. ✅ **Независимость REST API**: REST API может меняться без влияния на PrintSrv
+3. ✅ **Независимость протокола**: протокол PrintSrv может меняться без влияния на доменный слой и API
+4. ✅ **Чистое хранилище**: хранилище содержит доменные объекты, а не DTO
+5. ✅ **Независимость бизнес-логики**: доменная логика не зависит от фреймворков
 
-## Final Architecture
+## Финальная архитектура
 
 ```
 backend/
 │
-├── api/                         # REST Layer (public contract)
+├── api/                         # REST слой (публичный контракт)
 │   ├── controller/              # CommandsController
-│   ├── dto/                     # QueryStateResponseDTO, etc.
+│   ├── dto/                     # QueryStateResponseDTO и т.д.
 │   └── ApiMapper.java           # Domain → API DTO
 │
-├── printsrv/                    # Integration Layer
-│   ├── client/                  # Socket clients (QueryAllCommand, SetUnitVars, etc.)
-│   ├── dto/                     # PrintSrv protocol DTOs
+├── printsrv/                    # Слой интеграции
+│   ├── client/                  # Socket-клиенты (QueryAllCommand, SetUnitVars и т.д.)
+│   ├── dto/                     # DTO протокола PrintSrv
 │   └── PrintSrvMapper.java      # PrintSrv DTO → Domain
 │
-├── domain/                      # Core Business Logic
+├── domain/                      # Основная бизнес-логика
 │   ├── model/                   # WriteCommand, DeviceSnapshot, UnitSnapshot, UnitProperties
-│   └── service/                 # (reserved for domain services)
+│   └── service/                 # (зарезервирован для доменных сервисов)
 │
-├── application/                 # Orchestration Layer
-│   └── ScadaApplicationService  # Use case coordination
+├── application/                 # Слой координации
+│   └── ScadaApplicationService  # Координация сценариев использования
 │
-├── store/                       # Infrastructure Storage
-│   ├── PrintSrvSnapshotStore    # Stores DeviceSnapshot
-│   └── PendingCommandsBuffer    # Buffers WriteCommand
+├── store/                       # Инфраструктурное хранилище
+│   ├── PrintSrvSnapshotStore    # Хранит DeviceSnapshot
+│   └── PendingCommandsBuffer    # Буферизирует WriteCommand
 │
-├── services/                    # Service Layer
-│   ├── CommandsService          # API service adapter
-│   ├── HealthService            # Health checks
+├── services/                    # Слой сервисов
+│   ├── CommandsService          # API адаптер сервиса
+│   ├── HealthService            # Проверки здоровья
 │   └── polling/                 # PrintSrvPollingScheduler, ScadaCommandExecutor
 │
-├── config/                      # Configuration
+├── config/                      # Конфигурация
 │   └── JacksonConfig
 │
-└── exception/                   # Exception Handling
+└── exception/                   # Обработка исключений
     ├── GlobalExceptionHandler
     └── BufferOverflowException
 ```
 
-## Benefits Achieved
+## Достигнутые преимущества
 
-### Maintainability ✅
-- Clear separation of concerns makes code easier to understand
-- Each layer has a single, well-defined responsibility
-- Changes are localized to specific layers
+### Поддерживаемость ✅
+- Четкое разделение ответственности облегчает понимание кода
+- Каждый слой имеет единственную, хорошо определённую ответственность
+- Изменения локализованы в конкретных слоях
 
-### Testability ✅
-- Domain models can be tested without Spring context
-- Pure business logic separated from infrastructure
-- Easy to mock dependencies at layer boundaries
+### Тестируемость ✅
+- Доменные модели могут тестироваться без контекста Spring
+- Чистая бизнес-логика отделена от инфраструктуры
+- Легко мокировать зависимости на границах слоев
 
-### Flexibility ✅
-- Can change REST API without affecting PrintSrv integration
-- Can change PrintSrv protocol without affecting domain or API
-- Can add new protocols/APIs without cascading changes
-- Easy to add new features within existing layers
+### Гибкость ✅
+- REST API может меняться без влияния на интеграцию PrintSrv
+- Протокол PrintSrv может меняться без влияния на доменный слой или API
+- Новые протоколы/API можно добавлять без каскадных изменений
+- Легко добавлять новые функции в пределах существующих слоев
 
-### Robustness ✅
-- Domain invariants enforced at model construction
-- Type safety through proper domain models
-- Immutable objects prevent accidental mutations
-- Clear error boundaries between layers
+### Надежность ✅
+- Доменные инварианты обеспечиваются при конструировании модели
+- Типобезопасность через надлежащие доменные модели
+- Неизменяемые объекты предотвращают случайные мутации
+- Четкие границы ошибок между слоями
 
-### Scalability ✅
-- Architecture supports adding new integrations (e.g., MQTT, WebSockets)
-- Can add new API versions without touching domain
-- Easy to add new domain services as complexity grows
-- Infrastructure can be swapped (e.g., different storage backends)
+### Масштабируемость ✅
+- Архитектура поддерживает добавление новых интеграций (например, MQTT, WebSockets)
+- Новые версии API можно добавлять без изменения доменного слоя
+- Легко добавлять новые доменные сервисы при возрастании сложности
+- Инфраструктуру можно менять (например, другие бекенды хранилища)
 
-## Verification
+## Проверка
 
-- ✅ Build: `./gradlew build` - SUCCESS
-- ✅ Tests: `./gradlew test` - All tests pass
-- ✅ No compilation errors
-- ✅ No deprecated dependencies
-- ✅ Clean package structure
+- ✅ Сборка: `./gradlew build` - УСПЕХ
+- ✅ Тесты: `./gradlew test` - Все тесты проходят
+- ✅ Отсутствуют ошибки компиляции
+- ✅ Нет устаревших зависимостей
+- ✅ Чистая структура пакетов
 
-## Migration Path
+## Путь миграции
 
-The refactoring was done in a safe, incremental manner:
+Рефакторинг был выполнен безопасным, инкрементальным способом:
 
-1. **Phase 1**: Created new directory structure
-2. **Phase 2**: Implemented domain models
-3. **Phase 3**: Separated PrintSrv layer and created PrintSrvMapper
-4. **Phase 4**: Created API layer and ApiMapper
-5. **Phase 5**: Refactored all services to use new architecture
-6. **Phase 6**: Cleaned up old code and verified everything works
+1. **Фаза 1**: Создана новая структура директорий
+2. **Фаза 2**: Реализованы доменные модели
+3. **Фаза 3**: Разделён слой PrintSrv и создан PrintSrvMapper
+4. **Фаза 4**: Создан слой API и ApiMapper
+5. **Фаза 5**: Рефакторизированы все сервисы для использования новой архитектуры
+6. **Фаза 6**: Очищен старый код и проверена работоспособность
 
-This approach ensured the system could be built and tested at each phase.
+Этот подход гарантировал, что система могла собраться и тестироваться на каждой фазе.
 
-## Future Enhancements
+## Будущие улучшения
 
-The new architecture makes it easy to add:
+Новая архитектура облегчает добавление:
 
-1. **Domain Services**: Business logic that operates on domain models
-2. **New Protocols**: Add MQTT, WebSocket, etc. alongside PrintSrv
-3. **API Versioning**: Add v2 API without changing v1 or domain
-4. **Caching Strategies**: Add caching at application or infrastructure layer
-5. **Event Sourcing**: Domain events for audit trails
-6. **CQRS**: Separate read/write models if needed
+1. **Доменные сервисы**: Бизнес-логика, работающая с доменными моделями
+2. **Новые протоколы**: Добавить MQTT, WebSocket и т.д. параллельно с PrintSrv
+3. **Версионирование API**: Добавить v2 API без изменения v1 или доменного слоя
+4. **Стратегии кеширования**: Добавить кеширование на уровне приложения или инфраструктуры
+5. **Event Sourcing**: Доменные события для аудита
+6. **CQRS**: Отдельные модели чтения/записи при необходимости
 
-## Conclusion
+## Заключение
 
-The refactoring successfully transformed the codebase from a tightly-coupled, DTO-centric design to a clean, layered architecture following Domain-Driven Design principles. The system is now:
+Рефакторинг успешно трансформировал кодовую базу из плотно связанного, ориентированного на DTO дизайна в чистую, многоуровневую архитектуру, следуя принципам Domain-Driven Design. Система теперь:
 
-- More maintainable
-- More testable
-- More flexible
-- More robust
-- Better positioned for future growth
+- Более поддерживаема
+- Более тестируема
+- Более гибкая
+- Более надежна
+- Лучше позиционирована для будущего роста
 
-All original functionality is preserved and tested, while the architecture now supports evolution without cascading changes across the codebase.
+Вся исходная функциональность сохранена и протестирована, а архитектура теперь поддерживает эволюцию без каскадных изменений по кодовой базе.
+

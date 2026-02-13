@@ -6,14 +6,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Map;
 
 /**
- * API DTO for the response to a command change request.
+ * API DTO для ответа на запрос изменения команды.
  * <p>
- * This is an acknowledgment response indicating the command has been
- * buffered and will be executed in the next scan cycle.
+ * Это подтверждающий ответ, указывающий, что команда была
+ * добавлена в буфер и будет выполнена в следующем цикле сканирования.
  *
- * @param deviceName name of the device
- * @param command    command that was executed
- * @param units      map of affected units
+ * @param deviceName имя устройства
+ * @param command    команда, которая была выполнена
+ * @param units      карта затронутых модулей
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ChangeCommandResponseDTO(

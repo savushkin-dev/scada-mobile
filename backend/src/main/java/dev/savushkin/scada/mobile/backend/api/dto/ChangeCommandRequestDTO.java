@@ -3,12 +3,12 @@ package dev.savushkin.scada.mobile.backend.api.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * API DTO for requesting a command change on a unit.
+ * API DTO для запроса изменения команды на модуле.
  * <p>
- * This represents the public REST API contract for write operations.
+ * Это представляет публичный контракт REST API для операций записи.
  *
- * @param unit  unit number (1-based)
- * @param value command value to set
+ * @param unit  номер модуля (индексация с 1)
+ * @param value значение команды для установки
  */
 public record ChangeCommandRequestDTO(
         @JsonProperty("unit") int unit,

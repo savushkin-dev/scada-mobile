@@ -1,94 +1,92 @@
 package dev.savushkin.scada.mobile.backend.domain.model;
 
-import java.util.Map;
 import java.util.Objects;
 
 /**
- * Domain model representing a write command to a SCADA unit.
+ * Доменная модель, представляющая команду записи для модуля SCADA.
  * <p>
- * This is a pure domain model that represents the business concept of
- * commanding a SCADA unit to perform an action. It is independent of:
+ * Это чистая доменная модель, которая представляет бизнес-концепцию
+ * отправки команды модулю SCADA для выполнения действия. Она независима от:
  * <ul>
- *   <li>Transport protocols (PrintSrv, REST)</li>
- *   <li>Serialization mechanisms (JSON, XML)</li>
- *   <li>Framework dependencies (Spring, Jackson)</li>
+ *   <li>Протоколов передачи (PrintSrv, REST)</li>
+ *   <li>Механизмов сериализации (JSON, XML)</li>
+ *   <li>Зависимостей фреймворков (Spring, Jackson)</li>
  * </ul>
  * <p>
- * Invariants enforced by this class:
+ * Инварианты, обеспечиваемые этим классом:
  * <ul>
- *   <li>Unit number must be positive (1-based indexing)</li>
- *   <li>Properties map cannot be null or empty</li>
- *   <li>Timestamp is always set and cannot be negative</li>
+ *   <li>Номер модуля должен быть положительным (индексация с 1)</li>
+ *   <li>Карта свойств не может быть null или пуста</li>
+ *   <li>Временная метка всегда устанавливается и не может быть отрицательной</li>
  * </ul>
  * <p>
- * This class is immutable and thread-safe.
+ * Этот класс неизменяем и потокобезопасен.
  */
 public final class WriteCommand {
     private final long timestamp;
     private final int unitNumber;
-    private final Map<String, Object> properties;
 
     /**
-     * Creates a new write command with the current timestamp.
-     *
-     * @param unitNumber unit number (1-based, must be >= 1)
-     * @param properties properties to write (must not be null or empty)
-     * @throws IllegalArgumentException if invariants are violated
+     * Полезная нагрузка команды записи.
+     * Сейчас поддерживается один параметр: значение "command" для PrintSrv.
      */
-    public WriteCommand(int unitNumber, Map<String, Object> properties) {
-        this(System.currentTimeMillis(), unitNumber, properties);
+    private final int commandValue;
+
+    /**
+     * Создаёт новую команду записи с текущей временной меткой.
+     *
+     * @param unitNumber номер модуля (индексация с 1, должен быть >= 1)
+     * @param commandValue значение команды (то, что раньше хранилось как properties["command"])
+     * @throws IllegalArgumentException если нарушены инварианты
+     */
+    public WriteCommand(int unitNumber, int commandValue) {
+        this(System.currentTimeMillis(), unitNumber, commandValue);
     }
 
     /**
-     * Creates a new write command with an explicit timestamp.
+     * Создаёт новую команду записи с явно указанной временной меткой.
      *
-     * @param timestamp  timestamp in milliseconds since epoch
-     * @param unitNumber unit number (1-based, must be >= 1)
-     * @param properties properties to write (must not be null or empty)
-     * @throws IllegalArgumentException if invariants are violated
+     * @param timestamp  временная метка в миллисекундах с начала эпохи
+     * @param unitNumber номер модуля (индексация с 1, должен быть >= 1)
+     * @param commandValue значение команды (то, что раньше хранилось как properties["command"])
+     * @throws IllegalArgumentException если нарушены инварианты
      */
-    public WriteCommand(long timestamp, int unitNumber, Map<String, Object> properties) {
+    public WriteCommand(long timestamp, int unitNumber, int commandValue) {
         if (timestamp < 0) {
             throw new IllegalArgumentException("Timestamp cannot be negative: " + timestamp);
         }
         if (unitNumber < 1) {
             throw new IllegalArgumentException("Unit number must be >= 1, got: " + unitNumber);
         }
-        if (properties == null || properties.isEmpty()) {
-            throw new IllegalArgumentException("Properties cannot be null or empty");
-        }
 
         this.timestamp = timestamp;
         this.unitNumber = unitNumber;
-        // Create immutable copy to ensure thread safety
-        this.properties = Map.copyOf(properties);
+        this.commandValue = commandValue;
     }
 
     /**
-     * Gets the timestamp when this command was created.
+     * Возвращает временную метку создания этой команды.
      *
-     * @return timestamp in milliseconds since epoch
+     * @return временная метка в миллисекундах с начала эпохи
      */
     public long getTimestamp() {
         return timestamp;
     }
 
     /**
-     * Gets the unit number this command targets.
+     * Возвращает номер модуля, для которого предназначена эта команда.
      *
-     * @return unit number (1-based)
+     * @return номер модуля (индексация с 1)
      */
     public int getUnitNumber() {
         return unitNumber;
     }
 
     /**
-     * Gets the properties to write.
-     *
-     * @return immutable map of properties
+     * Возвращает значение команды (то, что раньше хранилось как properties["command"]).
      */
-    public Map<String, Object> getProperties() {
-        return properties;
+    public int getCommandValue() {
+        return commandValue;
     }
 
     @Override
@@ -98,12 +96,12 @@ public final class WriteCommand {
         WriteCommand that = (WriteCommand) o;
         return timestamp == that.timestamp
                 && unitNumber == that.unitNumber
-                && properties.equals(that.properties);
+                && commandValue == that.commandValue;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(timestamp, unitNumber, properties);
+        return Objects.hash(timestamp, unitNumber, commandValue);
     }
 
     @Override
@@ -111,7 +109,7 @@ public final class WriteCommand {
         return "WriteCommand{" +
                 "timestamp=" + timestamp +
                 ", unitNumber=" + unitNumber +
-                ", properties=" + properties +
+                ", commandValue=" + commandValue +
                 '}';
     }
 }

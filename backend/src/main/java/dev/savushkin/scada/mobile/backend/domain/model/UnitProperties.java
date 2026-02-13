@@ -4,13 +4,13 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Domain model representing properties of a SCADA unit.
+ * Доменная модель, представляющая свойства модуля SCADA.
  * <p>
- * This is a pure domain model that captures various operational properties of a unit.
- * Unlike the DTO version, this model uses non-null types where the business logic
- * requires them, and properly typed Optional for truly optional values.
+ * Это чистая доменная модель, которая захватывает различные операционные свойства модуля.
+ * В отличие от версии DTO, эта модель использует не-null типы там, где бизнес-логика
+ * требует их, и правильно типизированный Optional для действительно опциональных значений.
  * <p>
- * This class is immutable and thread-safe.
+ * Этот класс неизменяем и потокобезопасен.
  */
 public final class UnitProperties {
     private final Integer command;
@@ -223,9 +223,9 @@ public final class UnitProperties {
     }
 
     /**
-     * Creates a builder for constructing UnitProperties instances.
+     * Создаёт построитель для конструирования экземпляров UnitProperties.
      *
-     * @return a new builder
+     * @return новый построитель
      */
     public static Builder builder() {
         return new Builder();

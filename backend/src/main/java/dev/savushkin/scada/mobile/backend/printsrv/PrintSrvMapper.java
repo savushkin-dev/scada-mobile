@@ -12,22 +12,22 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Mapper for converting between PrintSrv protocol DTOs and domain models.
+ * Маппер для преобразования между PrintSrv DTO и доменными моделями.
  * <p>
- * This mapper is responsible for translating the external PrintSrv protocol
- * representations into internal domain models. It isolates domain models
- * from changes in the PrintSrv protocol.
+ * Этот маппер отвечает за трансляцию внешних представлений протокола PrintSrv
+ * во внутренние доменные модели. Он изолирует доменные модели
+ * от изменений в протоколе PrintSrv.
  * <p>
- * Direction: PrintSrv DTO → Domain Model
+ * Направление: PrintSrv DTO → Доменная модель
  */
 @Component
 public class PrintSrvMapper {
 
     /**
-     * Converts a PrintSrv QueryAll response to a domain DeviceSnapshot.
+     * Преобразует ответ PrintSrv QueryAll в доменную DeviceSnapshot.
      *
-     * @param dto the PrintSrv response DTO
-     * @return domain model representing the device snapshot
+     * @param dto PrintSrv DTO ответа
+     * @return доменная модель, представляющая снимок состояния устройства
      */
     public DeviceSnapshot toDomainDeviceSnapshot(QueryAllResponseDTO dto) {
         if (dto == null) {
@@ -35,14 +35,14 @@ public class PrintSrvMapper {
         }
 
         Map<String, UnitSnapshot> units = new LinkedHashMap<>();
-        
+
         for (Map.Entry<String, UnitsDTO> entry : dto.units().entrySet()) {
             String unitKey = entry.getKey();
             UnitsDTO unitDto = entry.getValue();
-            
-            // Extract unit number from key (e.g., "u1" -> 1, "u2" -> 2)
+
+            // Извлечение номера модуля из ключа (например, "u1" -> 1, "u2" -> 2)
             int unitNumber = extractUnitNumber(unitKey);
-            
+
             UnitSnapshot unitSnapshot = toDomainUnitSnapshot(unitNumber, unitDto);
             units.put(unitKey, unitSnapshot);
         }
@@ -51,11 +51,11 @@ public class PrintSrvMapper {
     }
 
     /**
-     * Converts a PrintSrv unit DTO to a domain UnitSnapshot.
+     * Преобразует PrintSrv DTO модуля в доменную UnitSnapshot.
      *
-     * @param unitNumber the unit number (1-based)
-     * @param dto        the PrintSrv unit DTO
-     * @return domain model representing the unit snapshot
+     * @param unitNumber номер модуля (индексация с 1)
+     * @param dto        PrintSrv DTO модуля
+     * @return доменная модель, представляющая снимок состояния модуля
      */
     public UnitSnapshot toDomainUnitSnapshot(int unitNumber, UnitsDTO dto) {
         if (dto == null) {
@@ -63,7 +63,7 @@ public class PrintSrvMapper {
         }
 
         UnitProperties properties = toDomainProperties(dto.properties());
-        
+
         return new UnitSnapshot(
                 unitNumber,
                 dto.state() != null ? dto.state() : "",
@@ -74,14 +74,14 @@ public class PrintSrvMapper {
     }
 
     /**
-     * Converts PrintSrv properties DTO to domain UnitProperties.
+     * Преобразует PrintSrv DTO свойств в доменные UnitProperties.
      *
-     * @param dto the PrintSrv properties DTO
-     * @return domain model representing unit properties
+     * @param dto PrintSrv DTO свойств
+     * @return доменная модель, представляющая свойства модуля
      */
     public UnitProperties toDomainProperties(PropertiesDTO dto) {
         if (dto == null) {
-            // Return empty properties if DTO is null
+            // Возвращение пустых свойств, если DTO равно null
             return UnitProperties.builder().build();
         }
 
@@ -113,17 +113,17 @@ public class PrintSrvMapper {
     }
 
     /**
-     * Extracts unit number from unit key.
+     * Извлекает номер модуля из ключа модуля.
      *
-     * @param unitKey the unit key (e.g., "u1", "u2")
-     * @return the unit number (1-based)
-     * @throws IllegalArgumentException if unit key format is invalid
+     * @param unitKey ключ модуля (например, "u1", "u2")
+     * @return номер модуля (индексация с 1)
+     * @throws IllegalArgumentException если формат ключа модуля неверный
      */
     private int extractUnitNumber(String unitKey) {
         if (unitKey == null || !unitKey.startsWith("u")) {
             throw new IllegalArgumentException("Invalid unit key format: " + unitKey);
         }
-        
+
         try {
             return Integer.parseInt(unitKey.substring(1));
         } catch (NumberFormatException e) {

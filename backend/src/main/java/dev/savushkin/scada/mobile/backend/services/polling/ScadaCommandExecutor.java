@@ -58,15 +58,15 @@ public class ScadaCommandExecutor {
     public DeviceSnapshot queryAllSnapshot() throws Exception {
         QueryAllRequestDTO request = new QueryAllRequestDTO("Line", "QueryAll");
         log.debug("Executing QueryAll command to PrintSrv");
-        
+
         // Get PrintSrv DTO response
         QueryAllResponseDTO responseDto = queryAllCommand.execute(request);
         log.debug("Received response from PrintSrv with {} units", responseDto.units().size());
-        
+
         // Convert to domain model
         DeviceSnapshot snapshot = printSrvMapper.toDomainDeviceSnapshot(responseDto);
         log.debug("Converted to domain snapshot with {} units", snapshot.getUnitCount());
-        
+
         return snapshot;
     }
 
@@ -91,8 +91,8 @@ public class ScadaCommandExecutor {
         for (WriteCommand cmd : pendingWrites.values()) {
             try {
                 SetUnitVarsRequestDTO request = buildSetUnitVarsRequest(cmd);
-                SetUnitVarsResponseDTO response = setUnitVarsCommand.execute(request);
-                log.debug("SetUnitVars executed for unit {}: {}", cmd.getUnitNumber(), cmd.getProperties());
+                setUnitVarsCommand.execute(request);
+                log.debug("SetUnitVars executed for unit {}: command={}", cmd.getUnitNumber(), cmd.getCommandValue());
             } catch (IOException e) {
                 // Логируем ошибку и пробрасываем исключение
                 // Все команды в этом цикле будут потеряны
@@ -117,18 +117,9 @@ public class ScadaCommandExecutor {
      * @throws IllegalArgumentException если properties не содержат 'command' или значение не Integer
      */
     private SetUnitVarsRequestDTO buildSetUnitVarsRequest(WriteCommand command) {
-        // Извлекаем command value из properties с валидацией
-        Object commandObj = command.getProperties().get("command");
-        if (commandObj == null) {
-            throw new IllegalArgumentException("Command properties must contain 'command' field");
-        }
-        if (!(commandObj instanceof Integer commandValue)) {
-            throw new IllegalArgumentException(
-                    "Command value must be Integer, got: " + commandObj.getClass().getSimpleName()
-            );
-        }
+        int commandValue = command.getCommandValue();
 
-        // Создаем ParametersDTO с command value
+        // Создаём ParametersDTO с command value
         ParametersDTO parameters = new ParametersDTO(commandValue);
 
         return new SetUnitVarsRequestDTO(

@@ -83,10 +83,10 @@ public class PendingCommandsBuffer {
         WriteCommand previous = buffer.put(command.getUnitNumber(), command);
 
         if (previous == null) {
-            log.debug("Added new pending command for unit {}: {}", command.getUnitNumber(), command.getProperties());
+            log.debug("Added new pending command for unit {}: command={}", command.getUnitNumber(), command.getCommandValue());
         } else {
-            log.debug("Replaced pending command for unit {} (Last-Write-Wins): {} -> {}",
-                    command.getUnitNumber(), previous.getProperties(), command.getProperties());
+            log.debug("Replaced pending command for unit {} (Last-Write-Wins): command={} -> {}",
+                    command.getUnitNumber(), previous.getCommandValue(), command.getCommandValue());
         }
     }
 

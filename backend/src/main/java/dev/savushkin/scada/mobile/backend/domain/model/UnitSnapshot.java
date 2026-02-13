@@ -3,23 +3,23 @@ package dev.savushkin.scada.mobile.backend.domain.model;
 import java.util.Objects;
 
 /**
- * Domain model representing a snapshot of a SCADA unit's state at a point in time.
+ * Доменная модель, представляющая снимок состояния модуля SCADA в определённый момент времени.
  * <p>
- * This is a pure domain model that captures the essence of a unit's operational state.
- * It is independent of:
+ * Это чистая доменная модель, которая захватывает суть операционного состояния модуля.
+ * Она независима от:
  * <ul>
- *   <li>Transport protocols (PrintSrv, REST)</li>
- *   <li>Serialization mechanisms (JSON, XML)</li>
- *   <li>Framework dependencies (Spring, Jackson)</li>
+ *   <li>Протоколов передачи (PrintSrv, REST)</li>
+ *   <li>Механизмов сериализации (JSON, XML)</li>
+ *   <li>Зависимостей фреймворков (Spring, Jackson)</li>
  * </ul>
  * <p>
- * Invariants enforced by this class:
+ * Инварианты, обеспечиваемые этим классом:
  * <ul>
- *   <li>Unit number must be positive (1-based indexing)</li>
- *   <li>State, task, and properties cannot be null (use empty values if not applicable)</li>
+ *   <li>Номер модуля должен быть положительным (индексация с 1)</li>
+ *   <li>Состояние, задача и свойства не могут быть null (используйте пустые значения, если не применимо)</li>
  * </ul>
  * <p>
- * This class is immutable and thread-safe.
+ * Этот класс неизменяем и потокобезопасен.
  */
 public final class UnitSnapshot {
     private final int unitNumber;
@@ -29,14 +29,14 @@ public final class UnitSnapshot {
     private final UnitProperties properties;
 
     /**
-     * Creates a new unit snapshot.
+     * Создаёт новый снимок состояния модуля.
      *
-     * @param unitNumber unit number (1-based, must be >= 1)
-     * @param state      current state of the unit (must not be null)
-     * @param task       current task of the unit (must not be null)
-     * @param counter    operation counter (may be null for some operations)
-     * @param properties unit properties (must not be null)
-     * @throws IllegalArgumentException if invariants are violated
+     * @param unitNumber номер модуля (индексация с 1, должен быть >= 1)
+     * @param state      текущее состояние модуля (не должно быть null)
+     * @param task       текущая задача модуля (не должна быть null)
+     * @param counter    счётчик операций (может быть null для некоторых операций)
+     * @param properties свойства модуля (не должны быть null)
+     * @throws IllegalArgumentException если нарушены инварианты
      */
     public UnitSnapshot(int unitNumber, String state, String task, Integer counter, UnitProperties properties) {
         if (unitNumber < 1) {
@@ -60,45 +60,45 @@ public final class UnitSnapshot {
     }
 
     /**
-     * Gets the unit number.
+     * Возвращает номер модуля.
      *
-     * @return unit number (1-based)
+     * @return номер модуля (индексация с 1)
      */
     public int getUnitNumber() {
         return unitNumber;
     }
 
     /**
-     * Gets the current state of the unit.
+     * Возвращает текущее состояние модуля.
      *
-     * @return state (never null)
+     * @return состояние (никогда не null)
      */
     public String getState() {
         return state;
     }
 
     /**
-     * Gets the current task of the unit.
+     * Возвращает текущую задачу модуля.
      *
-     * @return task (never null)
+     * @return задача (никогда не null)
      */
     public String getTask() {
         return task;
     }
 
     /**
-     * Gets the operation counter.
+     * Возвращает счётчик операций.
      *
-     * @return counter or null if not available
+     * @return счётчик или null, если недоступен
      */
     public Integer getCounter() {
         return counter;
     }
 
     /**
-     * Gets the unit properties.
+     * Возвращает свойства модуля.
      *
-     * @return properties (never null)
+     * @return свойства (никогда не null)
      */
     public UnitProperties getProperties() {
         return properties;

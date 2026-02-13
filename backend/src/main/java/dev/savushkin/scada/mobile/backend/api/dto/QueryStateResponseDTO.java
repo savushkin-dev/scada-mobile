@@ -6,14 +6,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Map;
 
 /**
- * API DTO for querying the current state of the SCADA system.
+ * API DTO для запроса текущего состояния системы SCADA.
  * <p>
- * This represents the public REST API contract for reading device state.
- * It is independent of the internal PrintSrv protocol and can evolve
- * separately to meet client needs.
+ * Это представляет публичный контракт REST API для чтения состояния устройства.
+ * Он независим от внутреннего протокола PrintSrv и может развиваться
+ * отдельно для удовлетворения потребностей клиентов.
  *
- * @param deviceName name of the device
- * @param units      map of unit states by unit key (e.g., "u1", "u2")
+ * @param deviceName имя устройства
+ * @param units      карта состояний модулей по ключу модуля (например, "u1", "u2")
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record QueryStateResponseDTO(

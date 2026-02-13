@@ -8,30 +8,28 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.util.Map;
-
 /**
- * Application Service for SCADA commands orchestration.
+ * Сервис приложения для координации команд SCADA.
  * <p>
- * This service coordinates between domain models, stores, and external layers.
- * It implements use cases for:
+ * Этот сервис координирует взаимодействие между доменными моделями, хранилищами и внешними слоями.
+ * Он реализует сценарии использования для:
  * <ul>
- *   <li>Querying current device state</li>
- *   <li>Submitting write commands</li>
+ *   <li>Запроса текущего состояния устройства</li>
+ *   <li>Отправки команд записи</li>
  * </ul>
  * <p>
- * This layer is responsible for:
+ * Этот слой отвечает за:
  * <ul>
- *   <li>Orchestrating domain operations</li>
- *   <li>Managing infrastructure dependencies (stores, buffers)</li>
- *   <li>Coordinating cross-cutting concerns</li>
+ *   <li>Координацию доменных операций</li>
+ *   <li>Управление зависимостями инфраструктуры (хранилища, буферы)</li>
+ *   <li>Координацию сквозных проблем</li>
  * </ul>
  * <p>
- * This layer does NOT:
+ * Этот слой НЕ:
  * <ul>
- *   <li>Contain business logic (that's in domain services)</li>
- *   <li>Know about DTOs (that's in API/PrintSrv layers)</li>
- *   <li>Handle protocol details (that's in integration layers)</li>
+ *   <li>Содержит бизнес-логику (она в доменных сервисах)</li>
+ *   <li>Знает о DTOs (они в слоях API/PrintSrv)</li>
+ *   <li>Обрабатывает детали протокола (они в интеграционных слоях)</li>
  * </ul>
  */
 @Service
@@ -43,10 +41,10 @@ public class ScadaApplicationService {
     private final PendingCommandsBuffer commandBuffer;
 
     /**
-     * Constructor with dependency injection.
+     * Конструктор с внедрением зависимостей.
      *
-     * @param snapshotStore store for device snapshots
-     * @param commandBuffer buffer for pending write commands
+     * @param snapshotStore хранилище для снимков состояния устройства
+     * @param commandBuffer буфер для ожидающих команд записи
      */
     public ScadaApplicationService(
             PrintSrvSnapshotStore snapshotStore,
@@ -58,14 +56,14 @@ public class ScadaApplicationService {
     }
 
     /**
-     * Gets the current device state snapshot.
+     * Получает текущий снимок состояния устройства.
      * <p>
-     * The snapshot is automatically updated by the polling scheduler.
-     * Changes made via {@link #submitWriteCommand(int, int)} will be
-     * visible after the next scan cycle (≤ 5 seconds).
+     * Снимок автоматически обновляется планировщиком опроса.
+     * Изменения, внесённые через {@link #submitWriteCommand(int, int)}, будут
+     * видны после следующего цикла сканирования (≤ 5 секунд).
      *
-     * @return current device snapshot
-     * @throws IllegalStateException if no snapshot is available yet
+     * @return текущий снимок состояния устройства
+     * @throws IllegalStateException если снимок ещё недоступен
      */
     public DeviceSnapshot getCurrentState() {
         log.debug("Reading current device state from store");
@@ -81,37 +79,37 @@ public class ScadaApplicationService {
     }
 
     /**
-     * Submits a write command to be executed in the next scan cycle.
+     * Отправляет команду записи для выполнения в следующем цикле сканирования.
      * <p>
-     * This method returns immediately (< 50ms), without waiting for
-     * the command to be written to the SCADA system.
+     * Этот метод возвращает результат немедленно (< 50ms), без ожидания
+     * выполнения команды в системе SCADA.
      * <p>
-     * The command will be executed in the next scan cycle (≤ 5 seconds).
-     * Clients can verify the result via {@link #getCurrentState()} after
-     * the next scan cycle.
+     * Команда будет выполнена в следующем цикле сканирования (≤ 5 секунд).
+     * Клиенты могут проверить результат через {@link #getCurrentState()} после
+     * следующего цикла сканирования.
      * <p>
-     * Architectural guarantees:
+     * Архитектурные гарантии:
      * <ul>
-     *   <li><b>Fast Response</b>: returns < 50ms</li>
-     *   <li><b>Eventual Consistency</b>: changes visible in ≤ 5 seconds</li>
-     *   <li><b>Last-Write-Wins</b>: if multiple commands are sent for the same unit,
-     *       only the last one will be executed</li>
+     *   <li><b>Быстрый ответ</b>: возвращает < 50ms</li>
+     *   <li><b>Итоговая согласованность</b>: изменения видны в ≤ 5 секунд</li>
+     *   <li><b>Last-Write-Wins</b>: если несколько команд отправлены для того же модуля,
+     *       будет выполнена только последняя</li>
      * </ul>
      *
-     * @param unitNumber unit number (1-based)
-     * @param value      command value to write
-     * @throws dev.savushkin.scada.mobile.backend.exception.BufferOverflowException if buffer is full
+     * @param unitNumber номер модуля (индексация с 1)
+     * @param value      значение команды для записи
+     * @throws dev.savushkin.scada.mobile.backend.exception.BufferOverflowException если буфер переполнен
      */
     public void submitWriteCommand(int unitNumber, int value) {
         log.info("Submitting write command: unit={}, value={}", unitNumber, value);
 
-        // Create domain model command
+        // Создание доменной модели команды
         WriteCommand command = new WriteCommand(
                 unitNumber,
-                Map.of("command", value)
+                value
         );
 
-        // Add to buffer (will be processed in next scan cycle)
+        // Добавление в буфер (будет обработано в следующем цикле сканирования)
         commandBuffer.add(command);
         log.debug("Command added to buffer successfully (buffer size={})", commandBuffer.size());
 
@@ -120,21 +118,21 @@ public class ScadaApplicationService {
     }
 
     /**
-     * Checks if the system is ready to serve requests.
+     * Проверяет, готова ли система обслуживать запросы.
      * <p>
-     * The system is ready when at least one snapshot has been received
-     * from the polling/scan cycle.
+     * Система готова, когда получен хотя бы один снимок состояния
+     * от цикла опроса/сканирования.
      *
-     * @return true if system is ready
+     * @return true, если система готова
      */
     public boolean isReady() {
         return snapshotStore.getSnapshot() != null;
     }
 
     /**
-     * Checks if the system is alive (health check).
+     * Проверяет, живо ли приложение (проверка здоровья).
      *
-     * @return true if system is alive
+     * @return true, если приложение живо
      */
     public boolean isAlive() {
         return true; // Application service is always alive if it can respond

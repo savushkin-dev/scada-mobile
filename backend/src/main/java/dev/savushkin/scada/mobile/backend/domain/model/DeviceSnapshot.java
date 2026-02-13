@@ -4,34 +4,34 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Domain model representing a snapshot of a SCADA device's complete state.
+ * Доменная модель, представляющая снимок полного состояния устройства SCADA.
  * <p>
- * This is a pure domain model that captures the state of all units of a device
- * at a specific point in time. It is independent of:
+ * Это чистая доменная модель, которая захватывает состояние всех модулей устройства
+ * в определённый момент времени. Она независима от:
  * <ul>
- *   <li>Transport protocols (PrintSrv, REST)</li>
- *   <li>Serialization mechanisms (JSON, XML)</li>
- *   <li>Framework dependencies (Spring, Jackson)</li>
+ *   <li>Протоколов передачи (PrintSrv, REST)</li>
+ *   <li>Механизмов сериализации (JSON, XML)</li>
+ *   <li>Зависимостей фреймворков (Spring, Jackson)</li>
  * </ul>
  * <p>
- * Invariants enforced by this class:
+ * Инварианты, обеспечиваемые этим классом:
  * <ul>
- *   <li>Device name cannot be null or empty</li>
- *   <li>Units map cannot be null (but may be empty for devices without units)</li>
+ *   <li>Имя устройства не может быть null или пусто</li>
+ *   <li>Карта модулей не может быть null (но может быть пуста для устройств без модулей)</li>
  * </ul>
  * <p>
- * This class is immutable and thread-safe.
+ * Этот класс неизменяем и потокобезопасен.
  */
 public final class DeviceSnapshot {
     private final String deviceName;
     private final Map<String, UnitSnapshot> units;
 
     /**
-     * Creates a new device snapshot.
+     * Создаёт новый снимок состояния устройства.
      *
-     * @param deviceName name of the device (must not be null or empty)
-     * @param units      map of unit snapshots by unit key (e.g., "u1", "u2")
-     * @throws IllegalArgumentException if invariants are violated
+     * @param deviceName имя устройства (не должно быть null или пусто)
+     * @param units      карта снимков модулей по ключу модуля (например, "u1", "u2")
+     * @throws IllegalArgumentException если нарушены инварианты
      */
     public DeviceSnapshot(String deviceName, Map<String, UnitSnapshot> units) {
         if (deviceName == null || deviceName.trim().isEmpty()) {
@@ -42,52 +42,52 @@ public final class DeviceSnapshot {
         }
 
         this.deviceName = deviceName;
-        // Create immutable copy to ensure thread safety
+        // Создание неизменяемой копии для обеспечения потокобезопасности
         this.units = Map.copyOf(units);
     }
 
     /**
-     * Gets the device name.
+     * Возвращает имя устройства.
      *
-     * @return device name (never null or empty)
+     * @return имя устройства (никогда не null или пусто)
      */
     public String getDeviceName() {
         return deviceName;
     }
 
     /**
-     * Gets the map of unit snapshots.
+     * Возвращает карту снимков модулей.
      *
-     * @return immutable map of units (never null, but may be empty)
+     * @return неизменяемая карта модулей (никогда не null, но может быть пуста)
      */
     public Map<String, UnitSnapshot> getUnits() {
         return units;
     }
 
     /**
-     * Gets the snapshot for a specific unit.
+     * Возвращает снимок конкретного модуля.
      *
-     * @param unitKey the unit key (e.g., "u1", "u2")
-     * @return the unit snapshot, or null if not found
+     * @param unitKey ключ модуля (например, "u1", "u2")
+     * @return снимок модуля или null, если не найден
      */
     public UnitSnapshot getUnit(String unitKey) {
         return units.get(unitKey);
     }
 
     /**
-     * Checks if this snapshot contains a specific unit.
+     * Проверяет, содержит ли этот снимок конкретный модуль.
      *
-     * @param unitKey the unit key to check
-     * @return true if the unit exists in this snapshot
+     * @param unitKey ключ модуля для проверки
+     * @return true, если модуль существует в этом снимке
      */
     public boolean hasUnit(String unitKey) {
         return units.containsKey(unitKey);
     }
 
     /**
-     * Gets the number of units in this snapshot.
+     * Возвращает количество модулей в этом снимке.
      *
-     * @return number of units
+     * @return количество модулей
      */
     public int getUnitCount() {
         return units.size();

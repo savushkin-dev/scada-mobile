@@ -10,22 +10,22 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Mapper for converting between domain models and API DTOs.
+ * Маппер для преобразования между доменными моделями и API DTOs.
  * <p>
- * This mapper is responsible for translating internal domain models
- * into public REST API representations. It isolates the API contract
- * from changes in the domain model.
+ * Этот маппер отвечает за трансляцию внутренних доменных моделей
+ * в представления публичного REST API. Он изолирует контракт API
+ * от изменений в доменной модели.
  * <p>
- * Direction: Domain Model → API DTO
+ * Направление: Доменная модель → API DTO
  */
 @Component
 public class ApiMapper {
 
     /**
-     * Converts a domain DeviceSnapshot to an API QueryStateResponseDTO.
+     * Преобразует доменный DeviceSnapshot в API QueryStateResponseDTO.
      *
-     * @param snapshot the domain device snapshot
-     * @return API DTO for the query state response
+     * @param snapshot снимок состояния устройства доменной модели
+     * @return API DTO для ответа запроса состояния
      */
     public QueryStateResponseDTO toApiQueryStateResponse(DeviceSnapshot snapshot) {
         if (snapshot == null) {
@@ -33,11 +33,11 @@ public class ApiMapper {
         }
 
         Map<String, UnitStateDTO> units = new LinkedHashMap<>();
-        
+
         for (Map.Entry<String, UnitSnapshot> entry : snapshot.getUnits().entrySet()) {
             String unitKey = entry.getKey();
             UnitSnapshot unitSnapshot = entry.getValue();
-            
+
             UnitStateDTO unitStateDto = toApiUnitState(unitSnapshot);
             units.put(unitKey, unitStateDto);
         }
@@ -46,10 +46,10 @@ public class ApiMapper {
     }
 
     /**
-     * Converts a domain UnitSnapshot to an API UnitStateDTO.
+     * Преобразует доменный UnitSnapshot в API UnitStateDTO.
      *
-     * @param snapshot the domain unit snapshot
-     * @return API DTO for the unit state
+     * @param snapshot снимок состояния модуля доменной модели
+     * @return API DTO для состояния модуля
      */
     public UnitStateDTO toApiUnitState(UnitSnapshot snapshot) {
         if (snapshot == null) {
@@ -57,7 +57,7 @@ public class ApiMapper {
         }
 
         UnitPropertiesDTO propertiesDto = toApiUnitProperties(snapshot.getProperties());
-        
+
         return new UnitStateDTO(
                 snapshot.getState(),
                 snapshot.getTask(),
@@ -67,10 +67,10 @@ public class ApiMapper {
     }
 
     /**
-     * Converts domain UnitProperties to an API UnitPropertiesDTO.
+     * Преобразует доменные UnitProperties в API UnitPropertiesDTO.
      *
-     * @param properties the domain unit properties
-     * @return API DTO for the unit properties
+     * @param properties свойства модуля доменной модели
+     * @return API DTO для свойств модуля
      */
     public UnitPropertiesDTO toApiUnitProperties(UnitProperties properties) {
         if (properties == null) {
@@ -105,11 +105,11 @@ public class ApiMapper {
     }
 
     /**
-     * Creates an acknowledgment response for a command change.
+     * Создаёт ответ подтверждения для изменения команды.
      *
-     * @param unit  the unit number
-     * @param value the command value
-     * @return API DTO for the change command response
+     * @param unit  номер модуля
+     * @param value значение команды
+     * @return API DTO для ответа на изменение команды
      */
     public ChangeCommandResponseDTO toApiChangeCommandResponse(int unit, int value) {
         UnitPropertiesDTO properties = new UnitPropertiesDTO(
