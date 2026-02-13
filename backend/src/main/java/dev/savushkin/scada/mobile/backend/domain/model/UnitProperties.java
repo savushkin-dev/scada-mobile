@@ -1,5 +1,8 @@
 package dev.savushkin.scada.mobile.backend.domain.model;
 
+import org.jetbrains.annotations.Contract;
+import org.jspecify.annotations.NonNull;
+
 import java.util.Objects;
 import java.util.Optional;
 
@@ -37,7 +40,8 @@ public final class UnitProperties {
     private final String lineDevices;
     private final String enableErrors;
 
-    private UnitProperties(Builder builder) {
+    @Contract(pure = true)
+    private UnitProperties(@NonNull Builder builder) {
         this.command = builder.command;
         this.message = builder.message;
         this.error = builder.error;
@@ -63,96 +67,124 @@ public final class UnitProperties {
         this.enableErrors = builder.enableErrors;
     }
 
-    public Optional<Integer> getCommand() {
+    /**
+     * Создаёт построитель для конструирования экземпляров UnitProperties.
+     *
+     * @return новый построитель
+     */
+    @Contract(value = " -> new", pure = true)
+    public static @NonNull Builder builder() {
+        return new Builder();
+    }
+
+    @Contract(pure = true)
+    public @NonNull Optional<Integer> getCommand() {
         return Optional.ofNullable(command);
     }
 
-    public Optional<String> getMessage() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getMessage() {
         return Optional.ofNullable(message);
     }
 
-    public Optional<String> getError() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getError() {
         return Optional.ofNullable(error);
     }
 
-    public Optional<String> getErrorMessage() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getErrorMessage() {
         return Optional.ofNullable(errorMessage);
     }
 
-    public Optional<String> getCmdSuccess() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getCmdSuccess() {
         return Optional.ofNullable(cmdSuccess);
     }
 
-    public Optional<String> getSt() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getSt() {
         return Optional.ofNullable(st);
     }
 
-    public Optional<String> getBatchId() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getBatchId() {
         return Optional.ofNullable(batchId);
     }
 
-    public Optional<String> getCurItem() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getCurItem() {
         return Optional.ofNullable(curItem);
     }
 
-    public Optional<String> getBatchIdCodesQueue() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getBatchIdCodesQueue() {
         return Optional.ofNullable(batchIdCodesQueue);
     }
 
-    public Optional<String> getSetBatchId() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getSetBatchId() {
         return Optional.ofNullable(setBatchId);
     }
 
-    public Optional<String> getDevChangeBatch() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getDevChangeBatch() {
         return Optional.ofNullable(devChangeBatch);
     }
 
-    public Optional<String> getDevsChangeBatchIdQueueControl() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getDevsChangeBatchIdQueueControl() {
         return Optional.ofNullable(devsChangeBatchIdQueueControl);
     }
 
-    public Optional<String> getDevType() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getDevType() {
         return Optional.ofNullable(devType);
     }
 
-    public Optional<String> getLineId() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getLineId() {
         return Optional.ofNullable(lineId);
     }
 
-    public Optional<String> getOnChangeBatchPrinters() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getOnChangeBatchPrinters() {
         return Optional.ofNullable(onChangeBatchPrinters);
     }
 
-    public Optional<String> getLevel1Printers() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getLevel1Printers() {
         return Optional.ofNullable(level1Printers);
     }
 
-    public Optional<String> getLevel2Printers() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getLevel2Printers() {
         return Optional.ofNullable(level2Printers);
     }
 
-    public Optional<String> getOnChangeBatchCams() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getOnChangeBatchCams() {
         return Optional.ofNullable(onChangeBatchCams);
     }
 
-    public Optional<String> getLevel1Cams() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getLevel1Cams() {
         return Optional.ofNullable(level1Cams);
     }
 
-    public Optional<String> getLevel2Cams() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getLevel2Cams() {
         return Optional.ofNullable(level2Cams);
     }
 
-    public Optional<String> getSignalCams() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getSignalCams() {
         return Optional.ofNullable(signalCams);
     }
 
-    public Optional<String> getLineDevices() {
+    @Contract(pure = true)
+    public @NonNull Optional<String> getLineDevices() {
         return Optional.ofNullable(lineDevices);
-    }
-
-    public Optional<String> getEnableErrors() {
-        return Optional.ofNullable(enableErrors);
     }
 
     @Override
@@ -222,13 +254,9 @@ public final class UnitProperties {
                 '}';
     }
 
-    /**
-     * Создаёт построитель для конструирования экземпляров UnitProperties.
-     *
-     * @return новый построитель
-     */
-    public static Builder builder() {
-        return new Builder();
+    @Contract(pure = true)
+    public @NonNull Optional<String> getEnableErrors() {
+        return Optional.ofNullable(enableErrors);
     }
 
     public static class Builder {

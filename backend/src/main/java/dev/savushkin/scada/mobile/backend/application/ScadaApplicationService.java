@@ -1,9 +1,9 @@
 package dev.savushkin.scada.mobile.backend.application;
 
+import dev.savushkin.scada.mobile.backend.application.ports.DeviceSnapshotReader;
+import dev.savushkin.scada.mobile.backend.application.ports.PendingWriteCommandsPort;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import dev.savushkin.scada.mobile.backend.domain.model.WriteCommand;
-import dev.savushkin.scada.mobile.backend.store.PendingCommandsBuffer;
-import dev.savushkin.scada.mobile.backend.store.PrintSrvSnapshotStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -37,20 +37,20 @@ public class ScadaApplicationService {
 
     private static final Logger log = LoggerFactory.getLogger(ScadaApplicationService.class);
 
-    private final PrintSrvSnapshotStore snapshotStore;
-    private final PendingCommandsBuffer commandBuffer;
+    private final DeviceSnapshotReader snapshotReader;
+    private final PendingWriteCommandsPort commandBuffer;
 
     /**
      * Конструктор с внедрением зависимостей.
      *
-     * @param snapshotStore хранилище для снимков состояния устройства
-     * @param commandBuffer буфер для ожидающих команд записи
+     * @param snapshotReader компонент для чтения снимков состояния устройства
+     * @param commandBuffer  порт для отправки команд записи
      */
     public ScadaApplicationService(
-            PrintSrvSnapshotStore snapshotStore,
-            PendingCommandsBuffer commandBuffer
+            DeviceSnapshotReader snapshotReader,
+            PendingWriteCommandsPort commandBuffer
     ) {
-        this.snapshotStore = snapshotStore;
+        this.snapshotReader = snapshotReader;
         this.commandBuffer = commandBuffer;
         log.info("ScadaApplicationService initialized");
     }
@@ -67,7 +67,7 @@ public class ScadaApplicationService {
      */
     public DeviceSnapshot getCurrentState() {
         log.debug("Reading current device state from store");
-        DeviceSnapshot snapshot = snapshotStore.getSnapshot();
+        DeviceSnapshot snapshot = snapshotReader.getLatestOrNull();
 
         if (snapshot == null) {
             log.warn("Snapshot not available - store is empty");
@@ -110,7 +110,7 @@ public class ScadaApplicationService {
         );
 
         // Добавление в буфер (будет обработано в следующем цикле сканирования)
-        commandBuffer.add(command);
+        commandBuffer.enqueue(command);
         log.debug("Command added to buffer successfully (buffer size={})", commandBuffer.size());
 
         log.info("Write command accepted: unit={}, value={} (will be executed in next scan cycle)",
@@ -126,7 +126,7 @@ public class ScadaApplicationService {
      * @return true, если система готова
      */
     public boolean isReady() {
-        return snapshotStore.getSnapshot() != null;
+        return snapshotReader.getLatestOrNull() != null;
     }
 
     /**

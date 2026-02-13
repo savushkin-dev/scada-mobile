@@ -1,6 +1,9 @@
 package dev.savushkin.scada.mobile.backend.store;
 
+import dev.savushkin.scada.mobile.backend.application.ports.PendingWriteCommandsDrainPort;
+import dev.savushkin.scada.mobile.backend.application.ports.PendingWriteCommandsPort;
 import dev.savushkin.scada.mobile.backend.domain.model.WriteCommand;
+import dev.savushkin.scada.mobile.backend.domain.policy.LastWriteWinsPolicy;
 import dev.savushkin.scada.mobile.backend.exception.BufferOverflowException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Команды, добавленные во время выполнения {@link #getAndClear()}, попадут в следующий цикл.
  */
 @Component
-public class PendingCommandsBuffer {
+public class PendingCommandsBuffer implements PendingWriteCommandsPort, PendingWriteCommandsDrainPort {
 
     private static final Logger log = LoggerFactory.getLogger(PendingCommandsBuffer.class);
 
@@ -52,6 +55,16 @@ public class PendingCommandsBuffer {
      * ConcurrentHashMap обеспечивает thread-safety для concurrent add() и getAndClear().
      */
     private final ConcurrentHashMap<Integer, WriteCommand> buffer = new ConcurrentHashMap<>();
+    private final LastWriteWinsPolicy lastWriteWinsPolicy;
+
+    public PendingCommandsBuffer(LastWriteWinsPolicy lastWriteWinsPolicy) {
+        this.lastWriteWinsPolicy = lastWriteWinsPolicy;
+    }
+
+    @Override
+    public void enqueue(WriteCommand command) {
+        add(command);
+    }
 
     /**
      * Добавляет команду в буфер.
@@ -70,7 +83,7 @@ public class PendingCommandsBuffer {
 
         // Проверка переполнения ДО добавления
         // Это предотвращает бесконечное накопление команд при недоступности SCADA
-        if (buffer.size() >= MAX_BUFFER_SIZE && !buffer.containsKey(command.getUnitNumber())) {
+        if (buffer.size() >= MAX_BUFFER_SIZE && !buffer.containsKey(command.unitNumber())) {
             String errorMsg = String.format(
                     "Буфер команд переполнен (size=%d, max=%d). SCADA недоступна длительное время.",
                     buffer.size(), MAX_BUFFER_SIZE
@@ -79,15 +92,19 @@ public class PendingCommandsBuffer {
             throw new BufferOverflowException(errorMsg);
         }
 
-        // putIfAbsent + replace для атомарной замены
-        WriteCommand previous = buffer.put(command.getUnitNumber(), command);
+        WriteCommand previous = lastWriteWinsPolicy.apply(buffer, command);
 
         if (previous == null) {
-            log.debug("Added new pending command for unit {}: command={}", command.getUnitNumber(), command.getCommandValue());
+            log.debug("Added new pending command for unit {}: command={}", command.unitNumber(), command.commandValue());
         } else {
             log.debug("Replaced pending command for unit {} (Last-Write-Wins): command={} -> {}",
-                    command.getUnitNumber(), previous.getCommandValue(), command.getCommandValue());
+                    command.unitNumber(), previous.commandValue(), command.commandValue());
         }
+    }
+
+    @Override
+    public Map<Integer, WriteCommand> drain() {
+        return getAndClear();
     }
 
     /**

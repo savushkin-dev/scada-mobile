@@ -25,7 +25,7 @@ public class HealthService {
      * @return всегда true, если метод вызывается.
      */
     public boolean isAlive() {
-        return true;
+        return applicationService.isAlive();
     }
 
     /**

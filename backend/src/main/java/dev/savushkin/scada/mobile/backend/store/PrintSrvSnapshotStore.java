@@ -1,5 +1,7 @@
 package dev.savushkin.scada.mobile.backend.store;
 
+import dev.savushkin.scada.mobile.backend.application.ports.DeviceSnapshotReader;
+import dev.savushkin.scada.mobile.backend.application.ports.DeviceSnapshotWriter;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +37,7 @@ import java.util.concurrent.atomic.AtomicReference;
  * </ol>
  */
 @Component
-public class PrintSrvSnapshotStore {
+public class PrintSrvSnapshotStore implements DeviceSnapshotReader, DeviceSnapshotWriter {
 
     private static final Logger log = LoggerFactory.getLogger(PrintSrvSnapshotStore.class);
 
@@ -52,6 +54,11 @@ public class PrintSrvSnapshotStore {
      */
     public PrintSrvSnapshotStore() {
         log.info("PrintSrvSnapshotStore initialized");
+    }
+
+    @Override
+    public void save(DeviceSnapshot snapshot) {
+        saveSnapshot(snapshot);
     }
 
     /**
@@ -77,6 +84,11 @@ public class PrintSrvSnapshotStore {
         } else {
             log.trace("Snapshot updated with {} units", snapshot.getUnitCount());
         }
+    }
+
+    @Override
+    public DeviceSnapshot getLatestOrNull() {
+        return getSnapshot();
     }
 
     /**

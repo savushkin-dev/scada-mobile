@@ -1,6 +1,9 @@
 package dev.savushkin.scada.mobile.backend.api;
 
-import dev.savushkin.scada.mobile.backend.api.dto.*;
+import dev.savushkin.scada.mobile.backend.api.dto.ChangeCommandResponseDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.QueryStateResponseDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.UnitPropertiesDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.UnitStateDTO;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitProperties;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitSnapshot;
@@ -34,7 +37,7 @@ public class ApiMapper {
 
         Map<String, UnitStateDTO> units = new LinkedHashMap<>();
 
-        for (Map.Entry<String, UnitSnapshot> entry : snapshot.getUnits().entrySet()) {
+        for (Map.Entry<String, UnitSnapshot> entry : snapshot.units().entrySet()) {
             String unitKey = entry.getKey();
             UnitSnapshot unitSnapshot = entry.getValue();
 
@@ -42,7 +45,7 @@ public class ApiMapper {
             units.put(unitKey, unitStateDto);
         }
 
-        return new QueryStateResponseDTO(snapshot.getDeviceName(), units);
+        return new QueryStateResponseDTO(snapshot.deviceName(), units);
     }
 
     /**
@@ -56,12 +59,12 @@ public class ApiMapper {
             throw new IllegalArgumentException("UnitSnapshot cannot be null");
         }
 
-        UnitPropertiesDTO propertiesDto = toApiUnitProperties(snapshot.getProperties());
+        UnitPropertiesDTO propertiesDto = toApiUnitProperties(snapshot.properties());
 
         return new UnitStateDTO(
-                snapshot.getState(),
-                snapshot.getTask(),
-                snapshot.getCounter(),
+                snapshot.state(),
+                snapshot.task(),
+                snapshot.counter(),
                 propertiesDto
         );
     }

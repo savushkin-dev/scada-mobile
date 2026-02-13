@@ -1,9 +1,9 @@
 package dev.savushkin.scada.mobile.backend.services.polling;
 
+import dev.savushkin.scada.mobile.backend.application.ports.DeviceSnapshotWriter;
+import dev.savushkin.scada.mobile.backend.application.ports.PendingWriteCommandsDrainPort;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import dev.savushkin.scada.mobile.backend.domain.model.WriteCommand;
-import dev.savushkin.scada.mobile.backend.store.PendingCommandsBuffer;
-import dev.savushkin.scada.mobile.backend.store.PrintSrvSnapshotStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -45,20 +45,20 @@ public class PrintSrvPollingScheduler {
 
     private final PrintSrvConnectionManager connectionManager;
     private final ScadaCommandExecutor commandExecutor;
-    private final PendingCommandsBuffer pendingCommandsBuffer;
-    private final PrintSrvSnapshotStore snapshotStore;
+    private final PendingWriteCommandsDrainPort pendingCommandsDrain;
+    private final DeviceSnapshotWriter snapshotWriter;
 
     public PrintSrvPollingScheduler(
             PrintSrvConnectionManager connectionManager,
             ScadaCommandExecutor commandExecutor,
-            PendingCommandsBuffer pendingCommandsBuffer,
-            PrintSrvSnapshotStore snapshotStore,
+            PendingWriteCommandsDrainPort pendingCommandsDrain,
+            DeviceSnapshotWriter snapshotWriter,
             @Value("${printsrv.polling.fixed-delay-ms:5000}") long pollingFixedDelayMs
     ) {
         this.connectionManager = connectionManager;
         this.commandExecutor = commandExecutor;
-        this.pendingCommandsBuffer = pendingCommandsBuffer;
-        this.snapshotStore = snapshotStore;
+        this.pendingCommandsDrain = pendingCommandsDrain;
+        this.snapshotWriter = snapshotWriter;
 
         log.info("PrintSrvPollingScheduler initialized - scan cycle interval: {}ms", pollingFixedDelayMs);
     }
@@ -78,7 +78,7 @@ public class PrintSrvPollingScheduler {
             log.trace("✅ [1/4] READ completed: {} units received", freshData.getUnitCount());
 
             // [2] BUSINESS LOGIC - получаем pending команды из буфера
-            Map<Integer, WriteCommand> pendingWrites = pendingCommandsBuffer.getAndClear();
+            Map<Integer, WriteCommand> pendingWrites = pendingCommandsDrain.drain();
             log.trace("📋 [2/4] BUSINESS LOGIC: {} pending command(s) retrieved", pendingWrites.size());
 
             // [3] WRITE в PrintSrv - если есть команды для записи
@@ -104,7 +104,7 @@ public class PrintSrvPollingScheduler {
 
             // [4] UPDATE snapshot - ВСЕГДА обновляем snapshot из READ
             // Это источник правды: если WRITE не удался, клиенты увидят старые значения
-            snapshotStore.saveSnapshot(freshData);
+            snapshotWriter.save(freshData);
             log.trace("✅ [4/4] UPDATE snapshot completed");
 
             log.debug("🔄 Scan cycle completed successfully");
@@ -119,8 +119,7 @@ public class PrintSrvPollingScheduler {
             // Pending команды остаются в буфере до следующего цикла
             log.error("❌ Scan cycle failed (PrintSrv unavailable): {} - {}",
                     e.getClass().getSimpleName(), e.getMessage());
-            log.debug("Pending commands remain in buffer (size={}), will retry in next cycle",
-                    pendingCommandsBuffer.size());
+            log.debug("Pending commands remain in buffer (will retry in next cycle)");
         }
     }
 }

@@ -5,7 +5,10 @@ import dev.savushkin.scada.mobile.backend.domain.model.WriteCommand;
 import dev.savushkin.scada.mobile.backend.printsrv.PrintSrvMapper;
 import dev.savushkin.scada.mobile.backend.printsrv.client.QueryAllCommand;
 import dev.savushkin.scada.mobile.backend.printsrv.client.SetUnitVars;
-import dev.savushkin.scada.mobile.backend.printsrv.dto.*;
+import dev.savushkin.scada.mobile.backend.printsrv.dto.ParametersDTO;
+import dev.savushkin.scada.mobile.backend.printsrv.dto.QueryAllRequestDTO;
+import dev.savushkin.scada.mobile.backend.printsrv.dto.QueryAllResponseDTO;
+import dev.savushkin.scada.mobile.backend.printsrv.dto.SetUnitVarsRequestDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -92,12 +95,12 @@ public class ScadaCommandExecutor {
             try {
                 SetUnitVarsRequestDTO request = buildSetUnitVarsRequest(cmd);
                 setUnitVarsCommand.execute(request);
-                log.debug("SetUnitVars executed for unit {}: command={}", cmd.getUnitNumber(), cmd.getCommandValue());
+                log.debug("SetUnitVars executed for unit {}: command={}", cmd.unitNumber(), cmd.commandValue());
             } catch (IOException e) {
                 // Логируем ошибку и пробрасываем исключение
                 // Все команды в этом цикле будут потеряны
                 log.error("Failed to execute SetUnitVars for unit {}: {} - {}",
-                        cmd.getUnitNumber(), e.getClass().getSimpleName(), e.getMessage());
+                        cmd.unitNumber(), e.getClass().getSimpleName(), e.getMessage());
                 throw e;
             }
         }
@@ -117,14 +120,14 @@ public class ScadaCommandExecutor {
      * @throws IllegalArgumentException если properties не содержат 'command' или значение не Integer
      */
     private SetUnitVarsRequestDTO buildSetUnitVarsRequest(WriteCommand command) {
-        int commandValue = command.getCommandValue();
+        int commandValue = command.commandValue();
 
         // Создаём ParametersDTO с command value
         ParametersDTO parameters = new ParametersDTO(commandValue);
 
         return new SetUnitVarsRequestDTO(
                 "Line",                  // DeviceName
-                command.getUnitNumber(), // Unit (1-based)
+                command.unitNumber(), // Unit (1-based)
                 "SetUnitVars",          // Command
                 parameters              // Parameters с command value
         );
