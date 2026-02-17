@@ -6,10 +6,13 @@ import dev.savushkin.scada.mobile.backend.exception.BufferOverflowException;
 import dev.savushkin.scada.mobile.backend.infrastructure.polling.PrintSrvPollingScheduler;
 import dev.savushkin.scada.mobile.backend.services.CommandsService;
 import dev.savushkin.scada.mobile.backend.services.HealthService;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -33,6 +36,7 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("api/v1/commands")
+@Validated
 public class CommandsController {
 
     private static final Logger log = LoggerFactory.getLogger(CommandsController.class);
@@ -44,7 +48,7 @@ public class CommandsController {
      * Конструктор контроллера с внедрением зависимостей.
      *
      * @param commandsService сервис для работы с командами SCADA
-     * @param healthService    сервис для проверки состояния приложения
+     * @param healthService   сервис для проверки состояния приложения
      */
     public CommandsController(CommandsService commandsService, HealthService healthService) {
         this.commandsService = commandsService;
@@ -99,8 +103,8 @@ public class CommandsController {
      */
     @PostMapping("/setUnitVars")
     public ResponseEntity<ChangeCommandResponseDTO> setUnitVars(
-            @RequestParam int unit,
-            @RequestParam int value
+            @RequestParam @Positive @Min(1) int unit,
+            @RequestParam @Positive @Min(1) int value
     ) {
         log.info("Received POST /setUnitVars request: unit={}, value={}", unit, value);
         ChangeCommandResponseDTO response = commandsService.setUnitVars(unit, value);

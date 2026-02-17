@@ -184,6 +184,8 @@ tmp/
 
 # Logs
 *.log
+*.pid
+backend/logs/*
 
 # OS-specific
 .Spotlight-V100
@@ -205,4 +207,4 @@ tmp/
 # package-lock.json
 # yarn.lock
 # gradle/wrapper/gradle-wrapper.jar
-backend/.$схема_модулей.drawio.bkp
+*.bkp

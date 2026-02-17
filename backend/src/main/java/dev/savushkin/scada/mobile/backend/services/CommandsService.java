@@ -5,9 +5,12 @@ import dev.savushkin.scada.mobile.backend.api.dto.ChangeCommandResponseDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.QueryStateResponseDTO;
 import dev.savushkin.scada.mobile.backend.application.ScadaApplicationService;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * Сервис для предоставления данных клиентам через REST API.
@@ -33,6 +36,7 @@ import org.springframework.stereotype.Service;
  * </ul>
  */
 @Service
+@Validated
 public class CommandsService {
 
     private static final Logger log = LoggerFactory.getLogger(CommandsService.class);
@@ -70,13 +74,13 @@ public class CommandsService {
      */
     public QueryStateResponseDTO queryAll() {
         log.debug("Processing queryAll request");
-        
+
         // Get domain model from application service
         DeviceSnapshot snapshot = applicationService.getCurrentState();
-        
+
         // Convert to API DTO
         QueryStateResponseDTO response = apiMapper.toApiQueryStateResponse(snapshot);
-        
+
         log.debug("QueryAll request processed successfully with {} units", snapshot.getUnitCount());
         return response;
     }
@@ -104,7 +108,10 @@ public class CommandsService {
      * @return acknowledgment ответ с переданными значениями (НЕ реальное состояние из SCADA)
      * @throws dev.savushkin.scada.mobile.backend.exception.BufferOverflowException если буфер переполнен
      */
-    public ChangeCommandResponseDTO setUnitVars(int unit, int value) {
+    public ChangeCommandResponseDTO setUnitVars(
+            @Positive @Min(1) int unit,
+            @Positive @Min(1) int value
+    ) {
         log.info("Processing setUnitVars request: unit={}, value={}", unit, value);
 
         // Submit command to application service

@@ -4,9 +4,12 @@ import dev.savushkin.scada.mobile.backend.application.ports.DeviceSnapshotReader
 import dev.savushkin.scada.mobile.backend.application.ports.PendingWriteCommandsPort;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import dev.savushkin.scada.mobile.backend.domain.model.WriteCommand;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Positive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.annotation.Validated;
 
 /**
  * Сервис приложения для координации команд SCADA.
@@ -33,6 +36,7 @@ import org.springframework.stereotype.Service;
  * </ul>
  */
 @Service
+@Validated
 public class ScadaApplicationService {
 
     private static final Logger log = LoggerFactory.getLogger(ScadaApplicationService.class);
@@ -100,7 +104,10 @@ public class ScadaApplicationService {
      * @param value      значение команды для записи
      * @throws dev.savushkin.scada.mobile.backend.exception.BufferOverflowException если буфер переполнен
      */
-    public void submitWriteCommand(int unitNumber, int value) {
+    public void submitWriteCommand(
+            @Positive @Min(1) int unitNumber,
+            @Positive @Min(1) int value
+    ) {
         log.info("Submitting write command: unit={}, value={}", unitNumber, value);
 
         // Создание доменной модели команды
