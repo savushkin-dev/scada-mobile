@@ -89,7 +89,7 @@ public class PrintSrvConnectionManager {
             return result;
         } catch (Exception e) {
             long failures = consecutiveFailures.incrementAndGet();
-            log.error("❌ PrintSrv operation failed (consecutive failures: {}): {} - {}",
+            log.debug("❌ PrintSrv operation failed (consecutive failures: {}): {} - {}",
                     failures, e.getClass().getSimpleName(), e.getMessage());
 
             if (failures >= ERROR_THRESHOLD_FOR_RECONNECT) {
@@ -101,7 +101,7 @@ public class PrintSrvConnectionManager {
     }
 
     private <T> T executeReconnectionLoop(ThrowingSupplier<T> operation, Exception original) throws Exception {
-        log.warn("⚠️ ERROR THRESHOLD REACHED ({} failures) - initiating socket reconnection", ERROR_THRESHOLD_FOR_RECONNECT);
+        log.debug("⚠️ ERROR THRESHOLD REACHED ({} failures) - initiating socket reconnection", ERROR_THRESHOLD_FOR_RECONNECT);
         socketManager.invalidate();
 
         Exception lastException = original;
@@ -110,25 +110,25 @@ public class PrintSrvConnectionManager {
                 int delay = calculateExponentialDelay(attempt);
 
                 if (attempt > 1) {
-                    log.info("⏳ Waiting {}ms before retry attempt {}/{}...", delay, attempt, maxRetryAttempts);
+                    log.debug("⏳ Waiting {}ms before retry attempt {}/{}...", delay, attempt, maxRetryAttempts);
                     sleepInterruptibly(delay);
                 }
 
-                log.info("🔌 Reconnection attempt {}/{} to PrintSrv...", attempt, maxRetryAttempts);
+                log.debug("🔌 Reconnection attempt {}/{} to PrintSrv...", attempt, maxRetryAttempts);
                 T result = operation.get();
 
                 consecutiveFailures.set(0);
-                log.info("✅ Reconnection successful on attempt {}/{}", attempt, maxRetryAttempts);
+                log.debug("✅ Reconnection successful on attempt {}/{}", attempt, maxRetryAttempts);
                 return result;
 
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
-                log.error("❌ Reconnection interrupted");
+                log.debug("❌ Reconnection interrupted");
                 enterRecoveryMode();
                 throw ie;
             } catch (Exception e) {
                 lastException = e;
-                log.error("❌ Reconnection attempt {}/{} failed: {} - {}",
+                log.debug("❌ Reconnection attempt {}/{} failed: {} - {}",
                         attempt, maxRetryAttempts, e.getClass().getSimpleName(), e.getMessage());
                 socketManager.invalidate();
             }
@@ -150,7 +150,7 @@ public class PrintSrvConnectionManager {
         }
 
         lastRecoveryAttemptTime.set(currentTime);
-        log.info("🔍 Recovery mode: checking PrintSrv availability...");
+        log.debug("🔍 Recovery mode: checking PrintSrv availability...");
 
         try {
             socketManager.invalidate();
@@ -158,11 +158,11 @@ public class PrintSrvConnectionManager {
 
             consecutiveFailures.set(0);
             inRecoveryMode = false;
-            log.info("✅ PrintSrv is AVAILABLE again - exiting recovery mode");
+            log.debug("✅ PrintSrv is AVAILABLE again - exiting recovery mode");
             return result;
 
         } catch (Exception e) {
-            log.error("❌ Recovery check failed: PrintSrv still unavailable - {} (next check in {}s)",
+            log.debug("❌ Recovery check failed: PrintSrv still unavailable - {} (next check in {}s)",
                     e.getMessage(), recoveryCheckIntervalMs / 1000);
             socketManager.invalidate();
             throw e;
@@ -172,14 +172,14 @@ public class PrintSrvConnectionManager {
     private void onSuccess() {
         long previousFailures = consecutiveFailures.getAndSet(0);
         if (previousFailures > 0) {
-            log.info("✅ PrintSrv connection recovered after {} consecutive failures", previousFailures);
+            log.debug("✅ PrintSrv connection recovered after {} consecutive failures", previousFailures);
         }
     }
 
     private void enterRecoveryMode() {
         inRecoveryMode = true;
         lastRecoveryAttemptTime.set(System.currentTimeMillis());
-        log.error("🚨 ENTERING RECOVERY MODE - all reconnection attempts failed. Will check PrintSrv availability every {} seconds.",
+        log.debug("🚨 ENTERING RECOVERY MODE - all reconnection attempts failed. Will check PrintSrv availability every {} seconds.",
                 recoveryCheckIntervalMs / 1000);
     }
 
@@ -198,4 +198,3 @@ public class PrintSrvConnectionManager {
         T get() throws Exception;
     }
 }
-

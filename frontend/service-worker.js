@@ -1,9 +1,23 @@
-const CACHE_NAME = "scada-mobile-v1";
-const urlsToCache = [
+/**
+ * SCADA Mobile — Service Worker (PWA shell).
+ *
+ * Стратегия: Network-first для API-запросов к бекенду,
+ *             Cache-first для статических ресурсов оболочки.
+ *
+ * API-запросы (к localhost:8080) намеренно НЕ кешируются —
+ * данные SCADA должны быть всегда актуальными.
+ */
+
+const CACHE_NAME = "scada-mobile-v2";
+
+/** Статические ресурсы оболочки (app shell) */
+const SHELL_URLS = [
   "./",
   "./index.html",
   "./css/styles.css",
   "./js/app.js",
+  "./js/api.js",
+  "./js/ui.js",
   "./manifest.webmanifest",
   "./assets/icons/icon-48x48.png",
   "./assets/icons/icon-96x96.png",
@@ -12,96 +26,90 @@ const urlsToCache = [
   "./assets/icons/icon-512x512.png",
 ];
 
-// Install event - cache resources
+// ── Install ──────────────────────────────────────────────────────────
 self.addEventListener("install", (event) => {
-  console.log("[Service Worker] Installing...");
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => {
-        console.log("[Service Worker] Caching app shell");
-        return cache.addAll(urlsToCache);
-      })
-      .then(() => {
-        console.log("[Service Worker] Installed successfully");
-        return self.skipWaiting();
-      })
-      .catch((error) => {
-        console.error("[Service Worker] Installation failed:", error);
-      })
+      .then((cache) => cache.addAll(SHELL_URLS))
+      .then(() => self.skipWaiting())
+      .catch((err) => console.error("[SW] Install failed:", err))
   );
 });
 
-// Activate event - clean up old caches
+// ── Activate ─────────────────────────────────────────────────────────
 self.addEventListener("activate", (event) => {
-  console.log("[Service Worker] Activating...");
   event.waitUntil(
     caches
       .keys()
-      .then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((cacheName) => {
-            if (cacheName !== CACHE_NAME) {
-              console.log("[Service Worker] Deleting old cache:", cacheName);
-              return caches.delete(cacheName);
-            }
-          })
-        );
-      })
-      .then(() => {
-        console.log("[Service Worker] Activated successfully");
-        return self.clients.claim();
-      })
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((k) => k !== CACHE_NAME)
+            .map((k) => caches.delete(k))
+        )
+      )
+      .then(() => self.clients.claim())
   );
 });
 
-// Fetch event - cache-first strategy
+// ── Fetch ─────────────────────────────────────────────────────────────
 self.addEventListener("fetch", (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      // Cache hit - return response from cache
-      if (response) {
-        console.log("[Service Worker] Serving from cache:", event.request.url);
-        return response;
-      }
+  const url = new URL(event.request.url);
+  const isApiRequest =
+    url.port === "8080" &&
+    url.pathname.startsWith("/api/") &&
+    (url.hostname === "localhost" || url.hostname === "127.0.0.1");
 
-      // Clone the request
-      const fetchRequest = event.request.clone();
-
-      // Make network request
-      return fetch(fetchRequest)
-        .then((response) => {
-          // Check if valid response
-          if (
-            !response ||
-            response.status !== 200 ||
-            (response.type !== "basic" && response.type !== "cors")
-          ) {
-            return response;
+  // API-запросы к бекенду — только сеть, никакого кеша
+  if (isApiRequest) {
+    event.respondWith(
+      fetch(event.request).catch(() =>
+        new Response(
+          JSON.stringify({ message: "Network error" }),
+          {
+            status: 503,
+            headers: { "Content-Type": "application/json" },
           }
+        )
+      )
+    );
+    return;
+  }
 
-          // Clone the response
+  // Для GET-запросов статики — cache-first
+  if (event.request.method !== "GET") return;
+
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached;
+
+      return fetch(event.request).then((response) => {
+        if (
+          response &&
+          response.status === 200 &&
+          (response.type === "basic" || response.type === "cors")
+        ) {
+          // Клонируем ДО возврата — body можно прочитать только один раз
           const responseToCache = response.clone();
-
-          // Cache the new resource
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache);
           });
-
-          return response;
+        }
+        return response;
+      }).catch(() =>
+        new Response("Offline", {
+          status: 503,
+          statusText: "Offline",
         })
-        .catch((error) => {
-          console.error("[Service Worker] Fetch failed:", error);
-          // You could return a custom offline page here
-          throw error;
-        });
+      );
     })
   );
 });
 
-// Message event - communicate with the app
+// ── Message ───────────────────────────────────────────────────────────
 self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") {
+  if (event.data?.type === "SKIP_WAITING") {
     self.skipWaiting();
   }
 });

@@ -112,7 +112,7 @@ public class CommandsService {
             @Positive @Min(1) int unit,
             @Positive @Min(1) int value
     ) {
-        log.info("Processing setUnitVars request: unit={}, value={}", unit, value);
+        log.debug("Processing setUnitVars request: unit={}, value={}", unit, value);
 
         // Submit command to application service
         applicationService.submitWriteCommand(unit, value);
@@ -120,7 +120,7 @@ public class CommandsService {
         // Create acknowledgment response (command accepted, will be executed later)
         ChangeCommandResponseDTO response = apiMapper.toApiChangeCommandResponse(unit, value);
 
-        log.info("SetUnitVars command accepted: unit={}, value={} (will be executed in next scan cycle)",
+        log.debug("SetUnitVars command accepted: unit={}, value={} (will be executed in next scan cycle)",
                 unit, value);
 
         return response;

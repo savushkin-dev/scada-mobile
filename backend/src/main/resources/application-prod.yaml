@@ -1,0 +1,32 @@
+# Prod profile: минимальное логирование, быстрый polling, документация отключена
+logging:
+  level:
+    root: WARN
+    dev.savushkin.scada.mobile.backend: INFO
+
+printsrv:
+  polling:
+    fixed-delay-ms: 500  # Prod: быстрый цикл (0.5 секунды)
+  retry:
+    max-attempts: 10  # Prod: больше попыток для устойчивости
+    max-delay-ms: 10000  # Prod: больше терпения при переподключении
+
+# CORS: prod — только строгий allowlist origins.
+# Задайте через переменную окружения (через запятую):
+#   CORS_ALLOWED_ORIGINS=http://scada.plant.local,https://scada.plant.local
+cors:
+  policy:
+    # ВАЖНО: по умолчанию пусто (запросы с браузера с другого origin будут блокироваться).
+    allowed-origins: "${CORS_ALLOWED_ORIGINS:}"
+    allowed-methods: [ "GET", "POST", "OPTIONS" ]
+    allowed-headers: [ "Content-Type", "Authorization" ]
+    allow-credentials: false
+    max-age-seconds: 3600
+
+# OpenAPI/Swagger UI: отключено в продакшене из соображений безопасности
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+

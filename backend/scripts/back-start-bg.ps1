@@ -1,7 +1,9 @@
 param(
     [string]$BackendDir = "backend",
     [int]$Port = 8080,
-    [string]$JavaToolOptions = "-Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8"
+    [string]$JavaToolOptions = "-Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8",
+    [ValidateSet('dev', 'prod')]
+    [string]$Profile = "dev"
 )
 
 $ErrorActionPreference = 'Stop'
@@ -59,8 +61,7 @@ $cmdBody = @(
     '@echo off',
     'chcp 65001 >NUL',
     'if not exist logs mkdir logs',
-    ('set "JAVA_TOOL_OPTIONS=' + $JavaToolOptions + '"'),
-    'call gradlew.bat bootRun >> logs\\backend.log 2>&1'
+    ('set "JAVA_TOOL_OPTIONS=' + $JavaToolOptions + '"'),    ('set "SPRING_PROFILES_ACTIVE=' + $Profile + '"'),    'call gradlew.bat bootRun >> logs\\backend.log 2>&1'
 ) -join "`r`n"
 Set-Content -Path $runCmdFile -Value $cmdBody -Encoding ASCII
 

@@ -108,7 +108,7 @@ public class ScadaApplicationService {
             @Positive @Min(1) int unitNumber,
             @Positive @Min(1) int value
     ) {
-        log.info("Submitting write command: unit={}, value={}", unitNumber, value);
+        log.debug("Submitting write command: unit={}, value={}", unitNumber, value);
 
         // Создание доменной модели команды
         WriteCommand command = new WriteCommand(
@@ -120,7 +120,7 @@ public class ScadaApplicationService {
         commandBuffer.enqueue(command);
         log.debug("Command added to buffer successfully (buffer size={})", commandBuffer.size());
 
-        log.info("Write command accepted: unit={}, value={} (will be executed in next scan cycle)",
+        log.debug("Write command accepted: unit={}, value={} (will be executed in next scan cycle)",
                 unitNumber, value);
     }
 

@@ -9,6 +9,8 @@ BACKEND_PID_FILE := $(BACKEND_LOG_DIR)/backend.pid
 BACKEND_LOG_NAME := logs/backend.log
 BACKEND_PID_NAME := logs/backend.pid
 BACKEND_PORT ?= 8080
+# Активный Spring-профиль (dev | prod). По умолчанию dev.
+BACKEND_PROFILE ?= dev
 JAVA_UTF8_OPTS := -Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8
 JAVA_WIN1251_OPTS := -Dfile.encoding=windows-1251 -Dsun.stdout.encoding=windows-1251 -Dsun.stderr.encoding=windows-1251
 
@@ -19,7 +21,8 @@ GRADLEW := ./gradlew
 endif
 
 .PHONY: help \
-	back-run back-run-bg back-stop back-stop-force back-status back-build back-test back-clean \
+	back-run back-run-bg back-run-prod back-run-bg-prod \
+	back-stop back-stop-force back-status back-build back-test back-clean \
 	front-install front-dev front-build \
 	bwa-init bwa-build-apk
 
@@ -27,17 +30,20 @@ help:
 	@echo "SCADA Mobile shortcuts"
 	@echo ""
 	@echo "Backend (ready):"
-	@echo "  make back-run      - run Spring Boot backend"
-	@echo "  make back-run-bg   - run backend in background (silent, logs to file)"
-	@echo "  make back-stop     - stop backend started in background"
-	@echo "  make back-stop-force - emergency stop backend by port"
-	@echo "  make back-status   - show backend background status"
-	@echo "  make back-build    - build backend jar"
-	@echo "  make back-test     - run backend tests"
-	@echo "  make back-clean    - clean backend build"
+	@echo "  make back-run          - run backend in foreground [DEV profile, Swagger UI enabled]"
+	@echo "  make back-run-bg       - run backend in background [DEV profile, Swagger UI enabled]"
+	@echo "  make back-run-prod     - run backend in foreground [PROD profile, Swagger UI disabled]"
+	@echo "  make back-run-bg-prod  - run backend in background [PROD profile, Swagger UI disabled]"
+	@echo "  make back-stop         - stop backend started in background"
+	@echo "  make back-stop-force   - emergency stop backend by port"
+	@echo "  make back-status       - show backend background status"
+	@echo "  make back-build        - build backend jar"
+	@echo "  make back-test         - run backend tests"
+	@echo "  make back-clean        - clean backend build"
 	@echo "  log file: $(BACKEND_LOG_FILE)"
 	@echo "  pid file: $(BACKEND_PID_FILE)"
 	@echo "  backend port: $(BACKEND_PORT)"
+	@echo "  active profile: $(BACKEND_PROFILE)"
 	@echo ""
 	@echo "Frontend (placeholders):"
 	@echo "  make front-install - placeholder: install frontend deps"
@@ -50,10 +56,18 @@ help:
 
 ifeq ($(OS),Windows_NT)
 back-run:
-	cmd /C "chcp 65001 >NUL & cd $(BACKEND_DIR) & set JAVA_TOOL_OPTIONS=$(JAVA_UTF8_OPTS) & $(GRADLEW) bootRun"
+	cmd /C "chcp 65001 >NUL & cd $(BACKEND_DIR) & set JAVA_TOOL_OPTIONS=$(JAVA_UTF8_OPTS) & set SPRING_PROFILES_ACTIVE=dev & $(GRADLEW) bootRun"
+
+back-run-prod:
+	cmd /C "chcp 65001 >NUL & cd $(BACKEND_DIR) & set JAVA_TOOL_OPTIONS=$(JAVA_UTF8_OPTS) & set SPRING_PROFILES_ACTIVE=prod & $(GRADLEW) bootRun"
 
 back-run-bg:
-	powershell -NoProfile -ExecutionPolicy Bypass -File "$(BACKEND_SCRIPTS_DIR)/back-start-bg.ps1" -BackendDir "$(BACKEND_DIR)" -Port $(BACKEND_PORT) -JavaToolOptions "$(JAVA_UTF8_OPTS)"
+	powershell -NoProfile -ExecutionPolicy Bypass -File "$(BACKEND_SCRIPTS_DIR)/back-start-bg.ps1" -BackendDir "$(BACKEND_DIR)" -Port $(BACKEND_PORT) -JavaToolOptions "$(JAVA_UTF8_OPTS)" -Profile dev
+	@echo "Logs: $(BACKEND_LOG_FILE)"
+	@echo "PID file: $(BACKEND_PID_FILE)"
+
+back-run-bg-prod:
+	powershell -NoProfile -ExecutionPolicy Bypass -File "$(BACKEND_SCRIPTS_DIR)/back-start-bg.ps1" -BackendDir "$(BACKEND_DIR)" -Port $(BACKEND_PORT) -JavaToolOptions "$(JAVA_UTF8_OPTS)" -Profile prod
 	@echo "Logs: $(BACKEND_LOG_FILE)"
 	@echo "PID file: $(BACKEND_PID_FILE)"
 
@@ -76,15 +90,28 @@ back-clean:
 	cmd /C "chcp 1251 >NUL & cd $(BACKEND_DIR) & set JAVA_TOOL_OPTIONS=$(JAVA_WIN1251_OPTS) & $(GRADLEW) clean"
 else
 back-run:
-	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_UTF8_OPTS)' $(GRADLEW) bootRun
+	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_UTF8_OPTS)' SPRING_PROFILES_ACTIVE=dev $(GRADLEW) bootRun
+
+back-run-prod:
+	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_UTF8_OPTS)' SPRING_PROFILES_ACTIVE=prod $(GRADLEW) bootRun
 
 back-run-bg:
 	@cd $(BACKEND_DIR) && mkdir -p logs && chmod +x ./gradlew && \
 	if [ -f $(BACKEND_PID_NAME) ] && kill -0 $$(cat $(BACKEND_PID_NAME)) >/dev/null 2>&1; then \
 		echo "Backend already running. PID=$$(cat $(BACKEND_PID_NAME))"; \
 	else \
-		nohup env JAVA_TOOL_OPTIONS='$(JAVA_UTF8_OPTS)' $(GRADLEW) bootRun >> $(BACKEND_LOG_NAME) 2>&1 & echo $$! > $(BACKEND_PID_NAME); \
-		echo "Backend started in background. Logs: $(BACKEND_LOG_FILE)"; \
+		nohup env JAVA_TOOL_OPTIONS='$(JAVA_UTF8_OPTS)' SPRING_PROFILES_ACTIVE=dev $(GRADLEW) bootRun >> $(BACKEND_LOG_NAME) 2>&1 & echo $$! > $(BACKEND_PID_NAME); \
+		echo "Backend started in background [dev profile]. Logs: $(BACKEND_LOG_FILE)"; \
+		echo "PID saved to: $(BACKEND_PID_FILE)"; \
+	fi
+
+back-run-bg-prod:
+	@cd $(BACKEND_DIR) && mkdir -p logs && chmod +x ./gradlew && \
+	if [ -f $(BACKEND_PID_NAME) ] && kill -0 $$(cat $(BACKEND_PID_NAME)) >/dev/null 2>&1; then \
+		echo "Backend already running. PID=$$(cat $(BACKEND_PID_NAME))"; \
+	else \
+		nohup env JAVA_TOOL_OPTIONS='$(JAVA_UTF8_OPTS)' SPRING_PROFILES_ACTIVE=prod $(GRADLEW) bootRun >> $(BACKEND_LOG_NAME) 2>&1 & echo $$! > $(BACKEND_PID_NAME); \
+		echo "Backend started in background [prod profile]. Logs: $(BACKEND_LOG_FILE)"; \
 		echo "PID saved to: $(BACKEND_PID_FILE)"; \
 	fi
 

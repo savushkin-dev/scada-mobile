@@ -6,6 +6,13 @@ import dev.savushkin.scada.mobile.backend.exception.BufferOverflowException;
 import dev.savushkin.scada.mobile.backend.infrastructure.polling.PrintSrvPollingScheduler;
 import dev.savushkin.scada.mobile.backend.services.CommandsService;
 import dev.savushkin.scada.mobile.backend.services.HealthService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
 import org.slf4j.Logger;
@@ -34,6 +41,7 @@ import java.util.Map;
  *   <li>Изменения видны в GET после следующего scan cycle (≤ 5 секунд)</li>
  * </ul>
  */
+@Tag(name = "SCADA Commands", description = "API для работы с командами SCADA системы (чтение состояния и запись команд)")
 @RestController
 @RequestMapping("api/v1/commands")
 @Validated
@@ -71,6 +79,27 @@ public class CommandsController {
      * @return ResponseEntity с полным состоянием SCADA системы (все units и их свойства)
      * @throws IllegalStateException если snapshot еще не загружен (приложение только запустилось)
      */
+    @Operation(
+            summary = "Получить состояние SCADA системы",
+            description = "Возвращает последний snapshot состояния всех units. " +
+                    "Данные обновляются автоматически каждые 0.5-5 секунд (зависит от профиля). " +
+                    "Изменения после POST /setUnitVars станут видны после следующего scan cycle."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Успешно получен snapshot состояния",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = QueryStateResponseDTO.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "503",
+                    description = "Snapshot еще не загружен (приложение только запустилось или проблемы с PrintSrv)",
+                    content = @Content(mediaType = "application/json")
+            )
+    })
     @GetMapping("/queryAll")
     public ResponseEntity<QueryStateResponseDTO> queryAll() {
         log.info("Received GET /queryAll request");
@@ -101,9 +130,38 @@ public class CommandsController {
      * @return ResponseEntity с acknowledgment ответом (НЕ реальное состояние из SCADA)
      * @throws BufferOverflowException если буфер переполнен (HTTP 503 SERVICE_UNAVAILABLE)
      */
+    @Operation(
+            summary = "Установить значение команды для unit",
+            description = "Добавляет команду SetUnitVars в буфер для выполнения в следующем scan cycle. " +
+                    "Возвращает подтверждение приёма НЕМЕДЛЕННО (< 50ms). " +
+                    "Реальное выполнение произойдет в следующем цикле опроса (eventual consistency). " +
+                    "Если для одного unit отправлено несколько команд до цикла — применится только последняя (Last-Write-Wins)."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Команда принята в буфер (будет выполнена в следующем scan cycle)",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = ChangeCommandResponseDTO.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Некорректные параметры (unit или value меньше 1)",
+                    content = @Content(mediaType = "application/json")
+            ),
+            @ApiResponse(
+                    responseCode = "503",
+                    description = "Буфер переполнен (PrintSrv недоступен длительное время)",
+                    content = @Content(mediaType = "application/json")
+            )
+    })
     @PostMapping("/setUnitVars")
     public ResponseEntity<ChangeCommandResponseDTO> setUnitVars(
+            @Parameter(description = "Номер unit (1-based): 1 = u1, 2 = u2, и т.д.", required = true, example = "1")
             @RequestParam @Positive @Min(1) int unit,
+            @Parameter(description = "Новое значение команды (целое число >= 1)", required = true, example = "128")
             @RequestParam @Positive @Min(1) int value
     ) {
         log.info("Received POST /setUnitVars request: unit={}, value={}", unit, value);
@@ -117,6 +175,18 @@ public class CommandsController {
      * <p>
      * Не проверяет внешние зависимости (SCADA).
      */
+    @Operation(
+            summary = "Liveness probe",
+            description = "Проверка, что приложение запущено и способно отвечать на запросы. " +
+                    "Не проверяет доступность PrintSrv."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Приложение работает",
+                    content = @Content(mediaType = "application/json")
+            )
+    })
     @GetMapping("/health/live")
     public ResponseEntity<Map<String, Object>> live() {
         boolean alive = healthService.isAlive();
@@ -132,6 +202,24 @@ public class CommandsController {
      * Для текущей архитектуры "готовность" означает, что хотя бы один snapshot уже
      * получен через polling/scan cycle и сохранён в {@code PrintSrvSnapshotStore}.
      */
+    @Operation(
+            summary = "Readiness probe",
+            description = "Проверка готовности приложения к обслуживанию запросов. " +
+                    "Возвращает 200 OK только если хотя бы один snapshot уже получен из PrintSrv. " +
+                    "При старте приложения или длительной недоступности PrintSrv вернёт 503."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Приложение готово (snapshot загружен)",
+                    content = @Content(mediaType = "application/json")
+            ),
+            @ApiResponse(
+                    responseCode = "503",
+                    description = "Приложение не готово (snapshot еще не получен или устарел)",
+                    content = @Content(mediaType = "application/json")
+            )
+    })
     @GetMapping("/health/ready")
     public ResponseEntity<Map<String, Object>> ready() {
         boolean ready = healthService.isReady();

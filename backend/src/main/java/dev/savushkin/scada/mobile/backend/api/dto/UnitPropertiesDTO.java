@@ -2,6 +2,7 @@ package dev.savushkin.scada.mobile.backend.api.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
  * API DTO для свойств модуля, открытых через REST API.
@@ -9,8 +10,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * Это упрощённый вид свойств модуля для клиентов API.
  * Может быть настроен независимо от внутренней доменной модели.
  */
+@Schema(description = "Свойства unit (команды, параметры, настройки линии)")
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record UnitPropertiesDTO(
+        @Schema(description = "Код команды для управления unit", example = "128")
         @JsonProperty("command") Integer command,
         @JsonProperty("message") String message,
         @JsonProperty("Error") String error,

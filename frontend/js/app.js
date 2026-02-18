@@ -1,161 +1,146 @@
-// PWA App Logic
-console.log("SCADA Mobile PWA initialized");
+/**
+ * SCADA Mobile — точка входа приложения.
+ *
+ * Отвечает за:
+ * - регистрацию Service Worker (PWA)
+ * - ручной запрос состояния SCADA по кнопке
+ * - координацию api.js ↔ ui.js
+ * - online/offline-статус
+ * - install prompt
+ */
 
-// Service Worker Registration
-if ("serviceWorker" in navigator) {
+import { fetchSnapshot, sendSetUnitVars, ApiException } from "./api.js";
+import {
+  setOnlineStatus,
+  setBackendStatus,
+  setLastUpdated,
+  setRefreshLoading,
+  renderUnits,
+  showToast,
+  setInstallPromptVisible,
+  onInstallClick,
+} from "./ui.js";
+
+// ─── Константы ───────────────────────────────────────────────────────────────
+
+const APP_VERSION     = "2.0.0";
+const SW_PATH         = "./service-worker.js";
+
+// ─── Service Worker ───────────────────────────────────────────────────────────
+
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+
   window.addEventListener("load", () => {
-    // Use relative path for better compatibility with Live Server
-    const swPath = "./service-worker.js";
     navigator.serviceWorker
-      .register(swPath, { scope: "./" })
-      .then((registration) => {
-        console.log(
-          "Service Worker registered successfully:",
-          registration.scope
-        );
-        showStatus("Service Worker активирован", "success");
+      .register(SW_PATH, { scope: "./" })
+      .then((reg) => {
+        console.log("[SW] Registered, scope:", reg.scope);
       })
-      .catch((error) => {
-        console.error("Service Worker registration failed:", error);
-        showStatus("Ошибка активации Service Worker", "error");
+      .catch((err) => {
+        console.error("[SW] Registration failed:", err);
       });
   });
 }
 
-// Online/Offline Status
-function updateOnlineStatus() {
-  const statusIndicator = document.getElementById("onlineStatus");
-  const statusText = document.getElementById("statusText");
+// ─── Online / Offline ────────────────────────────────────────────────────────
 
-  if (navigator.onLine) {
-    statusIndicator.classList.add("online");
-    statusIndicator.classList.remove("offline");
-    statusText.textContent = "Онлайн";
-  } else {
-    statusIndicator.classList.remove("online");
-    statusIndicator.classList.add("offline");
-    statusText.textContent = "Оффлайн";
+function initOnlineStatus() {
+  const update = () => setOnlineStatus(navigator.onLine);
+  window.addEventListener("online",  update);
+  window.addEventListener("offline", update);
+  update();
+}
+
+// ─── Polling ─────────────────────────────────────────────────────────────────
+// Ручная загрузка snapshot по кнопке
+async function loadSnapshot() {
+  setRefreshLoading(true);
+  setBackendStatus("connecting");
+
+  try {
+    const snapshot = await fetchSnapshot();
+    renderUnits(snapshot, handleSetValue);
+    setLastUpdated();
+    setBackendStatus("ready");
+  } catch (err) {
+    const msg = err instanceof ApiException ? err.message : "Неизвестная ошибка";
+    setBackendStatus("error", msg);
+    showToast(`Ошибка чтения: ${msg}`, "error");
+    console.warn("[loadSnapshot] Error:", err);
+  } finally {
+    setRefreshLoading(false);
   }
 }
 
-// Listen for online/offline events
-window.addEventListener("online", updateOnlineStatus);
-window.addEventListener("offline", updateOnlineStatus);
+// ─── Обработка команды установки значения ────────────────────────────────────
 
-// Initialize status on load
-window.addEventListener("load", updateOnlineStatus);
-
-// Action Button Handler
-const actionButton = document.getElementById("actionButton");
-let clickCount = 0;
-
-actionButton.addEventListener("click", () => {
-  clickCount++;
-
-  const messages = [
-    "Система инициализирована",
-    "Подключение к SCADA...",
-    "Мониторинг активирован",
-    "Все системы работают нормально",
-    "Данные синхронизированы",
-  ];
-
-  const message = messages[clickCount % messages.length];
-  showStatus(message, "success");
-
-  // Add some visual feedback
-  actionButton.style.transform = "scale(0.95)";
-  setTimeout(() => {
-    actionButton.style.transform = "";
-  }, 150);
-});
-
-// Status Message Display
-function showStatus(message, type = "info") {
-  const statusElement = document.getElementById("status");
-  statusElement.textContent = message;
-  statusElement.className = `status-message ${type}`;
-
-  // Auto-hide after 3 seconds with fade out
-  setTimeout(() => {
-    statusElement.style.opacity = "0";
-    statusElement.style.transition = "opacity 0.3s ease";
-    setTimeout(() => {
-      statusElement.style.display = "none";
-      statusElement.style.opacity = "1";
-    }, 300);
-  }, 3000);
-}
-
-// PWA Install Prompt
-let deferredPrompt;
-let installButtonListenerAdded = false;
-
-window.addEventListener("beforeinstallprompt", (e) => {
-  console.log("beforeinstallprompt event fired");
-  // Prevent the mini-infobar from appearing on mobile
-  e.preventDefault();
-  // Stash the event so it can be triggered later
-  deferredPrompt = e;
-  // Show install prompt
-  showInstallPrompt();
-});
-
-function showInstallPrompt() {
-  const installPrompt = document.getElementById("installPrompt");
-  const installButton = document.getElementById("installButton");
-
-  installPrompt.style.display = "block";
-
-  // Only add event listener once
-  if (!installButtonListenerAdded) {
-    installButtonListenerAdded = true;
-    installButton.addEventListener("click", async () => {
-      if (!deferredPrompt) {
-        return;
-      }
-
-      // Show the install prompt
-      deferredPrompt.prompt();
-
-      // Wait for the user to respond to the prompt
-      const { outcome } = await deferredPrompt.userChoice;
-      console.log(`User response to the install prompt: ${outcome}`);
-
-      if (outcome === "accepted") {
-        showStatus("Приложение установлено!", "success");
-      } else {
-        showStatus("Установка отменена", "info");
-      }
-
-      // Clear the deferred prompt
-      deferredPrompt = null;
-      installPrompt.style.display = "none";
-    });
+/**
+ * @param {number} unitIndex — 1-based номер unit
+ * @param {number} value
+ */
+async function handleSetValue(unitIndex, value) {
+  try {
+    await sendSetUnitVars(unitIndex, value);
+    showToast(`u${unitIndex}: значение ${value} принято бекендом`, "success");
+  } catch (err) {
+    const msg = err instanceof ApiException ? err.message : "Ошибка отправки";
+    showToast(`Ошибка: ${msg}`, "error");
+    console.error("[handleSetValue]", err);
   }
 }
 
-// Detect if app is running in standalone mode
-window.addEventListener("DOMContentLoaded", () => {
-  const isStandalone =
-    window.matchMedia("(display-mode: standalone)").matches ||
-    window.navigator.standalone ||
-    document.referrer.includes("android-app://");
+// ─── Кнопка ручного обновления ───────────────────────────────────────────────
 
-  if (isStandalone) {
-    console.log("App is running in standalone mode");
-    showStatus("Приложение запущено в автономном режиме", "success");
-  }
-});
+function initRefreshButton() {
+  const btn = document.getElementById("refresh-btn");
+  if (!btn) return;
 
-// Handle app visibility changes
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") {
-    console.log("App is visible");
-    updateOnlineStatus();
-  }
-});
+  btn.addEventListener("click", loadSnapshot);
+}
 
-// Log app version
-const APP_VERSION = "1.0.0";
-console.log(`SCADA Mobile PWA v${APP_VERSION}`);
+// ─── PWA Install Prompt ──────────────────────────────────────────────────────
+
+let _deferredInstallPrompt = null;
+
+function initInstallPrompt() {
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    _deferredInstallPrompt = e;
+    setInstallPromptVisible(true);
+  });
+
+  onInstallClick(async () => {
+    if (!_deferredInstallPrompt) return;
+    _deferredInstallPrompt.prompt();
+    const { outcome } = await _deferredInstallPrompt.userChoice;
+    if (outcome === "accepted") {
+      showToast("Приложение установлено!", "success");
+    }
+    _deferredInstallPrompt = null;
+    setInstallPromptVisible(false);
+  });
+
+  window.addEventListener("appinstalled", () => {
+    _deferredInstallPrompt = null;
+    setInstallPromptVisible(false);
+  });
+}
+
+// ─── Старт приложения ────────────────────────────────────────────────────────
+
+async function init() {
+  console.log(`SCADA Mobile v${APP_VERSION}`);
+
+  registerServiceWorker();
+  initOnlineStatus();
+  initInstallPrompt();
+  initRefreshButton();
+
+  // Без авто-запросов: пользователь сам инициирует чтение кнопкой
+  setBackendStatus("connecting");
+  setRefreshLoading(false);
+  showToast("Нажмите «Получить значения», чтобы запросить данные с сервера", "info", 5000);
+}
+
+init();

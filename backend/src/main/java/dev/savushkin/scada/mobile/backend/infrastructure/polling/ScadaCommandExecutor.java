@@ -99,7 +99,7 @@ public class ScadaCommandExecutor {
             } catch (IOException e) {
                 // Логируем ошибку и пробрасываем исключение
                 // Все команды в этом цикле будут потеряны
-                log.error("Failed to execute SetUnitVars for unit {}: {} - {}",
+                log.debug("Failed to execute SetUnitVars for unit {}: {} - {}",
                         cmd.unitNumber(), e.getClass().getSimpleName(), e.getMessage());
                 throw e;
             }

@@ -26,6 +26,8 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 
     implementation("org.jetbrains:annotations:26.0.1")
+    // springdoc 3.x — ветка для Spring Boot 4 / Spring Framework 7
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.1")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

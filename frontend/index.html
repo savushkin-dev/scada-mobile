@@ -3,79 +3,82 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="SCADA Mobile - Progressive Web Application">
-    <meta name="theme-color" content="#2196F3">
-    
+    <meta name="description" content="SCADA Mobile — мониторинг и управление производственной линией">
+    <meta name="theme-color" content="#1565C0">
+
     <title>SCADA Mobile</title>
-    
+
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.webmanifest">
-    
+
     <!-- Icons -->
     <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192x192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="assets/icons/icon-512x512.png">
     <link rel="apple-touch-icon" href="assets/icons/icon-192x192.png">
-    
+
     <!-- Styles -->
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="logo">
-                <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect width="64" height="64" rx="12" fill="#2196F3"/>
-                    <path d="M32 16L48 28V48H16V28L32 16Z" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-                    <circle cx="32" cy="36" r="4" fill="white"/>
-                </svg>
+    <div class="app">
+
+        <!-- ── Шапка ─────────────────────────────────────────────────── -->
+        <header class="header">
+            <div class="header__inner">
+                <h1 class="header__title">SCADA Mobile</h1>
+                <div class="header__meta">
+                    <span id="backend-status" class="backend-status backend-status--connecting">Подключение…</span>
+                    <button id="refresh-btn" class="btn btn--ghost" type="button" aria-label="Получить значения с сервера">
+                        Получить значения
+                    </button>
+                </div>
             </div>
-            <h1>SCADA Mobile</h1>
-            <p class="subtitle">Progressive Web Application</p>
+            <p id="last-updated" class="header__updated" aria-live="polite"></p>
         </header>
 
-        <main>
-            <div class="welcome-card">
-                <h2>Добро пожаловать!</h2>
-                <p>Это минималистичное PWA приложение для управления SCADA системами.</p>
-                
-                <div class="features">
-                    <div class="feature">
-                        <span class="icon">📱</span>
-                        <span>Адаптивный дизайн</span>
-                    </div>
-                    <div class="feature">
-                        <span class="icon">⚡</span>
-                        <span>Работает оффлайн</span>
-                    </div>
-                    <div class="feature">
-                        <span class="icon">🔒</span>
-                        <span>Безопасное соединение</span>
-                    </div>
-                </div>
+        <!-- ── Основной контент ──────────────────────────────────────── -->
+        <main class="main">
 
-                <button id="actionButton" class="primary-button">
-                    Начать работу
-                </button>
-                
-                <div id="status" class="status-message"></div>
+            <section class="control-panel" aria-label="Панель действий">
+                <h2 class="control-panel__title">Ручной режим</h2>
+                <p class="control-panel__text">
+                    Данные запрашиваются только по кнопке «Получить значения». Установка значения выполняется кнопкой «Установить» в карточке unit.
+                </p>
+            </section>
+
+            <!-- Пустое состояние (нет units) -->
+            <div id="empty-state" class="empty-state" hidden>
+                <p>Нет данных от бекенда. Проверьте подключение к PrintSrv.</p>
             </div>
 
-            <div class="install-prompt" id="installPrompt" style="display: none;">
-                <p>Установите приложение на главный экран для быстрого доступа</p>
-                <button id="installButton" class="secondary-button">Установить</button>
-            </div>
+            <!-- Сетка карточек units -->
+            <section id="units-grid" class="units-grid" aria-label="Состояние units">
+                <!-- Карточки рендерит js/ui.js -->
+            </section>
+
         </main>
 
-        <footer>
-            <p>SCADA Mobile PWA &copy; 2025</p>
-            <p class="online-status">
-                <span class="status-indicator" id="onlineStatus"></span>
-                <span id="statusText">Проверка подключения...</span>
-            </p>
+        <!-- ── Подвал ─────────────────────────────────────────────────── -->
+        <footer class="footer">
+            <div class="footer__status">
+                <span class="status-dot" id="online-indicator"></span>
+                <span id="online-text">Проверка…</span>
+            </div>
+            <p class="footer__copy">SCADA Mobile &copy; 2026</p>
         </footer>
+
+        <!-- ── Install prompt ────────────────────────────────────────── -->
+        <div id="install-prompt" class="install-prompt" hidden>
+            <p>Установить приложение на главный экран?</p>
+            <button id="install-btn" class="btn btn--primary" type="button">Установить</button>
+        </div>
+
+        <!-- ── Toast-контейнер ───────────────────────────────────────── -->
+        <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
     </div>
 
-    <!-- Scripts -->
-    <script src="js/app.js"></script>
+    <!-- app.js — ES-модуль, точка входа -->
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>
