@@ -23,6 +23,7 @@ endif
 .PHONY: help \
 	back-run back-run-bg back-run-prod back-run-bg-prod \
 	back-stop back-stop-force back-status back-build back-test back-clean \
+	docker-up docker-down docker-logs docker-restart docker-ps \
 	front-install front-dev front-build \
 	bwa-init bwa-build-apk
 
@@ -40,6 +41,11 @@ help:
 	@echo "  make back-build        - build backend jar"
 	@echo "  make back-test         - run backend tests"
 	@echo "  make back-clean        - clean backend build"
+	@echo "  make docker-up         - build & run backend+frontend in Docker"
+	@echo "  make docker-down       - stop Docker stack (containers/networks)"
+	@echo "  make docker-restart    - restart Docker stack"
+	@echo "  make docker-logs       - show logs for all Docker services"
+	@echo "  make docker-ps         - show Docker services status"
 	@echo "  log file: $(BACKEND_LOG_FILE)"
 	@echo "  pid file: $(BACKEND_PID_FILE)"
 	@echo "  backend port: $(BACKEND_PORT)"
@@ -186,6 +192,22 @@ back-test:
 back-clean:
 	cd $(BACKEND_DIR) && chmod +x ./gradlew && $(GRADLEW) clean
 endif
+
+docker-up:
+	docker compose up --build -d
+
+docker-down:
+	docker compose down
+
+docker-restart:
+	docker compose down
+	docker compose up --build -d
+
+docker-logs:
+	docker compose logs -f --tail=200
+
+docker-ps:
+	docker compose ps
 
 front-install:
 	@echo "[placeholder] Add your frontend install command here."

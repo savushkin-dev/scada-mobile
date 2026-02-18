@@ -2,12 +2,58 @@
 
 Проект дипломной работы: мобильное SCADA-приложение для мониторинга и управления, ориентированное на Android. Концепция — PWA (веб‑приложение) + TWA (Android‑оболочка), а серверная часть будет добавлена отдельно.
 
+## Быстрый запуск для проверки (Docker)
+
+Рекомендуемый способ для преподавателя: запуск всего проекта одной командой.
+
+### Требования
+
+- Docker Desktop 4.0+
+- Включённый Docker Compose (`docker compose`)
+
+### Запуск
+
+```bash
+docker compose up --build -d
+```
+
+По умолчанию backend в контейнере запускается с профилем `prod`.
+
+После запуска:
+
+- Frontend: [http://localhost:8081](http://localhost:8081)
+- Backend API: [http://localhost:8080/api/v1/commands/queryAll](http://localhost:8080/api/v1/commands/queryAll)
+- Backend Health: [http://localhost:8080/api/v1/commands/health/live](http://localhost:8080/api/v1/commands/health/live)
+
+### Повторный запуск / остановка
+
+```bash
+docker compose down
+docker compose up --build -d
+```
+
+или через Makefile:
+
+```bash
+make docker-up
+make docker-down
+make docker-logs
+```
+
+### Настройки через `.env` (опционально)
+
+Скопируйте `.env.example` в `.env` и при необходимости измените:
+
+- `SPRING_PROFILES_ACTIVE`
+- `PRINTSRV_IP`, `PRINTSRV_PORT`
+- `CORS_POLICY_ALLOWED_ORIGINS`
+
 ## Статус
 
 ⚠️ Проект находится в активной разработке.
 
-- Сервер (Java/Spring) **ещё не реализован** — папка [backend/](backend/) пока пустая заготовка.
-- Веб‑часть в [frontend/](frontend/) — **тестовый статический PWA** (HTML/CSS/JS), предназначенный для проверки связки PWA↔TWA (manifest, service worker, offline‑кэш, assetlinks). Целевой стек: React 18 + TypeScript 5 + Vite (см. [STRUCTURE.md](STRUCTURE.md)).
+- Сервер в [backend/](backend/) реализован на Spring Boot и предоставляет REST API для чтения и отправки команд.
+- Веб‑часть в [frontend/](frontend/) — рабочий минимальный PWA-клиент (HTML/CSS/JS) для ручного чтения/установки значений.
 - Android‑оболочка в [android/](android/) — TWA‑контейнер, который запускает веб‑приложение.
 
 **Основные документы проекта:**
@@ -19,7 +65,7 @@
 
 - [frontend/](frontend/) — статический PWA (HTML/CSS/JS) + Service Worker + Web Manifest. *Текущее состояние — заглушка; целевая архитектура (React/TS) описана в [STRUCTURE.md](STRUCTURE.md).*
 - [android/](android/) — TWA‑проект (Gradle) для упаковки PWA в Android‑приложение.
-- [backend/](backend/) — место под будущий Spring Boot сервер.
+- [backend/](backend/) — Spring Boot сервер (REST API, health endpoints, интеграция с PrintSrv).
 
 Подробности по текущим папкам см. в:
 

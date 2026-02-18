@@ -56,10 +56,7 @@ self.addEventListener("activate", (event) => {
 // ── Fetch ─────────────────────────────────────────────────────────────
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
-  const isApiRequest =
-    url.port === "8080" &&
-    url.pathname.startsWith("/api/") &&
-    (url.hostname === "localhost" || url.hostname === "127.0.0.1");
+  const isApiRequest = url.pathname.startsWith("/api/");
 
   // API-запросы к бекенду — только сеть, никакого кеша
   if (isApiRequest) {

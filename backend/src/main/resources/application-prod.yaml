@@ -13,11 +13,11 @@ printsrv:
 
 # CORS: prod — только строгий allowlist origins.
 # Задайте через переменную окружения (через запятую):
-#   CORS_ALLOWED_ORIGINS=http://scada.plant.local,https://scada.plant.local
+#   CORS_POLICY_ALLOWED_ORIGINS=http://scada.plant.local,https://scada.plant.local
 cors:
   policy:
     # ВАЖНО: по умолчанию пусто (запросы с браузера с другого origin будут блокироваться).
-    allowed-origins: "${CORS_ALLOWED_ORIGINS:}"
+    allowed-origins: "${CORS_POLICY_ALLOWED_ORIGINS:}"
     allowed-methods: [ "GET", "POST", "OPTIONS" ]
     allowed-headers: [ "Content-Type", "Authorization" ]
     allow-credentials: false

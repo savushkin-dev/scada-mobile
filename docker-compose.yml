@@ -1,0 +1,38 @@
+name: scada-mobile
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: scada-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      PRINTSRV_IP: ${PRINTSRV_IP:-host.docker.internal}
+      PRINTSRV_PORT: ${PRINTSRV_PORT:-10101}
+      JAVA_OPTS: ${JAVA_OPTS:-}
+      CORS_POLICY_ALLOWED_ORIGINS: ${CORS_POLICY_ALLOWED_ORIGINS:-http://localhost:8081,http://127.0.0.1:8081}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      - scada-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: scada-frontend
+    depends_on:
+      - backend
+    ports:
+      - "8081:80"
+    restart: unless-stopped
+    networks:
+      - scada-net
+
+networks:
+  scada-net:
+    driver: bridge

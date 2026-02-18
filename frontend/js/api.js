@@ -7,8 +7,7 @@
 
 // ─── Конфигурация ────────────────────────────────────────────────────────────
 
-const DEFAULT_HOST = window.location.hostname || "localhost";
-const BASE_URL = window.SCADA_API_BASE_URL ?? `${window.location.protocol}//${DEFAULT_HOST}:8080`;
+const BASE_URL = window.SCADA_API_BASE_URL ?? "";
 
 const ENDPOINTS = {
   QUERY_ALL:    `${BASE_URL}/api/v1/commands/queryAll`,
