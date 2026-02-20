@@ -37,7 +37,7 @@ public class SetUnitVars extends AbstractSocketCommand<SetUnitVarsRequestDTO, Se
      */
     public SetUnitVars(SocketTransport socketTransport, ObjectMapper objectMapper) {
         super(socketTransport, objectMapper);
-        log.info("SetUnitVars command initialized");
+        log.debug("SetUnitVars command initialized");
     }
 
     /**

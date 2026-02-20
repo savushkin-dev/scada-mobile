@@ -50,7 +50,7 @@ public class SocketTransport {
      */
     public SocketTransport(SocketManager socketManager) {
         this.socketManager = socketManager;
-        log.info("SocketTransport initialized with SocketManager");
+        log.debug("SocketTransport initialized with SocketManager");
     }
 
     /**

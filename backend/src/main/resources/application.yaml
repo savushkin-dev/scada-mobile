@@ -20,7 +20,5 @@ printsrv:
     connect-timeout-ms: 5000           # Таймаут на установку соединения
     read-timeout-ms: 5000              # Таймаут на чтение данных
 
-logging:
-  level:
-    root: INFO
-    dev.savushkin.scada.mobile.backend: TRACE
+# Логирование — конфигурация в src/main/resources/logback-spring.xml
+# Уровни переопределяются по профилям (dev / prod) в logback-spring.xml

@@ -36,7 +36,7 @@ public class QueryAllCommand extends AbstractSocketCommand<QueryAllRequestDTO, Q
      */
     public QueryAllCommand(SocketTransport socketTransport, ObjectMapper objectMapper) {
         super(socketTransport, objectMapper);
-        log.info("QueryAllCommand initialized");
+        log.debug("QueryAllCommand initialized");
     }
 
     /**

@@ -54,7 +54,7 @@ public class PrintSrvSnapshotStore implements DeviceSnapshotReader, DeviceSnapsh
      * после первого успешного опроса PrintSrv.
      */
     public PrintSrvSnapshotStore() {
-        log.info("PrintSrvSnapshotStore initialized");
+        log.debug("PrintSrvSnapshotStore initialized");
     }
 
     @Override

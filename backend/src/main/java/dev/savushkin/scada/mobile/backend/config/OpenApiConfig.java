@@ -33,11 +33,11 @@ public class OpenApiConfig {
 
                                 **Архитектура:**
                                 - Write-Through Cache: POST команды добавляются в буфер, GET читает snapshot
-                                - Eventual Consistency: изменения видны через 0.5-5 секунд (в зависимости от профиля)
+                                - Eventual Consistency: изменения становятся видны после следующего scan cycle (период задаётся `printsrv.polling.fixed-delay-ms`)
                                 - Last-Write-Wins: для одного unit применяется только последняя команда
 
                                 **Важные особенности:**
-                                - Snapshot обновляется автоматически каждые 0.5-5 секунд
+                                - Snapshot обновляется автоматически в scan cycle с периодом из конфигурации (`printsrv.polling.fixed-delay-ms`, может отличаться по профилям)
                                 - POST /setUnitVars возвращает подтверждение приёма (не реальное состояние)
                                 - Для проверки результата используйте GET /queryAll после следующего scan cycle
                                 """)
@@ -46,11 +46,7 @@ public class OpenApiConfig {
                 .servers(List.of(
                         new Server()
                                 .url("http://localhost:8080")
-                                .description("Development server"),
-                        new Server()
-                                .url("http://127.0.0.1:8080")
-                                .description("Local server")
+                                .description("Development server")
                 ));
     }
 }
-

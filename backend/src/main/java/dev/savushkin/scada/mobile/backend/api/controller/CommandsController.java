@@ -36,9 +36,9 @@ import java.util.Map;
  * <p>
  * Архитектура Write-Through Cache:
  * <ul>
- *   <li>POST возвращает HTTP 200 немедленно (команда добавлена в буфер)</li>
+ *   <li>POST возвращает HTTP 200 быстро (команда добавлена в буфер)</li>
  *   <li>GET возвращает snapshot на момент последнего scan cycle</li>
- *   <li>Изменения видны в GET после следующего scan cycle (≤ 5 секунд)</li>
+ *   <li>Изменения видны в GET после следующего scan cycle (eventual consistency, интервал задаётся конфигом)</li>
  * </ul>
  */
 @Tag(name = "SCADA Commands", description = "API для работы с командами SCADA системы (чтение состояния и запись команд)")
@@ -74,7 +74,8 @@ public class CommandsController {
      * <p>
      * Snapshot содержит актуальное состояние SCADA на момент последнего scan cycle.
      * Изменения, сделанные через {@link #setUnitVars(int, int)}, появятся здесь
-     * после следующего scan cycle (до 5 секунд задержки).
+     * после следующего scan cycle (eventual consistency). Интервал scan cycle
+     * задаётся конфигурацией <code>printsrv.polling.fixed-delay-ms</code>.
      *
      * @return ResponseEntity с полным состоянием SCADA системы (все units и их свойства)
      * @throws IllegalStateException если snapshot еще не загружен (приложение только запустилось)
@@ -82,7 +83,8 @@ public class CommandsController {
     @Operation(
             summary = "Получить состояние SCADA системы",
             description = "Возвращает последний snapshot состояния всех units. " +
-                    "Данные обновляются автоматически каждые 0.5-5 секунд (зависит от профиля). " +
+                    "Данные обновляются автоматически с периодом, заданным конфигурацией scan cycle " +
+                    "(<code>printsrv.polling.fixed-delay-ms</code>, может отличаться по профилям). " +
                     "Изменения после POST /setUnitVars станут видны после следующего scan cycle."
     )
     @ApiResponses(value = {
@@ -102,25 +104,26 @@ public class CommandsController {
     })
     @GetMapping("/queryAll")
     public ResponseEntity<QueryStateResponseDTO> queryAll() {
-        log.info("Received GET /queryAll request");
+        log.debug("Received GET /queryAll request");
         QueryStateResponseDTO response = commandsService.queryAll();
-        log.info("Returning QueryAll response");
+        log.debug("QueryAll request completed");
         return ResponseEntity.ok(response);
     }
 
     /**
      * Добавляет команду изменения значения в буфер для выполнения в следующем Scan Cycle.
      * <p>
-     * Метод возвращает HTTP 200 немедленно (< 50ms), не дожидаясь записи в SCADA.
-     * Команда будет выполнена в следующем scan cycle (до 5 секунд задержки).
+     * Метод возвращает HTTP 200 быстро, не дожидаясь записи в SCADA/PrintSrv.
+     * Команда будет выполнена в следующем scan cycle (eventual consistency).
+     * Интервал scan cycle настраивается через {@code printsrv.polling.fixed-delay-ms}.
      * <p>
      * Клиент может проверить результат выполнения через GET /queryAll
      * после следующего scan cycle.
      * <p>
      * Архитектурные гарантии:
      * <ul>
-     *   <li><b>Fast Response</b>: возврат управления < 50ms</li>
-     *   <li><b>Eventual Consistency</b>: изменения видны через ≤ 5 секунд</li>
+     *   <li><b>Fast Response</b>: подтверждение приёма без ожидания записи в PrintSrv</li>
+     *   <li><b>Eventual Consistency</b>: изменения видны после следующего scan cycle (интервал задаётся конфигом)</li>
      *   <li><b>Last-Write-Wins</b>: если для одного unit отправлено несколько команд,
      *       в SCADA будет записана только последняя</li>
      * </ul>
@@ -133,8 +136,8 @@ public class CommandsController {
     @Operation(
             summary = "Установить значение команды для unit",
             description = "Добавляет команду SetUnitVars в буфер для выполнения в следующем scan cycle. " +
-                    "Возвращает подтверждение приёма НЕМЕДЛЕННО (< 50ms). " +
-                    "Реальное выполнение произойдет в следующем цикле опроса (eventual consistency). " +
+                    "Возвращает подтверждение приёма немедленно, без ожидания записи в PrintSrv. " +
+                    "Реальное выполнение произойдёт в очередном цикле опроса (eventual consistency). " +
                     "Если для одного unit отправлено несколько команд до цикла — применится только последняя (Last-Write-Wins)."
     )
     @ApiResponses(value = {
@@ -164,9 +167,9 @@ public class CommandsController {
             @Parameter(description = "Новое значение команды (целое число >= 1)", required = true, example = "128")
             @RequestParam @Positive @Min(1) int value
     ) {
-        log.info("Received POST /setUnitVars request: unit={}, value={}", unit, value);
+        log.debug("Received POST /setUnitVars request: unit={}, value={}", unit, value);
         ChangeCommandResponseDTO response = commandsService.setUnitVars(unit, value);
-        log.info("SetUnitVars command accepted for unit={} (will be executed in next scan cycle)", unit);
+        log.debug("SetUnitVars command accepted for unit={} (will be executed in next scan cycle)", unit);
         return ResponseEntity.ok(response);
     }
 

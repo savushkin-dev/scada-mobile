@@ -56,7 +56,7 @@ public class ScadaApplicationService {
     ) {
         this.snapshotReader = snapshotReader;
         this.commandBuffer = commandBuffer;
-        log.info("ScadaApplicationService initialized");
+        log.debug("ScadaApplicationService initialized");
     }
 
     /**
@@ -64,7 +64,8 @@ public class ScadaApplicationService {
      * <p>
      * Снимок автоматически обновляется планировщиком опроса.
      * Изменения, внесённые через {@link #submitWriteCommand(int, int)}, будут
-     * видны после следующего цикла сканирования (≤ 5 секунд).
+     * видны после следующего цикла сканирования (eventual consistency).
+     * Интервал scan cycle настраивается через {@code printsrv.polling.fixed-delay-ms}.
      *
      * @return текущий снимок состояния устройства
      * @throws IllegalStateException если снимок ещё недоступен
@@ -85,17 +86,18 @@ public class ScadaApplicationService {
     /**
      * Отправляет команду записи для выполнения в следующем цикле сканирования.
      * <p>
-     * Этот метод возвращает результат немедленно (< 50ms), без ожидания
-     * выполнения команды в системе SCADA.
+     * Этот метод возвращает результат немедленно, без ожидания
+     * выполнения команды в системе SCADA/PrintSrv.
      * <p>
-     * Команда будет выполнена в следующем цикле сканирования (≤ 5 секунд).
+     * Команда будет выполнена в следующем цикле сканирования (eventual consistency).
+     * Интервал scan cycle настраивается через {@code printsrv.polling.fixed-delay-ms}.
      * Клиенты могут проверить результат через {@link #getCurrentState()} после
      * следующего цикла сканирования.
      * <p>
      * Архитектурные гарантии:
      * <ul>
-     *   <li><b>Быстрый ответ</b>: возвращает < 50ms</li>
-     *   <li><b>Итоговая согласованность</b>: изменения видны в ≤ 5 секунд</li>
+     *   <li><b>Быстрый ответ</b>: возвращает подтверждение приёма без ожидания записи в PrintSrv</li>
+     *   <li><b>Итоговая согласованность</b>: изменения видны после следующего scan cycle (интервал задаётся конфигом)</li>
      *   <li><b>Last-Write-Wins</b>: если несколько команд отправлены для того же модуля,
      *       будет выполнена только последняя</li>
      * </ul>

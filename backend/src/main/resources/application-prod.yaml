@@ -1,4 +1,8 @@
 # Prod profile: минимальное логирование, быстрый polling, документация отключена
+# Уровни логов задаются в logback-spring.xml (springProfile name="prod").
+# Переопределить без перезапуска: POST /actuator/loggers/dev.savushkin.scada.mobile.backend
+#   {"configuredLevel": "DEBUG"}  ← включить отладку при инциденте
+#   {"configuredLevel": "INFO"}   ← вернуть обратно
 logging:
   level:
     root: WARN
@@ -30,3 +34,14 @@ springdoc:
   swagger-ui:
     enabled: false
 
+# Actuator: только нужные endpoints, закрытые от внешней сети
+# health — для liveness/readiness probe (если нет /api/v1/commands/health/*)
+# loggers — для изменения уровней логов без перезапуска при инциденте
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,loggers"
+  # Рекомендуется: вынести Actuator на отдельный порт и закрыть его файрволлом
+  # server:
+  #   port: 8081

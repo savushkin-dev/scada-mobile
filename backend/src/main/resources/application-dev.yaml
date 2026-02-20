@@ -1,10 +1,6 @@
-# Dev profile: подробные логи, медленный polling, включенная документация OpenAPI
-logging:
-  level:
-    root: INFO
-    dev.savushkin.scada.mobile.backend: DEBUG
-    dev.savushkin.scada.mobile.backend.services.polling: TRACE
-    dev.savushkin.scada.mobile.backend.printsrv: TRACE
+# Dev profile: подробные логи (DEBUG), медленный polling, включенная документация OpenAPI
+# Уровни логов задаются в logback-spring.xml (springProfile name="dev")
+# При необходимости можно переопределить через Actuator: POST /actuator/loggers/{name}
 
 printsrv:
   polling:

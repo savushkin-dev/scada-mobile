@@ -56,7 +56,7 @@ public class CommandsService {
     ) {
         this.applicationService = applicationService;
         this.apiMapper = apiMapper;
-        log.info("CommandsService initialized with clean architecture design");
+        log.debug("CommandsService initialized");
     }
 
     /**
@@ -67,7 +67,8 @@ public class CommandsService {
      * <p>
      * Snapshot содержит актуальное состояние на момент последнего scan cycle.
      * Изменения, сделанные через {@link #setUnitVars(int, int)}, появятся здесь
-     * после следующего scan cycle (до 5 секунд задержки).
+     * после следующего scan cycle (eventual consistency). Интервал scan cycle
+     * настраивается через {@code printsrv.polling.fixed-delay-ms}.
      *
      * @return API DTO со состоянием SCADA системы (все units и их свойства)
      * @throws IllegalStateException если snapshot ещё не загружен (приложение только запустилось)
@@ -88,8 +89,9 @@ public class CommandsService {
     /**
      * Добавляет команду SetUnitVars в буфер для выполнения в следующем Scan Cycle.
      * <p>
-     * Метод возвращает управление немедленно (< 50ms), не дожидаясь записи в SCADA.
-     * Команда будет выполнена в следующем scan cycle (до 5 секунд задержки).
+     * Метод возвращает управление немедленно, не дожидаясь записи в SCADA/PrintSrv.
+     * Команда будет выполнена в следующем scan cycle (eventual consistency).
+     * Интервал scan cycle настраивается через {@code printsrv.polling.fixed-delay-ms}.
      * <p>
      * Клиент может проверить результат выполнения через {@link #queryAll()}
      * после следующего scan cycle.
@@ -98,7 +100,7 @@ public class CommandsService {
      * <ul>
      *   <li><b>Last-Write-Wins</b>: если для одного unit отправлено несколько команд,
      *       будет записана только последняя</li>
-     *   <li><b>Eventual Consistency</b>: изменения видны через ≤ 5 секунд</li>
+     *   <li><b>Eventual Consistency</b>: изменения видны после следующего scan cycle (интервал задаётся конфигом)</li>
      *   <li><b>No Retry</b>: если запись не удалась, команда теряется
      *       (клиент может повторить запрос)</li>
      * </ul>

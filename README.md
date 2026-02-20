@@ -2,51 +2,45 @@
 
 Проект дипломной работы: мобильное SCADA-приложение для мониторинга и управления, ориентированное на Android. Концепция — PWA (веб‑приложение) + TWA (Android‑оболочка), а серверная часть будет добавлена отдельно.
 
-## Быстрый запуск для проверки (Docker)
-
-Рекомендуемый способ для преподавателя: запуск всего проекта одной командой.
+## Быстрый запуск локально
 
 ### Требования
 
-- Docker Desktop 4.0+
-- Включённый Docker Compose (`docker compose`)
+- Java 21+
+- Gradle (обёртка `gradlew` уже в репозитории)
+- Любой статический HTTP-сервер для фронта (Live Server, python http.server и т.д.)
 
-### Запуск
+### 1. Запуск бекенда
 
 ```bash
-docker compose up --build -d
+make back-run-bg
 ```
 
-По умолчанию backend в контейнере запускается с профилем `prod`.
+Бекенд запустится в фоне с dev-профилем на `http://localhost:8080`.
 
-После запуска:
+Проверить статус: `make back-status`  
+Остановить: `make back-stop`  
+Логи: `backend/logs/backend.log`
 
-- Frontend: [http://localhost:8081](http://localhost:8081)
+### 2. Открыть фронтенд
+
+Откройте `frontend/index.html` через Live Server (порт 5500) или любым другим способом:
+
+```bash
+cd frontend
+python -m http.server 5500
+```
+
+Затем открыть: [http://localhost:5500](http://localhost:5500)
+
+Фронтенд автоматически направит API-запросы на `localhost:8080`.
+
+### После запуска:
+
+- Frontend: [http://localhost:5500](http://localhost:5500)
 - Backend API: [http://localhost:8080/api/v1/commands/queryAll](http://localhost:8080/api/v1/commands/queryAll)
 - Backend Health: [http://localhost:8080/api/v1/commands/health/live](http://localhost:8080/api/v1/commands/health/live)
-
-### Повторный запуск / остановка
-
-```bash
-docker compose down
-docker compose up --build -d
-```
-
-или через Makefile:
-
-```bash
-make docker-up
-make docker-down
-make docker-logs
-```
-
-### Настройки через `.env` (опционально)
-
-Скопируйте `.env.example` в `.env` и при необходимости измените:
-
-- `SPRING_PROFILES_ACTIVE`
-- `PRINTSRV_IP`, `PRINTSRV_PORT`
-- `CORS_POLICY_ALLOWED_ORIGINS`
+- Swagger UI (только dev): [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 
 ## Статус
 
@@ -91,10 +85,12 @@ make docker-logs
 
 ```bash
 cd frontend
-python -m http.server 8000
+python -m http.server 5500
 ```
 
-Открыть: `http://localhost:8000/`.
+Открыть: `http://localhost:5500/`.
+
+> **Примечание:** используйте порт 5500, так как он включён в CORS-allowlist dev-профиля бекенда. При использовании Live Server в VS Code порт 5500 устанавливается автоматически.
 
 ### Android (TWA)
 

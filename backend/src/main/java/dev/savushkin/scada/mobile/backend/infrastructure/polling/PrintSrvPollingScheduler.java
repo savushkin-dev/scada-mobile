@@ -33,7 +33,7 @@ import java.util.Map;
  * Архитектурные гарантии:
  * <ul>
  *   <li><b>Один поток</b>: последовательное выполнение исключает race conditions</li>
- *   <li><b>Eventual Consistency</b>: snapshot актуализируется каждые 5 секунд</li>
+ *   <li><b>Eventual Consistency</b>: данные актуализируются в каждом scan cycle; период задаётся `printsrv.polling.fixed-delay-ms`</li>
  *   <li><b>Last-Write-Wins</b>: при конфликтах команд сохраняется последняя</li>
  *   <li><b>Graceful Degradation</b>: при ошибках PrintSrv команды накапливаются в буфере</li>
  * </ul>
@@ -64,7 +64,7 @@ public class PrintSrvPollingScheduler {
     }
 
     /**
-     * Scan Cycle: выполняется каждые 5 секунд (настраивается через printsrv.polling.fixed-delay-ms).
+     * Scan Cycle: выполняется с периодом, заданным параметром {@code printsrv.polling.fixed-delay-ms}.
      * <p>
      * Последовательно выполняет READ → BUSINESS LOGIC → WRITE → UPDATE snapshot.
      */

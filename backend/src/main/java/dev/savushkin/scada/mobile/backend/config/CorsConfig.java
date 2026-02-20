@@ -1,5 +1,6 @@
 package dev.savushkin.scada.mobile.backend.config;
 
+import org.jspecify.annotations.NonNull;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -22,7 +23,7 @@ public class CorsConfig implements WebMvcConfigurer {
     }
 
     @Override
-    public void addCorsMappings(CorsRegistry registry) {
+    public void addCorsMappings(@NonNull CorsRegistry registry) {
         CorsProperties.Policy policy = corsProperties.getPolicy();
 
         registry.addMapping("/api/**")

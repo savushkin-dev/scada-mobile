@@ -49,7 +49,7 @@ public class ScadaCommandExecutor {
         this.queryAllCommand = queryAllCommand;
         this.setUnitVarsCommand = setUnitVarsCommand;
         this.printSrvMapper = printSrvMapper;
-        log.info("ScadaCommandExecutor initialized with domain model support");
+        log.debug("ScadaCommandExecutor initialized");
     }
 
     /**
