@@ -13,15 +13,18 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Positive;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
 
@@ -51,6 +54,7 @@ public class CommandsController {
 
     private final CommandsService commandsService;
     private final HealthService healthService;
+    private final Clock clock;
 
     /**
      * Конструктор контроллера с внедрением зависимостей.
@@ -58,9 +62,15 @@ public class CommandsController {
      * @param commandsService сервис для работы с командами SCADA
      * @param healthService   сервис для проверки состояния приложения
      */
+    @Autowired
     public CommandsController(CommandsService commandsService, HealthService healthService) {
+        this(commandsService, healthService, Clock.systemUTC());
+    }
+
+    public CommandsController(CommandsService commandsService, HealthService healthService, @Nullable Clock clock) {
         this.commandsService = commandsService;
         this.healthService = healthService;
+        this.clock = clock == null ? Clock.systemUTC() : clock;
         log.info("CommandsController initialized");
     }
 
@@ -195,7 +205,7 @@ public class CommandsController {
         boolean alive = healthService.isAlive();
         return ResponseEntity.ok(Map.of(
                 "status", alive ? "UP" : "DOWN",
-                "timestamp", Instant.now().toString()
+                "timestamp", Instant.now(clock).toString()
         ));
     }
 
@@ -229,7 +239,7 @@ public class CommandsController {
         HttpStatus status = ready ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
         return ResponseEntity.status(status).body(Map.of(
                 "status", ready ? "UP" : "DOWN",
-                "timestamp", Instant.now().toString(),
+                "timestamp", Instant.now(clock).toString(),
                 "ready", ready
         ));
     }

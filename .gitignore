@@ -104,6 +104,9 @@ workbox-*.js
 *.gz
 spring-shell.log
 
+# Test / coverage reports (generated, not part of source)
+backend/htmlReport/
+
 # Maven (if used)
 target/
 pom.xml.tag
@@ -181,6 +184,11 @@ tmp/
 *.temp
 *.bak
 *.cache
+
+# Office documents (generated exports, e.g. from Markdown)
+*.docx
+*.xlsx
+*.pptx
 
 # Logs
 *.log

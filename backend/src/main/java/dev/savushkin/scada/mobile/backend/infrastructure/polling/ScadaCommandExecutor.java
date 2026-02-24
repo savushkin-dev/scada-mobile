@@ -59,7 +59,7 @@ public class ScadaCommandExecutor {
      * @throws Exception если команда не выполнилась (например, проблемы с socket/десериализацией)
      */
     public DeviceSnapshot queryAllSnapshot() throws Exception {
-        QueryAllRequestDTO request = new QueryAllRequestDTO("Line", "QueryAll");
+        QueryAllRequestDTO request = new QueryAllRequestDTO("scada", "QueryAll");
         log.debug("Executing QueryAll command to PrintSrv");
 
         // Get PrintSrv DTO response

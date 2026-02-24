@@ -7,6 +7,7 @@ import dev.savushkin.scada.mobile.backend.api.dto.UnitStateDTO;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitProperties;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitSnapshot;
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -30,11 +31,7 @@ public class ApiMapper {
      * @param snapshot снимок состояния устройства доменной модели
      * @return API DTO для ответа запроса состояния
      */
-    public QueryStateResponseDTO toApiQueryStateResponse(DeviceSnapshot snapshot) {
-        if (snapshot == null) {
-            throw new IllegalArgumentException("DeviceSnapshot cannot be null");
-        }
-
+    public QueryStateResponseDTO toApiQueryStateResponse(@NonNull DeviceSnapshot snapshot) {
         Map<String, UnitStateDTO> units = new LinkedHashMap<>();
 
         for (Map.Entry<String, UnitSnapshot> entry : snapshot.units().entrySet()) {
@@ -54,11 +51,7 @@ public class ApiMapper {
      * @param snapshot снимок состояния модуля доменной модели
      * @return API DTO для состояния модуля
      */
-    public UnitStateDTO toApiUnitState(UnitSnapshot snapshot) {
-        if (snapshot == null) {
-            throw new IllegalArgumentException("UnitSnapshot cannot be null");
-        }
-
+    public UnitStateDTO toApiUnitState(@NonNull UnitSnapshot snapshot) {
         UnitPropertiesDTO propertiesDto = toApiUnitProperties(snapshot.properties());
 
         return new UnitStateDTO(
@@ -75,11 +68,7 @@ public class ApiMapper {
      * @param properties свойства модуля доменной модели
      * @return API DTO для свойств модуля
      */
-    public UnitPropertiesDTO toApiUnitProperties(UnitProperties properties) {
-        if (properties == null) {
-            return null;
-        }
-
+    public UnitPropertiesDTO toApiUnitProperties(@NonNull UnitProperties properties) {
         return new UnitPropertiesDTO(
                 properties.getCommand().orElse(null),
                 properties.getMessage().orElse(null),

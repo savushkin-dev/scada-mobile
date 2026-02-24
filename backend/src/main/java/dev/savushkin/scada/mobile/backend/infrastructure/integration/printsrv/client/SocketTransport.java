@@ -1,5 +1,7 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.client;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +42,11 @@ public class SocketTransport {
      * Кодировка для JSON данных (требование PrintSrv)
      */
     private static final Charset CHARSET = Charset.forName("windows-1251");
+
+    /**
+     * ObjectMapper для pretty-print логирования ответов (не участвует в бизнес-логике)
+     */
+    private static final ObjectMapper PRETTY_MAPPER = new ObjectMapper();
 
     private final SocketManager socketManager;
 
@@ -133,17 +140,33 @@ public class SocketTransport {
 
         // Шаг 1: Чтение и валидация MAGIC заголовка
         log.trace("Reading MAGIC header");
-        byte[] magic = in.readNBytes(4);
+        byte[] magic;
+        try {
+            magic = in.readNBytes(4);
+        } catch (IOException e) {
+            log.debug("❌ Timeout/error while reading MAGIC header (step 1/3): {} - {}",
+                    e.getClass().getSimpleName(), e.getMessage());
+            log.trace("❌ MAGIC read failed — full stacktrace:", e);
+            throw e;
+        }
         if (magic.length != 4 || magic[0] != 'P' || magic[1] != '0' || magic[2] != '0' || magic[3] != '1') {
             log.error("Invalid MAGIC header received: expected P001, got: {}",
-                    magic.length == 4 ? new String(magic) : "incomplete");
+                    magic.length == 4 ? new String(magic) : "incomplete (" + magic.length + " bytes)");
             throw new IOException("Incorrect magic header!");
         }
         log.trace("MAGIC header validated successfully");
 
         // Шаг 2: Чтение длины JSON
         log.trace("Reading response length");
-        byte[] lengthByte = in.readNBytes(4);
+        byte[] lengthByte;
+        try {
+            lengthByte = in.readNBytes(4);
+        } catch (IOException e) {
+            log.debug("❌ Timeout/error while reading length header (step 2/3): {} - {}",
+                    e.getClass().getSimpleName(), e.getMessage());
+            log.trace("❌ Length read failed — full stacktrace:", e);
+            throw e;
+        }
         int length = ByteBuffer.wrap(lengthByte).getInt();
         log.debug("Response length: {} bytes", length);
 
@@ -154,9 +177,27 @@ public class SocketTransport {
         }
 
         // Шаг 3: Чтение JSON тела
-        log.trace("Reading response body");
-        String response = new String(in.readNBytes(length), CHARSET);
+        log.trace("Reading response body ({} bytes)", length);
+        String response;
+        try {
+            response = new String(in.readNBytes(length), CHARSET);
+        } catch (IOException e) {
+            log.debug("❌ Timeout/error while reading response body (step 3/3, expected {} bytes): {} - {}",
+                    length, e.getClass().getSimpleName(), e.getMessage());
+            log.trace("❌ Body read failed — full stacktrace:", e);
+            throw e;
+        }
         log.debug("Response received successfully from PrintSrv: {} bytes", response.length());
+
+        if (log.isDebugEnabled()) {
+            try {
+                Object parsed = PRETTY_MAPPER.readValue(response, Object.class);
+                log.debug("PrintSrv response (pretty):\n{}",
+                        PRETTY_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(parsed));
+            } catch (JsonProcessingException e) {
+                log.debug("PrintSrv response (raw): {}", response);
+            }
+        }
 
         return response;
     }

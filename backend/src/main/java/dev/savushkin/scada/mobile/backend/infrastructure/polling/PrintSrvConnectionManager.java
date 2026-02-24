@@ -91,6 +91,7 @@ public class PrintSrvConnectionManager {
             long failures = consecutiveFailures.incrementAndGet();
             log.debug("❌ PrintSrv operation failed (consecutive failures: {}): {} - {}",
                     failures, e.getClass().getSimpleName(), e.getMessage());
+            log.trace("❌ PrintSrv operation failed — full stacktrace:", e);
 
             if (failures >= ERROR_THRESHOLD_FOR_RECONNECT) {
                 return executeReconnectionLoop(operation, e);
@@ -130,6 +131,7 @@ public class PrintSrvConnectionManager {
                 lastException = e;
                 log.debug("❌ Reconnection attempt {}/{} failed: {} - {}",
                         attempt, maxRetryAttempts, e.getClass().getSimpleName(), e.getMessage());
+                log.trace("❌ Reconnection attempt {}/{} failed — full stacktrace:", attempt, maxRetryAttempts, e);
                 socketManager.invalidate();
             }
         }
@@ -164,6 +166,7 @@ public class PrintSrvConnectionManager {
         } catch (Exception e) {
             log.debug("❌ Recovery check failed: PrintSrv still unavailable - {} (next check in {}s)",
                     e.getMessage(), recoveryCheckIntervalMs / 1000);
+            log.trace("❌ Recovery check failed — full stacktrace:", e);
             socketManager.invalidate();
             throw e;
         }

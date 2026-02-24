@@ -18,6 +18,16 @@ repositories {
     mavenCentral()
 }
 
+// Явно подключаем Mockito как Java Agent для тестов.
+// Это убирает предупреждения про self-attaching / dynamic agent loading
+// (актуально на JDK 21+ и особенно для будущих релизов).
+val mockitoAgent by configurations.creating {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    // на всякий случай: не даём тащить транзитивные зависимости в агент-конфигурацию
+    isTransitive = false
+}
+
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("com.fasterxml.jackson.core:jackson-databind")
@@ -31,8 +41,16 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    // Mockito Agent jar (используем ту же версию, что резолвится для тестов через BOM Spring).
+    // Если понадобится зафиксировать версию — можно указать :mockito-core:<version>.
+    mockitoAgent("org.mockito:mockito-core")
 }
 
 tasks.withType<Test> {
     useJUnitPlatform()
+
+    // Важно: mockitoAgent.singleFile резолвится в конкретный jar в Gradle кеше
+    // и корректно работает и на Windows.
+    jvmArgs("-javaagent:${mockitoAgent.singleFile.absolutePath}")
 }
