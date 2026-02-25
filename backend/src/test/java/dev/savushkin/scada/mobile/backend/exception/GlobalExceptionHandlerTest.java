@@ -2,7 +2,6 @@ package dev.savushkin.scada.mobile.backend.exception;
 
 import dev.savushkin.scada.mobile.backend.api.controller.CommandsController;
 import dev.savushkin.scada.mobile.backend.api.dto.ErrorResponseDTO;
-import dev.savushkin.scada.mobile.backend.config.JacksonConfig;
 import dev.savushkin.scada.mobile.backend.services.CommandsService;
 import dev.savushkin.scada.mobile.backend.services.HealthService;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,15 +11,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import java.io.IOException;
 import java.net.SocketException;
@@ -59,13 +55,10 @@ class GlobalExceptionHandlerTest {
     @BeforeEach
     void setUp() {
         handler = new GlobalExceptionHandler();
-        ObjectMapper objectMapper = new JacksonConfig().objectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
 
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new CommandsController(commandsService, healthService))
                 .setControllerAdvice(handler)
-                .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
                 .build();
     }
 

@@ -4,7 +4,6 @@ import dev.savushkin.scada.mobile.backend.api.dto.ChangeCommandResponseDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.QueryStateResponseDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitPropertiesDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitStateDTO;
-import dev.savushkin.scada.mobile.backend.config.JacksonConfig;
 import dev.savushkin.scada.mobile.backend.exception.GlobalExceptionHandler;
 import dev.savushkin.scada.mobile.backend.services.CommandsService;
 import dev.savushkin.scada.mobile.backend.services.HealthService;
@@ -14,11 +13,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
-import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import java.util.Map;
 
@@ -47,13 +43,9 @@ class CommandsControllerWebMvcTest {
 
     @BeforeEach
     void setUp() {
-        ObjectMapper objectMapper = new JacksonConfig().objectMapper();
-        objectMapper.registerModule(new JavaTimeModule());
-
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new CommandsController(commandsService, healthService))
                 .setControllerAdvice(new GlobalExceptionHandler())
-                .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
                 .build();
     }
 
