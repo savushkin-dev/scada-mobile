@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Мониторинг: «Савушкин продукт» (Брест)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* ==========================================
+           ОБЩИЕ СТИЛИ И СТИЛИ ИЗ FRONTEND/INDEX.HTML
+           ========================================== */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F8F9FA;
+            color: #1A1C1E;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .screen {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+            width: 100%;
+            flex-direction: column;
+        }
+        .screen.active { 
+            display: flex; 
+            animation: fadeIn 0.3s ease; 
+        }
+
+        .card {
+            background: #FFFFFF;
+            border-radius: 24px;
+            box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.03);
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .card:active { transform: scale(0.98); }
+
+        .status-normal { border-color: #34A853; background-color: #F4FBF6; }
+        .status-warning { border-color: #FBBC04; background-color: #FFFDF5; animation: border-pulse-warning 2s infinite; }
+        .status-critical { border-color: #EA4335; background-color: #FFF5F5; animation: border-pulse-critical 2s infinite; }
+
+        @keyframes border-pulse-warning {
+            0% { border-color: rgba(251, 188, 4, 1); }
+            50% { border-color: rgba(251, 188, 4, 0.3); }
+            100% { border-color: rgba(251, 188, 4, 1); }
+        }
+        @keyframes border-pulse-critical {
+            0% { border-color: rgba(234, 67, 53, 1); }
+            50% { border-color: rgba(234, 67, 53, 0.3); }
+            100% { border-color: rgba(234, 67, 53, 1); }
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* ==========================================
+           СТИЛИ ИЗ HASSIA.HTML (ДЛЯ ЭКРАНА ДЕТАЛЕЙ)
+           ========================================== */
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+
+        .status-indicator {
+            width: 14px; height: 14px; border-radius: 50%;
+            background-color: #34A853; box-shadow: 0 0 0 3px rgba(52, 168, 83, 0.2);
+            flex-shrink: 0;
+        }
+        .status-indicator.error {
+            background-color: #EA4335; box-shadow: 0 0 0 3px rgba(234, 67, 53, 0.2);
+            animation: pulse-error 1.5s infinite;
+        }
+        @keyframes pulse-error {
+            0% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.5); }
+            70% { box-shadow: 0 0 0 8px rgba(234, 67, 53, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0); }
+        }
+
+        .card-title {
+            font-size: 0.95rem; font-weight: 700; margin-bottom: 12px;
+            border-bottom: 1px solid #F0F0F0; padding-bottom: 10px;
+            color: #1A1C1E; display: flex; align-items: center; gap: 8px;
+        }
+
+        .kv-row {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            padding: 9px 0; border-bottom: 1px solid #F0F0F0; font-size: 0.88rem;
+        }
+        .kv-row:last-child { border-bottom: none; }
+        .kv-key { color: #74777F; flex: 1; padding-right: 10px; font-size: 0.82rem; font-weight: 400; }
+        .kv-val { font-weight: 500; text-align: right; flex: 1.5; word-break: break-word; color: #1A1C1E; }
+
+        .device-stats { display: flex; gap: 8px; margin-top: 14px; }
+        .stat-box { flex: 1; text-align: center; padding: 12px 4px; background: #F0F7FF; border-radius: 14px; }
+        .stat-box.danger { background: #FFF5F5; }
+        .stat-val { font-size: 1.2rem; font-weight: 700; color: #1A1C1E; }
+        .stat-box.danger .stat-val { color: #EA4335; }
+        .stat-label { font-size: 0.68rem; color: #74777F; margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: #FFFFFF; display: flex;
+            box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05);
+            border-top: 1px solid #F0F0F0; z-index: 10;
+            padding-bottom: env(safe-area-inset-bottom);
+            max-width: 28rem; /* max-w-md */
+            margin: 0 auto;
+        }
+        body:not(.on-details-screen) .bottom-nav { display: none; }
+
+        .nav-item {
+            flex: 1; text-align: center; padding: 10px 0; color: #74777F;
+            font-size: 0.7rem; cursor: pointer; transition: all 0.2s;
+            display: flex; flex-direction: column; align-items: center; gap: 3px; font-weight: 500;
+        }
+        .nav-item.active { color: #1A1C1E; font-weight: 700; }
+        .nav-icon { font-size: 1.35rem; }
+
+        .queue-item { display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid #F0F0F0; }
+        .queue-item:last-child { border-bottom: none; }
+        .queue-pos {
+            width: 36px; height: 36px; background: #F0F7FF; color: #1A1C1E;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.88rem; margin-right: 12px; flex-shrink: 0;
+        }
+        .queue-details { flex: 1; }
+
+        .error-item {
+            padding: 12px 14px; border-left: 4px solid #EA4335;
+            background: #FFF5F5; margin-bottom: 10px; border-radius: 0 16px 16px 0;
+        }
+
+        .log-item { padding: 10px 0; border-bottom: 1px solid #F0F0F0; }
+        .log-item:last-child { border-bottom: none; }
+
+        .accordion-btn {
+            width: 100%; text-align: center; background: #F8F9FA;
+            border: 1.5px solid #E8EAED; padding: 12px; font-size: 0.88rem;
+            color: #1A1C1E; font-weight: 600; border-radius: 14px;
+            cursor: pointer; margin-top: 16px; transition: background 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        .accordion-btn:active { background: #EDEEF0; }
+        .accordion-content { display: none; padding-top: 12px; }
+        .accordion-content.open { display: block; animation: fadeIn 0.2s ease; }
+
+        .badge {
+            padding: 4px 10px; border-radius: 20px; font-size: 0.7rem;
+            font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .badge.success { background: #E6F4EA; color: #1B6B2F; }
+        .badge.danger  { background: #FCEAE9; color: #B71C1C; }
+        .badge.neutral { background: #EDEEF0; color: #5F6368; }
+    </style>
+</head>
+<body class="max-w-md mx-auto w-full">
+
+    <!-- SCREEN 1: DASHBOARD -->
+    <section id="screen-dashboard" class="screen active">
+        <header class="p-6 flex justify-between items-start mt-4 flex-shrink-0">
+            <div>
+                <p class="text-[10px] font-bold tracking-wider text-[#74777F] uppercase mb-1">Площадка г. Брест</p>
+                <h1 class="text-2xl font-bold text-[#1A1C1E]">Савушкин продукт</h1>
+            </div>
+        </header>
+
+        <main id="workshops-list" class="px-4 space-y-4 pb-10">
+            <p style="text-align:center; color:#74777F; padding:20px 0; font-size:0.88rem;">Загрузка цехов...</p>
+        </main>
+    </section>
+
+    <!-- SCREEN 2: WORKSHOP UNITS -->
+    <section id="screen-workshop" class="screen">
+        <header class="p-6 flex items-center gap-4 mt-4 flex-shrink-0">
+            <button onclick="navigate('dashboard')" class="p-2 hover:bg-gray-100 rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <h1 id="workshop-title" class="text-xl font-bold text-[#1A1C1E] break-words">Цех</h1>
+        </header>
+
+        <main class="px-4 space-y-3 pb-10" id="units-list">
+            <!-- Content dynamicly injected -->
+        </main>
+    </section>
+
+    <!-- SCREEN 3: EVENT DETAILS (Hassia.html content) -->
+    <section id="screen-details" class="screen relative">
+        <header style="background:#FFFFFF; box-shadow:0px 2px 8px rgba(0,0,0,0.04); z-index:10; padding:20px 24px; display:flex; justify-content:space-between; align-items:flex-start; flex-shrink:0;">
+            <div class="flex items-center gap-3">
+                <button onclick="navigate('workshop')" class="p-2 -ml-2 hover:bg-gray-100 rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <div>
+                    <p style="font-size:10px; font-weight:700; letter-spacing:0.1em; color:#74777F; text-transform:uppercase; margin:0 0 4px 0;">Мониторинг линии</p>
+                    <h1 style="font-size:1.25rem; font-weight:700; color:#1A1C1E; margin:0; line-height:1.2;" id="header-title">Загрузка...</h1>
+                </div>
+            </div>
+            <div class="status-indicator" id="header-status" style="margin-top:6px;"></div>
+        </header>
+
+        <main style="flex:1; overflow-y:auto; padding:16px; padding-bottom:84px;">
+            <!-- Вкладка 1: Партия -->
+            <div id="tab-batch" class="tab-content active">
+                <div class="card p-5" style="margin-bottom:16px; cursor:default;">
+                    <div class="card-title">📦 Текущая партия</div>
+                    <div class="kv-row"><div class="kv-key">Описание</div><div class="kv-val" id="val-desc">-</div></div>
+                    <div class="kv-row"><div class="kv-key">EAN</div><div class="kv-val" id="val-ean">-</div></div>
+                    <div class="kv-row"><div class="kv-key">Номер партии</div><div class="kv-val" id="val-batch">-</div></div>
+                    <div class="kv-row"><div class="kv-key">Дата выработки</div><div class="kv-val" id="val-prod-date">-</div></div>
+                    <div class="kv-row"><div class="kv-key">Дата годности</div><div class="kv-val" id="val-exp-date">-</div></div>
+
+                    <button class="accordion-btn" id="toggle-more-props">Показать все свойства ▾</button>
+
+                    <div class="accordion-content" id="more-props-content">
+                        <div class="kv-row"><div class="kv-key">Краткий код</div><div class="kv-val" id="val-shortcode">-</div></div>
+                        <div class="kv-row"><div class="kv-key">КМС</div><div class="kv-val" id="val-kms">-</div></div>
+                        <div class="kv-row"><div class="kv-key">Дата фасовки</div><div class="kv-val" id="val-pack-date">-</div></div>
+                        <div class="kv-row"><div class="kv-key">Начальный счётчик</div><div class="kv-val" id="val-init-counter">-</div></div>
+                        <div class="kv-row"><div class="kv-key">Площадка</div><div class="kv-val" id="val-site">-</div></div>
+                        <div class="kv-row"><div class="kv-key">ITF</div><div class="kv-val" id="val-itf">-</div></div>
+                        <div class="kv-row"><div class="kv-key">Ёмкость</div><div class="kv-val" id="val-capacity">-</div></div>
+                        <div class="kv-row"><div class="kv-key">Кол-во коробок</div><div class="kv-val" id="val-box">-</div></div>
+                        <div class="kv-row"><div class="kv-key">Кол-во упаковок</div><div class="kv-val" id="val-pack">-</div></div>
+                        <div class="kv-row"><div class="kv-key">Заморозка</div><div class="kv-val" id="val-freeze">-</div></div>
+                        <div class="kv-row"><div class="kv-key">Регион</div><div class="kv-val" id="val-region">-</div></div>
+                        <div class="kv-row"><div class="kv-key">Дизайн</div><div class="kv-val" id="val-design">-</div></div>
+                        <div class="kv-row"><div class="kv-key">Печать DM</div><div class="kv-val" id="val-printdm">-</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Вкладка 2: Устройства -->
+            <div id="tab-devices" class="tab-content">
+                <div class="card p-5" style="margin-bottom:16px; cursor:default;">
+                    <div class="card-title" style="justify-content:space-between;">
+                        <span>🖨️ Принтер 1</span>
+                        <span class="badge" id="printer-status-badge">Загрузка</span>
+                    </div>
+                    <div class="kv-row">
+                        <div class="kv-key">Текущая партия</div>
+                        <div class="kv-val" id="printer-batch">-</div>
+                    </div>
+                </div>
+
+                <div class="card p-5" style="margin-bottom:16px; cursor:default;">
+                    <div class="card-title" style="justify-content:space-between;">
+                        <span>📷 Камера 41 (Поток)</span>
+                        <span class="badge" id="cam41-status-badge">Загрузка</span>
+                    </div>
+                    <div class="kv-row">
+                        <div class="kv-key">Текущая партия</div>
+                        <div class="kv-val" id="cam41-batch">-</div>
+                    </div>
+                    <div class="device-stats">
+                        <div class="stat-box">
+                            <div class="stat-val" id="cam41-read">0</div>
+                            <div class="stat-label">Считано</div>
+                        </div>
+                        <div class="stat-box danger">
+                            <div class="stat-val" id="cam41-unread">0</div>
+                            <div class="stat-label">Несчитано</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-5" style="margin-bottom:16px; cursor:default;">
+                    <div class="card-title" style="justify-content:space-between;">
+                        <span>📷 Камера 42 (Поток)</span>
+                        <span class="badge" id="cam42-status-badge">Загрузка</span>
+                    </div>
+                    <div class="device-stats">
+                        <div class="stat-box">
+                            <div class="stat-val" id="cam42-read">0</div>
+                            <div class="stat-label">Считано</div>
+                        </div>
+                        <div class="stat-box danger">
+                            <div class="stat-val" id="cam42-unread">0</div>
+                            <div class="stat-label">Несчитано</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Вкладка 3: Очередь -->
+            <div id="tab-queue" class="tab-content">
+                <div class="card p-5" style="margin-bottom:16px; cursor:default;">
+                    <div class="card-title">📋 Очередь печати</div>
+                    <div id="queue-container">
+                        <p style="text-align:center; color:#74777F; padding:20px 0; font-size:0.88rem;">Загрузка очереди...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Вкладка 4: Ошибки и Логи -->
+            <div id="tab-logs" class="tab-content">
+                <div class="card p-5" style="margin-bottom:16px; cursor:default;">
+                    <div class="card-title" style="color:#EA4335;">⚠️ Активные ошибки</div>
+                    <div id="errors-container">
+                        <p style="text-align:center; color:#74777F; padding:10px 0; font-size:0.88rem;">Загрузка...</p>
+                    </div>
+                </div>
+
+                <div class="card p-5" style="margin-bottom:16px; cursor:default;">
+                    <div class="card-title">📝 Журнал событий</div>
+                    <div id="logs-container">
+                        <p style="text-align:center; color:#74777F; padding:10px 0; font-size:0.88rem;">Загрузка...</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <nav class="bottom-nav">
+            <div class="nav-item active" data-target="tab-batch">
+                <span class="nav-icon">📦</span>
+                <span>Партия</span>
+            </div>
+            <div class="nav-item" data-target="tab-devices">
+                <span class="nav-icon">⚙️</span>
+                <span>Устройства</span>
+            </div>
+            <div class="nav-item" data-target="tab-queue">
+                <span class="nav-icon">📋</span>
+                <span>Очередь</span>
+            </div>
+            <div class="nav-item" data-target="tab-logs">
+                <span class="nav-icon">⚠️</span>
+                <span>Журнал</span>
+            </div>
+        </nav>
+    </section>
+
+    <script>
+        // ==========================================
+        // ЛОГИКА ИЗ FRONTEND/INDEX.HTML
+        // ==========================================
+        let currentWorkshopKey = '';
+
+        function navigate(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(`screen-${screenId}`).classList.add('active');
+            window.scrollTo(0,0);
+
+            if (screenId === 'details') {
+                document.body.classList.add('on-details-screen');
+            } else {
+                document.body.classList.remove('on-details-screen');
+            }
+        }
+
+        async function loadWorkshops() {
+            const workshops = await fetchMock('/api/workshops');
+            const container = document.getElementById('workshops-list');
+            container.innerHTML = '';
+
+            if (!workshops || workshops.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#74777F; padding:20px 0; font-size:0.88rem;">Нет данных о цехах</p>';
+                return;
+            }
+
+            workshops.forEach(ws => {
+                const isWarning = ws.status === 'Warning';
+                const isCritical = ws.status === 'Critical';
+                
+                let statusClass = 'status-normal';
+                let badgeClass = 'bg-green-100 text-green-700';
+                let badgeText = 'В норме';
+                let problemClass = 'text-gray-900';
+
+                if (isCritical) {
+                    statusClass = 'status-critical';
+                    badgeClass = 'bg-red-100 text-red-700';
+                    badgeText = 'Критично';
+                    problemClass = 'text-red-600 font-bold';
+                } else if (isWarning) {
+                    statusClass = 'status-warning';
+                    badgeClass = 'bg-amber-100 text-amber-700';
+                    badgeText = 'Внимание';
+                    problemClass = 'text-amber-600 font-bold';
+                }
+
+                const div = document.createElement('div');
+                div.className = `card ${statusClass} p-5`;
+                div.onclick = () => showWorkshop(ws.id, ws.name);
+
+                div.innerHTML = `
+                    <h2 class="text-xl font-bold mb-1">${ws.name}</h2>
+                    <div class="flex justify-between items-end">
+                        <div class="space-y-1">
+                            <p class="text-xs text-gray-500 font-medium">Аппаратов/Линий: <span class="text-gray-900">${ws.totalUnits}</span></p>
+                            <p class="text-xs text-gray-500 font-medium">Проблемных: <span class="${problemClass}">${ws.problemUnits}</span></p>
+                        </div>
+                        <span class="text-[10px] font-bold uppercase tracking-tight px-2 py-1 rounded-md ${badgeClass}">${badgeText}</span>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function showWorkshop(id, name) {
+            currentWorkshopKey = id;
+            document.getElementById('workshop-title').innerText = name || id;
+            const container = document.getElementById('units-list');
+            container.innerHTML = '<p style="text-align:center; color:#74777F; padding:20px 0; font-size:0.88rem;">Загрузка аппаратов...</p>';
+            
+            navigate('workshop');
+
+            const units = await fetchMock(`/api/workshops/${id}/units`);
+            container.innerHTML = '';
+
+            if (units && units.length > 0) {
+                units.forEach(item => {
+                    const isCritical = item.type === 'Critical';
+                    const isWarning = item.type === 'Warning';
+                    
+                    const div = document.createElement('div');
+                    div.className = "card p-4 border-gray-100";
+                    
+                    div.onclick = () => {
+                        openDetails(id, item.id);
+                    };
+
+                    div.innerHTML = `
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-bold text-lg">${item.unit}</h3>
+                            <span class="px-2 py-1 ${isCritical ? 'bg-red-100 text-red-600' : (isWarning ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600')} text-[10px] font-bold rounded uppercase">${item.status}</span>
+                        </div>
+                        <p class="text-sm text-gray-500 mb-3 italic">${item.event}</p>
+                        ${item.type !== 'Normal' ? `
+                        <div class="flex justify-between items-center ${isCritical ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'} p-3 rounded-xl">
+                            <span class="text-xs font-semibold">ВРЕМЯ ПРОСТОЯ</span>
+                            <span class="text-xl font-black tabular-nums">${item.timer}</span>
+                        </div>` : ''}
+                    `;
+                    container.appendChild(div);
+                });
+            } else {
+                container.innerHTML = '<p style="text-align:center; color:#74777F; padding:20px 0; font-size:0.88rem;">Нет данных</p>';
+            }
+        }
+
+        function openDetails(workshopKey, unitId) {
+            // Переход на экран деталей (Hassia.html content)
+            navigate('details');
+            // Данные загружаются автоматически через loadData()
+        }
+
+        // ==========================================
+        // ЛОГИКА ИЗ HASSIA.HTML
+        // ==========================================
+        const MOCK_DATA = {
+            '/api/workshops': [
+                { id: 'apparatniy', name: 'Аппаратный цех', totalUnits: 18, problemUnits: 0, status: 'Normal' },
+                { id: 'cmp', name: 'Цех розлива (ЦМП)', totalUnits: 12, problemUnits: 1, status: 'Warning' }
+            ],
+            '/api/workshops/apparatniy/units': [
+                { id: 101, unit: 'Танк T-01 (Сырое молоко)', status: 'Норма', event: 'Заполнение 85%', timer: '00:00:00', type: 'Normal' },
+                { id: 102, unit: 'Сепаратор GEA Westfalia №2', status: 'Норма', event: 'Нормализация', timer: '00:00:00', type: 'Normal' },
+                { id: 103, unit: 'Пастеризатор Tetra Pak P-04', status: 'Норма', event: '72°C - Стабильно', timer: '00:00:00', type: 'Normal' }
+            ],
+            '/api/workshops/cmp/units': [
+                { id: 201, unit: 'Линия розлива ПЭТ №1', status: 'Норма', event: 'Активен розлив', timer: '00:00:00', type: 'Normal' },
+                { id: 202, unit: 'Автомат Tetra Top №5', status: 'Внимание', event: 'Замятие ленты крышек', timer: '00:05:44', type: 'Warning' }
+            ],
+            '/api/line/status': {
+                lineName: 'Hassia №2',
+                lineState: 1,
+                shortCode: '2345',
+                kms: '123456',
+                description: 'Сырок гл. МАКОВКА 20% 40г',
+                ean13: '4810268055485',
+                batchNumber: '567',
+                dateProduced: '21.07.2024 12:01:53',
+                datePacking: '21.07.2024 12:01:31',
+                dateExpiration: '21.08.2024 12:00:43',
+                initialCounter: 0,
+                site: 'Брест',
+                itf: '24810268055489',
+                capacity: 0,
+                boxCount: 0,
+                packageCount: 0,
+                freeze: 0,
+                region: 'BY',
+                design: 0,
+                printDM: 1
+            },
+            '/api/devices/status': {
+                printer: { state: 1, error: 0, batch: '2345 | 567 | 21.07.2024' },
+                cam41: { state: 1, error: 0, read: 123456, unread: 456789, batch: '1234 | 456 | 12.06.2025' },
+                cam42: { state: 1, error: 0, read: 123000, unread: 450000, batch: '1234 | 456 | 12.06.2025' }
+            },
+            '/api/queue': {
+                items: [
+                    { position: 1, shortCode: '2345', batch: '568', dateProduced: '22.07.2024' },
+                    { position: 2, shortCode: '2345', batch: '569', dateProduced: '23.07.2024' },
+                    { position: 3, shortCode: '2345', batch: '570', dateProduced: '24.07.2024' }
+                ]
+            },
+            '/api/errors': {
+                deviceErrors: [
+                    { objectName: 'CMSDev041', propertyDesc: 'Не совпадает идентификатор партии', value: 0 },
+                    { objectName: 'CMSDev041', propertyDesc: 'Нет связи с устройством', value: 1 }
+                ],
+                logs: [
+                    { time: '21.07.2024 10:00', ackTime: '10:05', group: 'Система', description: 'Запуск линии' },
+                    { time: '21.07.2024 10:15', ackTime: '-', group: 'Ошибка', description: 'Потеря связи с камерой 41' }
+                ]
+            }
+        };
+
+        async function fetchMock(url) {
+            try {
+                const response = await fetch(`http://localhost:8080${url}`);
+                if (response.ok) {
+                    return await response.json();
+                }
+                throw new Error('Сервер вернул ошибку');
+            } catch (e) {
+                console.warn(`Используются мок-данные для ${url} (Сервер недоступен)`);
+                return MOCK_DATA[url];
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Логика переключения вкладок
+            const navItems = document.querySelectorAll('.nav-item');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            navItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    const target = item.getAttribute('data-target');
+
+                    navItems.forEach(nav => nav.classList.remove('active'));
+                    tabContents.forEach(tab => tab.classList.remove('active'));
+
+                    item.classList.add('active');
+                    document.getElementById(target).classList.add('active');
+                });
+            });
+
+            // Логика аккордеона
+            const accBtn = document.getElementById('toggle-more-props');
+            const accContent = document.getElementById('more-props-content');
+            if (accBtn) {
+                accBtn.addEventListener('click', () => {
+                    accContent.classList.toggle('open');
+                    accBtn.innerHTML = accContent.classList.contains('open')
+                        ? 'Скрыть дополнительные свойства ▴'
+                        : 'Показать все свойства ▾';
+                });
+            }
+
+            // Первичная загрузка данных
+            loadWorkshops();
+            loadData();
+
+            // Обновление данных каждые 5 секунд
+            setInterval(() => {
+                loadWorkshops();
+                if (currentWorkshopKey) {
+                    // Обновляем список аппаратов, если открыт экран цеха
+                    // (в реальном приложении можно проверять активный экран)
+                    const workshopName = document.getElementById('workshop-title').innerText;
+                    if (document.getElementById('screen-workshop').classList.contains('active')) {
+                        showWorkshop(currentWorkshopKey, workshopName);
+                    }
+                }
+                loadData();
+            }, 5000);
+        });
+
+        async function loadData() {
+            const lineData    = await fetchMock('/api/line/status');
+            const devicesData = await fetchMock('/api/devices/status');
+            const queueData   = await fetchMock('/api/queue');
+            const errorsData  = await fetchMock('/api/errors');
+
+            renderLineData(lineData);
+            renderDevicesData(devicesData);
+            renderQueueData(queueData);
+            renderErrorsData(errorsData);
+        }
+
+        function renderLineData(data) {
+            document.getElementById('header-title').textContent = data.lineName;
+            const indicator = document.getElementById('header-status');
+            indicator.className = data.lineState === 1 ? 'status-indicator' : 'status-indicator error';
+
+            document.getElementById('val-desc').textContent      = data.description    || '-';
+            document.getElementById('val-ean').textContent       = data.ean13          || '-';
+            document.getElementById('val-batch').textContent     = data.batchNumber    || '-';
+            document.getElementById('val-prod-date').textContent = data.dateProduced   || '-';
+            document.getElementById('val-exp-date').textContent  = data.dateExpiration || '-';
+
+            document.getElementById('val-shortcode').textContent    = data.shortCode      || '-';
+            document.getElementById('val-kms').textContent          = data.kms            || '-';
+            document.getElementById('val-pack-date').textContent    = data.datePacking    || '-';
+            document.getElementById('val-init-counter').textContent = data.initialCounter ?? '-';
+            document.getElementById('val-site').textContent         = data.site           || '-';
+            document.getElementById('val-itf').textContent          = data.itf            || '-';
+            document.getElementById('val-capacity').textContent     = data.capacity       ?? '-';
+            document.getElementById('val-box').textContent          = data.boxCount       ?? '-';
+            document.getElementById('val-pack').textContent         = data.packageCount   ?? '-';
+            document.getElementById('val-freeze').textContent       = data.freeze         ?? '-';
+            document.getElementById('val-region').textContent       = data.region         || '-';
+            document.getElementById('val-design').textContent       = data.design         ?? '-';
+            document.getElementById('val-printdm').textContent      = data.printDM === 1 ? 'Да' : 'Нет';
+        }
+
+        function setBadge(elementId, state, error) {
+            const el = document.getElementById(elementId);
+            if (error === 1) {
+                el.className = 'badge danger';
+                el.textContent = 'Ошибка';
+            } else if (state === 1) {
+                el.className = 'badge success';
+                el.textContent = 'В работе';
+            } else {
+                el.className = 'badge neutral';
+                el.textContent = 'Остановлен';
+            }
+        }
+
+        function renderDevicesData(data) {
+            setBadge('printer-status-badge', data.printer.state, data.printer.error);
+            document.getElementById('printer-batch').textContent = data.printer.batch || '-';
+
+            setBadge('cam41-status-badge', data.cam41.state, data.cam41.error);
+            document.getElementById('cam41-read').textContent   = data.cam41.read   ?? 0;
+            document.getElementById('cam41-unread').textContent = data.cam41.unread ?? 0;
+            document.getElementById('cam41-batch').textContent  = data.cam41.batch  || '-';
+
+            setBadge('cam42-status-badge', data.cam42.state, data.cam42.error);
+            document.getElementById('cam42-read').textContent   = data.cam42.read   ?? 0;
+            document.getElementById('cam42-unread').textContent = data.cam42.unread ?? 0;
+        }
+
+        function renderQueueData(data) {
+            const container = document.getElementById('queue-container');
+            container.innerHTML = '';
+            if (!data.items || data.items.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#74777F; padding:20px 0; font-size:0.88rem;">Очередь пуста</p>';
+                return;
+            }
+            data.items.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'queue-item';
+                div.innerHTML = `
+                    <div class="queue-pos">${item.position}</div>
+                    <div class="queue-details">
+                        <div style="font-weight:600; font-size:0.95rem; color:#1A1C1E;">Партия: ${item.batch}</div>
+                        <div style="font-size:0.8rem; color:#74777F; margin-top:4px;">
+                            Кр. код: ${item.shortCode} &nbsp;|&nbsp; Выработка: ${item.dateProduced}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderErrorsData(data) {
+            const container = document.getElementById('errors-container');
+            container.innerHTML = '';
+
+            const activeErrors = data.deviceErrors.filter(e => e.value === 1);
+
+            if (activeErrors.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color:#34A853; padding:16px 0; font-weight:600; font-size:0.9rem;">✅ Нет активных ошибок</p>';
+            } else {
+                activeErrors.forEach(err => {
+                    const div = document.createElement('div');
+                    div.className = 'error-item';
+                    div.innerHTML = `
+                        <div style="font-weight:700; color:#EA4335; font-size:0.9rem;">${err.objectName}</div>
+                        <div style="font-size:0.85rem; color:#1A1C1E; margin-top:4px;">${err.propertyDesc}</div>
+                    `;
+                    container.appendChild(div);
+                });
+            }
+
+            const logsContainer = document.getElementById('logs-container');
+            logsContainer.innerHTML = '';
+            if (!data.logs || data.logs.length === 0) {
+                logsContainer.innerHTML = '<p style="text-align:center; color:#74777F; padding:10px 0; font-size:0.88rem;">Журнал пуст</p>';
+                return;
+            }
+            data.logs.forEach(log => {
+                const div = document.createElement('div');
+                div.className = 'log-item';
+                div.innerHTML = `
+                    <div style="font-size:0.75rem; color:#74777F; margin-bottom:4px;">
+                        ${log.time}
+                        <span style="background:#EDEEF0; color:#5F6368; padding:2px 7px; border-radius:8px; margin-left:6px; font-weight:600; font-size:0.7rem;">${log.group}</span>
+                    </div>
+                    <div style="font-size:0.9rem; color:#1A1C1E;">${log.description}</div>
+                `;
+                logsContainer.appendChild(div);
+            });
+        }
+    </script>
+</body>
+</html>
