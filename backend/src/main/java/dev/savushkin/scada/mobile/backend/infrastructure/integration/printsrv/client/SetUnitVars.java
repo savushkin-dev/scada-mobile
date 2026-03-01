@@ -5,6 +5,7 @@ import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dt
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.SetUnitVarsResponseDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Component;
  * Формат ответа: частичный JSON с измененными полями указанного unit
  */
 @Component
+@Profile("prod")
 public class SetUnitVars extends AbstractSocketCommand<SetUnitVarsRequestDTO, SetUnitVarsResponseDTO> {
 
     private static final Logger log = LoggerFactory.getLogger(SetUnitVars.class);

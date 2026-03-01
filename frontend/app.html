@@ -158,6 +158,96 @@
         .badge.success { background: #E6F4EA; color: #1B6B2F; }
         .badge.danger  { background: #FCEAE9; color: #B71C1C; }
         .badge.neutral { background: #EDEEF0; color: #5F6368; }
+
+        /* ==========================================
+           FLOATING ACTION BUTTON: ПОСЛЕДНЯЯ ПАРТИЯ
+           ========================================== */
+        #fab-last-batch {
+            position: fixed;
+            bottom: calc(64px + env(safe-area-inset-bottom) + 12px);
+            left: 16px;
+            width: calc(50% - 8px);
+            max-width: 210px;
+            height: 52px;
+            min-width: 52px;
+
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            overflow: hidden;
+            white-space: nowrap;
+
+            background: #F97316;
+            color: #FFFFFF;
+            border: none;
+            border-radius: 26px;
+            padding: 0 18px;
+
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            cursor: pointer;
+
+            box-shadow: 0 4px 20px rgba(249, 115, 22, 0.4);
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                        max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                        padding 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                        border-radius 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                        opacity 0.25s ease,
+                        transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+                        box-shadow 0.15s ease;
+
+            z-index: 9;
+
+            /* Скрыта по умолчанию, появляется только на вкладке Партии */
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(8px);
+        }
+
+        #fab-last-batch.fab-visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+
+        #fab-last-batch.fab-visible:active {
+            transform: scale(0.95) translateY(0);
+            box-shadow: 0 2px 10px rgba(249, 115, 22, 0.3);
+        }
+
+        .fab-icon {
+            font-size: 1.15rem;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+
+        .fab-label {
+            overflow: hidden;
+            max-width: 160px;
+            opacity: 1;
+            margin-left: 8px;
+            transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                        opacity 0.2s ease,
+                        margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Свёрнутое состояние: только иконка (как Android FAB при скролле вниз) */
+        #fab-last-batch.fab-collapsed {
+            width: 52px;
+            max-width: 52px;
+            padding: 0;
+            border-radius: 50%;
+            justify-content: center;
+            box-shadow: 0 4px 14px rgba(249, 115, 22, 0.5);
+        }
+
+        #fab-last-batch.fab-collapsed .fab-label {
+            max-width: 0;
+            opacity: 0;
+            margin-left: 0;
+        }
     </style>
 </head>
 <body class="max-w-md mx-auto w-full">
@@ -334,6 +424,15 @@
                 <span>Журнал</span>
             </div>
         </nav>
+
+        <!-- FAB: Последняя партия (видна только на вкладке «Партия») -->
+        <button id="fab-last-batch"
+                aria-label="Сообщить: партия последняя"
+                onclick="onFabLastBatchClick()">
+            <span class="fab-icon">🔔</span>
+            <span class="fab-label">Последняя партия</span>
+        </button>
+
     </section>
 
     <script>
@@ -349,9 +448,41 @@
 
             if (screenId === 'details') {
                 document.body.classList.add('on-details-screen');
+                // FAB показываем: на деталях по умолчанию активна вкладка «Партия»
+                showFab(true);
             } else {
                 document.body.classList.remove('on-details-screen');
+                showFab(false);
             }
+        }
+
+        // FAB helpers
+        function showFab(visible) {
+            const fab = document.getElementById('fab-last-batch');
+            if (!fab) return;
+            if (visible) {
+                fab.classList.add('fab-visible');
+            } else {
+                fab.classList.remove('fab-visible');
+                fab.classList.remove('fab-collapsed'); // сбрасываем при уходе с экрана
+            }
+        }
+
+        function onFabLastBatchClick() {
+            // TODO: POST /api/line/{currentUnitId}/last-batch
+            // Временная заглушка для демонстрации дизайна
+            const btn = document.getElementById('fab-last-batch');
+            const originalLabel = btn.querySelector('.fab-label').textContent;
+            btn.querySelector('.fab-label').textContent = 'Отправлено!';
+            btn.querySelector('.fab-icon').textContent = '✅';
+            btn.style.background = '#34A853';
+            btn.style.boxShadow = '0 4px 20px rgba(52,168,83,0.4)';
+            setTimeout(() => {
+                btn.querySelector('.fab-label').textContent = originalLabel;
+                btn.querySelector('.fab-icon').textContent = '🔔';
+                btn.style.background = '';
+                btn.style.boxShadow = '';
+            }, 2000);
         }
 
         async function loadWorkshops() {
@@ -541,8 +672,35 @@
 
                     item.classList.add('active');
                     document.getElementById(target).classList.add('active');
+
+                    // FAB отображается только на вкладке «Партия»
+                    showFab(target === 'tab-batch');
                 });
             });
+
+            // Скролл-поведение FAB: свернуть при скролле вниз, развернуть при скролле вверх
+            const detailsMain = document.querySelector('#screen-details > main');
+            let fabLastScrollY = 0;
+            let fabIsExpanded = true;
+
+            detailsMain.addEventListener('scroll', () => {
+                const fab = document.getElementById('fab-last-batch');
+                if (!fab || !fab.classList.contains('fab-visible')) return;
+
+                const currentY = detailsMain.scrollTop;
+                const delta = currentY - fabLastScrollY;
+
+                // Порог 4px — защита от микро-дрожания при инерционном скролле
+                if (delta > 4 && fabIsExpanded) {
+                    fab.classList.add('fab-collapsed');
+                    fabIsExpanded = false;
+                } else if (delta < -4 && !fabIsExpanded) {
+                    fab.classList.remove('fab-collapsed');
+                    fabIsExpanded = true;
+                }
+
+                fabLastScrollY = currentY;
+            }, { passive: true });
 
             // Логика аккордеона
             const accBtn = document.getElementById('toggle-more-props');

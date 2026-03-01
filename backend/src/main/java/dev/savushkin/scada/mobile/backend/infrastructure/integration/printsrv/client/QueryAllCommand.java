@@ -6,6 +6,7 @@ import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dt
 import dev.savushkin.scada.mobile.backend.infrastructure.polling.PrintSrvPollingScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 /**
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Component;
  * Формат ответа: полный JSON со всеми units, их состояниями и свойствами
  */
 @Component
+@Profile("prod")
 public class QueryAllCommand extends AbstractSocketCommand<QueryAllRequestDTO, QueryAllResponseDTO> {
 
     private static final Logger log = LoggerFactory.getLogger(QueryAllCommand.class);

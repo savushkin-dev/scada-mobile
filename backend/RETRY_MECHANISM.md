@@ -190,19 +190,18 @@ INFO:  ✅ PrintSrv is AVAILABLE again - exiting recovery mode
 
 ---
 
-## 🎭 Гарантии для клиентов REST API
+## 🎭 Гарантии для клиентов REST API / WebSocket
 
-### GET `/api/v1/commands/queryAll`
+### GET `/api/workshops`, GET `/api/workshops/{id}/units`
 
 - ✅ **Всегда возвращает 200 OK** (кроме первого запуска - 503)
 - ✅ **Никогда не выбрасывает IOException** клиенту
 - ✅ **Данные всегда доступны** (last valid snapshot)
 - ⚠️ **Могут быть устаревшими** в режиме восстановления
 
-### POST `/api/v1/commands/setUnitVars`
+### WebSocket `ws/alerts`
 
-- ⚠️ **Пока без retry** - выбрасывает IOException при сбое
-- 🔮 **Будущее улучшение:** использование той же retry-логики
+- Отправляет ALERT только при изменении состава ошибок (delta)
 
 ---
 
@@ -243,11 +242,11 @@ DEBUG: Received snapshot from PrintSrv with 5 units
 
 ### 2. Проверка REST API
 
-```bash
-curl http://localhost:8080/api/v1/commands/queryAll
+```powershell
+Invoke-RestMethod http://localhost:8080/api/v1.0.0/health/ready
 ```
 
-**Результат:** 200 OK с актуальными данными
+**Результат:** 200 OK с `ready: true`
 
 ### 3. Мониторинг логов
 
@@ -313,8 +312,8 @@ ERROR: 🚨 ENTERING RECOVERY MODE
 INFO:  🔍 Recovery mode: checking PrintSrv availability...
 ERROR: ❌ Recovery check failed (next check in 60s)
 
-REST API:
-curl http://localhost:8080/api/v1/commands/queryAll
+REST API (graceful degradation):
+Invoke-RestMethod http://localhost:8080/api/v1.0.0/health/ready
 → 200 OK (устаревший snapshot)
 
 Результат: Graceful degradation, клиенты не видят ошибок
@@ -358,7 +357,7 @@ INFO: ✅ PrintSrv is AVAILABLE again - exiting recovery mode
 **Симптомы:**
 
 ```
-GET /api/v1/commands/queryAll → 503 Service Unavailable
+GET /api/v1.0.0/health/ready → 503 Service Unavailable
 ```
 
 **Причина:** Приложение только запустилось, первый snapshot еще не загружен  
@@ -378,7 +377,7 @@ ERROR: 🚨 ENTERING RECOVERY MODE (сразу после старта)
 **Решение:**
 
 1. Проверьте, что PrintSrv запущен: `netstat -an | findstr 10101`
-2. Проверьте конфигурацию `printsrv.ip` и `printsrv.port`
+2. Проверьте конфигурацию `printsrv.host` и `printsrv.port`
 3. Проверьте firewall настройки
 
 ---
@@ -477,7 +476,6 @@ logging:
 
 ## 🔮 Будущие улучшения (опционально)
 
-- [ ] Retry для SetUnitVars REST handler
 - [ ] Spring Boot Actuator health endpoint
 - [ ] Prometheus metrics (consecutive failures, recovery mode)
 - [ ] Grafana dashboard

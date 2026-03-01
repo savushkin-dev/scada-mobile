@@ -15,11 +15,11 @@
 
 | Часть | Статус | Что сделано |
 |---|---|---|
-| **Backend** | ✅ Работает | Spring Boot, scan cycle (READ→LOGIC→WRITE→UPDATE), TCP-сокет до PrintSrv, in-memory snapshot, pending-буфер, retry/reconnect (3 состояния), REST API (queryAll, setUnitVars, health), OpenAPI/Swagger, CORS, профили dev/prod, логирование MDC |
+| **Backend** | ✅ Работает | Spring Boot, scan cycle (READ→UPDATE), TCP-сокет до PrintSrv (QueryAll), in-memory snapshot, retry/reconnect (3 состояния), REST API (workshops, units, health), WebSocket (unit stream, alerts), OpenAPI/Swagger, CORS, профили dev/prod, логирование MDC |
 | **Frontend** | ⚠️ Заглушка | Vanilla HTML/CSS/JS как дизайн-прототип, PWA-обёртка (manifest, service worker, assetlinks.json) |
 | **Android** | ✅ Работает | TWA (Bubblewrap), собранный APK |
 
-**Главное ограничение бека сейчас:** `QueryAll` и `SetUnitVars` привязаны к одному устройству `"Line"` — жёстко в коде. Для реальной системы с несколькими линиями нужна параметризация.
+**Главное ограничение бека сейчас:** scan cycle опрашивает только первый живой экземпляр PrintSrv — нет обхода всех инстанций. Для реальной системы нужно опрашивать каждый экземпляр независимо и формировать snapshot по каждому аппарату.
 
 ---
 
@@ -31,10 +31,10 @@
 
 ### 24 февр – 5 марта — Бек: поддержка нескольких устройств + WebSocket
 
-- [ ] Параметризовать `QueryAll` и `SetUnitVars` — `deviceName` как параметр запроса, убрать хардкод `"Line"`
-- [ ] Обновить контроллер, `ScadaApplicationService` и snapshot-стор — перейти на `Map<deviceName, DeviceSnapshot>`
-- [ ] Обновить pending-буфер: ключ `(deviceName, unitNumber)` вместо просто `unitNumber`
-- [ ] Scan cycle обходит все устройства из конфига (`printsrv.devices` список)
+- [ ] Реализовать `GET /api/workshops` — список цехов из конфига
+- [ ] Реализовать `GET /api/workshops/{id}/units` — список аппаратов цеха
+- [ ] Scan cycle обходит все экземпляры PrintSrv из конфига, формирует snapshot по каждому
+- [ ] Обновить `ScadaApplicationService` и snapshot-стор — перейти на `Map<instanceId, DeviceSnapshot>`
 - [ ] Добавить WebSocket endpoint (Spring WebSocket / STOMP)
   - После каждого scan cycle бек рассылает всем подключённым клиентам два типа сообщений:
     - `SNAPSHOT` — полный снапшот всех устройств (фронт обновляет UI без перезапроса)
@@ -43,7 +43,7 @@
 - [ ] Покрыть юнит-тестами: буфер, стор, маппер, параметризацию, детектор ошибок
 - [ ] Обновить OpenAPI/Swagger
 
-**Результат:** `/api/v1/commands/queryAll?device=Line`, `/api/v1/commands/queryAll?device=CamAgregation`; реал-тайм пуш снапшота + событий ошибок по WebSocket.
+**Результат:** `GET /api/workshops`, `GET /api/workshops/{id}/units`; реал-тайм пуш состояния аппарата (LINE_STATUS, DEVICES_STATUS, QUEUE, ERRORS) + глобальных алёртов по WebSocket.
 
 ---
 
@@ -56,7 +56,7 @@
   - При получении `SNAPSHOT` — обновить стейт всех устройств (без мигания, без перезапросов)
   - При получении `ALERT { active: true }` — добавить «живое» уведомление об ошибке
   - При получении `ALERT { active: false }` — автоматически закрыть соответствующее уведомление
-  - Fallback при обрыве WebSocket: React Query polling `/queryAll` до переподключения
+  - Fallback при обрыве WebSocket: polling `GET /api/workshops/{id}/units` до переподключения (для списка аппаратов)
 - [ ] Компоненты UI:
   - `DeviceTabs` / `DeviceSelector` — переключение между устройствами
   - `UnitCard` — карточка юнита (статус, задание, счётчик, ошибка выделена цветом)

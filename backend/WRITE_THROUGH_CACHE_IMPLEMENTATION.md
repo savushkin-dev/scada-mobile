@@ -1,9 +1,9 @@
 # Scan Cycle Architecture Implementation Checklist
 
-> **Цель:** Изолировать клиентов от PrintSrv через snapshot с синхронным циклом чтение→логика→запись
+> **Цель:** Изолировать клиентов от PrintSrv через snapshot с автономным циклом read-only опроса.
 
-> **Архитектурный принцип:** Один поток последовательно выполняет: READ из PrintSrv → BUSINESS LOGIC → WRITE в
-> PrintSrv → UPDATE snapshot. Это исключает race conditions и соответствует промышленным стандартам SCADA.
+> **Архитектурный принцип:** Один поток последовательно выполняет: READ из PrintSrv → UPDATE snapshot → PUSH WebSocket-алёртов
+> при изменении состояния ошибок. Запись в PrintSrv (`SetUnitVars`) в данном проекте не применяется. Это исключает race conditions и соответствует промышленным стандартам SCADA.
 
 ---
 
@@ -18,104 +18,24 @@
         │ [1] READ из PrintSrv  │ ← QueryAllCommand
         └───────────────────────┘
                     ↓
+        ┌───────────────────────┐
+        │ [2] UPDATE snapshot   │ ← PrintSrvSnapshotStore
+        └───────────────────────┘
+                    ↓
         ┌───────────────────────────────┐
-        │ [2] BUSINESS LOGIC            │
-        │  • Слияние с pending командами│
-        │  • Валидация                  │
-        │  • Вычисления                 │
+        │ [3] PUSH алёрты (при дельте)  │ ← WebSocket (ws/alerts)
         └───────────────────────────────┘
-                    ↓
-        ┌───────────────────────┐
-        │ [3] WRITE в PrintSrv  │ ← SetUnitVarsCommand
-        └───────────────────────┘
-                    ↓
-        ┌───────────────────────┐
-        │ [4] UPDATE snapshot   │ ← PrintSrvSnapshotStore
-        └───────────────────────┘
                     ↓
               ← Повтор цикла
 
-┌─────────────────────┐
-│ Клиент POST /set    │ → Добавляет команду в буфер
-└─────────────────────┘   (НЕ в snapshot!)
+┌──────────────────────────────────┐
+│ Клиент GET /api/workshops        │ → Читает конфиг цехов/аппаратов
+└──────────────────────────────────┘
 
-┌─────────────────────┐
-│ Клиент GET /query   │ → Читает snapshot
-└─────────────────────┘   (актуальные данные после последнего цикла)
+┌──────────────────────────────────┐
+│ Клиент WebSocket /ws/unit/{id}   │ → Получает поток данных аппарата
+└──────────────────────────────────┘
 ```
-
----
-
-## 📋 Фаза 1: Буфер клиентских команд
-
-### ✅ Задача 1.1: Создать модель команды
-
-**Создать файл:** `store/PendingWriteCommand.java`
-
-**Структура:**
-
-```java
-public record PendingWriteCommand(
-    long timestamp,                    // Время создания команды
-    int unit,                          // Номер юнита (1-based)
-    Map<String, Object> properties     // Изменяемые свойства {"command": 999}
-) {
-    public PendingWriteCommand(int unit, Map<String, Object> properties) {
-        this(System.currentTimeMillis(), unit, properties);
-    }
-}
-```
-
-**Важно:**
-
-- Простая immutable структура (без статусов и retry-счетчиков)
-- Команды живут только до следующего цикла сканирования
-
----
-
-### ✅ Задача 1.2: Создать буфер команд
-
-**Создать файл:** `store/PendingCommandsBuffer.java`
-
-**Структура:**
-
-```java
-@Component
-public class PendingCommandsBuffer {
-    // Map<unitId, PendingWriteCommand>
-    // ConcurrentHashMap для thread-safety между REST-контроллером и scan cycle
-    private final ConcurrentHashMap<Integer, PendingWriteCommand> buffer = new ConcurrentHashMap<>();
-    
-    private static final int MAX_BUFFER_SIZE = 100;
-    
-    public void add(PendingWriteCommand command) { ... }
-    public Map<Integer, PendingWriteCommand> getAndClear() { ... }
-    public boolean isEmpty() { ... }
-    public int size() { ... }
-}
-```
-
-**Логика `add()`:**
-
-```java
-if (buffer.size() >= MAX_BUFFER_SIZE) {
-    throw new IllegalStateException("Буфер команд переполнен");
-}
-buffer.put(command.unit(), command);
-```
-
-**Логика `getAndClear()`:**
-
-```java
-Map<Integer, PendingWriteCommand> snapshot = new HashMap<>(buffer);
-buffer.clear();
-return snapshot;
-```
-
-**Почему Map, а не Queue:**
-
-- Если клиент отправил несколько команд для одного unit → сохраняется только последняя (Last-Write-Wins)
-- Упрощает логику слияния (нет дубликатов по unit)
 
 ---
 
@@ -123,151 +43,42 @@ return snapshot;
 
 ### ✅ Задача 2.1: Внедрить зависимости
 
-**Файл:** `ScadaDataPollingService.java`
+**Файл:** `DevScanCycleScheduler.java` (dev) / `PrintSrvPollingScheduler.java` (prod)
 
-**Добавить в конструктор:**
+**Конструктор содержит:**
 
 ```java
-private final PendingCommandsBuffer pendingCommandsBuffer;
-private final SetUnitVars setUnitVarsCommand;
+private final PrintSrvClientRegistry registry;
+private final PrintSrvMapper mapper;
+private final DeviceSnapshotWriter snapshotWriter;
 ```
 
 ---
 
-### ✅ Задача 2.2: Переписать метод pollAndUpdateSnapshot()
+### ✅ Задача 2.2: Реализовать метод `scanCycle()`
 
-**Файл:** `ScadaDataPollingService.java`
-
-**Переименовать метод:** `pollAndUpdateSnapshot()` → `scanCycle()`
-
-**Новая логика метода `scanCycle()`:**
+**Логика метода `scanCycle()`:**
 
 ```java
-@Scheduled(fixedRate = 5000)
+@Scheduled(fixedDelayString = "${printsrv.polling.fixed-delay-ms:5000}")
 public void scanCycle() {
-    try {
-        // [1] READ из PrintSrv
-        QueryAllResponseDTO freshData = queryAllCommand.execute(
-            new QueryAllRequestDTO(/* параметры */)
-        );
-        
-        // [2] BUSINESS LOGIC - получить pending команды
-        Map<Integer, PendingWriteCommand> pendingWrites = 
-            pendingCommandsBuffer.getAndClear();
-        
-        // [3] WRITE в PrintSrv (если есть команды)
-        if (!pendingWrites.isEmpty()) {
-            SetUnitVarsRequestDTO writeRequest = buildWriteRequest(pendingWrites);
-            
-            try {
-                setUnitVarsCommand.execute(writeRequest);
-            } catch (IOException e) {
-                // Логировать ошибку записи
-                // Команды потеряны (клиент получит старое значение в следующем цикле)
-            }
+    for (String instanceId : registry.getInstanceIds()) {
+        PrintSrvClient client = registry.get(instanceId);
+        if (!client.isAlive()) continue;
+        try {
+            // [1] READ из PrintSrv
+            QueryAllResponseDTO dto = client.queryAll("Line");
+
+            // [2] UPDATE snapshot
+            DeviceSnapshot snapshot = mapper.toDomainDeviceSnapshot(dto);
+            snapshotWriter.save(snapshot);
+        } catch (Exception e) {
+            // Логировать ошибку чтения PrintSrv
+            // Snapshot не обновляется (клиенты получат устаревшие данные)
         }
-        
-        // [4] UPDATE snapshot (независимо от успеха записи)
-        // Snapshot = источник правды (данные из PrintSrv)
-        snapshotStore.saveSnapshot(freshData);
-        
-    } catch (IOException e) {
-        // Логировать ошибку чтения PrintSrv
-        // Snapshot не обновляется (клиенты получат устаревшие данные)
     }
 }
 ```
-
----
-
-### ✅ Задача 2.3: Добавить вспомогательный метод
-
-**Файл:** `ScadaDataPollingService.java`
-
-**Добавить метод:**
-
-```java
-private SetUnitVarsRequestDTO buildWriteRequest(
-    Map<Integer, PendingWriteCommand> pendingWrites
-) {
-    Map<String, UnitsDTO> units = new HashMap<>();
-    
-    for (PendingWriteCommand cmd : pendingWrites.values()) {
-        String unitKey = "u" + cmd.unit();
-        UnitsDTO unitDTO = new UnitsDTO(
-            new PropertiesDTO(cmd.properties()),
-            null  // parameters не меняем
-        );
-        units.put(unitKey, unitDTO);
-    }
-    
-    return new SetUnitVarsRequestDTO(units);
-}
-```
-
-**Важно:**
-
-- Преобразование `int unit` → `String "u" + unit` (соответствие формату PrintSrv)
-- Отправляются только изменяемые properties
-
----
-
-## 📋 Фаза 3: Модификация CommandsService
-
-### ✅ Задача 3.1: Внедрить зависимости
-
-**Файл:** `CommandsService.java`
-
-**Заменить зависимость:**
-
-```java
-// Удалить: private final SetUnitVars setUnitVarsCommand;
-// Добавить:
-private final PendingCommandsBuffer pendingCommandsBuffer;
-```
-
----
-
-### ✅ Задача 3.2: Переписать метод setUnitVars()
-
-**Файл:** `CommandsService.java`
-
-**Новая логика метода `setUnitVars(int unit, int value)`:**
-
-```java
-public SetUnitVarsResponseDTO setUnitVars(int unit, int value) {
-    // 1. Создать команду
-    PendingWriteCommand command = new PendingWriteCommand(
-        unit,
-        Map.of("command", value)
-    );
-    
-    // 2. Добавить в буфер (будет обработана в следующем scan cycle)
-    pendingCommandsBuffer.add(command);
-    
-    // 3. Вернуть acknowledge-ответ (БЕЗ данных из snapshot)
-    // Клиент узнает результат при следующем GET /query-all
-    return new SetUnitVarsResponseDTO(
-        Map.of("u" + unit, new UnitsDTO(
-            new PropertiesDTO(Map.of("command", value)),
-            null
-        ))
-    );
-}
-```
-
-**Альтернатива (если нужен минимальный ответ):**
-
-```java
-// Вернуть пустой ответ с HTTP 202 Accepted
-return new SetUnitVarsResponseDTO(Map.of());
-```
-
-**Важно:**
-
-- Клиент НЕ получает актуальные данные из snapshot
-- Ответ = подтверждение приема команды
-- Реальное значение клиент увидит после следующего scan cycle (до 5 секунд задержки)
 
 ---
 
@@ -275,76 +86,22 @@ return new SetUnitVarsResponseDTO(Map.of());
 
 ### ✅ Задача 4.1: Обработка недоступности PrintSrv
 
-**Файл:** `ScadaDataPollingService.java`
+**Файл:** `DevScanCycleScheduler.java` / `PrintSrvPollingScheduler.java`
 
-**Логика при IOException в `scanCycle()`:**
+**Логика при ошибке в `scanCycle()`:**
 
 ```java
-catch (IOException e) {
+} catch (Exception e) {
     // READ failed - PrintSrv недоступен
     // Snapshot НЕ обновляется → клиенты получают stale data
-    // Pending команды остаются в буфере до следующего цикла
-    // Логировать: "PrintSrv недоступен, повтор через 5 секунд"
+    // Логировать: "PrintSrv недоступен, повтор через N секунд"
 }
 ```
 
 **Важно:**
 
-- Команды НЕ теряются при временной недоступности
-- Буфер накапливает команды (до MAX_BUFFER_SIZE)
-- При восстановлении PrintSrv все команды будут записаны
-
----
-
-### ✅ Задача 4.2: Обработка ошибок записи
-
-**Файл:** `ScadaDataPollingService.java`
-
-**Логика при IOException в блоке WRITE:**
-
-```java
-try {
-    setUnitVarsCommand.execute(writeRequest);
-} catch (IOException e) {
-    // WRITE failed - команды потеряны
-    // PrintSrv не получил новые значения
-    // Snapshot обновится из READ (старые значения)
-    // Логировать: "Ошибка записи в PrintSrv, команды потеряны: {unitIds}"
-}
-```
-
-**Почему команды теряются:**
-
-- Нет retry-механизма (по согласованию с руководителем)
-- Упрощение архитектуры
-- Клиент может повторить запрос
-
----
-
-### ✅ Задача 4.3: Ограничение размера буфера
-
-**Файл:** `PendingCommandsBuffer.java`
-
-**Добавить в метод `add()`:**
-
-```java
-if (buffer.size() >= MAX_BUFFER_SIZE) {
-    throw new IllegalStateException(
-        "Буфер команд переполнен. PrintSrv недоступен длительное время."
-    );
-}
-```
-
-**Обработка в контроллере:**
-
-```java
-@ExceptionHandler(IllegalStateException.class)
-public ResponseEntity<ErrorResponseDTO> handleBufferOverflow(IllegalStateException e) {
-    return ResponseEntity
-        .status(HttpStatus.SERVICE_UNAVAILABLE)
-        .body(new ErrorResponseDTO(e.getMessage()));
-}
-```
+- Snapshot остаётся последним валидным (graceful degradation)
+- Scheduler продолжает работу — следующий цикл повторит попытку
 
 ---
 
@@ -354,15 +111,15 @@ public ResponseEntity<ErrorResponseDTO> handleBufferOverflow(IllegalStateExcepti
 
 **Потоки в системе:**
 
-1. **REST Thread Pool** (Tomcat) — обрабатывает клиентские запросы
-2. **Scheduler Thread** — выполняет `scanCycle()` каждые 5 секунд
+1. **WebSocket Session Threads** (Spring) — отправка алёртов клиентам
+2. **Scheduler Thread** — выполняет `scanCycle()` каждые N секунд
 
 **Точки конкуренции:**
 
-- `PendingCommandsBuffer.add()` — вызывается из REST
-- `PendingCommandsBuffer.getAndClear()` — вызывается из Scheduler
+- `PrintSrvSnapshotStore.save()` — запись из Scheduler
+- WebSocket-рассылка (чтение из snapshot) — одновременно с записью
 
-**Решение:** `ConcurrentHashMap` обеспечивает thread-safety
+**Решение:** `AtomicReference` в `PrintSrvSnapshotStore` обеспечивает thread-safety
 
 ---
 
@@ -372,13 +129,7 @@ public ResponseEntity<ErrorResponseDTO> handleBufferOverflow(IllegalStateExcepti
 
 - ✅ Thread-safe (AtomicReference)
 - ✅ Используется только Scheduler для записи
-- ✅ Используется REST threads для чтения (immutable snapshot)
-
-**PendingCommandsBuffer:**
-
-- ✅ Thread-safe (ConcurrentHashMap)
-- ✅ `getAndClear()` атомарно очищает буфер
-- ✅ Команды, добавленные во время `getAndClear()`, попадут в следующий цикл
+- ✅ Используется WebSocket threads для чтения (immutable snapshot)
 
 **Нет необходимости в:**
 
@@ -390,88 +141,38 @@ public ResponseEntity<ErrorResponseDTO> handleBufferOverflow(IllegalStateExcepti
 
 ## 📋 Тестирование
 
-### ✅ Тест 1: Базовый сценарий
+### ✅ Тест 1: Опрос всех экземпляров (dev-профиль)
 
 **Шаги:**
 
-1. Запустить приложение
-2. Дождаться первого snapshot (проверить логи: "Snapshot обновлен")
-3. Отправить: `POST /commands/set?unit=1&value=999`
-4. Сразу отправить: `GET /commands/query-all`
-5. **Ожидание:** Ответ содержит **старое** значение (snapshot еще не обновлен)
-6. Подождать 5+ секунд (следующий scan cycle)
-7. Отправить: `GET /commands/query-all`
-8. **Ожидание:** Ответ содержит `command: 999`
-9. Проверить PrintSrv UI — должно быть `command: 999`
+1. Запустить приложение с `--spring.profiles.active=dev`
+2. Дождаться лога: `DevScanCycleScheduler: Snapshot saved from instance 'trepko1'`
+3. Отправить: `GET http://localhost:8080/api/v1.0.0/health/ready`
+4. **Ожидание:** `{ "ready": true }`
 
 **Критерии успеха:**
 
-- ✅ Команда дошла до PrintSrv
-- ✅ Snapshot обновился после цикла
-- ✅ Нет ошибок в логах
+- ✅ `DevScanCycleScheduler` сохраняет snapshot каждые 5 секунд
+- ✅ `MockStateSimulator` флипает ошибки на аппаратах
+- ✅ Health endpoints отвечают корректно
 
 ---
 
-### ✅ Тест 2: Недоступность PrintSrv
+### ✅ Тест 2: Недоступность экземпляра PrintSrv (mock офлайн)
 
 **Шаги:**
 
-1. Остановить PrintSrv
-2. Отправить: `POST /commands/set?unit=1&value=111`
-3. Отправить: `POST /commands/set?unit=2&value=222`
-4. Проверить логи через 5 секунд: "PrintSrv недоступен"
-5. Отправить: `GET /commands/query-all`
-6. **Ожидание:** Snapshot содержит старые данные (до остановки PrintSrv)
-7. Запустить PrintSrv
-8. Подождать 10 секунд (2 цикла)
-9. Отправить: `GET /commands/query-all`
-10. **Ожидание:** Snapshot содержит `command: 111` и `222`
+1. Запустить приложение (dev)
+2. Через `MockPrintSrvClientRegistry` пометить `trepko1` как `alive=false`
+3. Дождаться scan cycle
+4. Проверить логи: `isAlive() = false, пропускаем экземпляр`
+5. Snapshot остаётся последним валидным
 
 **Критерии успеха:**
 
-- ✅ Команды не потеряны при временной недоступности
-- ✅ После восстановления команды записались
-- ✅ Snapshot актуализировался
-
----
-
-### ✅ Тест 3: Множественные команды для одного unit
-
-**Шаги:**
-
-1. Быстро отправить 5 команд:
-   ```bash
-   POST /set?unit=1&value=100
-   POST /set?unit=1&value=200
-   POST /set?unit=1&value=300
-   POST /set?unit=1&value=400
-   POST /set?unit=1&value=500
-   ```
-2. Подождать 5+ секунд
-3. Отправить: `GET /commands/query-all`
-4. **Ожидание:** `command: 500` (последняя команда)
-
-**Критерии успеха:**
-
-- ✅ Last-Write-Wins работает корректно
-- ✅ В PrintSrv записалась только последняя команда
-- ✅ Нет дублирования запросов
-
----
-
-### ✅ Тест 4: Переполнение буфера
-
-**Шаги:**
-
-1. Остановить PrintSrv
-2. Отправить 100 команд (заполнить буфер)
-3. Отправить 101-ю команду
-4. **Ожидание:** HTTP 503 + сообщение "Буфер команд переполнен"
-
-**Критерии успеха:**
-
-- ✅ Буфер защищен от переполнения
-- ✅ Клиент получает понятную ошибку
+- ✅ Snapshot не обновляется, пока экземпляр офлайн
+- ✅ При возвращении онлайн snapshot актуализируется
+- ✅ Старый snapshot возвращается (graceful degradation)
 
 ---
 
@@ -479,26 +180,19 @@ public ResponseEntity<ErrorResponseDTO> handleBufferOverflow(IllegalStateExcepti
 
 ### Функциональные требования:
 
-- ✅ Клиент получает ответ на `POST /set` < 50ms (без ожидания PrintSrv)
-- ✅ Команды записываются в PrintSrv в следующем scan cycle (≤ 5 секунд)
-- ✅ `GET /query-all` возвращает данные из snapshot (актуальные на момент последнего цикла)
-- ✅ При недоступности PrintSrv команды накапливаются (до 100)
-- ✅ После восстановления PrintSrv команды записываются
+- ✅ Scan cycle читает snapshot из PrintSrv через QueryAll
+- ✅ `GET /api/workshops` и `GET /api/workshops/{id}/units` возвращают данные из snapshot
+- ✅ WebSocket `ws/unit/{id}` пушит данные после каждого цикла
+- ✅ WebSocket `ws/alerts` отправляет ALERT только при изменении состава ошибок
+- ✅ При недоступности PrintSrv snapshot остаётся последним валидным
 
 ### Нефункциональные требования:
 
-- ✅ Нет race conditions (один поток для write)
-- ✅ Thread-safe буфер и snapshot
+- ✅ Нет race conditions (один поток для scan cycle)
+- ✅ Thread-safe snapshot (AtomicReference)
 - ✅ Graceful degradation при ошибках PrintSrv
 - ✅ Логирование всех критических событий
-- ✅ Нет memory leaks (буфер ограничен, snapshot immutable)
-
-### Ограничения (by design):
-
-- ⚠️ Eventual Consistency: задержка до 5 секунд
-- ⚠️ Last-Write-Wins: одновременные команды не конфликтуют
-- ⚠️ No Persistence: команды теряются при перезапуске
-- ⚠️ No Retry: команды теряются при ошибке записи в PrintSrv
+- ✅ Нет memory leaks (snapshot immutable, буфера записи нет)
 
 ---
 
@@ -506,23 +200,23 @@ public ResponseEntity<ErrorResponseDTO> handleBufferOverflow(IllegalStateExcepti
 
 **День 1:**
 
-- Фаза 1: PendingCommandsBuffer (задачи 1.1, 1.2)
-- Фаза 2: ScadaDataPollingService (задачи 2.1, 2.2, 2.3)
+- Фаза 2: DevScanCycleScheduler — scan cycle READ → UPDATE
+- Фаза 3: Обработка ошибок PrintSrv
 
 **День 2:**
 
-- Фаза 3: CommandsService (задачи 3.1, 3.2)
-- Фаза 4: Обработка ошибок (задачи 4.1, 4.2, 4.3)
+- Фаза 4: Обработка ошибок + Thread Safety
+- Тестирование
 
 **День 3:**
 
-- Фаза 5: Thread Safety (задачи 5.1, 5.2)
-- Тестирование (тесты 1, 2, 3, 4)
+- Реализация REST + WebSocket эндпоинтов (Цеха, Аппараты)
+- Реализация пуша алёртов (детектор изменений + `ws/alerts`)
 
 **День 4:**
 
-- Логирование (логгеры SLF4J для всех критических мест)
-- Документация (JavaDoc для публичных методов)
+- Логирование (логгеры SLF4J)
+- Документация (JavaDoc)
 - Code Review
 
 ---
@@ -564,32 +258,17 @@ public ResponseEntity<ErrorResponseDTO> handleBufferOverflow(IllegalStateExcepti
 
 ## 🔧 Полезные команды
 
-**Проверить snapshot:**
+**Проверить health:**
 
 ```powershell
-curl http://localhost:8080/commands/query-all
+Invoke-RestMethod http://localhost:8080/api/v1.0.0/health/live
+Invoke-RestMethod http://localhost:8080/api/v1.0.0/health/ready
 ```
 
-**Отправить команду:**
+**Мониторинг scan cycle в логах:**
 
 ```powershell
-curl -X POST "http://localhost:8080/commands/set?unit=1&value=999"
-```
-
-**Проверить размер буфера (debug endpoint):**
-
-```powershell
-# Добавить в CommandsController:
-# @GetMapping("/debug/buffer-size")
-# public int getBufferSize() { return pendingCommandsBuffer.size(); }
-
-curl http://localhost:8080/commands/debug/buffer-size
-```
-
-**Мониторинг логов:**
-
-```powershell
-Get-Content -Path "logs/spring.log" -Wait | Select-String -Pattern "scanCycle|PendingCommandsBuffer"
+Get-Content -Path "logs/spring.log" -Wait | Select-String -Pattern "scanCycle|Snapshot saved"
 ```
 
 ---
@@ -599,18 +278,11 @@ Get-Content -Path "logs/spring.log" -Wait | Select-String -Pattern "scanCycle|Pe
 **Для понимания концепции:**
 
 - PLC Scan Cycle: https://www.plcacademy.com/plc-scan-cycle/
-- Eventually Consistent Systems: Martin Kleppmann "Designing Data-Intensive Applications"
-
-**Для улучшения (после базовой реализации):**
-
-- Метрики: Spring Boot Actuator + Micrometer (track scan cycle duration, buffer size)
-- Персистентность: Spring Boot + embedded H2 для сохранения команд при перезапуске
-- Приоритезация: Priority Queue для критичных команд
+- WebSocket Protocol: RFC 6455
 
 ---
 
-**Версия:** 2.0 (Scan Cycle Architecture)  
-**Дата:** 10.02.2026  
-**Автор:** Architecture Design для SCADA Mobile Backend  
-**Согласовано:** Руководитель проекта (алгоритм чтение→логика→запись)
+**Версия:** 3.0 (Read-Only Scan Cycle + WebSocket Push)  
+**Дата:** 01.03.2026  
+**Автор:** Architecture Design для SCADA Mobile Backend
 

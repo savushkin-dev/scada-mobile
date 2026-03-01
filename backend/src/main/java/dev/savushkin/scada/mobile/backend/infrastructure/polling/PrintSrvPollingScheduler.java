@@ -7,6 +7,7 @@ import dev.savushkin.scada.mobile.backend.domain.model.WriteCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -39,6 +40,7 @@ import java.util.Map;
  * </ul>
  */
 @Service
+@Profile("prod")
 public class PrintSrvPollingScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(PrintSrvPollingScheduler.class);

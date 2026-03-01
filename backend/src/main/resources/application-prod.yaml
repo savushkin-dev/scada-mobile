@@ -8,7 +8,68 @@ logging:
     root: WARN
     dev.savushkin.scada.mobile.backend: INFO
 
+# ─────────────────────────────────────────────────────────────────────────────
+# PrintSrv instances в prod:
+#   Топология (id, displayName, workshopId) и справочник workshops берутся
+#   из application.yaml — не дублируем.
+#   Здесь переопределяем ТОЛЬКО host и port для каждого инстанса через
+#   переменные окружения. Индексы соответствуют порядку списка в application.yaml.
+#
+#   Установить перед запуском (пример для systemd EnvironmentFile или docker-compose):
+#     PRINTSRV_INSTANCES_0_HOST=192.168.1.10   PRINTSRV_INSTANCES_0_PORT=10101
+#     PRINTSRV_INSTANCES_1_HOST=192.168.1.10   PRINTSRV_INSTANCES_1_PORT=10102
+#     ... и т.д. для всех 14 инстансов
+#
+#   Если переменная не задана — инстанс упадёт в recovery-mode при старте
+#   (не упадёт всё приложение, только этот инстанс не подключится).
+# ─────────────────────────────────────────────────────────────────────────────
 printsrv:
+  instances:
+    # Цех десертов (BR1_Marking_Dess.mpr)
+    - id: "trepko1"
+      host: "${PRINTSRV_INSTANCES_0_HOST}"
+      port: "${PRINTSRV_INSTANCES_0_PORT}"
+    - id: "trepko2"
+      host: "${PRINTSRV_INSTANCES_1_HOST}"
+      port: "${PRINTSRV_INSTANCES_1_PORT}"
+    - id: "hassia1"
+      host: "${PRINTSRV_INSTANCES_2_HOST}"
+      port: "${PRINTSRV_INSTANCES_2_PORT}"
+    - id: "hassia2"
+      host: "${PRINTSRV_INSTANCES_3_HOST}"
+      port: "${PRINTSRV_INSTANCES_3_PORT}"
+    - id: "hassia4"
+      host: "${PRINTSRV_INSTANCES_4_HOST}"
+      port: "${PRINTSRV_INSTANCES_4_PORT}"
+    - id: "hassia5"
+      host: "${PRINTSRV_INSTANCES_5_HOST}"
+      port: "${PRINTSRV_INSTANCES_5_PORT}"
+    - id: "hassia6"
+      host: "${PRINTSRV_INSTANCES_6_HOST}"
+      port: "${PRINTSRV_INSTANCES_6_PORT}"
+    # Цех десертов и розлива (BR1_Marking_Dess_Pouring.mpr)
+    - id: "grunwald1"
+      host: "${PRINTSRV_INSTANCES_7_HOST}"
+      port: "${PRINTSRV_INSTANCES_7_PORT}"
+    - id: "grunwald2"
+      host: "${PRINTSRV_INSTANCES_8_HOST}"
+      port: "${PRINTSRV_INSTANCES_8_PORT}"
+    - id: "hassia3"
+      host: "${PRINTSRV_INSTANCES_9_HOST}"
+      port: "${PRINTSRV_INSTANCES_9_PORT}"
+    - id: "bosch"
+      host: "${PRINTSRV_INSTANCES_10_HOST}"
+      port: "${PRINTSRV_INSTANCES_10_PORT}"
+    - id: "grunwald5"
+      host: "${PRINTSRV_INSTANCES_11_HOST}"
+      port: "${PRINTSRV_INSTANCES_11_PORT}"
+    - id: "grunwald8"
+      host: "${PRINTSRV_INSTANCES_12_HOST}"
+      port: "${PRINTSRV_INSTANCES_12_PORT}"
+    - id: "grunwald11"
+      host: "${PRINTSRV_INSTANCES_13_HOST}"
+      port: "${PRINTSRV_INSTANCES_13_PORT}"
+
   polling:
     fixed-delay-ms: 500  # Prod: быстрый цикл (0.5 секунды)
   retry:

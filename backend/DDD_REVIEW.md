@@ -8,8 +8,7 @@
 - Анализ выполнен по текущей структуре пакетов и ключевым классам (Spring Boot + in-memory store + polling scan cycle +
   TCP-интеграция с PrintSrv).
 - Это *не классическая* предметная область с богатыми агрегатами/репозиториями и БД. Ваш домен ближе к **интеграционному
-  bounded context** с жёсткими техническими ограничениями (только `QueryAll` и `SetUnitVars`, write-through cache,
-  eventual consistency).
+  bounded context** с жёсткими техническими ограничениями (read-only QueryAll, пуш WebSocket, eventual consistency).
 - Поэтому критерий «соответствует DDD» здесь стоит понимать как:
     - слои и зависимости направлены правильно;
     - доменная модель изолирована от инфраструктуры;
@@ -22,8 +21,7 @@
 
 - Есть явное разделение на слои: `api` → `services` (адаптер API) → `application` (use-cases) → `domain` (
   модель/политики), плюс `printsrv` (интеграция) и `store` (in-memory хранилище).
-- **Чтение строго из snapshot** (write-through cache инвариант соблюдается), а запись из REST не ходит синхронно в
-  PrintSrv — это хорошая архитектурная «граница консистентности».
+- **Читение строго из snapshot** (инвариант соблюдается), запись в PrintSrv в данном проекте не применяется.
 - Есть **application ports** (`DeviceSnapshotReader/Writer`, `PendingWriteCommandsPort/DrainPort`) — это сильный признак
   портов/адаптеров.
 - `PrintSrvMapper` выглядит как ACL: внешние DTO → доменные модели (`DeviceSnapshot`, `UnitSnapshot`, `UnitProperties`).
@@ -31,7 +29,7 @@
 **Основные несоответствия «чистому DDD» (скорее DDD-smells, чем ошибки):**
 
 - В домене есть зависимость от Spring: `domain/policy/LastWriteWinsPerUnitPolicy` помечен `@Component`.
-- Термины протокола (например, `QueryAll`, `SetUnitVars`) заметно присутствуют в верхних слоях (логика названа командами
+- Термины протокола (например, `QueryAll`) заметно присутствуют в верхних слоях (логика названа командами
   интеграции). Это размывает **Ubiquitous Language** домена и смешивает bounded contexts.
 - Доменная модель сейчас в основном **immutable data + инварианты** (records) — это нормально, но близко к **анемичной
   модели**, если доменные правила будут расти.
@@ -87,8 +85,7 @@
 Судя по `CommandsController` + `ScadaApplicationService` + `PrintSrvPollingScheduler`:
 
 - GET читает snapshot из store.
-- POST кладёт команду в буфер.
-- Единственный поток scan cycle выполняет READ → LOGIC → WRITE → UPDATE.
+- Scan cycle выполняет READ → UPDATE.
 
 Для такого типа системы это важнее, чем «богатая модель агрегатов».
 
@@ -110,19 +107,19 @@
 
 ### 4.2. Ubiquitous Language смешан с интеграционными командами
 
-Примеры (по комментариям/логам и названиям): `QueryAll`, `SetUnitVars`, `PrintSrv` встречаются в верхних слоях и даже в
-занчениях полей (`"SetUnitVars"`, `"QueryAll"`, `"Line"`).
+Примеры (по комментариям/логам и названиям): `QueryAll`, `PrintSrv` встречаются в верхних слоях и даже в
+значениях полей (`"QueryAll"`, `"Line"`).
 
 Почему это важно:
 
 - В DDD **UL должен отражать предметную область**, а не протокол внешнего сервиса.
-- `QueryAll`/`SetUnitVars` — это термины интеграционного контекста (PrintSrv), их лучше держать внутри bounded context
+- `QueryAll` — это термин интеграционного контекста (PrintSrv), его лучше держать внутри bounded context
   интеграции.
 
 Риск:
 
 - Когда появится другой источник данных/другой протокол, вы будете вынуждены «переименовывать домен», хотя доменная
-  семантика (снимок состояния, команда записи) останется той же.
+  семантика (снимок состояния) останется той же.
 
 ### 4.3. Анемичность доменной модели (потенциальная)
 
@@ -180,7 +177,7 @@ snapshot-only GET, быстрый POST, scan cycle).
 
 3) **Переименовать/пересобрать “термины” на уровне мышления (даже без переименований в коде)**
     - Договориться, что доменные понятия: `Snapshot`, `WriteCommand`, `ScanCycle`.
-    - А `QueryAll`/`SetUnitVars` — исключительно уровнем integration.
+    - А `QueryAll` — исключительно уровнем integration.
 
 ### Medium (умеренный риск/работа)
 
@@ -218,8 +215,8 @@ snapshot-only GET, быстрый POST, scan cycle).
 - Чистка домена от Spring:
     - `domain/policy/LastWriteWinsPerUnitPolicy` (убрать `@Component`, конфигурировать снаружи).
 - Разграничение UL и integration:
-    - Строковые значения `"QueryAll"`, `"SetUnitVars"`, `"Line"` сейчас находятся в
-      `services/polling/ScadaCommandExecutor` и `api/ApiMapper`.
+    - Строковые значения `"QueryAll"`, `"Line"` сейчас находятся в
+      `infrastructure/polling/DevScanCycleScheduler` и `api/ApiMapper`.
 - Укрепление доменных инвариантов:
     - входные параметры `unit/value` в `api/controller/CommandsController` → потенциально value objects.
 

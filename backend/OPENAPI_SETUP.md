@@ -16,11 +16,9 @@
 implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
 ```
 
-### 3. Добавлены OpenAPI аннотации
+### Комментарий для OpenAPI
 
-- **Контроллер**: `CommandsController.java` - @Operation, @ApiResponses, @Parameter
-- **DTO**: QueryStateResponseDTO, ChangeCommandResponseDTO, UnitStateDTO, UnitPropertiesDTO - @Schema
-- **Конфиг**: `OpenApiConfig.java` - метаданные API
+- **Контроллер**: `Controller.java` - @Operation, @ApiResponses, @Parameter
 
 ### 4. Настройки профилей
 
@@ -95,29 +93,20 @@ java -jar build/libs/scada.mobile.backend-0.0.1-SNAPSHOT.jar --spring.profiles.a
 
 ## Что документировано
 
-### GET /api/v1/commands/queryAll
+### GET /api/workshops
 
-- Возвращает snapshot состояния (все units)
-- Может быть устаревшим при проблемах с PrintSrv
-- 200 OK - snapshot получен
-- 503 Service Unavailable - snapshot не готов
+- Возвращает список цехов с информацией о количестве аппаратов
 
-### POST /api/v1/commands/setUnitVars
+### GET /api/workshops/{id}/units
 
-- Принимает команду в буфер
-- Query params: `unit` (1-based), `value` (integer >= 1)
-- Eventual consistency (изменения видны после scan cycle)
-- Last-Write-Wins для одного unit
-- 200 OK - команда принята
-- 400 Bad Request - неверные параметры
-- 503 Service Unavailable - буфер переполнен
+- Возвращает список аппаратов цеха
 
-### GET /api/v1/commands/health/live
+### GET /api/v1.0.0/health/live
 
 - Liveness probe (приложение работает)
 - 200 OK - alive
 
-### GET /api/v1/commands/health/ready
+### GET /api/v1.0.0/health/ready
 
 - Readiness probe (snapshot загружен)
 - 200 OK - готов

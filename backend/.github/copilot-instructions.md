@@ -9,48 +9,44 @@
 Это Spring Boot backend, который работает как **прослойка между клиентом и внешним сервисом PrintSrv (MarkPrintServer)
 **.
 
-- Клиент общается с backend по HTTP.
+- Клиент общается с backend по HTTP (REST) и WebSocket.
 - Backend общается с PrintSrv по TCP-сокету с собственным бинарным фреймингом и JSON payload.
-- У PrintSrv реально доступны только **2 команды**: **QueryAll** (получить полный снимок) и **SetUnitVars** (установить
-  значения тегов одного unit).
+- Из протокола PrintSrv backend использует только **QueryAll** (получить полный снимок). Команда **SetUnitVars** в данном проекте не применяется.
 
-Система реализует архитектуру **write-through cache + scan cycle**:
+Система реализует архитектуру **read-only scan cycle + WebSocket push**:
 
-1) Клиентские запросы на запись **не пишут в PrintSrv синхронно**. Они кладутся в **буфер pending-команд**.
-2) Отдельный автономный цикл (scheduler) примерно раз в `printsrv.polling.fixed-delay-ms` (по умолчанию 5 секунд)
-   делает:
+1) Отдельный автономный цикл (scheduler) примерно раз в `printsrv.polling.fixed-delay-ms` (по умолчанию 5 секунд) делает:
     - READ: QueryAll → получить актуальные данные из PrintSrv;
-    - BUSINESS LOGIC: забрать и очистить pending буфер;
-    - WRITE: выполнить SetUnitVars для pending-команд;
-    - UPDATE: обновить in-memory snapshot состоянием из READ.
+    - UPDATE: обновить in-memory snapshot.
+2) При изменении состава ошибок (дельта snapshot vs предыдущий) — backend отправляет WebSocket ALERT всем подписанным на `ws/alerts` клиентам.
 
-Клиенты читают состояние только из **snapshot**. Изменения после POST станут видны в GET после следующего scan cycle (
-eventual consistency).
+Клиенты получают структуру данных через REST и поток обновлений/алёртов через WebSocket.
 
 ## 2) Главные артефакты и «точки истины» в коде
 
 Ориентиры (важное):
 
 - REST API
-    - `api/controller/CommandsController` — endpoints:
-        - `GET /api/v1/commands/queryAll` — отдаёт snapshot.
-        - `POST /api/v1/commands/setUnitVars?unit=&value=` — кладёт команду в буфер.
+    - `api/controller/Controller` — endpoints:
+        - `GET /api/workshops` — список цехов.
+        - `GET /api/workshops/{id}/units` — список аппаратов цеха.
         - health endpoints: `/health/live`, `/health/ready`.
+    - WebSocket endpoints:
+        - `ws://backend/ws/unit/{unitId}` — поток данных аппарата (LINE_STATUS, DEVICES_STATUS, QUEUE, ERRORS).
+        - `ws://backend/ws/alerts` — глобальный поток алёртов (ALERT).
     - `services/CommandsService` — адаптер API → application.
     - `api/ApiMapper` — преобразование domain → API DTO.
 
 - Application слой
-    - `application/ScadaApplicationService` — координация: читает snapshot из store и кладёт команды в буфер.
+    - `application/ScadaApplicationService` — координация: читает snapshot из store, формирует ответы для REST/WebSocket.
 
 - Scan Cycle
-    - `services/polling/PrintSrvPollingScheduler` — единый цикл READ → LOGIC → WRITE → UPDATE.
-    - `services/polling/ScadaCommandExecutor` — выполнение QueryAll/SetUnitVars, маппинг PrintSrv DTO ↔ domain.
-    - `services/polling/PrintSrvConnectionManager` — retry/reconnect/recovery state machine вокруг socket-операций.
+    - `infrastructure/polling/DevScanCycleScheduler` (@Profile("dev")) — READ → UPDATE, через mock-клиенты.
+    - `infrastructure/polling/PrintSrvPollingScheduler` (@Profile("prod")) — READ → UPDATE, через TCP PrintSrv.
+    - `infrastructure/polling/PrintSrvConnectionManager` — retry/reconnect/recovery state machine.
 
 - Store
-    - `store/PrintSrvSnapshotStore` — in-memory snapshot (AtomicReference), без истории.
-    - `store/PendingCommandsBuffer` — in-memory буфер pending-команд (ConcurrentHashMap), ограничение размера,
-      Last-Write-Wins.
+    - `infrastructure/store/PrintSrvSnapshotStore` — in-memory snapshot (AtomicReference), без истории.
 
 - Интеграция с PrintSrv
     - `printsrv/client/*` — сокет/транспорт/команды/фрейминг.
@@ -59,57 +55,47 @@ eventual consistency).
 
 ## 3) Жёсткие инварианты архитектуры (нельзя ломать)
 
-### 3.1. Инварианты Write-Through Cache
+### 3.1. Инварианты Read-Only Snapshot
 
 - **GET всегда читает только snapshot**, НЕ ходит напрямую в PrintSrv.
-- **POST записи всегда быстрый** и не блокируется на PrintSrv: максимум «приняли команду».
-- Snapshot — **единственный источник правды** для клиентов; даже если записи не применились, клиенты увидят то, что
-  реально пришло из PrintSrv.
+- Snapshot — **единственный источник правды** для клиентов; даже если цикл ещё не выполнился, клиенты видят последний валидный.
 
 ### 3.2. Инварианты Scan Cycle (PLC-паттерн)
 
-- Цикл должен быть **последовательным**: READ → LOGIC → WRITE → UPDATE.
+- Цикл должен быть **последовательным**: READ → UPDATE.
 - Внутри одного цикла избегай параллелизма и гонок: **один поток — один цикл**.
-- UPDATE snapshot выполняется **на основе данных из READ** (QueryAll), а не из ответа SetUnitVars (ответ частичный).
+- UPDATE snapshot выполняется **на основе данных из READ** (QueryAll).
+- PUSH WebSocket-алёртов происходит только при **изменении состава ошибок** (дельта от предыдущего snapshot).
 
-### 3.3. Инварианты буфера pending-команд
+### 3.3. Инварианты integration с PrintSrv
 
-- Буфер — `Map<unitNumber, WriteCommand>` с **Last-Write-Wins** для одного unit.
-- Буфер **thread-safe** между REST потоками и scheduler.
-- Есть **лимит размера** (защита от утечек памяти при долгой недоступности PrintSrv). Переполнение — управляемая
-  ошибка (`BufferOverflowException`).
-
-### 3.4. Инварианты integration с PrintSrv
-
-- PrintSrv поддерживает **только QueryAll и SetUnitVars**. Любые другие команды нельзя «добавлять».
-- `SetUnitVars` работает **только для одного unit за запрос** (так реализовано и так ожидается).
+- Backend использует только команду **QueryAll** (чтение). `SetUnitVars` и любые другие команды запрещены.
 - Протокол/кодировки нельзя ломать:
     - TCP framing: MAGIC `P001` + 4 байта длины (Big Endian) + JSON.
     - Кодировка JSON: **windows-1251**, не UTF-8.
-    - Нумерация unit: в запросах SetUnitVars `Unit` = **число 1-based**, в ответах QueryAll unit’ы в виде ключей `"u1"`,
-      `"u2"`.
+    - Нумерация unit: в ответах QueryAll unitу в виде ключей `"u1"`, `"u2"`.
 
 ## 4) Контракты поведения (что клиенту гарантируется)
 
-- `GET /queryAll`:
-    - Возвращает snapshot, если он уже есть.
-    - Если snapshot ещё не получен (первый запуск) — система может вернуть ошибку готовности (готовность определяется
-      наличием snapshot).
-    - При проблемах PrintSrv snapshot может быть устаревшим, но остаётся доступным (graceful degradation).
+- `GET /api/workshops`, `GET /api/workshops/{id}/units`:
+    - Возвращают данные из конфига / snapshot.
+    - Если snapshot ещё не получен (первый запуск) — readiness-проба вернёт 503.
+    - При аварии PrintSrv snapshot может быть устаревшим, но остаётся доступным (graceful degradation).
 
-- `POST /setUnitVars`:
-    - Возвращает подтверждение приёма (ack).
-    - Не гарантирует, что PrintSrv реально применил запись (eventual consistency).
-    - Команды могут **потеряться**, если WRITE упал внутри цикла после `getAndClear()` (это текущее поведение
-      архитектуры). Не «чинить» это случайными правками — только отдельным архитектурным решением.
+- `ws://backend/ws/unit/{unitId}`:
+    - Бекенд рассылает обновления после каждого scan cycle подписанным на данный `unitId`.
+    - Типы сообщений: `LINE_STATUS`, `DEVICES_STATUS`, `QUEUE`, `ERRORS`.
+
+- `ws://backend/ws/alerts`:
+    - Отправляется только при изменении набора активных ошибок — не каждый scan cycle.
+    - `active: true` — ошибка появилась; `active: false` — ошибка устранена.
 
 ## 5) Правила безопасности (обязательные)
 
 ### 5.1. Входной HTTP слой
 
-- Валидируй входные параметры: диапазоны unit/value, обязательность, типы. Не доверяй клиенту.
+- Валидируй входные параметры запросов. Не доверяй клиенту.
 - Не допускай DoS через большие запросы/частоту:
-    - помни про лимит буфера;
     - любые тяжёлые операции — только в scan cycle.
 - Не логируй лишнее:
     - не печатай в логи чувствительные данные/полный snapshot на уровне INFO;
@@ -154,29 +140,29 @@ eventual consistency).
 
 Перед тем как менять:
 
-- семантику буфера (очередь vs map, гарантии доставки),
 - правила retry,
 - периодичность цикла,
 - источник snapshot,
   обязательно сформулируй:
 - какие инварианты сохраняются,
 - какие новые гарантии появляются,
-- какие риски (потеря команд, дубли, идемпотентность) и как они закрываются.
+- какие риски и как они закрываются.
 
 ### 6.3. Набор «типовых» задач и куда смотреть
 
-- Новый endpoint/изменение API: `CommandsController`, DTO в `api/dto`, `CommandsService`, `ApiMapper`.
-- Изменение scan cycle: `PrintSrvPollingScheduler` и/или `ScadaCommandExecutor`.
+- Новый REST endpoint/изменение API: `api/controller/Controller`, DTO в `api/dto`, `services/CommandsService`, `api/ApiMapper`.
+- Новый WebSocket endpoint: `api/websocket/*`, сервис-слой, application ports.
+- Изменение scan cycle: `DevScanCycleScheduler` (дев) / `PrintSrvPollingScheduler` (прод).
 - Retry/устойчивость: `PrintSrvConnectionManager` + документация retry.
-- Протокол PrintSrv/кодировки/фрейминг: `printsrv/client/*` + `PRINTSERV_API.md`.
-- Буфер/снапшот: `store/*`.
+- Протокол PrintSrv/кодировки/фрейминг: `infrastructure/integration/printsrv/client/*` + `PRINTSERV_API.md`.
+- Snapshot: `infrastructure/store/PrintSrvSnapshotStore`.
 
 ## 7) Чеклист перед завершением любой задачи
 
 1) **Архитектурная проверка**:
     - не сломан ли принцип snapshot-only для чтения;
     - не появился ли синхронный сетевой вызов в REST обработчике;
-    - не нарушены ли инварианты буфера и scan cycle.
+    - не нарушены ли инварианты scan cycle.
 
 2) **Безопасность**:
     - валидация входа и ограничения;
@@ -194,8 +180,8 @@ eventual consistency).
 
 ## 9) Запрещённые классы решений
 
-- «Быстрые фиксы», которые пишут напрямую в PrintSrv из REST endpoint.
+- Эндпоинты Spring, которые обращаются к PrintSrv синхронно (клиент будет ждать TCP-ответа).
+- Добавление команды `SetUnitVars` как HTTP-эндпоинта.
 - Изменение протокола/кодировки без синхронизации с `PRINTSERV_API.md`.
 - Добавление новых PrintSrv-команд «потому что удобно».
-- Снятие лимита буфера без альтернативной защиты от DoS.
 

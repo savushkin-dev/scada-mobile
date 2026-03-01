@@ -28,7 +28,7 @@ import java.util.UUID;
  * <p>
  * Пример строки лога (dev, plain text):
  * <pre>
- * 2026-02-20 15:00:01.123 INFO  [http-1] [a1b2c3d4] POST /api/v1/commands/setUnitVars CommandsController - SetUnitVars command accepted
+ * 2026-02-20 15:00:01.123 INFO  [http-1] [a1b2c3d4] POST /api/v1/commands/setUnitVars Controller - SetUnitVars command accepted
  * </pre>
  * <p>
  * Пример в JSON (prod):

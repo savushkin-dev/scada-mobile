@@ -3,22 +3,110 @@ spring:
     name: scada.mobile.backend
 
 
-# Configuration для PrintSrv's socket
+# ─────────────────────────────────────────────────────────────────────────────
+# PrintSrv — единственный источник правды о топологии линий и цехов.
+#
+# workshops / instances — топологические данные, не меняются между окружениями.
+# host/port — значения по умолчанию для локальной разработки (localhost-туннель
+# или моки). В prod они переопределяются через переменные окружения:
+#   PRINTSRV_INSTANCES_0_HOST, PRINTSRV_INSTANCES_0_PORT
+#   PRINTSRV_INSTANCES_1_HOST, PRINTSRV_INSTANCES_1_PORT  … и т.д.
+# ─────────────────────────────────────────────────────────────────────────────
 printsrv:
-  ip: 127.0.0.1
-  port: 10101
+  # Справочник цехов: id → displayName.
+  # instances ссылаются на workshopId — изменить название цеха нужно только здесь.
+  workshops:
+    - id: "dess"
+      displayName: "Цех десертов"
+    - id: "dess_pouring"
+      displayName: "Цех десертов и розлива"
+
+  instances:
+    # Цех десертов (BR1_Marking_Dess.mpr)
+    - id: "trepko1"
+      host: 127.0.0.1
+      port: 5561
+      displayName: "Trepko №1"
+      workshopId: "dess"
+    - id: "trepko2"
+      host: 127.0.0.1
+      port: 5562
+      displayName: "Trepko №2"
+      workshopId: "dess"
+    - id: "hassia1"
+      host: 127.0.0.1
+      port: 5563
+      displayName: "Hassia №1"
+      workshopId: "dess"
+    - id: "hassia2"
+      host: 127.0.0.1
+      port: 5564
+      displayName: "Hassia №2"
+      workshopId: "dess"
+    - id: "hassia4"
+      host: 127.0.0.1
+      port: 5565
+      displayName: "Hassia №4"
+      workshopId: "dess"
+    - id: "hassia5"
+      host: 127.0.0.1
+      port: 5566
+      displayName: "Hassia №5"
+      workshopId: "dess"
+    - id: "hassia6"
+      host: 127.0.0.1
+      port: 5567
+      displayName: "Hassia №6"
+      workshopId: "dess"
+    # Цех десертов и розлива (BR1_Marking_Dess_Pouring.mpr)
+    - id: "grunwald1"
+      host: 127.0.0.1
+      port: 5571
+      displayName: "Grunwald №1"
+      workshopId: "dess_pouring"
+    - id: "grunwald2"
+      host: 127.0.0.1
+      port: 5572
+      displayName: "Grunwald №2"
+      workshopId: "dess_pouring"
+    - id: "hassia3"
+      host: 127.0.0.1
+      port: 5573
+      displayName: "Hassia №3"
+      workshopId: "dess_pouring"
+    - id: "bosch"
+      host: 127.0.0.1
+      port: 5574
+      displayName: "Bosch"
+      workshopId: "dess_pouring"
+    - id: "grunwald5"
+      host: 127.0.0.1
+      port: 5575
+      displayName: "Grunwald №5"
+      workshopId: "dess_pouring"
+    - id: "grunwald8"
+      host: 127.0.0.1
+      port: 5576
+      displayName: "Grunwald №8"
+      workshopId: "dess_pouring"
+    - id: "grunwald11"
+      host: 127.0.0.1
+      port: 5577
+      displayName: "Grunwald №11"
+      workshopId: "dess_pouring"
+
   polling:
-    fixed-delay-ms: 5000              # Интервал scan cycle (fixedDelay) для PrintSrv - 5 секунд
-  # Retry configuration для восстановления соединения
+    fixed-delay-ms: 5000              # Интервал scan cycle (fixedDelay) — переопределяется в профилях
+  # Retry — базовые значения, профили могут ужесточить
   retry:
-    max-attempts: 5                    # Количество попыток переподключения
-    initial-delay-ms: 200              # Начальная задержка для экспоненциального backoff
-    max-delay-ms: 5000                 # Максимальная задержка между попытками
-    recovery-check-interval-ms: 60000  # Интервал проверки в режиме recovery (1 минута)
+    max-attempts: 5
+    initial-delay-ms: 200
+    max-delay-ms: 5000
+    recovery-check-interval-ms: 60000
   # Таймауты для Socket операций
   socket:
-    connect-timeout-ms: 5000           # Таймаут на установку соединения
-    read-timeout-ms: 5000              # Таймаут на чтение данных
+    connect-timeout-ms: 5000
+    read-timeout-ms: 5000
 
 # Логирование — конфигурация в src/main/resources/logback-spring.xml
 # Уровни переопределяются по профилям (dev / prod) в logback-spring.xml

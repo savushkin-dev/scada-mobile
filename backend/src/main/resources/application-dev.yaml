@@ -2,9 +2,50 @@
 # Уровни логов задаются в logback-spring.xml (springProfile name="dev")
 # При необходимости можно переопределить через Actuator: POST /actuator/loggers/{name}
 
+# ─────────────────────────────────────────────────────────────────────────────
+# PrintSrv instances в dev:
+#   host/port берутся из application.yaml (127.0.0.1 + порты 556x/557x).
+#   Варианты запуска:
+#     1) Реальный PrintSrv на той же машине — ничего не менять.
+#     2) PrintSrv на удалённой машине — пробросить SSH-туннель:
+#          ssh -L 5561:localhost:5561 ... -L 5577:localhost:5577 user@prod-host
+#        Тогда localhost-порты из application.yaml сработают без изменений.
+#     3) Для тестирования без PrintSrv — порт/хост роли не играют,
+#        scheduler деградирует в recovery-mode (см. PrintSrvConnectionManager).
+# ─────────────────────────────────────────────────────────────────────────────
+
 printsrv:
   polling:
     fixed-delay-ms: 5000  # Dev: медленный цикл (5 секунд) для комфортной отладки
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # MockPrintSrv — используется ТОЛЬКО в профиле dev.
+  # Все инстансы берутся из printsrv.instances (см. application.yaml).
+  # ─────────────────────────────────────────────────────────────────────────
+  mock:
+    # Путь к директории со snapshot-файлами вида {instanceId}/{Device}___Unit0.xml.
+    # Если пусто или файл не найден — берётся classpath:mock-snapshots/default/.
+    # Пример: snapshot-base-dir: "C:/PrintSrv/snapshots"
+    snapshot-base-dir:
+
+    # Интервал между тиками симуляции (мс). Увеличьте при отладке, чтобы
+    # состояние менялось реже.
+    tick-interval-ms: 2000
+
+    # Список instanceId, которые должны стартовать как «offline» (имитация обрыва TCP).
+    # Пример: offline-instances: [grunwald8, bosch]
+    offline-instances: []
+
+    # Вероятность в диапазоне [0.0, 1.0]: при каждом тике Error-флаг на Line
+    # инвертируется с этой вероятностью; CamAgregation получает Failed-коды.
+    error-flip-probability: 0.03
+
+    # Random-seed для воспроизводимого поведения в unit-тестах.
+    # Сменить здесь — изменить все ожидаемые значения в тестах.
+    random-seed: 42
+
+    # Быстрый выключатель симуляции без пересборки.
+    simulation-enabled: true
 
 # CORS: dev allowlist для локальной разработки (Live Server, Vite и пр.)
 cors:

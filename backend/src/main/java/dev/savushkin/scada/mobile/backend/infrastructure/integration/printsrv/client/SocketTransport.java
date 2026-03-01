@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -29,6 +30,7 @@ import java.nio.charset.Charset;
  * Протокол работает в режиме запрос-ответ через единое socket-соединение.
  */
 @Component
+@Profile("prod")
 public class SocketTransport {
 
     private static final Logger log = LoggerFactory.getLogger(SocketTransport.class);

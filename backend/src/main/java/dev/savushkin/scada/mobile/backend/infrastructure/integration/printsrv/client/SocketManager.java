@@ -4,6 +4,7 @@ import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -23,7 +24,7 @@ import java.net.Socket;
  * Параметры соединения настраиваются через application.yaml:
  * <pre>
  * printsrv:
- *   ip: 127.0.0.1
+ *   host: 127.0.0.1
  *   port: 10101
  *   socket:
  *     connect-timeout-ms: 5000
@@ -33,11 +34,12 @@ import java.net.Socket;
  * Thread-safe: все публичные методы синхронизированы.
  */
 @Component
+@Profile("prod")
 public class SocketManager {
 
     private static final Logger log = LoggerFactory.getLogger(SocketManager.class);
 
-    private final String IP;
+    private final String HOST;
     private final int PORT;
     private final int CONNECT_TIMEOUT_MS;
     private final int READ_TIMEOUT_MS;
@@ -47,23 +49,23 @@ public class SocketManager {
     /**
      * Конструктор с внедрением конфигурации из application.yaml.
      *
-     * @param ip                IP адрес PrintSrv (из ${printsrv.ip})
+     * @param host              хост PrintSrv (из ${printsrv.host})
      * @param port              порт PrintSrv (из ${printsrv.port})
      * @param connectTimeoutMs  таймаут на установку соединения (из ${printsrv.socket.connect-timeout-ms})
      * @param readTimeoutMs     таймаут на чтение данных (из ${printsrv.socket.read-timeout-ms})
      */
     private SocketManager(
-            @Value("${printsrv.ip}") String ip,
+            @Value("${printsrv.host}") String host,
             @Value("${printsrv.port}") int port,
             @Value("${printsrv.socket.connect-timeout-ms}") int connectTimeoutMs,
             @Value("${printsrv.socket.read-timeout-ms}") int readTimeoutMs
     ) {
-        IP = ip;
+        HOST = host;
         PORT = port;
         CONNECT_TIMEOUT_MS = connectTimeoutMs;
         READ_TIMEOUT_MS = readTimeoutMs;
         log.info("SocketManager initialized with PrintSrv address: {}:{}, timeouts: connect={}ms, read={}ms",
-                IP, PORT, CONNECT_TIMEOUT_MS, READ_TIMEOUT_MS);
+                HOST, PORT, CONNECT_TIMEOUT_MS, READ_TIMEOUT_MS);
     }
 
     /**
@@ -101,20 +103,20 @@ public class SocketManager {
     public synchronized Socket getSocket() throws IOException {
         // Проверяем существующее соединение на валидность
         if (socket != null && !socket.isClosed() && socket.isConnected()) {
-            log.trace("Reusing existing socket connection to {}:{}", IP, PORT);
+            log.trace("Reusing existing socket connection to {}:{}", HOST, PORT);
             return socket;
         }
 
         // Если соединение невалидно - создаем новое
-        log.info("Creating new socket connection to PrintSrv {}:{}", IP, PORT);
+        log.info("Creating new socket connection to PrintSrv {}:{}", HOST, PORT);
         try {
             socket = new Socket();
-            socket.connect(new java.net.InetSocketAddress(IP, PORT), CONNECT_TIMEOUT_MS);
+            socket.connect(new java.net.InetSocketAddress(HOST, PORT), CONNECT_TIMEOUT_MS);
             socket.setSoTimeout(READ_TIMEOUT_MS);
-            log.info("✅ Socket connection established successfully to {}:{}", IP, PORT);
+            log.info("✅ Socket connection established successfully to {}:{}", HOST, PORT);
         } catch (IOException e) {
             socket = null;  // Обнуляем при ошибке
-            log.error("❌ Failed to create socket connection to {}:{} - {}", IP, PORT, e.getMessage());
+            log.error("❌ Failed to create socket connection to {}:{} - {}", HOST, PORT, e.getMessage());
             throw e;
         }
         return socket;
@@ -130,7 +132,7 @@ public class SocketManager {
      */
     public synchronized void invalidate() {
         if (socket != null) {
-            log.warn("⚠️ Invalidating socket connection to {}:{}", IP, PORT);
+            log.warn("⚠️ Invalidating socket connection to {}:{}", HOST, PORT);
             closeQuietly(socket);
             socket = null;
         }
@@ -146,7 +148,7 @@ public class SocketManager {
     private void closeQuietly(Socket socket) {
         if (socket != null && !socket.isClosed()) {
             try {
-                log.debug("Closing socket connection to {}:{}", IP, PORT);
+                log.debug("Closing socket connection to {}:{}", HOST, PORT);
                 socket.close();
                 log.trace("Socket closed successfully");
             } catch (IOException e) {

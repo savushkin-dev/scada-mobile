@@ -1,6 +1,6 @@
 package dev.savushkin.scada.mobile.backend.exception;
 
-import dev.savushkin.scada.mobile.backend.api.controller.CommandsController;
+import dev.savushkin.scada.mobile.backend.api.controller.Controller;
 import dev.savushkin.scada.mobile.backend.api.dto.ErrorResponseDTO;
 import dev.savushkin.scada.mobile.backend.services.CommandsService;
 import dev.savushkin.scada.mobile.backend.services.HealthService;
@@ -57,7 +57,7 @@ class GlobalExceptionHandlerTest {
         handler = new GlobalExceptionHandler();
 
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new CommandsController(commandsService, healthService))
+                .standaloneSetup(new Controller(commandsService, healthService))
                 .setControllerAdvice(handler)
                 .build();
     }
