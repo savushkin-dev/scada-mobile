@@ -8,7 +8,7 @@ package dev.savushkin.scada.mobile.backend.api.dto;
  * @param totalUnits   общее количество аппаратов/линий
  * @param problemUnits количество аппаратов с активными ошибками/предупреждениями
  */
-public record WorkshopsDTO_new(
+public record WorkshopsDTO(
         String id,
         String name,
         int totalUnits,

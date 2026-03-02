@@ -2,6 +2,11 @@ spring:
   application:
     name: scada.mobile.backend
 
+scada:
+  api:
+    version: v1.0.0
+    base-path: /api/${scada.api.version}
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PrintSrv — единственный источник правды о топологии линий и цехов.

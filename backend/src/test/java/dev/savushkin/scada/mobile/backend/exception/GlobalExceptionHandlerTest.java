@@ -6,14 +6,15 @@ import dev.savushkin.scada.mobile.backend.services.HealthService;
 import dev.savushkin.scada.mobile.backend.services.WorkshopService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -30,26 +31,27 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 /**
  * Тесты для GlobalExceptionHandler.
  */
-@ExtendWith(MockitoExtension.class)
+@WebMvcTest(Controller.class)
+@Import(GlobalExceptionHandler.class)
 class GlobalExceptionHandlerTest {
 
     private GlobalExceptionHandler handler;
+
+    @Autowired
     private MockMvc mockMvc;
 
-    @Mock
+    @MockBean
     private WorkshopService workshopService;
 
-    @Mock
+    @MockBean
     private HealthService healthService;
+
+    @Value("${scada.api.base-path}")
+    private String apiBasePath;
 
     @BeforeEach
     void setUp() {
         handler = new GlobalExceptionHandler();
-
-        mockMvc = MockMvcBuilders
-                .standaloneSetup(new Controller(workshopService, healthService))
-                .setControllerAdvice(handler)
-                .build();
     }
 
     // -------------------------------------------------------------------------
@@ -58,7 +60,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void socketException_handler_returns503() {
-        WebRequest request = buildWebRequest("/api/workshops");
+        WebRequest request = buildWebRequest(apiBasePath + "/workshops");
         SocketException ex = new SocketException("Connection refused");
 
         ResponseEntity<ErrorResponseDTO> response = handler.handleSocketException(ex, request);
@@ -75,7 +77,7 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void ioException_handler_returns500() {
-        WebRequest request = buildWebRequest("/api/workshops");
+        WebRequest request = buildWebRequest(apiBasePath + "/workshops");
         IOException ex = new IOException("JSON parse error");
 
         ResponseEntity<ErrorResponseDTO> response = handler.handleIOException(ex, request);
@@ -92,9 +94,9 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void noResourceFound_handler_returns404() {
-        WebRequest request = buildWebRequest("/api/doesNotExist");
+        WebRequest request = buildWebRequest(apiBasePath + "/doesNotExist");
         NoResourceFoundException ex = new NoResourceFoundException(
-                org.springframework.http.HttpMethod.GET, "/api/doesNotExist", "Not found");
+                org.springframework.http.HttpMethod.GET, apiBasePath + "/doesNotExist", "Not found");
 
         ResponseEntity<ErrorResponseDTO> response = handler.handleNoResourceFoundException(ex, request);
 
@@ -112,7 +114,7 @@ class GlobalExceptionHandlerTest {
     void illegalStateException_returns503() throws Exception {
         when(healthService.isReady()).thenThrow(new IllegalStateException("Service not ready"));
 
-        mockMvc.perform(get("/api/v1.0.0/health/ready"))
+        mockMvc.perform(get(apiBasePath + "/health/ready"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.status").value(503));
     }
@@ -125,7 +127,7 @@ class GlobalExceptionHandlerTest {
     void unexpectedException_returns500() throws Exception {
         when(healthService.isAlive()).thenThrow(new RuntimeException("unexpected"));
 
-        mockMvc.perform(get("/api/v1.0.0/health/live"))
+        mockMvc.perform(get(apiBasePath + "/health/live"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.status").value(500))
                 .andExpect(jsonPath("$.message").value("Внутренняя ошибка сервера"));

@@ -9,7 +9,7 @@ package dev.savushkin.scada.mobile.backend.api.dto;
  * @param event      текущее событие или описание состояния (например, {@code "В работе"})
  * @param timer      время текущего состояния в формате {@code HH:MM:SS}
  */
-public record UnitsDTO_new(
+public record UnitsDTO(
         String id,
         String workshopId,
         String unit,

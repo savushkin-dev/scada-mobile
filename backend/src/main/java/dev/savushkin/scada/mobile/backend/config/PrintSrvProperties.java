@@ -46,7 +46,7 @@ public class PrintSrvProperties {
         /** Уникальный логический идентификатор: trepko1, hassia2, … */
         private String id;
         /** TCP-адрес хоста (в prod переопределяется через env-переменную). */
-        private String host = "127.0.0.1";
+        private String host;
         /** TCP-порт PrintSrv для данного инстанса. */
         private int port;
         /** Человекочитаемое название для UI. */

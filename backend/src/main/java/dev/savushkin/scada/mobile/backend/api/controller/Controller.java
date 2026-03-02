@@ -1,7 +1,7 @@
 package dev.savushkin.scada.mobile.backend.api.controller;
 
-import dev.savushkin.scada.mobile.backend.api.dto.UnitsDTO_new;
-import dev.savushkin.scada.mobile.backend.api.dto.WorkshopsDTO_new;
+import dev.savushkin.scada.mobile.backend.api.dto.UnitsDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.WorkshopsDTO;
 import dev.savushkin.scada.mobile.backend.services.HealthService;
 import dev.savushkin.scada.mobile.backend.services.WorkshopService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,15 +32,16 @@ import java.util.Map;
  * <p>
  * Предоставляет API endpoints:
  * <ul>
- *   <li>GET /api/workshops — список цехов с актуальной статистикой</li>
- *   <li>GET /api/workshops/{id}/units — список аппаратов цеха с текущим состоянием</li>
- *   <li>GET /api/v1.0.0/health/live — liveness probe</li>
- *   <li>GET /api/v1.0.0/health/ready — readiness probe</li>
+ *   <li>GET ${scada.api.base-path}/workshops — список цехов с актуальной статистикой</li>
+ *   <li>GET ${scada.api.base-path}/workshops/{id}/units — список аппаратов цеха с текущим состоянием</li>
+ *   <li>GET ${scada.api.base-path}/health/live — liveness probe</li>
+ *   <li>GET ${scada.api.base-path}/health/ready — readiness probe</li>
  * </ul>
  */
 @Tag(name = "SCADA Mobile", description = "API для мобильного приложения SCADA (цеха, аппараты, health)")
 @RestController
 @Validated
+@RequestMapping("${scada.api.base-path}")
 public class Controller {
 
     private static final Logger log = LoggerFactory.getLogger(Controller.class);
@@ -65,9 +66,9 @@ public class Controller {
 
     @Operation(summary = "Список цехов", description = "Возвращает все цеха с текущей статистикой problemUnits.")
     @ApiResponses(@ApiResponse(responseCode = "200", description = "Список цехов"))
-    @GetMapping("/api/workshops")
-    public ResponseEntity<List<WorkshopsDTO_new>> getWorkshops() {
-        List<WorkshopsDTO_new> workshops = workshopService.getWorkshops();
+    @GetMapping("/workshops")
+    public ResponseEntity<List<WorkshopsDTO>> getWorkshops() {
+        List<WorkshopsDTO> workshops = workshopService.getWorkshops();
         return ResponseEntity.ok(workshops);
     }
 
@@ -76,12 +77,12 @@ public class Controller {
             @ApiResponse(responseCode = "200", description = "Список аппаратов"),
             @ApiResponse(responseCode = "404", description = "Цех не найден")
     })
-    @GetMapping("/api/workshops/{id}/units")
-    public ResponseEntity<List<UnitsDTO_new>> getUnitsInWorkshop(@PathVariable @NonNull String id) {
+    @GetMapping("/workshops/{id}/units")
+    public ResponseEntity<List<UnitsDTO>> getUnitsInWorkshop(@PathVariable @NonNull String id) {
         if (!workshopService.workshopExists(id)) {
             return ResponseEntity.notFound().build();
         }
-        List<UnitsDTO_new> units = workshopService.getUnits(id);
+        List<UnitsDTO> units = workshopService.getUnits(id);
         return ResponseEntity.ok(units);
     }
 
@@ -90,7 +91,7 @@ public class Controller {
     @Operation(summary = "Liveness probe", description = "Проверка, что приложение запущено.")
     @ApiResponses(@ApiResponse(responseCode = "200", description = "Приложение работает",
             content = @Content(mediaType = "application/json")))
-    @GetMapping("/api/v1.0.0/health/live")
+    @GetMapping("/health/live")
     public ResponseEntity<Map<String, Object>> live() {
         boolean alive = healthService.isAlive();
         return ResponseEntity.ok(Map.of(
@@ -105,7 +106,7 @@ public class Controller {
             @ApiResponse(responseCode = "503", description = "Не готово",
                     content = @Content(mediaType = "application/json"))
     })
-    @GetMapping("/api/v1.0.0/health/ready")
+    @GetMapping("/health/ready")
     public ResponseEntity<Map<String, Object>> ready() {
         boolean ready = healthService.isReady();
         HttpStatus status = ready ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;

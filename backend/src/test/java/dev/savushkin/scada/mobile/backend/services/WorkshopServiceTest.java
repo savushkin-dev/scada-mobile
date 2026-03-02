@@ -1,7 +1,7 @@
 package dev.savushkin.scada.mobile.backend.services;
 
-import dev.savushkin.scada.mobile.backend.api.dto.UnitsDTO_new;
-import dev.savushkin.scada.mobile.backend.api.dto.WorkshopsDTO_new;
+import dev.savushkin.scada.mobile.backend.api.dto.UnitsDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.WorkshopsDTO;
 import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepository;
 import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
@@ -63,7 +63,7 @@ class WorkshopServiceTest {
 
     @Test
     void getWorkshops_returnsTwoWorkshopsWithCorrectCounts() {
-        List<WorkshopsDTO_new> workshops = service.getWorkshops();
+        List<WorkshopsDTO> workshops = service.getWorkshops();
 
         assertEquals(2, workshops.size());
         assertEquals("dess", workshops.get(0).id());
@@ -83,13 +83,13 @@ class WorkshopServiceTest {
         DeviceSnapshot okSnapshot = createLineSnapshot("0");
         when(snapshotRepo.get("hassia2", "Line")).thenReturn(okSnapshot);
 
-        List<WorkshopsDTO_new> workshops = service.getWorkshops();
+        List<WorkshopsDTO> workshops = service.getWorkshops();
         assertEquals(1, workshops.get(0).problemUnits());
     }
 
     @Test
     void getUnits_returnsUnitsForWorkshop() {
-        List<UnitsDTO_new> units = service.getUnits("dess");
+        List<UnitsDTO> units = service.getUnits("dess");
 
         assertEquals(2, units.size());
         assertEquals("trepko1", units.get(0).id());
@@ -99,7 +99,7 @@ class WorkshopServiceTest {
 
     @Test
     void getUnits_unknownWorkshop_returnsEmptyList() {
-        List<UnitsDTO_new> units = service.getUnits("unknown");
+        List<UnitsDTO> units = service.getUnits("unknown");
         assertTrue(units.isEmpty());
     }
 
@@ -108,7 +108,7 @@ class WorkshopServiceTest {
         DeviceSnapshot running = createLineSnapshotWithSt("1");
         when(snapshotRepo.get("trepko1", "Line")).thenReturn(running);
 
-        List<UnitsDTO_new> units = service.getUnits("dess");
+        List<UnitsDTO> units = service.getUnits("dess");
         assertEquals("В работе", units.get(0).event());
     }
 
@@ -116,7 +116,7 @@ class WorkshopServiceTest {
     void getUnits_eventIsNoDataWhenNoSnapshot() {
         when(snapshotRepo.get("trepko1", "Line")).thenReturn(null);
 
-        List<UnitsDTO_new> units = service.getUnits("dess");
+        List<UnitsDTO> units = service.getUnits("dess");
         assertEquals("Нет данных", units.get(0).event());
     }
 

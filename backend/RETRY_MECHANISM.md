@@ -276,7 +276,7 @@ INFO:  🔍 Recovery mode: checking PrintSrv availability...
 ERROR: ❌ Recovery check failed (next check in 60s)
 
 REST API (graceful degradation):
-Invoke-RestMethod http://localhost:8080/api/v1.0.0/health/ready
+Invoke-RestMethod http://localhost:8080${scada.api.base-path}/health/ready
 → 200 OK (устаревший snapshot)
 
 Результат: Graceful degradation, клиенты не видят ошибок
@@ -320,7 +320,7 @@ INFO: ✅ PrintSrv is AVAILABLE again - exiting recovery mode
 **Симптомы:**
 
 ```
-GET /api/v1.0.0/health/ready → 503 Service Unavailable
+GET ${scada.api.base-path}/health/ready → 503 Service Unavailable
 ```
 
 **Причина:** Приложение только запустилось, первый snapshot еще не загружен  
@@ -467,4 +467,3 @@ logging:
 **Дата:** 2026-02-08  
 **Версия:** 2.0 (обновлен initial-delay-ms: 200)  
 **Статус:** ✅ PRODUCTION READY
-

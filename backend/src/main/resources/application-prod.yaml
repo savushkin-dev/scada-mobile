@@ -103,6 +103,6 @@ management:
     web:
       exposure:
         include: "health,loggers"
-  # Рекомендуется: вынести Actuator на отдельный порт и закрыть его файрволлом
+  # Рекомендуется: TODO вынести Actuator на отдельный порт и закрыть его файрволлом
   # server:
   #   port: 8081

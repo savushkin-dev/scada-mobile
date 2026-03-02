@@ -1,66 +1,64 @@
 package dev.savushkin.scada.mobile.backend.api.controller;
 
-import dev.savushkin.scada.mobile.backend.api.dto.UnitsDTO_new;
-import dev.savushkin.scada.mobile.backend.api.dto.WorkshopsDTO_new;
+import dev.savushkin.scada.mobile.backend.api.dto.UnitsDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.WorkshopsDTO;
 import dev.savushkin.scada.mobile.backend.exception.GlobalExceptionHandler;
 import dev.savushkin.scada.mobile.backend.services.HealthService;
 import dev.savushkin.scada.mobile.backend.services.WorkshopService;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@ExtendWith(MockitoExtension.class)
+@WebMvcTest(Controller.class)
+@Import(GlobalExceptionHandler.class)
 class ControllerWebMvcTest {
 
+    @Autowired
     private MockMvc mockMvc;
 
-    @Mock
+    @MockBean
     private WorkshopService workshopService;
 
-    @Mock
+    @MockBean
     private HealthService healthService;
 
-    @BeforeEach
-    void setUp() {
-        mockMvc = MockMvcBuilders
-                .standaloneSetup(new Controller(workshopService, healthService))
-                .setControllerAdvice(new GlobalExceptionHandler())
-                .build();
-    }
+    @Value("${scada.api.base-path}")
+    private String apiBasePath;
 
     // -------------------------------------------------------------------------
-    // GET /api/v1.0.0/health/live
+    // GET ${scada.api.base-path}/health/live
     // -------------------------------------------------------------------------
 
     @Test
     void live_returns200WithStatusUp() throws Exception {
         when(healthService.isAlive()).thenReturn(true);
 
-        mockMvc.perform(get("/api/v1.0.0/health/live"))
+        mockMvc.perform(get(apiBasePath + "/health/live"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
                 .andExpect(jsonPath("$.timestamp").exists());
     }
 
     // -------------------------------------------------------------------------
-    // GET /api/v1.0.0/health/ready
+    // GET ${scada.api.base-path}/health/ready
     // -------------------------------------------------------------------------
 
     @Test
     void ready_whenReady_returns200() throws Exception {
         when(healthService.isReady()).thenReturn(true);
 
-        mockMvc.perform(get("/api/v1.0.0/health/ready"))
+        mockMvc.perform(get(apiBasePath + "/health/ready"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
                 .andExpect(jsonPath("$.ready").value(true))
@@ -71,24 +69,24 @@ class ControllerWebMvcTest {
     void ready_whenNotReady_returns503() throws Exception {
         when(healthService.isReady()).thenReturn(false);
 
-        mockMvc.perform(get("/api/v1.0.0/health/ready"))
+        mockMvc.perform(get(apiBasePath + "/health/ready"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.status").value("DOWN"))
                 .andExpect(jsonPath("$.ready").value(false));
     }
 
     // -------------------------------------------------------------------------
-    // GET /api/workshops
+    // GET ${scada.api.base-path}/workshops
     // -------------------------------------------------------------------------
 
     @Test
     void getWorkshops_returns200WithList() throws Exception {
         when(workshopService.getWorkshops()).thenReturn(List.of(
-                new WorkshopsDTO_new("dess", "Цех десертов", 7, 2),
-                new WorkshopsDTO_new("dess_pouring", "Цех десертов и розлива", 7, 0)
+                new WorkshopsDTO("dess", "Цех десертов", 7, 2),
+                new WorkshopsDTO("dess_pouring", "Цех десертов и розлива", 7, 0)
         ));
 
-        mockMvc.perform(get("/api/workshops"))
+        mockMvc.perform(get(apiBasePath + "/workshops"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value("dess"))
                 .andExpect(jsonPath("$[0].totalUnits").value(7))
@@ -96,17 +94,17 @@ class ControllerWebMvcTest {
     }
 
     // -------------------------------------------------------------------------
-    // GET /api/workshops/{id}/units
+    // GET ${scada.api.base-path}/workshops/{id}/units
     // -------------------------------------------------------------------------
 
     @Test
     void getUnits_existingWorkshop_returns200() throws Exception {
         when(workshopService.workshopExists("dess")).thenReturn(true);
         when(workshopService.getUnits("dess")).thenReturn(List.of(
-                new UnitsDTO_new("trepko1", "dess", "Trepko №1", "В работе", "00:00:00")
+                new UnitsDTO("trepko1", "dess", "Trepko №1", "В работе", "00:00:00")
         ));
 
-        mockMvc.perform(get("/api/workshops/dess/units"))
+        mockMvc.perform(get(apiBasePath + "/workshops/dess/units"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value("trepko1"))
                 .andExpect(jsonPath("$[0].unit").value("Trepko №1"));
@@ -116,7 +114,7 @@ class ControllerWebMvcTest {
     void getUnits_unknownWorkshop_returns404() throws Exception {
         when(workshopService.workshopExists("unknown")).thenReturn(false);
 
-        mockMvc.perform(get("/api/workshops/unknown/units"))
+        mockMvc.perform(get(apiBasePath + "/workshops/unknown/units"))
                 .andExpect(status().isNotFound());
     }
 }

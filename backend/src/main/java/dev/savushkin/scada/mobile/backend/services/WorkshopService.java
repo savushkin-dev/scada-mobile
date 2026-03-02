@@ -1,7 +1,7 @@
 package dev.savushkin.scada.mobile.backend.services;
 
-import dev.savushkin.scada.mobile.backend.api.dto.UnitsDTO_new;
-import dev.savushkin.scada.mobile.backend.api.dto.WorkshopsDTO_new;
+import dev.savushkin.scada.mobile.backend.api.dto.UnitsDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.WorkshopsDTO;
 import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepository;
 import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
@@ -47,13 +47,13 @@ public class WorkshopService {
     /**
      * Возвращает список всех цехов с актуальной статистикой problemUnits.
      */
-    public List<WorkshopsDTO_new> getWorkshops() {
-        List<WorkshopsDTO_new> result = new ArrayList<>();
+    public List<WorkshopsDTO> getWorkshops() {
+        List<WorkshopsDTO> result = new ArrayList<>();
         for (PrintSrvProperties.WorkshopProperties ws : config.getWorkshops()) {
             List<PrintSrvProperties.InstanceProperties> instances =
                     instancesByWorkshop.getOrDefault(ws.getId(), Collections.emptyList());
             int problemUnits = countProblemUnits(instances);
-            result.add(new WorkshopsDTO_new(
+            result.add(new WorkshopsDTO(
                     ws.getId(),
                     ws.getDisplayName(),
                     instances.size(),
@@ -69,15 +69,15 @@ public class WorkshopService {
      * @param workshopId идентификатор цеха
      * @return список аппаратов или пустой список, если цех не найден
      */
-    public List<UnitsDTO_new> getUnits(String workshopId) {
+    public List<UnitsDTO> getUnits(String workshopId) {
         List<PrintSrvProperties.InstanceProperties> instances =
                 instancesByWorkshop.getOrDefault(workshopId, Collections.emptyList());
 
-        List<UnitsDTO_new> result = new ArrayList<>();
+        List<UnitsDTO> result = new ArrayList<>();
         for (PrintSrvProperties.InstanceProperties inst : instances) {
             String event = deriveEvent(inst.getId());
             String timer = deriveTimer(inst.getId());
-            result.add(new UnitsDTO_new(
+            result.add(new UnitsDTO(
                     inst.getId(),
                     inst.getWorkshopId(),
                     inst.getDisplayName(),

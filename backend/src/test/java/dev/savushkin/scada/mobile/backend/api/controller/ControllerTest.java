@@ -1,7 +1,7 @@
 package dev.savushkin.scada.mobile.backend.api.controller;
 
-import dev.savushkin.scada.mobile.backend.api.dto.UnitsDTO_new;
-import dev.savushkin.scada.mobile.backend.api.dto.WorkshopsDTO_new;
+import dev.savushkin.scada.mobile.backend.api.dto.UnitsDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.WorkshopsDTO;
 import dev.savushkin.scada.mobile.backend.services.HealthService;
 import dev.savushkin.scada.mobile.backend.services.WorkshopService;
 import org.junit.jupiter.api.Test;
@@ -17,7 +17,8 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,7 +30,7 @@ class ControllerTest {
     private HealthService healthService;
 
     // -------------------------------------------------------------------------
-    // GET /api/v1.0.0/health/live
+    // GET ${scada.api.base-path}/health/live
     // -------------------------------------------------------------------------
 
     @Test
@@ -51,7 +52,7 @@ class ControllerTest {
     }
 
     // -------------------------------------------------------------------------
-    // GET /api/v1.0.0/health/ready
+    // GET ${scada.api.base-path}/health/ready
     // -------------------------------------------------------------------------
 
     @Test
@@ -92,19 +93,19 @@ class ControllerTest {
     }
 
     // -------------------------------------------------------------------------
-    // GET /api/workshops
+    // GET ${scada.api.base-path}/workshops
     // -------------------------------------------------------------------------
 
     @Test
     void getWorkshops_returnsOkWithList() {
-        List<WorkshopsDTO_new> workshops = List.of(
-                new WorkshopsDTO_new("dess", "Цех десертов", 7, 2),
-                new WorkshopsDTO_new("dess_pouring", "Цех десертов и розлива", 7, 0)
+        List<WorkshopsDTO> workshops = List.of(
+                new WorkshopsDTO("dess", "Цех десертов", 7, 2),
+                new WorkshopsDTO("dess_pouring", "Цех десертов и розлива", 7, 0)
         );
         when(workshopService.getWorkshops()).thenReturn(workshops);
 
         Controller c = new Controller(workshopService, healthService);
-        ResponseEntity<List<WorkshopsDTO_new>> response = c.getWorkshops();
+        ResponseEntity<List<WorkshopsDTO>> response = c.getWorkshops();
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
@@ -113,19 +114,19 @@ class ControllerTest {
     }
 
     // -------------------------------------------------------------------------
-    // GET /api/workshops/{id}/units
+    // GET ${scada.api.base-path}/workshops/{id}/units
     // -------------------------------------------------------------------------
 
     @Test
     void getUnitsInWorkshop_existingWorkshop_returnsOk() {
         when(workshopService.workshopExists("dess")).thenReturn(true);
-        List<UnitsDTO_new> units = List.of(
-                new UnitsDTO_new("trepko1", "dess", "Trepko №1", "В работе", "00:00:00")
+        List<UnitsDTO> units = List.of(
+                new UnitsDTO("trepko1", "dess", "Trepko №1", "В работе", "00:00:00")
         );
         when(workshopService.getUnits("dess")).thenReturn(units);
 
         Controller c = new Controller(workshopService, healthService);
-        ResponseEntity<List<UnitsDTO_new>> response = c.getUnitsInWorkshop("dess");
+        ResponseEntity<List<UnitsDTO>> response = c.getUnitsInWorkshop("dess");
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
@@ -137,7 +138,7 @@ class ControllerTest {
         when(workshopService.workshopExists("unknown")).thenReturn(false);
 
         Controller c = new Controller(workshopService, healthService);
-        ResponseEntity<List<UnitsDTO_new>> response = c.getUnitsInWorkshop("unknown");
+        ResponseEntity<List<UnitsDTO>> response = c.getUnitsInWorkshop("unknown");
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
     }

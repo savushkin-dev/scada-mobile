@@ -3,6 +3,8 @@ package dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.c
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.QueryAllRequestDTO;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.QueryAllResponseDTO;
+import org.jetbrains.annotations.Contract;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,6 +80,7 @@ public class TcpPrintSrvClient implements PrintSrvClient {
     public boolean isAlive() {
         Socket s = socket;
         return s != null && !s.isClosed() && s.isConnected();
+        // TODO: проверка isAlive() в TcpPrintSrvClient не соответствует политике PrintSrv
     }
 
     /**
@@ -94,7 +97,8 @@ public class TcpPrintSrvClient implements PrintSrvClient {
         }
     }
 
-    private synchronized String sendAndReceive(String json) throws IOException {
+    @Contract("_ -> new")
+    private synchronized @NonNull String sendAndReceive(@NonNull String json) throws IOException {
         Socket s = getOrCreateSocket();
         try {
             // Send: MAGIC + length(BE) + body(windows-1251)

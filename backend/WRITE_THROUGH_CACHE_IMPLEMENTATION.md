@@ -147,7 +147,7 @@ public void scanCycle() {
 
 1. Запустить приложение с `--spring.profiles.active=dev`
 2. Дождаться лога: `DevScanCycleScheduler: Snapshot saved from instance 'trepko1'`
-3. Отправить: `GET http://localhost:8080/api/v1.0.0/health/ready`
+3. Отправить: `GET http://localhost:8080${scada.api.base-path}/health/ready`
 4. **Ожидание:** `{ "ready": true }`
 
 **Критерии успеха:**
@@ -261,8 +261,8 @@ public void scanCycle() {
 **Проверить health:**
 
 ```powershell
-Invoke-RestMethod http://localhost:8080/api/v1.0.0/health/live
-Invoke-RestMethod http://localhost:8080/api/v1.0.0/health/ready
+Invoke-RestMethod http://localhost:8080${scada.api.base-path}/health/live
+Invoke-RestMethod http://localhost:8080${scada.api.base-path}/health/ready
 ```
 
 **Мониторинг scan cycle в логах:**
@@ -285,4 +285,3 @@ Get-Content -Path "logs/spring.log" -Wait | Select-String -Pattern "scanCycle|Sn
 **Версия:** 3.0 (Read-Only Scan Cycle + WebSocket Push)  
 **Дата:** 01.03.2026  
 **Автор:** Architecture Design для SCADA Mobile Backend
-

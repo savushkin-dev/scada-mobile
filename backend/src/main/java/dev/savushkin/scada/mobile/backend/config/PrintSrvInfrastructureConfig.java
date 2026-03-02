@@ -4,7 +4,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Активирует типизированные {@link ConfigurationProperties}-классы PrintSrv-инфраструктуры.
+ * Активирует типизированный {@link PrintSrvProperties}-класс PrintSrv-инфраструктуры.
  *
  * <p>Разделено от {@code Application.java}, чтобы можно было тестировать бины конфигурации
  * изолированно через {@code @SpringBootTest(classes = PrintSrvInfrastructureConfig.class)}.
