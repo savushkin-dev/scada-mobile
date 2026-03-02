@@ -93,24 +93,7 @@ java -jar build/libs/scada.mobile.backend-0.0.1-SNAPSHOT.jar --spring.profiles.a
 
 ## Что документировано
 
-### GET /api/workshops
-
-- Возвращает список цехов с информацией о количестве аппаратов
-
-### GET /api/workshops/{id}/units
-
-- Возвращает список аппаратов цеха
-
-### GET /api/v1.0.0/health/live
-
-- Liveness probe (приложение работает)
-- 200 OK - alive
-
-### GET /api/v1.0.0/health/ready
-
-- Readiness probe (snapshot загружен)
-- 200 OK - готов
-- 503 - не готов
+Актуальное описание всех эндпоинтов, полей запроса и ответа, транспортных каналов (REST и WebSocket) — в [`api_mapping.md`](../api_mapping.md).
 
 ## Безопасность в prod
 
