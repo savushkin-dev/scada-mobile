@@ -28,12 +28,12 @@ import java.util.UUID;
  * <p>
  * Пример строки лога (dev, plain text):
  * <pre>
- * 2026-02-20 15:00:01.123 INFO  [http-1] [a1b2c3d4] POST /api/v1/commands/setUnitVars Controller - SetUnitVars command accepted
+ * 2026-02-20 15:00:01.123 INFO  [http-1] [a1b2c3d4] GET /api/workshops Controller - Workshops list returned
  * </pre>
  * <p>
  * Пример в JSON (prod):
  * <pre>
- * { "requestId": "a1b2c3d4", "method": "POST", "uri": "/api/v1/commands/setUnitVars", ... }
+ * { "requestId": "a1b2c3d4", "method": "GET", "uri": "/api/workshops", ... }
  * </pre>
  * <p>
  * <b>Архитектурные гарантии:</b>

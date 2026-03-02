@@ -29,17 +29,18 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("SCADA Mobile Backend API")
                         .description("""
-                                REST API для управления SCADA системой через мобильное приложение.
+                                REST API для мониторинга состояния аппаратов SCADA через мобильное приложение.
 
                                 **Архитектура:**
-                                - Write-Through Cache: POST команды добавляются в буфер, GET читает snapshot
-                                - Eventual Consistency: изменения становятся видны после следующего scan cycle (период задаётся `printsrv.polling.fixed-delay-ms`)
-                                - Last-Write-Wins: для одного unit применяется только последняя команда
+                                - Polling: backend периодически опрашивает все инстансы PrintSrv (QueryAll) и хранит snapshot-ы in-memory
+                                - Eventual Consistency: данные обновляются с периодом scan cycle (`printsrv.polling.fixed-delay-ms`)
+                                - Per-instance snapshots: каждый аппарат имеет свой набор snapshot-ов
 
-                                **Важные особенности:**
-                                - Snapshot обновляется автоматически в scan cycle с периодом из конфигурации (`printsrv.polling.fixed-delay-ms`, может отличаться по профилям)
-                                - POST /setUnitVars возвращает подтверждение приёма (не реальное состояние)
-                                - Для проверки результата используйте GET /queryAll после следующего scan cycle
+                                **Endpoints:**
+                                - GET /api/workshops — список цехов с актуальной статистикой
+                                - GET /api/workshops/{id}/units — список аппаратов цеха с текущим состоянием
+                                - GET /api/v1.0.0/health/live — liveness probe
+                                - GET /api/v1.0.0/health/ready — readiness probe
                                 """)
                         .version("0.0.1-SNAPSHOT")
                 )

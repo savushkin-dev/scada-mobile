@@ -5,11 +5,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * DTO для свойств юнита.
- * Поля могут отсутствовать в некоторых ответах (например, SetUnitVars возвращает только изменённые поля).
  * <p>
  * ВАЖНО: command - Integer (целое число), не String!
  * <p>
- * Все поля nullable, так как PrintSrv возвращает только изменённые значения.
+ * Все поля nullable, так как PrintSrv может не возвращать все значения.
  *
  * @param command               Команда (целое число)
  * @param message               Сообщение

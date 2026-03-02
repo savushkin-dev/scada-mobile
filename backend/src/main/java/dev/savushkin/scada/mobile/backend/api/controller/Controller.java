@@ -2,15 +2,14 @@ package dev.savushkin.scada.mobile.backend.api.controller;
 
 import dev.savushkin.scada.mobile.backend.api.dto.UnitsDTO_new;
 import dev.savushkin.scada.mobile.backend.api.dto.WorkshopsDTO_new;
-import dev.savushkin.scada.mobile.backend.services.CommandsService;
 import dev.savushkin.scada.mobile.backend.services.HealthService;
+import dev.savushkin.scada.mobile.backend.services.WorkshopService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Nullable;
-import jakarta.validation.constraints.Positive;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,92 +24,94 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 
 /**
- * REST контроллер для работы с командами SCADA системы.
+ * REST контроллер SCADA Mobile API.
  * <p>
  * Предоставляет API endpoints:
  * <ul>
- *   <li>GET /api/v1/commands/queryAll - получение текущего состояния из snapshot</li>
- *   <li>POST /api/v1/commands/setUnitVars - добавление команды в буфер для записи</li>
- * </ul>
- * <p>
- * Архитектура Write-Through Cache:
- * <ul>
- *   <li>POST возвращает HTTP 200 быстро (команда добавлена в буфер)</li>
- *   <li>GET возвращает snapshot на момент последнего scan cycle</li>
- *   <li>Изменения видны в GET после следующего scan cycle (eventual consistency, интервал задаётся конфигом)</li>
+ *   <li>GET /api/workshops — список цехов с актуальной статистикой</li>
+ *   <li>GET /api/workshops/{id}/units — список аппаратов цеха с текущим состоянием</li>
+ *   <li>GET /api/v1.0.0/health/live — liveness probe</li>
+ *   <li>GET /api/v1.0.0/health/ready — readiness probe</li>
  * </ul>
  */
-@Tag(name = "SCADA Commands", description = "API для работы с командами SCADA системы (чтение состояния и запись команд)")
+@Tag(name = "SCADA Mobile", description = "API для мобильного приложения SCADA (цеха, аппараты, health)")
 @RestController
-@RequestMapping("api/v1.0.0")
 @Validated
 public class Controller {
 
     private static final Logger log = LoggerFactory.getLogger(Controller.class);
 
-    private final CommandsService commandsService;
+    private final WorkshopService workshopService;
     private final HealthService healthService;
     private final Clock clock;
 
-    /**
-     * Конструктор контроллера с внедрением зависимостей.
-     *
-     * @param commandsService сервис для работы с командами SCADA
-     * @param healthService   сервис для проверки состояния приложения
-     */
     @Autowired
-    public Controller(CommandsService commandsService, HealthService healthService) {
-        this(commandsService, healthService, Clock.systemUTC());
+    public Controller(WorkshopService workshopService, HealthService healthService) {
+        this(workshopService, healthService, Clock.systemUTC());
     }
 
-    public Controller(CommandsService commandsService, HealthService healthService, @Nullable Clock clock) {
-        this.commandsService = commandsService;
+    public Controller(WorkshopService workshopService, HealthService healthService, @Nullable Clock clock) {
+        this.workshopService = workshopService;
         this.healthService = healthService;
         this.clock = clock == null ? Clock.systemUTC() : clock;
         log.info("Controller initialized");
     }
 
-    @GetMapping("/workshops")
-    public ResponseEntity<WorkshopsDTO_new> getWorkshops() {
-        // TODO: Реализовать GET /api/workshops
-        return null;
+    // ─── Workshops / Units API ────────────────────────────────────────────────
+
+    @Operation(summary = "Список цехов", description = "Возвращает все цеха с текущей статистикой problemUnits.")
+    @ApiResponses(@ApiResponse(responseCode = "200", description = "Список цехов"))
+    @GetMapping("/api/workshops")
+    public ResponseEntity<List<WorkshopsDTO_new>> getWorkshops() {
+        List<WorkshopsDTO_new> workshops = workshopService.getWorkshops();
+        return ResponseEntity.ok(workshops);
     }
 
-    @GetMapping("workshops/{id}/units")
-    public ResponseEntity<UnitsDTO_new> getUnitsInWorkshops(@PathVariable @NonNull @Positive String id) {
-        // TODO: Реализовать GET /api/workshops/{id}/units
-        return null;
+    @Operation(summary = "Аппараты цеха", description = "Возвращает список аппаратов/линий для указанного цеха с текущим событием и таймером.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Список аппаратов"),
+            @ApiResponse(responseCode = "404", description = "Цех не найден")
+    })
+    @GetMapping("/api/workshops/{id}/units")
+    public ResponseEntity<List<UnitsDTO_new>> getUnitsInWorkshop(@PathVariable @NonNull String id) {
+        if (!workshopService.workshopExists(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        List<UnitsDTO_new> units = workshopService.getUnits(id);
+        return ResponseEntity.ok(units);
     }
 
+    // ─── Health probes ────────────────────────────────────────────────────────
 
-    /**
-     * Liveness probe: приложение запущено и отвечает на запросы.
-     * <p>
-     * Не проверяет внешние зависимости (SCADA).
-     */
-    @Operation(summary = "Liveness probe", description = "Проверка, что приложение запущено и способно отвечать на запросы. " + "Не проверяет доступность PrintSrv.")
-    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Приложение работает", content = @Content(mediaType = "application/json"))})
-    @GetMapping("/health/live")
+    @Operation(summary = "Liveness probe", description = "Проверка, что приложение запущено.")
+    @ApiResponses(@ApiResponse(responseCode = "200", description = "Приложение работает",
+            content = @Content(mediaType = "application/json")))
+    @GetMapping("/api/v1.0.0/health/live")
     public ResponseEntity<Map<String, Object>> live() {
         boolean alive = healthService.isAlive();
-        return ResponseEntity.ok(Map.of("status", alive ? "UP" : "DOWN", "timestamp", Instant.now(clock).toString()));
+        return ResponseEntity.ok(Map.of(
+                "status", alive ? "UP" : "DOWN",
+                "timestamp", Instant.now(clock).toString()));
     }
 
-    /**
-     * Readiness probe: приложение готово обслуживать запросы по данным.
-     * <p>
-     * Для текущей архитектуры "готовность" означает, что хотя бы один snapshot уже
-     * получен через polling/scan cycle и сохранён в {@code PrintSrvSnapshotStore}.
-     */
-    @Operation(summary = "Readiness probe", description = "Проверка готовности приложения к обслуживанию запросов. " + "Возвращает 200 OK только если хотя бы один snapshot уже получен из PrintSrv. " + "При старте приложения или длительной недоступности PrintSrv вернёт 503.")
-    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Приложение готово (snapshot загружен)", content = @Content(mediaType = "application/json")), @ApiResponse(responseCode = "503", description = "Приложение не готово (snapshot еще не получен или устарел)", content = @Content(mediaType = "application/json"))})
-    @GetMapping("/health/ready")
+    @Operation(summary = "Readiness probe", description = "Проверка готовности: хотя бы один snapshot получен.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Готово",
+                    content = @Content(mediaType = "application/json")),
+            @ApiResponse(responseCode = "503", description = "Не готово",
+                    content = @Content(mediaType = "application/json"))
+    })
+    @GetMapping("/api/v1.0.0/health/ready")
     public ResponseEntity<Map<String, Object>> ready() {
         boolean ready = healthService.isReady();
         HttpStatus status = ready ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
-        return ResponseEntity.status(status).body(Map.of("status", ready ? "UP" : "DOWN", "timestamp", Instant.now(clock).toString(), "ready", ready));
+        return ResponseEntity.status(status).body(Map.of(
+                "status", ready ? "UP" : "DOWN",
+                "timestamp", Instant.now(clock).toString(),
+                "ready", ready));
     }
 }

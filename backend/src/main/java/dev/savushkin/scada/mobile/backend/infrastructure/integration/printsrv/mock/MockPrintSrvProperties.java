@@ -45,7 +45,7 @@ public class MockPrintSrvProperties {
 
     /**
      * Instance ID-ы, которые всегда выбрасывают {@link java.io.IOException}
-     * при вызове {@code queryAll} или {@code setUnitVars}.
+     * при вызове {@code queryAll}.
      *
      * <p>Используется для тестирования retry/recovery-логики polling-слоя.
      */

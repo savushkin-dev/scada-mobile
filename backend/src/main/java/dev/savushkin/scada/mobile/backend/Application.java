@@ -9,12 +9,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 /**
  * Главный класс Spring Boot приложения SCADA Mobile Backend.
  * <p>
- * Приложение предоставляет REST API для взаимодействия с PrintSrv системой
- * через socket-соединение. Основные функции:
+ * Приложение предоставляет REST API для мониторинга состояния аппаратов
+ * производственных линий через PrintSrv. Основные функции:
  * <ul>
- *   <li>Периодический опрос состояния PrintSrv (QueryAll)</li>
- *   <li>Изменение значений в PrintSrv (SetUnitVars)</li>
- *   <li>Хранение snapshot состояния в памяти</li>
+ *   <li>Периодический опрос состояния всех инстансов PrintSrv (QueryAll)</li>
+ *   <li>Хранение per-instance snapshot-ов состояния в памяти</li>
+ *   <li>REST API для цехов и аппаратов</li>
  * </ul>
  * <p>
  * Аннотация {@code @EnableScheduling} включает поддержку планировщика

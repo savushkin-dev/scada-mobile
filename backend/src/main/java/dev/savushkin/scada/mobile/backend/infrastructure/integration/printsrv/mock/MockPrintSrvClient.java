@@ -18,11 +18,11 @@ import java.util.Map;
  *
  * <h3>Потокобезопасность</h3>
  * Класс сам по себе stateless (вся мутабельность в {@link MockInstanceState});
- * оба метода ({@code queryAll}, {@code setUnitVars}) делегируют в state, где стоит
+ * метод {@code queryAll} делегирует в state, где стоит
  * ReadWriteLock. Параллельные вызовы безопасны.
  *
  * <h3>Режим offline</h3>
- * Если {@code offline=true} — {@code queryAll} и {@code setUnitVars} немедленно кидают
+ * Если {@code offline=true} — {@code queryAll} немедленно кидает
  * {@link IOException} с диагностическим сообщением. Это позволяет тестировать retry/recovery
  * в {@code PrintSrvConnectionManager} без реальной сетевой недоступности.
  */
@@ -75,19 +75,6 @@ public class MockPrintSrvClient implements PrintSrvClient {
 
         // QueryAll ответ: одно устройство, один юнит ("u1")
         return new QueryAllResponseDTO(deviceName, "QueryAll", Map.of(UNIT_KEY, unit));
-    }
-
-    @Override
-    public void setUnitVars(String deviceName, int unitNumber, Map<String, String> parameters) throws IOException {
-        checkOnline("setUnitVars", deviceName);
-
-        if (parameters == null || parameters.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "[%s] setUnitVars(%s): parameters must not be null or empty".formatted(instanceId, deviceName));
-        }
-
-        log.debug("[{}] setUnitVars({}, unit={}, params={})", instanceId, deviceName, unitNumber, parameters);
-        state.mergeProperties(deviceName, parameters);
     }
 
     @Override

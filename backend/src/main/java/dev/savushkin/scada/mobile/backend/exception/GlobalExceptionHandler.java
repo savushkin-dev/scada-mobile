@@ -182,8 +182,7 @@ public class GlobalExceptionHandler {
      * <p>
      * Типичные причины:
      * <ul>
-     *   <li>Клиент забыл передать параметр unit в /setUnitVars</li>
-     *   <li>Клиент забыл передать параметр value в /setUnitVars</li>
+     *   <li>Клиент не передал обязательный параметр в запросе</li>
      * </ul>
      *
      * @param e       исключение MissingServletRequestParameterException
@@ -233,25 +232,6 @@ public class GlobalExceptionHandler {
                         e.getName(), requiredType, e.getValue()),
                 request
         );
-    }
-
-    /**
-     * Обрабатывает переполнение буфера команд (degraded mode).
-     * <p>
-     * Возвращает HTTP 503 (Service Unavailable), т.к. система не может принять
-     * новые команды записи из-за длительной недоступности PrintSrv и переполненного
-     * буфера.
-     * <p>
-     * В ответе не раскрываем внутренние детали (размеры буфера и т.п.), но даём
-     * понятный для клиента hint.
-     */
-    @ExceptionHandler(BufferOverflowException.class)
-    public ResponseEntity<ErrorResponseDTO> handleBufferOverflowException(
-            @NonNull BufferOverflowException e,
-            @NonNull WebRequest request
-    ) {
-        log.warn("BufferOverflowException occurred: {}", e.getMessage());
-        return buildErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage(), request);
     }
 
     /**

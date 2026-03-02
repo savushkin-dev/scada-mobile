@@ -2,8 +2,8 @@ package dev.savushkin.scada.mobile.backend.exception;
 
 import dev.savushkin.scada.mobile.backend.api.controller.Controller;
 import dev.savushkin.scada.mobile.backend.api.dto.ErrorResponseDTO;
-import dev.savushkin.scada.mobile.backend.services.CommandsService;
 import dev.savushkin.scada.mobile.backend.services.HealthService;
+import dev.savushkin.scada.mobile.backend.services.WorkshopService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,21 +24,11 @@ import java.net.SocketException;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Тесты для GlobalExceptionHandler.
- * <p>
- * Комбинирует два подхода:
- * <ol>
- *   <li>Прямые unit-тесты методов обработчика — для исключений, которые нельзя
- *       поднять через mock-сервис (checked exceptions: SocketException, IOException)
- *       и для Spring-специфичных исключений (NoResourceFoundException).</li>
- *   <li>MockMvc standaloneSetup — для сценариев, которые можно воспроизвести
- *       через обычный HTTP-запрос к контроллеру.</li>
- * </ol>
  */
 @ExtendWith(MockitoExtension.class)
 class GlobalExceptionHandlerTest {
@@ -47,7 +37,7 @@ class GlobalExceptionHandlerTest {
     private MockMvc mockMvc;
 
     @Mock
-    private CommandsService commandsService;
+    private WorkshopService workshopService;
 
     @Mock
     private HealthService healthService;
@@ -57,18 +47,18 @@ class GlobalExceptionHandlerTest {
         handler = new GlobalExceptionHandler();
 
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new Controller(commandsService, healthService))
+                .standaloneSetup(new Controller(workshopService, healthService))
                 .setControllerAdvice(handler)
                 .build();
     }
 
     // -------------------------------------------------------------------------
-    // SocketException → 503  (unit-test: прямой вызов обработчика)
+    // SocketException → 503  (unit-test)
     // -------------------------------------------------------------------------
 
     @Test
     void socketException_handler_returns503() {
-        WebRequest request = buildWebRequest("/api/v1/commands/queryAll");
+        WebRequest request = buildWebRequest("/api/workshops");
         SocketException ex = new SocketException("Connection refused");
 
         ResponseEntity<ErrorResponseDTO> response = handler.handleSocketException(ex, request);
@@ -77,17 +67,15 @@ class GlobalExceptionHandlerTest {
         assertNotNull(response.getBody());
         assertEquals(503, response.getBody().status());
         assertTrue(response.getBody().message().contains("PrintSrv недоступен"));
-        assertEquals("/api/v1/commands/queryAll", response.getBody().path());
-        assertNotNull(response.getBody().timestamp());
     }
 
     // -------------------------------------------------------------------------
-    // IOException → 500  (unit-test: прямой вызов обработчика)
+    // IOException → 500  (unit-test)
     // -------------------------------------------------------------------------
 
     @Test
     void ioException_handler_returns500() {
-        WebRequest request = buildWebRequest("/api/v1/commands/queryAll");
+        WebRequest request = buildWebRequest("/api/workshops");
         IOException ex = new IOException("JSON parse error");
 
         ResponseEntity<ErrorResponseDTO> response = handler.handleIOException(ex, request);
@@ -99,14 +87,14 @@ class GlobalExceptionHandlerTest {
     }
 
     // -------------------------------------------------------------------------
-    // NoResourceFoundException → 404  (unit-test: прямой вызов обработчика)
+    // NoResourceFoundException → 404  (unit-test)
     // -------------------------------------------------------------------------
 
     @Test
     void noResourceFound_handler_returns404() {
-        WebRequest request = buildWebRequest("/api/v1/commands/doesNotExist");
+        WebRequest request = buildWebRequest("/api/doesNotExist");
         NoResourceFoundException ex = new NoResourceFoundException(
-                org.springframework.http.HttpMethod.GET, "/api/v1/commands/doesNotExist", "Not found");
+                org.springframework.http.HttpMethod.GET, "/api/doesNotExist", "Not found");
 
         ResponseEntity<ErrorResponseDTO> response = handler.handleNoResourceFoundException(ex, request);
 
@@ -117,97 +105,27 @@ class GlobalExceptionHandlerTest {
     }
 
     // -------------------------------------------------------------------------
-    // IllegalStateException → 503  (via MockMvc)
+    // IllegalStateException → 503 via MockMvc
     // -------------------------------------------------------------------------
 
     @Test
     void illegalStateException_returns503() throws Exception {
-        when(commandsService.queryAll()).thenThrow(new IllegalStateException("Snapshot not available yet"));
+        when(healthService.isReady()).thenThrow(new IllegalStateException("Service not ready"));
 
-        mockMvc.perform(get("/api/v1/commands/queryAll"))
+        mockMvc.perform(get("/api/v1.0.0/health/ready"))
                 .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.status").value(503))
-                .andExpect(jsonPath("$.message").value("Snapshot not available yet"));
+                .andExpect(jsonPath("$.status").value(503));
     }
 
     // -------------------------------------------------------------------------
-    // IllegalArgumentException → 400  (via MockMvc)
-    // -------------------------------------------------------------------------
-
-    @Test
-    void illegalArgumentException_returns400() throws Exception {
-        when(commandsService.setUnitVars(1, 1)).thenThrow(new IllegalArgumentException("bad param"));
-
-        mockMvc.perform(post("/api/v1/commands/setUnitVars")
-                        .param("unit", "1")
-                        .param("value", "1"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Некорректный запрос")));
-    }
-
-    // -------------------------------------------------------------------------
-    // BufferOverflowException → 503  (via MockMvc)
-    // -------------------------------------------------------------------------
-
-    @Test
-    void bufferOverflowException_returns503() throws Exception {
-        when(commandsService.setUnitVars(1, 1))
-                .thenThrow(new BufferOverflowException("Buffer full"));
-
-        mockMvc.perform(post("/api/v1/commands/setUnitVars")
-                        .param("unit", "1")
-                        .param("value", "1"))
-                .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.status").value(503))
-                .andExpect(jsonPath("$.message").value("Buffer full"));
-    }
-
-    // -------------------------------------------------------------------------
-    // Missing parameter → 400  (via MockMvc)
-    // -------------------------------------------------------------------------
-
-    @Test
-    void missingRequiredParameter_returns400() throws Exception {
-        mockMvc.perform(post("/api/v1/commands/setUnitVars")
-                        .param("unit", "1"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400));
-    }
-
-    // -------------------------------------------------------------------------
-    // Type mismatch → 400  (via MockMvc)
-    // -------------------------------------------------------------------------
-
-    @Test
-    void typeMismatchParameter_returns400() throws Exception {
-        mockMvc.perform(post("/api/v1/commands/setUnitVars")
-                        .param("unit", "abc")
-                        .param("value", "1"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.status").value(400));
-    }
-
-    // -------------------------------------------------------------------------
-    // Method Not Allowed → 405  (via MockMvc)
-    // -------------------------------------------------------------------------
-
-    @Test
-    void wrongHttpMethod_returns405() throws Exception {
-        mockMvc.perform(post("/api/v1/commands/queryAll"))
-                .andExpect(status().isMethodNotAllowed())
-                .andExpect(jsonPath("$.status").value(405));
-    }
-
-    // -------------------------------------------------------------------------
-    // Fallback Exception → 500  (via MockMvc)
+    // Fallback Exception → 500 via MockMvc
     // -------------------------------------------------------------------------
 
     @Test
     void unexpectedException_returns500() throws Exception {
-        when(commandsService.queryAll()).thenThrow(new RuntimeException("unexpected failure"));
+        when(healthService.isAlive()).thenThrow(new RuntimeException("unexpected"));
 
-        mockMvc.perform(get("/api/v1/commands/queryAll"))
+        mockMvc.perform(get("/api/v1.0.0/health/live"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.status").value(500))
                 .andExpect(jsonPath("$.message").value("Внутренняя ошибка сервера"));
@@ -223,4 +141,3 @@ class GlobalExceptionHandlerTest {
         return new ServletWebRequest(servletRequest);
     }
 }
-

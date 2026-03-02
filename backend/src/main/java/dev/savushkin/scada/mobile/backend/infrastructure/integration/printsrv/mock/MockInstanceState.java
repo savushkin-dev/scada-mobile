@@ -99,7 +99,7 @@ public class MockInstanceState {
     /**
      * Мержит набор свойств в устройство под write-lock (семантика "last-write-wins").
      *
-     * <p>Используется в {@code setUnitVars}: только переданные ключи обновляются,
+     * <p>Только переданные ключи обновляются,
      * остальные свойства остаются без изменений.
      */
     public void mergeProperties(String deviceName, Map<String, String> updates) {
