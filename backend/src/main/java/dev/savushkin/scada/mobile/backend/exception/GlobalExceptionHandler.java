@@ -182,8 +182,7 @@ public class GlobalExceptionHandler {
      * <p>
      * Типичные причины:
      * <ul>
-     *   <li>Клиент забыл передать параметр unit в /setUnitVars</li>
-     *   <li>Клиент забыл передать параметр value в /setUnitVars</li>
+     *   <li>Клиент не передал обязательный параметр в запросе</li>
      * </ul>
      *
      * @param e       исключение MissingServletRequestParameterException

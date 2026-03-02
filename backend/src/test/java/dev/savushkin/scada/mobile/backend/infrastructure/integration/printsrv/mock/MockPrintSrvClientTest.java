@@ -22,7 +22,6 @@ import static org.junit.jupiter.api.Assertions.*;
  * <h3>Покрываемые сценарии</h3>
  * <ol>
  *   <li>{@link MockPrintSrvClient}: queryAll → корректная DTO из состояния</li>
- *   <li>{@link MockPrintSrvClient}: setUnitVars → состояние мутируется правильно</li>
  *   <li>{@link MockPrintSrvClient}: offline → IOException с диагностическим сообщением</li>
  *   <li>{@link MockStateSimulator#incrementCurItemCounter}: корректный парсинг форматов</li>
  *   <li>{@link MockStateSimulator}: tick() инкрементирует счётчики детерминированно</li>

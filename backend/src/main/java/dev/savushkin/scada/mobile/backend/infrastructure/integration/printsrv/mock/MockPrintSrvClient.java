@@ -18,11 +18,11 @@ import java.util.Map;
  *
  * <h3>Потокобезопасность</h3>
  * Класс сам по себе stateless (вся мутабельность в {@link MockInstanceState});
- * оба метода ({@code queryAll}, {@code setUnitVars}) делегируют в state, где стоит
+ * метод {@code queryAll} делегирует в state, где стоит
  * ReadWriteLock. Параллельные вызовы безопасны.
  *
  * <h3>Режим offline</h3>
- * Если {@code offline=true} — {@code queryAll} и {@code setUnitVars} немедленно кидают
+ * Если {@code offline=true} — {@code queryAll} немедленно кидает
  * {@link IOException} с диагностическим сообщением. Это позволяет тестировать retry/recovery
  * в {@code PrintSrvConnectionManager} без реальной сетевой недоступности.
  */
