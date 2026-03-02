@@ -284,34 +284,7 @@ new String(response, Charset.forName("windows-1251"));
 
 ---
 
-## Архитектура для мобильного приложения
-
-```
-┌─────────────────────┐
-│  Мобильное прилож.  │
-│   (Android/iOS)     │
-└─────────┬───────────┘
-          │ HTTP/REST
-          ▼
-┌─────────────────────┐
-│   Spring Boot       │  ← Твой backend
-│   REST API Server   │
-└─────────┬───────────┘
-          │ TCP Sockets (порт 10101)
-          ▼
-┌─────────────────────┐
-│   MarkPrintServer   │  ← PrintSrv
-│   (.NET Framework)  │
-└─────────────────────┘
-```
-
-**Ваш Spring Boot сервер должен:**
-
-1. Принимать REST-запросы от мобильного приложения
-2. Преобразовывать их в TCP-команды для PrintSrv
-3. Кешировать данные QueryAll (сервер отдаёт ВСЕ данные)
-
----
+> Диаграммы общей архитектуры системы (Mobile App → Backend → PrintSrv) — в [`PROJECT_DIAGRAM.md`](../PROJECT_DIAGRAM.md).
 
 ## Краткая шпаргалка
 

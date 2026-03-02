@@ -1,84 +1,45 @@
-# SCADA Mobile — PWA (self-contained)
+# SCADA Mobile — Frontend
 
-Это статический Progressive Web App, собранный в папке `pwa-app/`. Приложение работает офлайн с помощью Service Worker, имеет веб-манифест и иконки для установки на домашний экран. Этот README описывает только содержимое и работу папки `pwa-app`.
+Фронтенд-часть проекта находится в этой папке (`frontend/`).
 
-## Что в папке
+## Текущее состояние
+
+Сейчас — статический PWA-прототип (HTML/CSS/JS) с подключённым Service Worker и Web Manifest. Служит дизайн-прототипом и обеспечивает интеграцию TWA (Digital Asset Links).
+
+> Целевая архитектура фронтенда (React 18 + TypeScript + Vite) описана в [`STRUCTURE.md`](../STRUCTURE.md).
+> UI/UX спецификация (экраны, поведение, состояния) — в [`UI_UX_SPEC.md`](UI_UX_SPEC.md).
+> Описание API и транспортных каналов — в [`api_mapping.md`](../api_mapping.md).
+
+## Ключевые файлы
 
 ```text
-/pwa-app
-├─ index.html              # Входная страница
-├─ manifest.webmanifest    # Web App Manifest (start_url, scope и т.д.)
-├─ service-worker.js       # Service Worker (offline cache)
-├─ README.md               # Этот файл
-├─ assets/                 # Иконки, скриншоты и прочие ассеты
-├─ css/styles.css          # Стили
-└─ js/app.js               # Небольшая логика/регистрация SW
+frontend/
+├── app.html               # Входная страница прототипа
+├── manifest.webmanifest   # Web App Manifest
+├── service-worker.js      # Service Worker (offline cache)
+├── netlify.toml           # Конфигурация деплоя Netlify
+├── well-known/
+│   └── assetlinks.json    # Digital Asset Links (связь с Android-приложением)
+└── assets/
+    ├── icons/             # Иконки приложения
+    └── screenshots/       # Скриншоты для сторов
 ```
 
-## Быстрый старт (локально)
-
-1) Перейдите в папку `pwa-app`:
+## Быстрый запуск (прототип)
 
 ```bash
-cd pwa-app
+cd frontend
+python -m http.server 5500
 ```
 
-2) Быстрый статический сервер:
+Откройте в браузере: `http://localhost:5500/app.html`
 
-```bash
-# Python
-python -m http.server 8000
+> Используйте порт **5500** — он включён в CORS-allowlist dev-профиля бэкенда. При использовании Live Server в VS Code порт 5500 устанавливается автоматически.
 
-# npx http-server
-npx http-server -p 8000
-```
+## PWA и Digital Asset Links
 
-Откройте в браузере: `http://localhost:8000/`.
+- `manifest.webmanifest` — метаданные приложения, `start_url`, иконки
+- `service-worker.js` — стратегия cache-first для offline-режима
+- `well-known/assetlinks.json` — связывает веб-сайт с Android-приложением (убирает адресную строку в TWA)
 
-Примечание: dev-сервер — опционален. `pwa-app/` — это статическая папка, готовая к публикации.
-
-## Рекомендации для production (GitHub Pages / Netlify)
-
-- Если вы публикуете сайт на GitHub Pages под путём `/scada-mobile/`, убедитесь, что в `manifest.webmanifest` указаны корректные поля:
-
-```json
-"start_url": "/scada-mobile/",
-"scope": "/scada-mobile/"
-```
-
-Это гарантирует, что установленное приложение всегда стартует с корня приложения и не приводит к 404 при установке с вложенной страницы.
-
-- Для Netlify: если у вас нет сборки, просто укажите `pwa-app/` как `Publish directory`. Если есть сборка (например, `npm run build`), публикуйте выходную папку (`pwa-app/dist` или `pwa-app/build`).
-
-## Установка PWA
-
-- Откройте сайт в Chrome на Android → меню → "Добавить на главный экран".
-- На десктопе Chrome/Edge — кнопка установки в адресной строке.
-
-Важно: если пользователь установил приложение с URL, отличного от корня приложения (например `/scada-mobile/some/page`), и `start_url` задан как относительный (`"./"`), при запуске установленного приложения может открываться вложенный путь и приводить к 404. Поэтому для production (GitHub Pages с базовым путём) рекомендуется абсолютный `start_url` и `scope` как указано выше.
-
-## Service Worker и оффлайн
-
-Файл `service-worker.js` реализует простую стратегию cache-first: ключевые ресурсы кэшируются при установке, при запросе сначала возвращается кэш, при его отсутствии — сеть. При каждом обновлении Service Worker происходит обновление кэша.
-
-Если вам нужно принудительно сбросить кэш при разработке, откройте DevTools → Application → Service Workers → Unregister, и очистите Storage → Clear site data.
-
-## Тестирование и отладка
-
-- Chrome DevTools → Application:
-  - Проверить `Manifest`
-  - Проверить Service Worker и Cache Storage
-- Lighthouse (DevTools → Lighthouse) — запуск аудита PWA
-
-## Безопасность и секреты
-
-- В репозитории не должно быть keystore, паролей или приватных ключей (см. корневой `.gitignore`).
-
-## Что делать, если при установке открывается 404
-
-1. Проверьте `start_url` и `scope` в `manifest.webmanifest`.
-2. Убедитесь, что все пути в манифесте (иконки, screenshots) доступны по указанным путям.
-3. Если сайт размещён в поддиректории (как на GitHub Pages), используйте абсолютные пути, начинающиеся с `/<repo-name>/`.
-
----
-Файл описывает только содержимое `pwa-app/` и рекомендации для стабильной работы PWA в production.
+> Настройка Digital Asset Links и сборка Android-приложения — в [`android/README.md`](../android/README.md).

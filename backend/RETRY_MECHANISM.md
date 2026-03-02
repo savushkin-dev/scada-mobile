@@ -221,44 +221,7 @@ INFO:  ✅ PrintSrv is AVAILABLE again - exiting recovery mode
 
 ---
 
-## 🚀 Быстрый старт
-
-### 1. Запуск приложения
-
-```bash
-cd backend
-./gradlew bootRun
-```
-
-**Ожидаемые логи:**
-
-```
-INFO: SocketManager initialized with PrintSrv address: 127.0.0.1:10101
-INFO: ScadaDataPollingService initialized - polling interval: 500ms
-DEBUG: Starting PrintSrv polling cycle
-INFO: ✅ Socket connection established successfully
-DEBUG: Received snapshot from PrintSrv with 5 units
-```
-
-### 2. Проверка REST API
-
-```powershell
-Invoke-RestMethod http://localhost:8080/api/v1.0.0/health/ready
-```
-
-**Результат:** 200 OK с `ready: true`
-
-### 3. Мониторинг логов
-
-```bash
-# Windows
-Get-Content logs\spring.log -Wait | Select-String "✅|❌|⚠️|🚨"
-
-# Linux/Mac
-tail -f logs/spring.log | grep -E "(✅|❌|⚠️|🚨)"
-```
-
----
+> Запуск приложения и команды управления — в [`README.md`](../README.md). Логи и их интерпретацию см. в [`LOGGING.md`](LOGGING.md).
 
 ## 🧪 Сценарии тестирования
 

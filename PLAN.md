@@ -11,15 +11,9 @@
 
 ---
 
-## Текущее состояние (что уже есть)
+## Текущее состояние
 
-| Часть | Статус | Что сделано |
-|---|---|---|
-| **Backend** | ✅ Работает | Spring Boot, scan cycle (READ→UPDATE), TCP-сокет до PrintSrv (QueryAll), in-memory snapshot, retry/reconnect (3 состояния), REST API (workshops, units, health), WebSocket (unit stream, alerts), OpenAPI/Swagger, CORS, профили dev/prod, логирование MDC |
-| **Frontend** | ⚠️ Заглушка | Vanilla HTML/CSS/JS как дизайн-прототип, PWA-обёртка (manifest, service worker, assetlinks.json) |
-| **Android** | ✅ Работает | TWA (Bubblewrap), собранный APK |
-
-**Главное ограничение бека сейчас:** scan cycle опрашивает только первый живой экземпляр PrintSrv — нет обхода всех инстанций. Для реальной системы нужно опрашивать каждый экземпляр независимо и формировать snapshot по каждому аппарату.
+Актуальный статус компонентов — в [README.md](../README.md).
 
 ---
 
