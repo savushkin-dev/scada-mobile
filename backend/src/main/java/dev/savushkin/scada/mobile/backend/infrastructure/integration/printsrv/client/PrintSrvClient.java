@@ -3,7 +3,6 @@ package dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.c
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.QueryAllResponseDTO;
 
 import java.io.IOException;
-import java.util.Map;
 
 /**
  * Абстракция одного TCP-соединения с инстансом PrintSrv.
@@ -36,38 +35,18 @@ public interface PrintSrvClient {
      * Выполняет команду {@code QueryAll} для указанного устройства.
      *
      * <p>Возвращает полный снапшот состояния: все юниты устройства, их свойства,
-     * счётчики и статусы. Все значения — строки (PrintSrv-протокол передаёт
-     * только строки; конвертация типов — обязанность domain-слоя).
+     * счётчики и статусы.
      *
      * @param deviceName имя устройства на инстансе, например {@code "Line"},
      *                   {@code "scada"}, {@code "Printer11"}
-     * @return полный ответ QueryAll; никогда не null, но может содержать пустой
-     *         {@code units}-map, если устройство не имеет активных юнитов
+     * @return полный ответ QueryAll; никогда не null
      * @throws IOException если инстанс недоступен, соединение разорвано или
      *                     ответ не удалось десериализовать
      */
     QueryAllResponseDTO queryAll(String deviceName) throws IOException;
 
     /**
-     * Выполняет команду {@code SetUnitVars} — записывает набор свойств в юнит устройства.
-     *
-     * <p>Семантика последнего записи: если в {@code parameters} передан ключ, который
-     * уже есть в устройстве, новое значение перезаписывает старое.
-     *
-     * @param deviceName имя устройства (например, {@code "Line"})
-     * @param unitNumber номер юнита, 1-based (в файлах — {@code Unit0}, в протоколе — unit=1)
-     * @param parameters пары ключ→значение для записи; значения — строки; не null, не пустой
-     * @throws IOException             если инстанс недоступен или команда не выполнилась
-     * @throws IllegalArgumentException если {@code parameters} null или пустой
-     */
-    void setUnitVars(String deviceName, int unitNumber, Map<String, String> parameters) throws IOException;
-
-    /**
      * Проверяет, способен ли клиент прямо сейчас общаться с инстансом.
-     *
-     * <p>Для реальной TCP-реализации — проверяет состояние сокета.
-     * Для мок-реализации — возвращает {@code !isOffline}.
-     * Этот метод не должен кидать исключений.
      *
      * @return {@code true}, если клиент считает себя работоспособным
      */

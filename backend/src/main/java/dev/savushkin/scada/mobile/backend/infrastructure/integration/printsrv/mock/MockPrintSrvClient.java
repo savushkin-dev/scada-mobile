@@ -78,19 +78,6 @@ public class MockPrintSrvClient implements PrintSrvClient {
     }
 
     @Override
-    public void setUnitVars(String deviceName, int unitNumber, Map<String, String> parameters) throws IOException {
-        checkOnline("setUnitVars", deviceName);
-
-        if (parameters == null || parameters.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "[%s] setUnitVars(%s): parameters must not be null or empty".formatted(instanceId, deviceName));
-        }
-
-        log.debug("[{}] setUnitVars({}, unit={}, params={})", instanceId, deviceName, unitNumber, parameters);
-        state.mergeProperties(deviceName, parameters);
-    }
-
-    @Override
     public boolean isAlive() {
         return !offline;
     }

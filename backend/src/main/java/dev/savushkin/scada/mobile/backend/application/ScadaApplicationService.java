@@ -1,149 +1,46 @@
 package dev.savushkin.scada.mobile.backend.application;
 
-import dev.savushkin.scada.mobile.backend.application.ports.DeviceSnapshotReader;
-import dev.savushkin.scada.mobile.backend.application.ports.PendingWriteCommandsPort;
-import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
-import dev.savushkin.scada.mobile.backend.domain.model.WriteCommand;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.Positive;
+import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.validation.annotation.Validated;
 
 /**
- * Сервис приложения для координации команд SCADA.
+ * Сервис приложения для координации health-check логики SCADA.
  * <p>
- * Этот сервис координирует взаимодействие между доменными моделями, хранилищами и внешними слоями.
- * Он реализует сценарии использования для:
- * <ul>
- *   <li>Запроса текущего состояния устройства</li>
- *   <li>Отправки команд записи</li>
- * </ul>
- * <p>
- * Этот слой отвечает за:
- * <ul>
- *   <li>Координацию доменных операций</li>
- *   <li>Управление зависимостями инфраструктуры (хранилища, буферы)</li>
- *   <li>Координацию сквозных проблем</li>
- * </ul>
- * <p>
- * Этот слой НЕ:
- * <ul>
- *   <li>Содержит бизнес-логику (она в доменных сервисах)</li>
- *   <li>Знает о DTOs (они в слоях API/PrintSrv)</li>
- *   <li>Обрабатывает детали протокола (они в интеграционных слоях)</li>
- * </ul>
+ * Данные о состоянии аппаратов предоставляются через {@link InstanceSnapshotRepository},
+ * который автоматически заполняется планировщиком опроса {@code ScanCycleScheduler}.
  */
 @Service
-@Validated
 public class ScadaApplicationService {
 
     private static final Logger log = LoggerFactory.getLogger(ScadaApplicationService.class);
 
-    private final DeviceSnapshotReader snapshotReader;
-    private final PendingWriteCommandsPort commandBuffer;
+    private final InstanceSnapshotRepository snapshotRepository;
 
-    /**
-     * Конструктор с внедрением зависимостей.
-     *
-     * @param snapshotReader компонент для чтения снимков состояния устройства
-     * @param commandBuffer  порт для отправки команд записи
-     */
-    public ScadaApplicationService(
-            DeviceSnapshotReader snapshotReader,
-            PendingWriteCommandsPort commandBuffer
-    ) {
-        this.snapshotReader = snapshotReader;
-        this.commandBuffer = commandBuffer;
+    public ScadaApplicationService(InstanceSnapshotRepository snapshotRepository) {
+        this.snapshotRepository = snapshotRepository;
         log.debug("ScadaApplicationService initialized");
-    }
-
-    /**
-     * Получает текущий снимок состояния устройства.
-     * <p>
-     * Снимок автоматически обновляется планировщиком опроса.
-     * Изменения, внесённые через {@link #submitWriteCommand(int, int)}, будут
-     * видны после следующего цикла сканирования (eventual consistency).
-     * Интервал scan cycle настраивается через {@code printsrv.polling.fixed-delay-ms}.
-     *
-     * @return текущий снимок состояния устройства
-     * @throws IllegalStateException если снимок ещё недоступен
-     */
-    public DeviceSnapshot getCurrentState() {
-        log.debug("Reading current device state from store");
-        DeviceSnapshot snapshot = snapshotReader.getLatestOrNull();
-
-        if (snapshot == null) {
-            log.warn("Snapshot not available - store is empty");
-            throw new IllegalStateException("Device snapshot not available yet. Please wait for the first scan cycle.");
-        }
-
-        log.debug("Device state retrieved successfully with {} units", snapshot.getUnitCount());
-        return snapshot;
-    }
-
-    /**
-     * Отправляет команду записи для выполнения в следующем цикле сканирования.
-     * <p>
-     * Этот метод возвращает результат немедленно, без ожидания
-     * выполнения команды в системе SCADA/PrintSrv.
-     * <p>
-     * Команда будет выполнена в следующем цикле сканирования (eventual consistency).
-     * Интервал scan cycle настраивается через {@code printsrv.polling.fixed-delay-ms}.
-     * Клиенты могут проверить результат через {@link #getCurrentState()} после
-     * следующего цикла сканирования.
-     * <p>
-     * Архитектурные гарантии:
-     * <ul>
-     *   <li><b>Быстрый ответ</b>: возвращает подтверждение приёма без ожидания записи в PrintSrv</li>
-     *   <li><b>Итоговая согласованность</b>: изменения видны после следующего scan cycle (интервал задаётся конфигом)</li>
-     *   <li><b>Last-Write-Wins</b>: если несколько команд отправлены для того же модуля,
-     *       будет выполнена только последняя</li>
-     * </ul>
-     *
-     * @param unitNumber номер модуля (индексация с 1)
-     * @param value      значение команды для записи
-     * @throws dev.savushkin.scada.mobile.backend.exception.BufferOverflowException если буфер переполнен
-     */
-    public void submitWriteCommand(
-            @Positive @Min(1) int unitNumber,
-            @Positive @Min(1) int value
-    ) {
-        log.debug("Submitting write command: unit={}, value={}", unitNumber, value);
-
-        // Создание доменной модели команды
-        WriteCommand command = new WriteCommand(
-                unitNumber,
-                value
-        );
-
-        // Добавление в буфер (будет обработано в следующем цикле сканирования)
-        commandBuffer.enqueue(command);
-        log.debug("Command added to buffer successfully (buffer size={})", commandBuffer.size());
-
-        log.debug("Write command accepted: unit={}, value={} (will be executed in next scan cycle)",
-                unitNumber, value);
     }
 
     /**
      * Проверяет, готова ли система обслуживать запросы.
      * <p>
-     * Система готова, когда получен хотя бы один снимок состояния
-     * от цикла опроса/сканирования.
+     * Система готова, когда получен хотя бы один snapshot
+     * от цикла опроса PrintSrv.
      *
      * @return true, если система готова
      */
     public boolean isReady() {
-        return snapshotReader.getLatestOrNull() != null;
+        return snapshotRepository.hasAnySnapshot();
     }
 
     /**
-     * Проверяет, живо ли приложение (проверка здоровья).
+     * Проверяет, живо ли приложение (liveness probe).
      *
      * @return true, если приложение живо
      */
     public boolean isAlive() {
-        return true; // Application service is always alive if it can respond
+        return true;
     }
 }

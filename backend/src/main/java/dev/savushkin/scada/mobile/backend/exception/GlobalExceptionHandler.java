@@ -236,25 +236,6 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Обрабатывает переполнение буфера команд (degraded mode).
-     * <p>
-     * Возвращает HTTP 503 (Service Unavailable), т.к. система не может принять
-     * новые команды записи из-за длительной недоступности PrintSrv и переполненного
-     * буфера.
-     * <p>
-     * В ответе не раскрываем внутренние детали (размеры буфера и т.п.), но даём
-     * понятный для клиента hint.
-     */
-    @ExceptionHandler(BufferOverflowException.class)
-    public ResponseEntity<ErrorResponseDTO> handleBufferOverflowException(
-            @NonNull BufferOverflowException e,
-            @NonNull WebRequest request
-    ) {
-        log.warn("BufferOverflowException occurred: {}", e.getMessage());
-        return buildErrorResponse(HttpStatus.SERVICE_UNAVAILABLE, e.getMessage(), request);
-    }
-
-    /**
      * Обрабатывает ошибку отсутствующего маршрута/ресурса.
      * Возвращает корректный HTTP 404.
      */

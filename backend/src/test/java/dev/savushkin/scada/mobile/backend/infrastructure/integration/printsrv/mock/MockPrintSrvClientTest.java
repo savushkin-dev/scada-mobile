@@ -120,29 +120,6 @@ class MockPrintSrvClientTest {
             assertEquals("",  unit.task(),     "CurItem absent → ''");
             assertNull(unit.counter());
         }
-
-        @Test
-        @DisplayName("setUnitVars мутирует состояние: новые значения видны через queryAll")
-        void setUnitVars_updatesStateVisibleViaQueryAll() throws Exception {
-            MockInstanceState state = stateWithLine(Map.of("ST", "0", "Error", "0"));
-            MockPrintSrvClient client = new MockPrintSrvClient("trepko1", state, false);
-
-            client.setUnitVars("Line", 1, Map.of("ST", "1", "Error", "1"));
-
-            UnitsDTO unit = client.queryAll("Line").units().get("u1");
-            assertEquals("1", unit.state());
-            assertEquals("1", unit.properties().error());
-        }
-
-        @Test
-        @DisplayName("setUnitVars с пустыми параметрами кидает IllegalArgumentException")
-        void setUnitVars_emptyParams_throwsIllegalArgument() {
-            MockPrintSrvClient client = new MockPrintSrvClient("x",
-                    new MockInstanceState("x"), false);
-
-            assertThrows(IllegalArgumentException.class,
-                    () -> client.setUnitVars("Line", 1, Map.of()));
-        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -167,15 +144,6 @@ class MockPrintSrvClientTest {
         void queryAll_throwsIOException() {
             IOException ex = assertThrows(IOException.class,
                     () -> offlineClient.queryAll("Line"));
-            assertTrue(ex.getMessage().contains("bosch"),
-                    "Сообщение должно упоминать instanceId");
-        }
-
-        @Test
-        @DisplayName("setUnitVars бросает IOException с именем инстанса")
-        void setUnitVars_throwsIOException() {
-            IOException ex = assertThrows(IOException.class,
-                    () -> offlineClient.setUnitVars("Line", 1, Map.of("ST", "1")));
             assertTrue(ex.getMessage().contains("bosch"),
                     "Сообщение должно упоминать instanceId");
         }
