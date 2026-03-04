@@ -20,7 +20,7 @@ export function useUnitWs(unitId: string | null, onMessage: (msg: UnitWsMessage)
     delayRef.current = 2000;
     mockFiredRef.current = false;
 
-    function useMock() {
+    function applyMockData() {
       if (mockFiredRef.current) return;
       mockFiredRef.current = true;
       MOCK_UNIT_MESSAGES.forEach((msg) => onMessageRef.current(msg));
@@ -44,7 +44,7 @@ export function useUnitWs(unitId: string | null, onMessage: (msg: UnitWsMessage)
         };
         ws.onclose = () => {
           if (destroyed) return;
-          useMock();
+          applyMockData();
           timerRef.current = setTimeout(() => {
             delayRef.current = Math.min(delayRef.current * 2, MAX_RECONNECT_DELAY_MS);
             connect();
@@ -52,11 +52,11 @@ export function useUnitWs(unitId: string | null, onMessage: (msg: UnitWsMessage)
         };
         ws.onerror = () => ws.close();
       } catch {
-        useMock();
+        applyMockData();
       }
     }
 
-    useMock();
+    applyMockData();
     connect();
 
     return () => {
