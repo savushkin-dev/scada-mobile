@@ -10,14 +10,14 @@
 
 const CACHE_NAME = "scada-mobile-v2";
 
-/** Статические ресурсы оболочки (app shell) */
+/** Статические ресурсы оболочки (app shell).
+ *  Vite генерирует JS/CSS с хешами в именах — они кешируются динамически
+ *  стратегией cache-first в обработчике fetch.
+ *  Здесь перечислены только стабильные URL без хешей.
+ */
 const SHELL_URLS = [
   "./",
   "./index.html",
-  "./css/styles.css",
-  "./js/app.js",
-  "./js/api.js",
-  "./js/ui.js",
   "./manifest.webmanifest",
   "./assets/icons/icon-48x48.png",
   "./assets/icons/icon-96x96.png",
