@@ -156,11 +156,7 @@ export function DetailsPage() {
       />
 
       {/* Bottom Nav */}
-      <BottomNav
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-        errorCount={errorCount}
-      />
+      <BottomNav activeTab={activeTab} onTabChange={handleTabChange} errorCount={errorCount} />
     </div>
   );
 }

@@ -7,13 +7,43 @@ export const MOCK_WORKSHOPS: Workshop[] = [
 
 export const MOCK_UNITS: Record<string, Unit[]> = {
   apparatniy: [
-    { id: '101', workshopId: 'apparatniy', unit: 'Танк T-01 (Сырое молоко)', event: 'Заполнение 85%', timer: '00:00:00' },
-    { id: '102', workshopId: 'apparatniy', unit: 'Сепаратор GEA Westfalia №2', event: 'Нормализация', timer: '00:00:00' },
-    { id: '103', workshopId: 'apparatniy', unit: 'Пастеризатор Tetra Pak P-04', event: '72°C - Стабильно', timer: '00:00:00' },
+    {
+      id: '101',
+      workshopId: 'apparatniy',
+      unit: 'Танк T-01 (Сырое молоко)',
+      event: 'Заполнение 85%',
+      timer: '00:00:00',
+    },
+    {
+      id: '102',
+      workshopId: 'apparatniy',
+      unit: 'Сепаратор GEA Westfalia №2',
+      event: 'Нормализация',
+      timer: '00:00:00',
+    },
+    {
+      id: '103',
+      workshopId: 'apparatniy',
+      unit: 'Пастеризатор Tetra Pak P-04',
+      event: '72°C - Стабильно',
+      timer: '00:00:00',
+    },
   ],
   cmp: [
-    { id: '201', workshopId: 'cmp', unit: 'Линия розлива ПЭТ №1', event: 'Активен розлив', timer: '00:00:00' },
-    { id: '202', workshopId: 'cmp', unit: 'Автомат Tetra Top №5', event: 'Замятие ленты крышек', timer: '00:05:44' },
+    {
+      id: '201',
+      workshopId: 'cmp',
+      unit: 'Линия розлива ПЭТ №1',
+      event: 'Активен розлив',
+      timer: '00:00:00',
+    },
+    {
+      id: '202',
+      workshopId: 'cmp',
+      unit: 'Автомат Tetra Top №5',
+      event: 'Замятие ленты крышек',
+      timer: '00:05:44',
+    },
   ],
 };
 
@@ -69,8 +99,18 @@ export const MOCK_UNIT_MESSAGES: UnitWsMessage[] = [
         { objectName: 'CMSDev041', propertyDesc: 'Нет связи с устройством', value: 1 },
       ],
       logs: [
-        { time: '21.07.2024 10:00', ackTime: '10:05', group: 'Система', description: 'Запуск линии' },
-        { time: '21.07.2024 10:15', ackTime: '-', group: 'Ошибка', description: 'Потеря связи с камерой 41' },
+        {
+          time: '21.07.2024 10:00',
+          ackTime: '10:05',
+          group: 'Система',
+          description: 'Запуск линии',
+        },
+        {
+          time: '21.07.2024 10:15',
+          ackTime: '-',
+          group: 'Ошибка',
+          description: 'Потеря связи с камерой 41',
+        },
       ],
     },
   },

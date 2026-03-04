@@ -19,10 +19,7 @@ export async function fetchUnits(workshopId: string): Promise<Unit[]> {
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     return (await resp.json()) as Unit[];
   } catch (e) {
-    console.warn(
-      `[REST] /api/v1.0.0/workshops/${workshopId}/units → mock:`,
-      (e as Error).message
-    );
+    console.warn(`[REST] /api/v1.0.0/workshops/${workshopId}/units → mock:`, (e as Error).message);
     return MOCK_UNITS[workshopId] ?? [];
   }
 }

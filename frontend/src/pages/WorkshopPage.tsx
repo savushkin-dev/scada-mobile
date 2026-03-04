@@ -55,9 +55,7 @@ export function WorkshopPage() {
 
       <main className="px-4 space-y-4 pb-10">
         {!units.length ? (
-          <p className="text-center text-[#74777F] py-5 text-[0.88rem]">
-            Загрузка оборудования...
-          </p>
+          <p className="text-center text-[#74777F] py-5 text-[0.88rem]">Загрузка оборудования...</p>
         ) : (
           units.map((u) => (
             <UnitCard

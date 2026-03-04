@@ -47,7 +47,10 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_WORKSHOPS':
       return { ...state, workshops: action.workshops };
     case 'SET_UNITS':
-      return { ...state, unitsByWorkshop: { ...state.unitsByWorkshop, [action.workshopId]: action.units } };
+      return {
+        ...state,
+        unitsByWorkshop: { ...state.unitsByWorkshop, [action.workshopId]: action.units },
+      };
     case 'HANDLE_ALERT': {
       const { workshopId, unitId, severity, active, errors, timestamp } = action.msg;
       const uid = String(unitId);
@@ -57,7 +60,11 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, alerts: next };
     }
     case 'SET_CURRENT_WORKSHOP':
-      return { ...state, currentWorkshopId: action.workshopId, currentWorkshopName: action.workshopName };
+      return {
+        ...state,
+        currentWorkshopId: action.workshopId,
+        currentWorkshopName: action.workshopName,
+      };
     case 'SET_CURRENT_UNIT':
       return { ...state, currentUnitId: action.unitId, currentWorkshopId: action.workshopId };
     default:
@@ -110,7 +117,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider
-      value={{ state, navigate, navigateToWorkshop, activateTab, setWorkshops, setUnits, handleAlert, openDetails }}
+      value={{
+        state,
+        navigate,
+        navigateToWorkshop,
+        activateTab,
+        setWorkshops,
+        setUnits,
+        handleAlert,
+        openDetails,
+      }}
     >
       {children}
     </AppContext.Provider>

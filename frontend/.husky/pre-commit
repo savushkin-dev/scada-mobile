@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+
+# Hooks run from the git root — navigate to frontend package
+FRONTEND_DIR="$(git rev-parse --show-toplevel)/frontend"
+cd "$FRONTEND_DIR" || exit 1
+
+# 1. Format + lint only staged files (fast, incremental)
+npx lint-staged || exit 1
+
+# 2. Full TypeScript type-check (catches cross-file type errors that lint-staged misses)
+npm run type-check || exit 1

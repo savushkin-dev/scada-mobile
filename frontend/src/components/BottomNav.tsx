@@ -32,9 +32,7 @@ export function BottomNav({ activeTab, onTabChange, errorCount }: Props) {
           >
             <span className="nav-icon">
               {icon}
-              {isLogsTab && errorCount > 0 && (
-                <span className="nav-badge">{errorCount}</span>
-              )}
+              {isLogsTab && errorCount > 0 && <span className="nav-badge">{errorCount}</span>}
             </span>
             <span>{label}</span>
           </div>
