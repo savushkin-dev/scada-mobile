@@ -104,11 +104,18 @@ public class XmlSnapshotLoader {
     // ─── Public API ───────────────────────────────────────────────────────────
 
     /**
-     * Загружает свойства устройства с приоритетом: filesystem → classpath → empty.
+     * Путь к classpath-директории с per-instance seed-файлами.
+     * Формат: {@code mock-snapshots/{instanceId}/{Device}___Unit0.xml}
+     */
+    private static final String CLASSPATH_INSTANCE_DIR = "mock-snapshots/";
+
+    /**
+     * Загружает свойства устройства с приоритетом:
+     * filesystem → classpath/{instanceId}/ → classpath/default/ → empty.
      *
-     * @param deviceName    имя устройства (например, {@code "CamAgregation"})
+     * @param deviceName      имя устройства (например, {@code "CamAgregation"})
      * @param snapshotBaseDir путь к базовой директории seed-файлов; может быть null
-     * @param instanceId    ID инстанса (используется как поддиректория)
+     * @param instanceId      ID инстанса (используется как поддиректория)
      * @return Map ключ→значение всех свойств; пустой map при любой ошибке загрузки
      */
     public Map<String, String> loadForDevice(
@@ -132,10 +139,23 @@ public class XmlSnapshotLoader {
             }
         }
 
-        // 2) Classpath fallback: mock-snapshots/default/{Device}___Unit0.xml
-        String classpathPath = CLASSPATH_DEFAULT_DIR + filename;
-        log.debug("[{}] Loading {} from classpath: {}", instanceId, deviceName, classpathPath);
-        Map<String, String> result = loadFromClasspath(classpathPath);
+        // 2) Classpath per-instance: mock-snapshots/{instanceId}/{Device}___Unit0.xml
+        String instanceClasspathPath = CLASSPATH_INSTANCE_DIR + instanceId + "/" + filename;
+        ClassPathResource instanceResource = new ClassPathResource(instanceClasspathPath);
+        if (instanceResource.exists()) {
+            log.debug("[{}] Loading {} from classpath (instance): {}", instanceId, deviceName, instanceClasspathPath);
+            Map<String, String> result = loadFromClasspath(instanceClasspathPath);
+            if (!result.isEmpty()) {
+                return result;
+            }
+            log.warn("[{}] Classpath instance file {} exists but yielded empty properties, falling back to default",
+                    instanceId, instanceClasspathPath);
+        }
+
+        // 3) Classpath default: mock-snapshots/default/{Device}___Unit0.xml
+        String defaultClasspathPath = CLASSPATH_DEFAULT_DIR + filename;
+        log.debug("[{}] Loading {} from classpath (default): {}", instanceId, deviceName, defaultClasspathPath);
+        Map<String, String> result = loadFromClasspath(defaultClasspathPath);
 
         if (result.isEmpty()) {
             log.warn("[{}] No seed file found for device {}. Instance will start with empty state " +

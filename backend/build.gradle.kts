@@ -40,6 +40,7 @@ dependencies {
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.1")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.springframework.boot:spring-boot-webmvc-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     // Mockito Agent jar (используем ту же версию, что резолвится для тестов через BOM Spring).
@@ -54,3 +55,4 @@ tasks.withType<Test> {
     // и корректно работает и на Windows.
     jvmArgs("-javaagent:${mockitoAgent.singleFile.absolutePath}")
 }
+
