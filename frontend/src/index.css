@@ -1,0 +1,304 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: #F8F9FA;
+    color: #1A1C1E;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  #root {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    max-width: 28rem;
+    margin: 0 auto;
+    width: 100%;
+  }
+}
+
+@layer components {
+  .card {
+    background: #FFFFFF;
+    border-radius: 24px;
+    box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.03);
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  .card:active {
+    transform: scale(0.98);
+  }
+  .card-static {
+    cursor: default;
+  }
+  .card-static:active {
+    transform: none;
+  }
+
+  .status-normal {
+    border-color: #34A853;
+    background-color: #F4FBF6;
+  }
+  .status-warning {
+    border-color: #FBBC04;
+    background-color: #FFFDF5;
+    animation: border-pulse-warning 2s infinite;
+  }
+  .status-critical {
+    border-color: #EA4335;
+    background-color: #FFF5F5;
+    animation: border-pulse-critical 2s infinite;
+  }
+
+  .status-indicator {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: #34A853;
+    box-shadow: 0 0 0 3px rgba(52, 168, 83, 0.2);
+    flex-shrink: 0;
+  }
+  .status-indicator.error {
+    background-color: #EA4335;
+    box-shadow: 0 0 0 3px rgba(234, 67, 53, 0.2);
+    animation: pulse-error 1.5s infinite;
+  }
+
+  .card-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #F0F0F0;
+    padding-bottom: 10px;
+    color: #1A1C1E;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .kv-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 9px 0;
+    border-bottom: 1px solid #F0F0F0;
+    font-size: 0.88rem;
+  }
+  .kv-row:last-child {
+    border-bottom: none;
+  }
+  .kv-key {
+    color: #74777F;
+    flex: 1;
+    padding-right: 10px;
+    font-size: 0.82rem;
+    font-weight: 400;
+  }
+  .kv-val {
+    font-weight: 500;
+    text-align: right;
+    flex: 1.5;
+    word-break: break-word;
+    color: #1A1C1E;
+  }
+
+  .device-stats {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .stat-box {
+    flex: 1;
+    text-align: center;
+    padding: 12px 4px;
+    background: #F0F7FF;
+    border-radius: 14px;
+  }
+  .stat-box.danger {
+    background: #FFF5F5;
+  }
+  .stat-val {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #1A1C1E;
+  }
+  .stat-box.danger .stat-val {
+    color: #EA4335;
+  }
+  .stat-label {
+    font-size: 0.68rem;
+    color: #74777F;
+    margin-top: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .bottom-nav {
+    background: #FFFFFF;
+    display: flex;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05);
+    border-top: 1px solid #F0F0F0;
+    z-index: 10;
+    padding-bottom: env(safe-area-inset-bottom);
+    flex-shrink: 0;
+  }
+
+  .nav-item {
+    flex: 1;
+    text-align: center;
+    padding: 10px 0;
+    color: #74777F;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    font-weight: 500;
+  }
+  .nav-item.active {
+    color: #1A1C1E;
+    font-weight: 700;
+  }
+  .nav-icon {
+    font-size: 1.35rem;
+    position: relative;
+    display: inline-block;
+  }
+
+  .nav-badge {
+    position: absolute;
+    top: -4px;
+    right: -6px;
+    background: #EA4335;
+    color: #FFFFFF;
+    font-size: 0.58rem;
+    font-weight: 700;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    padding: 0 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  .queue-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #F0F0F0;
+  }
+  .queue-item:last-child {
+    border-bottom: none;
+  }
+  .queue-pos {
+    width: 36px;
+    height: 36px;
+    background: #F0F7FF;
+    color: #1A1C1E;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.88rem;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+  .queue-details {
+    flex: 1;
+  }
+
+  .error-item {
+    padding: 12px 14px;
+    border-left: 4px solid #EA4335;
+    background: #FFF5F5;
+    margin-bottom: 10px;
+    border-radius: 0 16px 16px 0;
+  }
+
+  .log-item {
+    padding: 10px 0;
+    border-bottom: 1px solid #F0F0F0;
+  }
+  .log-item:last-child {
+    border-bottom: none;
+  }
+
+  .accordion-btn {
+    width: 100%;
+    text-align: center;
+    background: #F8F9FA;
+    border: 1.5px solid #E8EAED;
+    padding: 12px;
+    font-size: 0.88rem;
+    color: #1A1C1E;
+    font-weight: 600;
+    border-radius: 14px;
+    cursor: pointer;
+    margin-top: 16px;
+    transition: background 0.2s;
+    font-family: 'Inter', sans-serif;
+  }
+  .accordion-btn:active {
+    background: #EDEEF0;
+  }
+
+  .badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .badge.success {
+    background: #E6F4EA;
+    color: #1B6B2F;
+  }
+  .badge.danger {
+    background: #FCEAE9;
+    color: #B71C1C;
+  }
+  .badge.neutral {
+    background: #EDEEF0;
+    color: #5F6368;
+  }
+}
+
+@keyframes border-pulse-warning {
+  0% { border-color: rgba(251, 188, 4, 1); }
+  50% { border-color: rgba(251, 188, 4, 0.3); }
+  100% { border-color: rgba(251, 188, 4, 1); }
+}
+@keyframes border-pulse-critical {
+  0% { border-color: rgba(234, 67, 53, 1); }
+  50% { border-color: rgba(234, 67, 53, 0.3); }
+  100% { border-color: rgba(234, 67, 53, 1); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-error {
+  0% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.5); }
+  70% { box-shadow: 0 0 0 8px rgba(234, 67, 53, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(234, 67, 53, 0); }
+}
