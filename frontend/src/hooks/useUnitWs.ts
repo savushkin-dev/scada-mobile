@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { WS_BASE } from '../config';
 import type { UnitWsMessage } from '../types';
-import { MOCK_UNIT_MESSAGES } from '../constants/mockData';
 
 const MAX_RECONNECT_DELAY_MS = 30_000;
 
@@ -9,7 +8,6 @@ export function useUnitWs(unitId: string | null, onMessage: (msg: UnitWsMessage)
   const wsRef = useRef<WebSocket | null>(null);
   const delayRef = useRef(2000);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const mockFiredRef = useRef(false);
   const onMessageRef = useRef(onMessage);
   onMessageRef.current = onMessage;
 
@@ -18,13 +16,6 @@ export function useUnitWs(unitId: string | null, onMessage: (msg: UnitWsMessage)
 
     let destroyed = false;
     delayRef.current = 2000;
-    mockFiredRef.current = false;
-
-    function applyMockData() {
-      if (mockFiredRef.current) return;
-      mockFiredRef.current = true;
-      MOCK_UNIT_MESSAGES.forEach((msg) => onMessageRef.current(msg));
-    }
 
     function connect() {
       if (destroyed) return;
@@ -44,7 +35,6 @@ export function useUnitWs(unitId: string | null, onMessage: (msg: UnitWsMessage)
         };
         ws.onclose = () => {
           if (destroyed) return;
-          applyMockData();
           timerRef.current = setTimeout(() => {
             delayRef.current = Math.min(delayRef.current * 2, MAX_RECONNECT_DELAY_MS);
             connect();
@@ -52,11 +42,13 @@ export function useUnitWs(unitId: string | null, onMessage: (msg: UnitWsMessage)
         };
         ws.onerror = () => ws.close();
       } catch {
-        applyMockData();
+        timerRef.current = setTimeout(() => {
+          delayRef.current = Math.min(delayRef.current * 2, MAX_RECONNECT_DELAY_MS);
+          connect();
+        }, delayRef.current);
       }
     }
 
-    applyMockData();
     connect();
 
     return () => {

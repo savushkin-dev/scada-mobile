@@ -6,8 +6,10 @@ import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.Pr
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.client.PrintSrvClient;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.client.PrintSrvClientRegistry;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.QueryAllResponseDTO;
+import dev.savushkin.scada.mobile.backend.infrastructure.ws.ScanCycleCompletedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -53,15 +55,18 @@ public class ScanCycleScheduler {
     private final PrintSrvClientRegistry registry;
     private final PrintSrvMapper mapper;
     private final InstanceSnapshotRepository snapshotRepo;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ScanCycleScheduler(
             PrintSrvClientRegistry registry,
             PrintSrvMapper mapper,
-            InstanceSnapshotRepository snapshotRepo
+            InstanceSnapshotRepository snapshotRepo,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.registry = registry;
         this.mapper = mapper;
         this.snapshotRepo = snapshotRepo;
+        this.eventPublisher = eventPublisher;
         log.info("ScanCycleScheduler initialized ({} instances, {} devices per instance)",
                 registry.getInstanceIds().size(), DEVICES.size());
     }
@@ -86,5 +91,7 @@ public class ScanCycleScheduler {
                 }
             }
         }
+        // Уведомляем StatusBroadcaster: snapshots обновлены, можно рассылать статус по WS
+        eventPublisher.publishEvent(new ScanCycleCompletedEvent(this));
     }
 }

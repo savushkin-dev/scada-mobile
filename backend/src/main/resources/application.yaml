@@ -113,5 +113,32 @@ printsrv:
     connect-timeout-ms: 5000
     read-timeout-ms: 5000
 
+# ─────────────────────────────────────────────────────────────────────────────
+# CORS — общая политика для всех профилей.
+#
+# Поля ниже одинаковы в dev и prod — дублировать их в профилях не нужно.
+# Единственное, что меняется между окружениями — allowed-origins:
+#   dev:  задаётся явным списком в application-dev.yaml
+#   prod: задаётся через переменную окружения CORS_POLICY_ALLOWED_ORIGINS
+#         (см. application-prod.yaml)
+#
+# Безопасные дефолты (fail-closed): пустой список origins блокирует любые
+# cross-origin запросы с браузера, пока профиль не переопределит значение.
+# ─────────────────────────────────────────────────────────────────────────────
+cors:
+  policy:
+    # Переопределяется в каждом профиле — здесь намеренно пусто (fail-closed).
+    allowed-origins: [ ]
+    # GET — данные, POST — Web Push subscribe (/api/push/subscribe), OPTIONS — preflight.
+    allowed-methods: [ "GET", "POST", "OPTIONS" ]
+    # Стандартные заголовки; Authorization оставлен на вырост (JWT/Bearer).
+    allowed-headers: [ "Content-Type", "Authorization" ]
+    # ETag добавляется автоматически в CorsConfig.mergeWithETag() — не дублируем здесь.
+    exposed-headers: [ ]
+    # Включать только при cookie-based auth; с wildcard origins несовместимо.
+    allow-credentials: false
+    # Preflight кэшируется браузером 1 час.
+    max-age-seconds: 3600
+
 # Логирование — конфигурация в src/main/resources/logback-spring.xml
 # Уровни переопределяются по профилям (dev / prod) в logback-spring.xml

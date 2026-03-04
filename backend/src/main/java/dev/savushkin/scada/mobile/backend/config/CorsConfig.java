@@ -22,15 +22,31 @@ public class CorsConfig implements WebMvcConfigurer {
         this.corsProperties = corsProperties;
     }
 
+    /**
+     * Добавляет {@code ETag} в список exposedHeaders, если его там ещё нет.
+     * Браузер не пропустит заголовок к JS без явного указания в CORS.
+     */
+    private static String[] mergeWithETag(java.util.List<String> configured) {
+        java.util.List<String> result = new java.util.ArrayList<>(configured);
+        if (result.stream().noneMatch(h -> h.equalsIgnoreCase("ETag"))) {
+            result.add("ETag");
+        }
+        return result.toArray(String[]::new);
+    }
+
     @Override
     public void addCorsMappings(@NonNull CorsRegistry registry) {
         CorsProperties.Policy policy = corsProperties.getPolicy();
+
+        // Собираем exposedHeaders: объединяем из конфига с обязательным ETag
+        // (нужен для кэширования topology-эндпоинтов на клиенте).
+        String[] exposedHeaders = mergeWithETag(policy.getExposedHeaders());
 
         registry.addMapping("/api/**")
                 .allowedOrigins(policy.getAllowedOrigins().toArray(String[]::new))
                 .allowedMethods(policy.getAllowedMethods().toArray(String[]::new))
                 .allowedHeaders(policy.getAllowedHeaders().toArray(String[]::new))
-                .exposedHeaders(policy.getExposedHeaders().toArray(String[]::new))
+                .exposedHeaders(exposedHeaders)
                 .allowCredentials(policy.isAllowCredentials())
                 .maxAge(policy.getMaxAgeSeconds());
     }

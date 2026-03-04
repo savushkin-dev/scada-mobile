@@ -76,17 +76,19 @@ printsrv:
     max-attempts: 10  # Prod: больше попыток для устойчивости
     max-delay-ms: 10000  # Prod: больше терпения при переподключении
 
-# CORS: prod — только строгий allowlist origins.
-# Задайте через переменную окружения (через запятую):
+# CORS: prod — только allowed-origins переопределяем здесь.
+# Остальные поля наследуются из application.yaml — не дублируем.
+#
+# Задать origins перед запуском (через запятую):
 #   CORS_POLICY_ALLOWED_ORIGINS=http://scada.plant.local,https://scada.plant.local
+#
+# ВАЖНО: если переменная не задана — список пуст (fail-closed),
+# cross-origin запросы с браузера будут блокироваться CORS-фильтром.
+# Это намеренная безопасная позиция: лучше «не работает» при ошибке конфига,
+# чем «открыто всем».
 cors:
   policy:
-    # ВАЖНО: по умолчанию пусто (запросы с браузера с другого origin будут блокироваться).
     allowed-origins: "${CORS_POLICY_ALLOWED_ORIGINS:}"
-    allowed-methods: [ "GET", "POST", "OPTIONS" ]
-    allowed-headers: [ "Content-Type", "Authorization" ]
-    allow-credentials: false
-    max-age-seconds: 3600
 
 # OpenAPI/Swagger UI: отключено в продакшене из соображений безопасности
 springdoc:

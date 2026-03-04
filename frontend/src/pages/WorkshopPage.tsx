@@ -1,18 +1,41 @@
-import { useEffect } from 'react';
-import { fetchUnits } from '../api/workshops';
+import { useCallback, useEffect } from 'react';
+import { fetchUnitsTopology } from '../api/workshops';
 import { UnitCard } from '../components/UnitCard';
+import { RetryBanner } from '../components/RetryBanner';
+import { UnitCardSkeleton } from '../components/skeleton/UnitCardSkeleton';
 import { useAppContext } from '../context/AppContext';
+import { useAsyncFetch } from '../hooks/useAsyncFetch';
+import { useUnitsStatusWs } from '../hooks/useUnitsStatusWs';
+import type { UnitTopology, UnitsStatusMessage } from '../types';
 
 export function WorkshopPage() {
-  const { state, setUnits, navigate, openDetails } = useAppContext();
+  const { state, unitsByWorkshop, navigate, setUnitTopology, patchUnitsStatus, openDetails } =
+    useAppContext();
   const workshopId = state.currentWorkshopId ?? '';
   const workshopName = state.currentWorkshopName ?? 'Цех';
-  const units = state.unitsByWorkshop[workshopId] ?? [];
+  const units = unitsByWorkshop[workshopId] ?? [];
+
+  // Загружаем topology один раз для каждого цеха.
+  // При повторном заходе в тот же цех данные уже в памяти — запрос не отправляется.
+  const topologyLoaded = (state.unitTopologyByWorkshop[workshopId]?.length ?? 0) > 0;
+  const fetchState = useAsyncFetch<UnitTopology[]>(
+    workshopId && !topologyLoaded ? (signal) => fetchUnitsTopology(workshopId, signal) : null,
+    [workshopId, topologyLoaded]
+  );
 
   useEffect(() => {
-    if (!workshopId) return;
-    fetchUnits(workshopId).then((u) => setUnits(workshopId, u));
-  }, [workshopId, setUnits]);
+    if (fetchState.data && workshopId && !topologyLoaded) {
+      setUnitTopology(workshopId, fetchState.data);
+    }
+  }, [fetchState.data, workshopId, topologyLoaded, setUnitTopology]);
+
+  // Подписываемся на live-статус аппаратов этого цеха по WebSocket.
+  // Хук переподключается автоматически при смене цеха.
+  const handleUnitsStatus = useCallback(
+    (msg: UnitsStatusMessage) => patchUnitsStatus(msg.workshopId, msg.payload),
+    [patchUnitsStatus]
+  );
+  useUnitsStatusWs(workshopId || null, handleUnitsStatus);
 
   return (
     <section
@@ -53,9 +76,13 @@ export function WorkshopPage() {
         </div>
       </header>
 
+      <RetryBanner error={fetchState.error} onRetry={fetchState.refetch} />
+
       <main className="px-4 space-y-4 pb-10">
-        {!units.length ? (
-          <p className="text-center text-[#74777F] py-5 text-[0.88rem]">Загрузка оборудования...</p>
+        {fetchState.status === 'loading' && !units.length ? (
+          <UnitCardSkeleton count={4} />
+        ) : !units.length && fetchState.status !== 'loading' ? (
+          <p className="text-center text-[#74777F] py-5 text-[0.88rem]">Нет данных</p>
         ) : (
           units.map((u) => (
             <UnitCard

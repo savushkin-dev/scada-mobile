@@ -1,15 +1,22 @@
 package dev.savushkin.scada.mobile.backend.services;
 
-import dev.savushkin.scada.mobile.backend.api.dto.UnitsDTO;
-import dev.savushkin.scada.mobile.backend.api.dto.WorkshopsDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.UnitStatusDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.UnitTopologyDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.WorkshopStatusDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.WorkshopTopologyDTO;
 import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepository;
 import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitSnapshot;
+import org.jetbrains.annotations.Contract;
+import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -18,6 +25,14 @@ import java.util.stream.Collectors;
  * <p>
  * Объединяет статическую конфигурацию из YAML (список цехов и аппаратов)
  * с live-данными из {@link InstanceSnapshotRepository} (текущее состояние).
+ * <p>
+ * Данные разделены на два слоя:
+ * <ul>
+ *   <li><b>Topology</b> — статика из конфига, меняется крайне редко.
+ *       Возвращается REST-эндпоинтами с поддержкой ETag-кэширования.</li>
+ *   <li><b>Status</b> — live-данные из snapshot store.
+ *       Рассылается по WebSocket после каждого scan cycle.</li>
+ * </ul>
  */
 @Service
 public class WorkshopService {
@@ -32,6 +47,13 @@ public class WorkshopService {
     /** Быстрый lookup: workshopId → список инстансов. */
     private final Map<String, List<PrintSrvProperties.InstanceProperties>> instancesByWorkshop;
 
+    /**
+     * ETag для topology-эндпоинтов. Вычисляется один раз при старте
+     * как SHA-256 от конфигурации цехов и инстансов.
+     * Следующий шаг: контроллер будет проверять If-None-Match против этого значения.
+     */
+    private final String configETag;
+
     public WorkshopService(PrintSrvProperties config, InstanceSnapshotRepository snapshotRepo) {
         this.config = config;
         this.snapshotRepo = snapshotRepo;
@@ -40,52 +62,101 @@ public class WorkshopService {
                         PrintSrvProperties.InstanceProperties::getWorkshopId,
                         LinkedHashMap::new,
                         Collectors.toList()));
-        log.info("WorkshopService initialized: {} workshops, {} instances",
-                config.getWorkshops().size(), config.getInstances().size());
+        this.configETag = computeConfigETag(config);
+        log.info("WorkshopService initialized: {} workshops, {} instances, ETag={}",
+                config.getWorkshops().size(), config.getInstances().size(), configETag);
     }
 
+    // ─── Topology (статика, кэшируется на клиенте) ────────────────────────────
+
     /**
-     * Возвращает список всех цехов с актуальной статистикой problemUnits.
+     * Вычисляет SHA-256 хэш конфигурации топологии при инициализации сервиса.
+     * <p>
+     * Входные данные: отсортированный список "workshopId:displayName" + "instanceId:workshopId:displayName".
+     * Сортировка гарантирует детерминированный результат при любом порядке в YAML.
+     * <p>
+     * Формат результата: hex-строка без кавычек (кавычки добавит контроллер для заголовка ETag).
      */
-    public List<WorkshopsDTO> getWorkshops() {
-        List<WorkshopsDTO> result = new ArrayList<>();
-        for (PrintSrvProperties.WorkshopProperties ws : config.getWorkshops()) {
-            List<PrintSrvProperties.InstanceProperties> instances =
-                    instancesByWorkshop.getOrDefault(ws.getId(), Collections.emptyList());
-            int problemUnits = countProblemUnits(instances);
-            result.add(new WorkshopsDTO(
-                    ws.getId(),
-                    ws.getDisplayName(),
-                    instances.size(),
-                    problemUnits
-            ));
+    private static @NonNull String computeConfigETag(@NonNull PrintSrvProperties config) {
+        try {
+            StringBuilder sb = new StringBuilder();
+            config.getWorkshops().stream()
+                    .sorted(Comparator.comparing(PrintSrvProperties.WorkshopProperties::getId))
+                    .forEach(ws -> sb.append("w:").append(ws.getId()).append(':').append(ws.getDisplayName()).append(';'));
+            config.getInstances().stream()
+                    .sorted(Comparator.comparing(PrintSrvProperties.InstanceProperties::getId))
+                    .forEach(inst -> sb.append("i:").append(inst.getId()).append(':')
+                            .append(inst.getWorkshopId()).append(':').append(inst.getDisplayName()).append(';'));
+
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(sb.toString().getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(hash.length * 2);
+            for (byte b : hash) hex.append(String.format("%02x", b));
+            return hex.toString();
+        } catch (NoSuchAlgorithmException e) {
+            // SHA-256 гарантированно доступен в JDK — этот путь не достижим
+            throw new IllegalStateException("SHA-256 not available", e);
         }
-        return result;
     }
 
     /**
-     * Возвращает список аппаратов цеха с актуальным событием и таймером.
+     * Возвращает статическую топологию всех цехов.
+     * Не содержит live-данных — пригоден для длительного кэширования.
+     */
+    public List<WorkshopTopologyDTO> getWorkshopsTopology() {
+        return config.getWorkshops().stream()
+                .map(ws -> new WorkshopTopologyDTO(
+                        ws.getId(),
+                        ws.getDisplayName(),
+                        instancesByWorkshop.getOrDefault(ws.getId(), Collections.emptyList()).size()
+                ))
+                .toList();
+    }
+
+    // ─── Status (live, рассылается по WebSocket) ──────────────────────────────
+
+    /**
+     * Возвращает статическую топологию аппаратов цеха.
      *
      * @param workshopId идентификатор цеха
      * @return список аппаратов или пустой список, если цех не найден
      */
-    public List<UnitsDTO> getUnits(String workshopId) {
-        List<PrintSrvProperties.InstanceProperties> instances =
-                instancesByWorkshop.getOrDefault(workshopId, Collections.emptyList());
+    public List<UnitTopologyDTO> getUnitsTopology(String workshopId) {
+        return instancesByWorkshop.getOrDefault(workshopId, Collections.emptyList())
+                .stream()
+                .map(inst -> new UnitTopologyDTO(inst.getId(), inst.getWorkshopId(), inst.getDisplayName()))
+                .toList();
+    }
 
-        List<UnitsDTO> result = new ArrayList<>();
-        for (PrintSrvProperties.InstanceProperties inst : instances) {
-            String event = deriveEvent(inst.getId());
-            String timer = deriveTimer(inst.getId());
-            result.add(new UnitsDTO(
-                    inst.getId(),
-                    inst.getWorkshopId(),
-                    inst.getDisplayName(),
-                    event,
-                    timer
-            ));
-        }
-        return result;
+    /**
+     * Возвращает live-статус всех цехов (счётчики проблемных аппаратов).
+     * Используется {@code StatusBroadcaster} после каждого scan cycle.
+     */
+    public List<WorkshopStatusDTO> getWorkshopsStatus() {
+        return config.getWorkshops().stream()
+                .map(ws -> {
+                    List<PrintSrvProperties.InstanceProperties> instances =
+                            instancesByWorkshop.getOrDefault(ws.getId(), Collections.emptyList());
+                    return new WorkshopStatusDTO(ws.getId(), countProblemUnits(instances));
+                })
+                .toList();
+    }
+
+    /**
+     * Возвращает live-статус аппаратов цеха (событие, таймер).
+     *
+     * @param workshopId идентификатор цеха
+     */
+    public List<UnitStatusDTO> getUnitsStatus(String workshopId) {
+        return instancesByWorkshop.getOrDefault(workshopId, Collections.emptyList())
+                .stream()
+                .map(inst -> new UnitStatusDTO(
+                        inst.getId(),
+                        inst.getWorkshopId(),
+                        deriveEvent(inst.getId()),
+                        deriveTimer(inst.getId())
+                ))
+                .toList();
     }
 
     /**
@@ -98,14 +169,13 @@ public class WorkshopService {
 
     // ─── Внутренние методы формирования live-данных ───────────────────────────
 
-    private int countProblemUnits(List<PrintSrvProperties.InstanceProperties> instances) {
-        int count = 0;
-        for (PrintSrvProperties.InstanceProperties inst : instances) {
-            if (hasActiveError(inst.getId())) {
-                count++;
-            }
-        }
-        return count;
+    /**
+     * Возвращает предвычисленный ETag конфигурации топологии.
+     * Значение — SHA-256-хэш в формате {@code "hex-string"},
+     * готовый для вставки в заголовок {@code ETag}.
+     */
+    public String getConfigETag() {
+        return configETag;
     }
 
     /**
@@ -126,10 +196,20 @@ public class WorkshopService {
         return false;
     }
 
+    private int countProblemUnits(@NonNull List<PrintSrvProperties.InstanceProperties> instances) {
+        int count = 0;
+        for (PrintSrvProperties.InstanceProperties inst : instances) {
+            if (hasActiveError(inst.getId())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     /**
      * Формирует текстовое описание текущего события для аппарата.
      */
-    private String deriveEvent(String instanceId) {
+    private @NonNull String deriveEvent(String instanceId) {
         DeviceSnapshot lineSnapshot = snapshotRepo.get(instanceId, LINE_DEVICE);
         if (lineSnapshot == null) {
             return "Нет данных";
@@ -150,13 +230,16 @@ public class WorkshopService {
         return "Нет данных";
     }
 
+    // ─── ETag groundwork ──────────────────────────────────────────────────────
+
     /**
      * Формирует таймер текущего состояния.
      * <p>
      * Для полноценной реализации требуется отслеживание времени смены состояний
      * (в будущем). Сейчас возвращает {@code "00:00:00"}.
      */
-    private String deriveTimer(String instanceId) {
+    @Contract(pure = true)
+    private @NonNull String deriveTimer(String ignoredInstanceId) {
         // TODO: отслеживание времени смены состояний для расчёта реального таймера
         return "00:00:00";
     }

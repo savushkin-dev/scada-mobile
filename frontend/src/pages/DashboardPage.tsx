@@ -1,14 +1,27 @@
 import { useEffect } from 'react';
-import { fetchWorkshops } from '../api/workshops';
+import { fetchWorkshopsTopology } from '../api/workshops';
 import { WorkshopCard } from '../components/WorkshopCard';
+import { RetryBanner } from '../components/RetryBanner';
+import { WorkshopCardSkeleton } from '../components/skeleton/WorkshopCardSkeleton';
 import { useAppContext } from '../context/AppContext';
+import { useAsyncFetch } from '../hooks/useAsyncFetch';
+import type { WorkshopTopology } from '../types';
 
 export function DashboardPage() {
-  const { state, setWorkshops, navigateToWorkshop } = useAppContext();
+  const { state, workshops, setWorkshopTopology, navigateToWorkshop } = useAppContext();
+
+  // Загружаем topology один раз — если уже есть в памяти, пропускаем запрос.
+  // Данные меняются только при изменении конфигурации (раз в несколько лет),
+  // поэтому кэшируем на всё время сессии без повторных запросов.
+  const topologyLoaded = state.workshopTopology.length > 0;
+  const fetchState = useAsyncFetch<WorkshopTopology[]>(
+    topologyLoaded ? null : (signal) => fetchWorkshopsTopology(signal),
+    [topologyLoaded]
+  );
 
   useEffect(() => {
-    fetchWorkshops().then(setWorkshops);
-  }, [setWorkshops]);
+    if (fetchState.data && !topologyLoaded) setWorkshopTopology(fetchState.data);
+  }, [fetchState.data, topologyLoaded, setWorkshopTopology]);
 
   return (
     <section
@@ -30,11 +43,15 @@ export function DashboardPage() {
         </div>
       </header>
 
+      <RetryBanner error={fetchState.error} onRetry={fetchState.refetch} />
+
       <main className="px-4 space-y-4 pb-10">
-        {!state.workshops.length ? (
-          <p className="text-center text-[#74777F] py-5 text-[0.88rem]">Загрузка цехов...</p>
+        {fetchState.status === 'loading' && !workshops.length ? (
+          <WorkshopCardSkeleton count={3} />
+        ) : !workshops.length && fetchState.status !== 'loading' ? (
+          <p className="text-center text-[#74777F] py-5 text-[0.88rem]">Нет данных</p>
         ) : (
-          state.workshops.map((ws) => (
+          workshops.map((ws) => (
             <WorkshopCard
               key={ws.id}
               workshop={ws}

@@ -25,7 +25,7 @@ public class CorsProperties {
     public static class Policy {
         /**
          * Разрешённые origins (scheme+host+port).
-         * Примеры: <a href="http://127.0.0.1:5500">...</a>, <a href="http://localhost:5500">...</a>
+         * Примеры: <a href="http://127.0.0.1:5500">http://127.0.0.1:5500</a>, <a href="http://localhost:5500">http://localhost:5500</a>
          */
         private List<String> allowedOrigins = List.of();
 

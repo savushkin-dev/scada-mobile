@@ -47,16 +47,16 @@ printsrv:
     # Быстрый выключатель симуляции без пересборки.
     simulation-enabled: true
 
-# CORS: dev allowlist для локальной разработки (Live Server, Vite и пр.)
+# CORS: dev — только allowed-origins переопределяем здесь.
+# Остальные поля (allowed-methods, allowed-headers, allow-credentials, max-age-seconds)
+# наследуются из application.yaml — не дублируем.
 cors:
   policy:
     allowed-origins:
-      - "http://127.0.0.1:5500"
-      - "http://localhost:5500"
-    allowed-methods: [ "GET", "POST", "OPTIONS" ]
-    allowed-headers: [ "Content-Type", "Authorization" ]
-    allow-credentials: false
-    max-age-seconds: 3600
+      - "http://127.0.0.1:5500"   # VS Code Live Server
+      - "http://localhost:5500"   # Live Server (альтернативный хост)
+      - "http://localhost:5173"   # Vite dev server (npm run dev)
+      - "http://127.0.0.1:5173"  # Vite dev server (альтернативный хост)
 
 # OpenAPI/Swagger UI: включено для разработки
 springdoc:

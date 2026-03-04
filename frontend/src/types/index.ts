@@ -12,6 +12,54 @@ export interface AlertData {
   workshopId: string;
 }
 
+// ── Topology (статика, загружается один раз, кэшируется) ──────────────
+
+/** Статическая топология цеха — данные из GET /workshops/topology */
+export interface WorkshopTopology {
+  id: string;
+  name: string;
+  totalUnits: number;
+}
+
+/** Статическая топология аппарата — данные из GET /workshops/{id}/units/topology */
+export interface UnitTopology {
+  id: string;
+  workshopId: string;
+  unit: string;
+}
+
+// ── Live status (поступает по WebSocket) ─────────────────────────────
+
+/** Live-статус цеха из WS /ws/workshops/status */
+export interface WorkshopStatus {
+  workshopId: string;
+  problemUnits: number;
+}
+
+/** Live-статус аппарата из WS /ws/workshops/{id}/units/status */
+export interface UnitStatus {
+  unitId: string;
+  workshopId: string;
+  event: string;
+  timer: string;
+}
+
+/** WS-конверт для статуса цехов */
+export interface WorkshopsStatusMessage {
+  type: 'WORKSHOPS_STATUS';
+  payload: WorkshopStatus[];
+}
+
+/** WS-конверт для статуса аппаратов цеха */
+export interface UnitsStatusMessage {
+  type: 'UNITS_STATUS';
+  workshopId: string;
+  payload: UnitStatus[];
+}
+
+// ── Merged view types (topology + status, используются компонентами) ──
+
+/** Полные данные цеха для UI — topology + статус объединённые */
 export interface Workshop {
   id: string;
   name: string;
@@ -19,6 +67,7 @@ export interface Workshop {
   problemUnits: number;
 }
 
+/** Полные данные аппарата для UI — topology + статус объединённые */
 export interface Unit {
   id: string;
   workshopId: string;
