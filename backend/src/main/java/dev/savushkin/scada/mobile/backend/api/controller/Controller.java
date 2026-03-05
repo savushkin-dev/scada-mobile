@@ -18,10 +18,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -35,8 +32,6 @@ import java.util.Map;
  * <ul>
  *   <li>GET .../workshops/topology — статическая топология цехов (кэшируется по ETag)</li>
  *   <li>GET .../workshops/{id}/units/topology — статическая топология аппаратов цеха</li>
- *   <li>GET .../workshops — legacy: список цехов со статусом (deprecated)</li>
- *   <li>GET .../workshops/{id}/units — legacy: аппараты цеха со статусом (deprecated)</li>
  *   <li>GET .../health/live — liveness probe</li>
  *   <li>GET .../health/ready — readiness probe</li>
  * </ul>
@@ -74,7 +69,6 @@ public class Controller {
      * Формирует HTTP-заголовки для topology-ответов с ETag.
      * <p>
      * Формат ETag: {@code "hex-string"} (в кавычках — по RFC 7232).
-     * Следующий шаг реализации: обработка {@code If-None-Match} с возвратом {@code 304 Not Modified}.
      *
      * @param etag hex-строка SHA-256 без кавычек
      */
@@ -84,20 +78,66 @@ public class Controller {
         return headers;
     }
 
+    /**
+     * Проверяет, совпадает ли клиентский ETag из заголовка {@code If-None-Match}
+     * с актуальным ETag конфигурации.
+     * <p>
+     * Поддерживаемые форматы клиентского значения:
+     * <ul>
+     *   <li>{@code *} — совпадает с любым ETag (RFC 7232 §3.2)</li>
+     *   <li>{@code "abc123"} — сильный ETag в кавычках</li>
+     *   <li>{@code W/"abc123"} — слабый ETag; для GET используется слабое сравнение</li>
+     * </ul>
+     * Возвращает {@code true}, если клиент может использовать закэшированный ответ.
+     *
+     * @param ifNoneMatch значение заголовка {@code If-None-Match} (может быть null)
+     * @param serverETag  актуальный ETag без кавычек
+     */
+    private static boolean isNotModified(@Nullable String ifNoneMatch, @NonNull String serverETag) {
+        if (ifNoneMatch == null || ifNoneMatch.isBlank()) {
+            return false;
+        }
+        String normalized = ifNoneMatch.trim();
+        if ("*".equals(normalized)) {
+            return true;
+        }
+        // Слабые валидаторы: W/"etag" → снимаем W/ (RFC 7232 §2.3)
+        if (normalized.startsWith("W/")) {
+            normalized = normalized.substring(2);
+        }
+        // Снимаем кавычки
+        if (normalized.length() >= 2
+                && normalized.charAt(0) == '"'
+                && normalized.charAt(normalized.length() - 1) == '"') {
+            normalized = normalized.substring(1, normalized.length() - 1);
+        }
+        return serverETag.equals(normalized);
+    }
+
     @Operation(
             summary = "Топология цехов",
             description = "Возвращает статическую топологию всех цехов: id, name, totalUnits. " +
                     "Данные меняются только при изменении конфигурации. " +
                     "Ответ содержит заголовок ETag — клиент может кэшировать бессрочно. " +
+                    "Поддерживает If-None-Match: при совпадении ETag возвращает 304 без тела. " +
                     "Live-статус (problemUnits) доступен по WebSocket /ws/workshops/status."
     )
-    @ApiResponses(@ApiResponse(responseCode = "200", description = "Топология цехов"))
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Топология цехов"),
+            @ApiResponse(responseCode = "304", description = "Топология не изменилась (ETag совпал)")
+    })
     @GetMapping("/workshops/topology")
-    public ResponseEntity<List<WorkshopTopologyDTO>> getWorkshopsTopology() {
-        List<WorkshopTopologyDTO> topology = workshopService.getWorkshopsTopology();
+    public ResponseEntity<List<WorkshopTopologyDTO>> getWorkshopsTopology(
+            @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
+        String etag = workshopService.getConfigETag();
+        if (isNotModified(ifNoneMatch, etag)) {
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED)
+                    .headers(etagHeaders(etag))
+                    .build();
+        }
         return ResponseEntity.ok()
-                .headers(etagHeaders(workshopService.getConfigETag()))
-                .body(topology);
+                .headers(etagHeaders(etag))
+                .body(workshopService.getWorkshopsTopology());
     }
 
     // ─── Health probes ────────────────────────────────────────────────────────
@@ -107,21 +147,30 @@ public class Controller {
             description = "Возвращает статическую топологию аппаратов/линий цеха: id, workshopId, unit. " +
                     "Данные меняются только при изменении конфигурации. " +
                     "Ответ содержит заголовок ETag. " +
+                    "Поддерживает If-None-Match: при совпадении ETag возвращает 304 без тела. " +
                     "Live-статус (event, timer) доступен по WebSocket /ws/workshops/{id}/units/status."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Топология аппаратов"),
+            @ApiResponse(responseCode = "304", description = "Топология не изменилась (ETag совпал)"),
             @ApiResponse(responseCode = "404", description = "Цех не найден")
     })
     @GetMapping("/workshops/{id}/units/topology")
-    public ResponseEntity<List<UnitTopologyDTO>> getUnitsTopology(@PathVariable @NonNull String id) {
+    public ResponseEntity<List<UnitTopologyDTO>> getUnitsTopology(
+            @PathVariable @NonNull String id,
+            @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
         if (!workshopService.workshopExists(id)) {
             return ResponseEntity.notFound().build();
         }
-        List<UnitTopologyDTO> topology = workshopService.getUnitsTopology(id);
+        String etag = workshopService.getConfigETag();
+        if (isNotModified(ifNoneMatch, etag)) {
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED)
+                    .headers(etagHeaders(etag))
+                    .build();
+        }
         return ResponseEntity.ok()
-                .headers(etagHeaders(workshopService.getConfigETag()))
-                .body(topology);
+                .headers(etagHeaders(etag))
+                .body(workshopService.getUnitsTopology(id));
     }
 
     @Operation(summary = "Liveness probe", description = "Проверка, что приложение запущено.")

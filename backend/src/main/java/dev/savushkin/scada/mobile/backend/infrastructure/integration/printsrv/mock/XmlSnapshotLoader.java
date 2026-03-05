@@ -1,10 +1,11 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.mock;
 
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -57,36 +58,6 @@ import java.util.regex.Pattern;
 @Profile("dev")
 public class XmlSnapshotLoader {
 
-    private static final Logger log = LoggerFactory.getLogger(XmlSnapshotLoader.class);
-
-    /**
-     * Регулярное выражение для поиска всех XML character references вида {@code &#xNN;}.
-     *
-     * <p>Используется в {@link #sanitizeXmlCharRefs(String)} для удаления ссылок
-     * на символы, недопустимые в XML 1.0: управляющие символы 0x00-0x08, 0x0B, 0x0C,
-     * 0x0E-0x1F, а также 0xFFFE и 0xFFFF.
-     *
-     * <p>Примеры в реальных PrintSrv-файлах: {@code &#x15;} (NAK), {@code &#x1D;} (GS1-сепаратор).
-     */
-    private static final Pattern HEX_CHAR_REF_PATTERN = Pattern.compile("&#x([0-9A-Fa-f]{1,5});");
-
-    /**
-     * Namespace для элементов ключ-значение в формате .NET DataContract.
-     */
-    private static final String KV_NAMESPACE =
-            "http://schemas.microsoft.com/2003/10/Serialization/Arrays";
-
-    /**
-     * Шаблон имени файла устройства ({@code Line___Unit0.xml}, {@code Printer11___Unit0.xml}, …).
-     * Три подчёркивания — формат PrintSrv.
-     */
-    private static final String FILENAME_TEMPLATE = "%s___Unit0.xml";
-
-    /**
-     * Путь к classpath-директории с дефолтными seed-файлами.
-     */
-    private static final String CLASSPATH_DEFAULT_DIR = "mock-snapshots/default/";
-
     /**
      * Все имена устройств, существующих на каждом инстансе PrintSrv.
      * Порядок важен: Line загружается первым (определяет LineID, Level1Printers и т.д.).
@@ -100,14 +71,52 @@ public class XmlSnapshotLoader {
             "CamChecker",
             "scada"
     );
+    private static final Logger log = LoggerFactory.getLogger(XmlSnapshotLoader.class);
+    /**
+     * Регулярное выражение для поиска всех XML character references вида {@code &#xNN;}.
+     *
+     * <p>Используется для удаления ссылок
+     * на символы, недопустимые в XML 1.0: управляющие символы 0x00-0x08, 0x0B, 0x0C,
+     * 0x0E-0x1F, а также 0xFFFE и 0xFFFF.
+     *
+     * <p>Примеры в реальных PrintSrv-файлах: {@code &#x15;} (NAK), {@code &#x1D;} (GS1-сепаратор).
+     */
+    private static final Pattern HEX_CHAR_REF_PATTERN = Pattern.compile("&#x([0-9A-Fa-f]{1,5});");
+    /**
+     * Namespace для элементов ключ-значение в формате .NET DataContract.
+     */
+    private static final String KV_NAMESPACE =
+            "http://schemas.microsoft.com/2003/10/Serialization/Arrays";
+    /**
+     * Шаблон имени файла устройства ({@code Line___Unit0.xml}, {@code Printer11___Unit0.xml}, …).
+     * Три подчёркивания — формат PrintSrv.
+     */
+    private static final String FILENAME_TEMPLATE = "%s___Unit0.xml";
+    /**
+     * Путь к classpath-директории с дефолтными seed-файлами.
+     */
+    private static final String CLASSPATH_DEFAULT_DIR = "mock-snapshots/default/";
 
     // ─── Public API ───────────────────────────────────────────────────────────
-
     /**
      * Путь к classpath-директории с per-instance seed-файлами.
      * Формат: {@code mock-snapshots/{instanceId}/{Device}___Unit0.xml}
      */
     private static final String CLASSPATH_INSTANCE_DIR = "mock-snapshots/";
+
+    /**
+     * Возвращает {@code true} если code point допустим в XML 1.0.
+     *
+     * @param cp Unicode code point для проверки
+     */
+    private static boolean isValidXml10CodePoint(int cp) {
+        return cp == 0x9          // TAB
+                || cp == 0xA          // LF
+                || cp == 0xD          // CR
+                || (cp >= 0x20 && cp <= 0xD7FF)
+                || (cp >= 0xE000 && cp <= 0xFFFD)
+                || (cp >= 0x10000 && cp <= 0x10FFFF);
+    }
 
     /**
      * Загружает свойства устройства с приоритетом:
@@ -176,6 +185,8 @@ public class XmlSnapshotLoader {
         }
     }
 
+    // ─── Private: DOM-парсинг ─────────────────────────────────────────────────
+
     /**
      * Парсит XML из classpath-ресурса. Не кидает исключений — возвращает пустой map при ошибке.
      */
@@ -194,8 +205,6 @@ public class XmlSnapshotLoader {
         }
     }
 
-    // ─── Private: DOM-парсинг ─────────────────────────────────────────────────
-
     /**
      * Парсит поток XML и извлекает все пары ключ→значение.
      *
@@ -210,7 +219,7 @@ public class XmlSnapshotLoader {
      * @param source описание источника для логирования
      * @return карта ключ→значение; пустая если XML повреждён или не содержит пар
      */
-    private Map<String, String> parseXml(InputStream is, String source) {
+    private @NonNull Map<String, String> parseXml(InputStream is, String source) {
         DocumentBuilder builder = createDocumentBuilder(source);
         if (builder == null) {
             return Collections.emptyMap();
@@ -295,20 +304,6 @@ public class XmlSnapshotLoader {
             log.trace("Stripped invalid XML 1.0 char ref {} in {}", matchResult.group(), source);
             return "";
         });
-    }
-
-    /**
-     * Возвращает {@code true} если code point допустим в XML 1.0.
-     *
-     * @param cp Unicode code point для проверки
-     */
-    private static boolean isValidXml10CodePoint(int cp) {
-        return cp == 0x9          // TAB
-            || cp == 0xA          // LF
-            || cp == 0xD          // CR
-            || (cp >= 0x20   && cp <= 0xD7FF)
-            || (cp >= 0xE000 && cp <= 0xFFFD)
-            || (cp >= 0x10000 && cp <= 0x10FFFF);
     }
 
     /**

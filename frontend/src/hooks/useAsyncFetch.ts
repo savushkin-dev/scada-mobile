@@ -13,6 +13,8 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type DependencyList } from 'react';
+import { classifyError } from '../errors/classifyError';
+import type { AppError, AppErrorSource } from '../errors/AppError';
 
 // ── Конфигурация ───────────────────────────────────────────────────────
 export interface RetryConfig {
@@ -23,7 +25,13 @@ export interface RetryConfig {
   /** Верхний предел задержки, мс. По умолчанию 30 000. */
   maxDelayMs: number;
   /** Множитель для экспоненциального роста. По умолчанию 2. */
-  factor: number;
+  factor: number; /**
+   * Источник запроса — передаётся в classifyError для точной классификации.
+   * Аналог указания конкретного @ExceptionHandler в Spring —
+   * позволяет classifyError вернуть разные сообщения для topology/workshops
+   * вс topology/units если нужно.
+   */
+  source?: AppErrorSource;
 }
 
 /**
@@ -72,15 +80,12 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
-/** Является ли HTTP-статус окончательной (не ретраябельной) ошибкой клиента. */
-function isClientError(message: string): boolean {
-  const match = /HTTP (\d{3})/.exec(message);
-  if (!match) return false;
-  const status = parseInt(match[1], 10);
-  return status >= 400 && status < 500;
-}
+// ── Удалён исторический isClientError() ──────────────────────────────────
+// Раньше он парсил '/HTTP (\d{3})/' строку, чтобы решить делать ли ретрай.
+// Теперь то же решение принимает classifyError: поле retryable
+// в AppError несёт точный ответ, и хук просто проверяет `!classified.retryable`.
 
-// ── Типы состояния ─────────────────────────────────────────────────────
+// ── Типы состояния ───────────────────────────────────────────────────
 export interface AsyncFetchState<T> {
   /** Удобный флаг для условий рендера: `true` пока status === 'loading'. */
   loading: boolean;
@@ -88,8 +93,12 @@ export interface AsyncFetchState<T> {
   status: FetchStatus;
   /** Данные после успешной загрузки; null в остальных состояниях. */
   data: T | null;
-  /** Сообщение об ошибке после исчерпания всех попыток; null иначе. */
-  error: string | null;
+  /**
+   * Типизированная ошибка после исчерпания всех попыток; null иначе.
+   * Содержит человекочитаемое `message`, `code`, `retryable` и др. поля —
+   * компонентам не нужно интерпретировать строки самостоятельно.
+   */
+  error: AppError | null;
 }
 
 export interface UseAsyncFetchResult<T> extends AsyncFetchState<T> {
@@ -151,13 +160,17 @@ export function useAsyncFetch<T>(
     setState({ loading: true, status: 'loading', data: null, error: null });
 
     (async () => {
-      let lastError = 'Неизвестная ошибка';
+      // lastError: храним AppError вместо строки — передаётся в setState после исчерпания попыток.
+      let lastError: AppError | null = null;
 
       for (let attempt = 1; attempt <= cfg.maxAttempts; attempt++) {
         if (stale || runIdRef.current !== runId) return;
 
-        if (attempt > 1) {
-          console.warn(`[useAsyncFetch] retry ${attempt}/${cfg.maxAttempts} after: ${lastError}`);
+        if (attempt > 1 && lastError) {
+          // При ретраях: в лог идёт техническое сообщение (raw), пользователь видит только скелетон.
+          console.warn(
+            `[useAsyncFetch] retry ${attempt}/${cfg.maxAttempts} after: ${lastError.raw}`
+          );
         }
 
         try {
@@ -170,10 +183,12 @@ export function useAsyncFetch<T>(
         } catch (e) {
           if ((e as Error).name === 'AbortError') return;
 
-          lastError = e instanceof Error ? e.message : String(e);
+          // Классифицируем ерез единый классификатор. retryable=false заменяет
+          // старый isClientError(): не нужно парсить строки — информация есть на уровне типа.
+          const classified = classifyError(e, cfg.source ?? 'unknown');
+          lastError = classified;
 
-          // Клиентские ошибки (4xx) — не ретраить.
-          if (isClientError(lastError)) break;
+          if (!classified.retryable) break;
 
           if (attempt < cfg.maxAttempts) {
             const delay = computeDelay(attempt, cfg);
@@ -191,8 +206,10 @@ export function useAsyncFetch<T>(
 
       if (stale || runIdRef.current !== runId) return;
 
-      console.error(`[useAsyncFetch] all ${cfg.maxAttempts} attempts failed: ${lastError}`);
-      setState({ loading: false, status: 'error', data: null, error: lastError });
+      const finalError =
+        lastError ?? classifyError(new Error('Неизвестная ошибка'), cfg.source ?? 'unknown');
+      console.error(`[useAsyncFetch] all ${cfg.maxAttempts} attempts failed: ${finalError.raw}`);
+      setState({ loading: false, status: 'error', data: null, error: finalError });
     })();
 
     return markStale;

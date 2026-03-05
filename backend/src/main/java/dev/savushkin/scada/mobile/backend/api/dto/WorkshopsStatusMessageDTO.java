@@ -1,5 +1,8 @@
 package dev.savushkin.scada.mobile.backend.api.dto;
 
+import org.jetbrains.annotations.Contract;
+import org.jspecify.annotations.NonNull;
+
 import java.util.List;
 
 /**
@@ -25,7 +28,8 @@ public record WorkshopsStatusMessageDTO(
     /**
      * Фабричный метод — тип всегда фиксирован.
      */
-    public static WorkshopsStatusMessageDTO of(List<WorkshopStatusDTO> payload) {
+    @Contract("_ -> new")
+    public static @NonNull WorkshopsStatusMessageDTO of(List<WorkshopStatusDTO> payload) {
         return new WorkshopsStatusMessageDTO("WORKSHOPS_STATUS", payload);
     }
 }

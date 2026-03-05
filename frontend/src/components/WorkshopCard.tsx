@@ -1,3 +1,4 @@
+import { getWorkshopStatusLevel, WORKSHOP_STATUS_CLASS } from '../constants/statusUtils';
 import type { AlertData, Workshop } from '../types';
 
 interface Props {
@@ -6,36 +7,14 @@ interface Props {
   onClick: () => void;
 }
 
-function getWorkshopStatus(
-  workshopId: string,
-  alerts: Map<string, AlertData>
-): 'critical' | 'warning' | 'none' {
-  let hasCritical = false;
-  let hasWarning = false;
-  alerts.forEach((alert) => {
-    if (alert.workshopId === workshopId) {
-      if (alert.severity === 'Critical') hasCritical = true;
-      else if (alert.severity === 'Warning') hasWarning = true;
-    }
-  });
-  if (hasCritical) return 'critical';
-  if (hasWarning) return 'warning';
-  return 'none';
-}
-
 export function WorkshopCard({ workshop, alerts, onClick }: Props) {
-  const status = getWorkshopStatus(workshop.id, alerts);
-  const statusClass =
-    status === 'critical'
-      ? 'status-critical'
-      : status === 'warning'
-        ? 'status-warning'
-        : 'status-normal';
+  const status = getWorkshopStatusLevel(workshop.id, alerts);
+  const statusClass = WORKSHOP_STATUS_CLASS[status];
 
   const hasProblems = workshop.problemUnits > 0;
 
   return (
-    <div className={`card p-5 ${statusClass}`} onClick={onClick}>
+    <div className={`card p-5 md:h-full ${statusClass}`} onClick={onClick}>
       <h2 className="text-xl font-bold mb-1">{workshop.name}</h2>
       <div className="flex justify-between items-end">
         <div className="space-y-1">

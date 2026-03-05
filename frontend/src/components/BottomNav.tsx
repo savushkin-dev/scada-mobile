@@ -17,11 +17,13 @@ interface Props {
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
   errorCount: number;
+  /** Дополнительный CSS-класс — используется для трансформации в боковую панель на десктопе (.details-nav). */
+  className?: string;
 }
 
-export function BottomNav({ activeTab, onTabChange, errorCount }: Props) {
+export function BottomNav({ activeTab, onTabChange, errorCount, className }: Props) {
   return (
-    <nav className="bottom-nav">
+    <nav className={`bottom-nav${className ? ` ${className}` : ''}`}>
       {NAV_ITEMS.map(({ tab, icon, label }) => {
         const isLogsTab = tab === 'tab-logs';
         return (

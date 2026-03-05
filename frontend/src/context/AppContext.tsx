@@ -3,13 +3,10 @@ import type { ReactNode } from 'react';
 import type {
   AlertData,
   AlertWsMessage,
-  ScreenId,
-  TabId,
   Unit,
   UnitStatus,
   UnitTopology,
   Workshop,
-  WorkshopStatus,
   WorkshopTopology,
 } from '../types';
 
@@ -26,70 +23,50 @@ const ALERT_VIBRATION_PATTERN = [200, 100, 200];
  *
  * **Status** — live-данные, обновляются через WebSocket после каждого scan cycle.
  * Патчатся поверх topology для формирования итоговых `Workshop[]` / `Unit[]`.
+ *
+ * Навигационное состояние (текущий экран, текущий цех/аппарат, активный таб)
+ * намеренно отсутствует здесь — оно хранится в URL через React Router.
  */
 export interface AppState {
-  // Navigation
-  screen: ScreenId;
-  activeTab: TabId;
-  currentWorkshopId: string | null;
-  currentWorkshopName: string | null;
-  currentUnitId: string | null;
-
   // Alerts
   alerts: Map<string, AlertData>;
 
   // ── Topology layer (статика, один раз) ──
   workshopTopology: WorkshopTopology[];
   unitTopologyByWorkshop: Record<string, UnitTopology[]>;
+  /**
+   * ETag, полученный от сервера при последней успешной загрузке topology.
+   * Одинаков для обоих topology-эндпоинтов (хэш общей конфигурации).
+   * Передаётся обратно в заголовке `If-None-Match` при повторных запросах.
+   */
+  topologyETag: string | null;
 
   // ── Status layer (live, патчится из WS) ──
-  /** workshopId → problemUnits */
-  workshopStatus: Record<string, number>;
   /** workshopId → (unitId → UnitStatus) */
   unitStatusByWorkshop: Record<string, Record<string, UnitStatus>>;
 }
 
 const initialState: AppState = {
-  screen: 'dashboard',
-  activeTab: 'tab-batch',
-  currentWorkshopId: null,
-  currentWorkshopName: null,
-  currentUnitId: null,
   alerts: new Map(),
   workshopTopology: [],
   unitTopologyByWorkshop: {},
-  workshopStatus: {},
+  topologyETag: null,
   unitStatusByWorkshop: {},
 };
 
 // ── Actions ────────────────────────────────────────────────────────────
 type Action =
-  | { type: 'NAVIGATE'; screen: ScreenId }
-  | { type: 'ACTIVATE_TAB'; tab: TabId }
   | { type: 'HANDLE_ALERT'; msg: AlertWsMessage }
-  | { type: 'SET_CURRENT_WORKSHOP'; workshopId: string; workshopName: string }
-  | { type: 'SET_CURRENT_UNIT'; unitId: string; workshopId: string }
   // Topology
   | { type: 'SET_WORKSHOP_TOPOLOGY'; topology: WorkshopTopology[] }
   | { type: 'SET_UNIT_TOPOLOGY'; workshopId: string; topology: UnitTopology[] }
+  | { type: 'SET_TOPOLOGY_ETAG'; etag: string }
   // Live status (from WebSocket)
-  | { type: 'PATCH_WORKSHOPS_STATUS'; statuses: WorkshopStatus[] }
+  | { type: 'SET_ALERT_SNAPSHOT'; alerts: AlertWsMessage[] }
   | { type: 'PATCH_UNITS_STATUS'; workshopId: string; statuses: UnitStatus[] };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
-    case 'NAVIGATE':
-      return { ...state, screen: action.screen };
-    case 'ACTIVATE_TAB':
-      return { ...state, activeTab: action.tab };
-    case 'SET_CURRENT_WORKSHOP':
-      return {
-        ...state,
-        currentWorkshopId: action.workshopId,
-        currentWorkshopName: action.workshopName,
-      };
-    case 'SET_CURRENT_UNIT':
-      return { ...state, currentUnitId: action.unitId, currentWorkshopId: action.workshopId };
     case 'HANDLE_ALERT': {
       const { workshopId, unitId, severity, active, errors, timestamp } = action.msg;
       const uid = String(unitId);
@@ -109,11 +86,24 @@ function reducer(state: AppState, action: Action): AppState {
           [action.workshopId]: action.topology,
         },
       };
+    case 'SET_TOPOLOGY_ETAG':
+      return { ...state, topologyETag: action.etag };
     // ── Live status ───────────────────────────────────────────────────
-    case 'PATCH_WORKSHOPS_STATUS': {
-      const next = { ...state.workshopStatus };
-      for (const s of action.statuses) next[s.workshopId] = s.problemUnits;
-      return { ...state, workshopStatus: next };
+    case 'SET_ALERT_SNAPSHOT': {
+      // Начальный срез алёртов при подключении к /ws/live.
+      // Полностью заменяет текущую карту алёртов.
+      const next = new Map<string, AlertData>();
+      for (const msg of action.alerts) {
+        if (msg.active) {
+          next.set(String(msg.unitId), {
+            severity: msg.severity,
+            errors: msg.errors,
+            timestamp: msg.timestamp,
+            workshopId: msg.workshopId,
+          });
+        }
+      }
+      return { ...state, alerts: next };
     }
     case 'PATCH_UNITS_STATUS': {
       const statusMap: Record<string, UnitStatus> = {
@@ -139,18 +129,16 @@ interface AppContextValue {
   // Computed (topology merged with status — для компонентов UI)
   workshops: Workshop[];
   unitsByWorkshop: Record<string, Unit[]>;
-  // Navigation
-  navigate: (screen: ScreenId) => void;
-  navigateToWorkshop: (workshopId: string, workshopName: string) => void;
-  activateTab: (tab: TabId) => void;
-  openDetails: (workshopId: string, unitId: string) => void;
   // Alerts
   handleAlert: (msg: AlertWsMessage) => void;
   // Topology actions (вызываются один раз при загрузке)
   setWorkshopTopology: (topology: WorkshopTopology[]) => void;
   setUnitTopology: (workshopId: string, topology: UnitTopology[]) => void;
+  /** Сохраняет ETag, полученный от topology-эндпоинтов. */
+  setTopologyETag: (etag: string) => void;
   // Status actions (вызываются из WS-хуков)
-  patchWorkshopsStatus: (statuses: WorkshopStatus[]) => void;
+  /** Применяет начальный снапшот алёртов, полученный при подключении к /ws/live */
+  setAlertSnapshot: (alerts: AlertWsMessage[]) => void;
   patchUnitsStatus: (workshopId: string, statuses: UnitStatus[]) => void;
 }
 
@@ -160,22 +148,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
   // ── Actions ─────────────────────────────────────────────────────────
-  const navigate = useCallback((screen: ScreenId) => dispatch({ type: 'NAVIGATE', screen }), []);
-  const activateTab = useCallback((tab: TabId) => dispatch({ type: 'ACTIVATE_TAB', tab }), []);
   const handleAlert = useCallback((msg: AlertWsMessage) => {
     dispatch({ type: 'HANDLE_ALERT', msg });
     if (document.visibilityState === 'visible' && navigator.vibrate) {
       navigator.vibrate(ALERT_VIBRATION_PATTERN);
     }
-  }, []);
-  const navigateToWorkshop = useCallback((workshopId: string, workshopName: string) => {
-    dispatch({ type: 'SET_CURRENT_WORKSHOP', workshopId, workshopName });
-    dispatch({ type: 'NAVIGATE', screen: 'workshop' });
-  }, []);
-  const openDetails = useCallback((workshopId: string, unitId: string) => {
-    dispatch({ type: 'SET_CURRENT_UNIT', unitId, workshopId });
-    dispatch({ type: 'ACTIVATE_TAB', tab: 'tab-batch' });
-    dispatch({ type: 'NAVIGATE', screen: 'details' });
   }, []);
   const setWorkshopTopology = useCallback(
     (topology: WorkshopTopology[]) => dispatch({ type: 'SET_WORKSHOP_TOPOLOGY', topology }),
@@ -186,8 +163,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_UNIT_TOPOLOGY', workshopId, topology }),
     []
   );
-  const patchWorkshopsStatus = useCallback(
-    (statuses: WorkshopStatus[]) => dispatch({ type: 'PATCH_WORKSHOPS_STATUS', statuses }),
+  const setTopologyETag = useCallback(
+    (etag: string) => dispatch({ type: 'SET_TOPOLOGY_ETAG', etag }),
+    []
+  );
+  const setAlertSnapshot = useCallback(
+    (alerts: AlertWsMessage[]) => dispatch({ type: 'SET_ALERT_SNAPSHOT', alerts }),
     []
   );
   const patchUnitsStatus = useCallback(
@@ -197,15 +178,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   // ── Computed values (topology + status → UI types) ───────────────────
+  // problemUnits вычисляется из глобального стейта алёртов — сервер больше
+  // не шлёт отдельный WORKSHOPS_STATUS, клиент считает сам.
   const workshops = useMemo<Workshop[]>(
     () =>
       state.workshopTopology.map((t) => ({
         id: t.id,
         name: t.name,
         totalUnits: t.totalUnits,
-        problemUnits: state.workshopStatus[t.id] ?? 0,
+        problemUnits: [...state.alerts.values()].filter((a) => a.workshopId === t.id).length,
       })),
-    [state.workshopTopology, state.workshopStatus]
+    [state.workshopTopology, state.alerts]
   );
 
   const unitsByWorkshop = useMemo<Record<string, Unit[]>>(() => {
@@ -218,6 +201,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         unit: t.unit,
         event: statusMap[t.id]?.event ?? 'Нет данных',
         timer: statusMap[t.id]?.timer ?? '00:00:00',
+        // statusReady = false пока UNITS_STATUS от WS ещё не пришёл для этого аппарата.
+        // Позволяет UnitCard показывать серый цвет вместо жёлтого при старте.
+        statusReady: t.id in statusMap,
       }));
     }
     return result;
@@ -229,14 +215,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         state,
         workshops,
         unitsByWorkshop,
-        navigate,
-        navigateToWorkshop,
-        activateTab,
-        openDetails,
         handleAlert,
         setWorkshopTopology,
         setUnitTopology,
-        patchWorkshopsStatus,
+        setTopologyETag,
+        setAlertSnapshot,
         patchUnitsStatus,
       }}
     >

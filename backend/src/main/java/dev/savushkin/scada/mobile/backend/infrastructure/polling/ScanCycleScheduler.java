@@ -1,11 +1,5 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.polling;
 
-import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepository;
-import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
-import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.PrintSrvMapper;
-import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.client.PrintSrvClient;
-import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.client.PrintSrvClientRegistry;
-import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.QueryAllResponseDTO;
 import dev.savushkin.scada.mobile.backend.infrastructure.ws.ScanCycleCompletedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,25 +7,34 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
 import java.util.List;
 
 /**
  * Единый Scan Cycle планировщик для всех профилей (dev и prod).
- * <p>
- * На каждом цикле опрашивает <b>все</b> инстансы из {@link PrintSrvClientRegistry}
- * и для каждого выполняет {@code QueryAll} по каждому известному устройству.
- * Результаты записываются в {@link InstanceSnapshotRepository} —
- * один snapshot на (instanceId, deviceName).
- * <p>
- * Интервал опроса задаётся в конфигурации:
+ *
+ * <p>На каждом цикле делегирует опрос каждого инстанса его
+ * {@link PrintSrvInstancePoller}-у, который инкапсулирует трёхрежимную машину
+ * состояний (NORMAL → RECONNECTING → RECOVERY).
+ *
+ * <h3>Режимы работы поллера</h3>
  * <ul>
- *   <li>dev — {@code printsrv.polling.fixed-delay-ms: 5000} (5 секунд)</li>
- *   <li>prod — {@code printsrv.polling.fixed-delay-ms: 500} (0.5 секунды)</li>
+ *   <li><b>NORMAL</b> — опрос каждый scan-цикл; единичные ошибки просто логируются.</li>
+ *   <li><b>RECONNECTING</b> — после N последовательных сбоев: до {@code maxAttempts}
+ *       попыток переподключения с экспоненциальным backoff внутри текущего цикла.</li>
+ *   <li><b>RECOVERY</b> — все попытки исчерпаны: проверка раз в {@code recoveryCheckIntervalMs};
+ *       клиенты получают последний валидный snapshot (graceful degradation).</li>
  * </ul>
- * <p>
- * При ошибке опроса одного устройства или инстанса — пропускаем его,
- * остальные продолжают обновляться.
+ *
+ * <h3>Изоляция инстансов</h3>
+ * Каждый инстанс имеет свой изолированный поллер и счётчик ошибок.
+ * Offline-инстанс (например, {@code bosch} в dev) не блокирует остальные и не
+ * путает их счётчики.
+ *
+ * <h3>Интервал опроса</h3>
+ * <ul>
+ *   <li>dev  — {@code printsrv.polling.fixed-delay-ms: 5000} (5 сек)</li>
+ *   <li>prod — {@code printsrv.polling.fixed-delay-ms:  500} (0.5 сек)</li>
+ * </ul>
  */
 @Service
 public class ScanCycleScheduler {
@@ -40,7 +43,7 @@ public class ScanCycleScheduler {
 
     /**
      * Устройства, опрашиваемые на каждом инстансе PrintSrv.
-     * Список одинаков для всех инстансов (согласно документации протокола).
+     * Список одинаков для всех инстансов согласно документации протокола.
      */
     static final List<String> DEVICES = List.of(
             "Line",
@@ -52,44 +55,30 @@ public class ScanCycleScheduler {
             "CamChecker"
     );
 
-    private final PrintSrvClientRegistry registry;
-    private final PrintSrvMapper mapper;
-    private final InstanceSnapshotRepository snapshotRepo;
+    private final List<PrintSrvInstancePoller> pollers;
     private final ApplicationEventPublisher eventPublisher;
 
     public ScanCycleScheduler(
-            PrintSrvClientRegistry registry,
-            PrintSrvMapper mapper,
-            InstanceSnapshotRepository snapshotRepo,
+            PrintSrvPollerFactory pollerFactory,
             ApplicationEventPublisher eventPublisher
     ) {
-        this.registry = registry;
-        this.mapper = mapper;
-        this.snapshotRepo = snapshotRepo;
+        this.pollers = pollerFactory.createAll();
         this.eventPublisher = eventPublisher;
-        log.info("ScanCycleScheduler initialized ({} instances, {} devices per instance)",
-                registry.getInstanceIds().size(), DEVICES.size());
+        log.info("ScanCycleScheduler initialized: {} instance poller(s), {} devices per instance",
+                pollers.size(), DEVICES.size());
     }
 
     /**
-     * Scan cycle: опрашивает все инстансы и все устройства.
-     * Период регулируется через {@code printsrv.polling.fixed-delay-ms}.
+     * Scan cycle: опрашивает все инстансы через их поллеры.
+     *
+     * <p>Каждый поллер самостоятельно управляет retry-логикой для своего инстанса.
+     * После обхода всех инстансов публикует {@link ScanCycleCompletedEvent} —
+     * сигнал для {@code StatusBroadcaster} разослать обновления по WebSocket.
      */
     @Scheduled(fixedDelayString = "${printsrv.polling.fixed-delay-ms:5000}")
     public void scanCycle() {
-        for (String instanceId : registry.getInstanceIds()) {
-            PrintSrvClient client = registry.get(instanceId);
-
-            for (String device : DEVICES) {
-                try {
-                    QueryAllResponseDTO dto = client.queryAll(device);
-                    DeviceSnapshot snapshot = mapper.toDomainDeviceSnapshot(dto);
-                    snapshotRepo.save(instanceId, device, snapshot);
-                } catch (IOException e) {
-                    log.trace("Failed to query device '{}' on instance '{}': {}",
-                            device, instanceId, e.getMessage());
-                }
-            }
+        for (PrintSrvInstancePoller poller : pollers) {
+            poller.poll(DEVICES);
         }
         // Уведомляем StatusBroadcaster: snapshots обновлены, можно рассылать статус по WS
         eventPublisher.publishEvent(new ScanCycleCompletedEvent(this));

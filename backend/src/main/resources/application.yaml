@@ -131,8 +131,11 @@ cors:
     allowed-origins: [ ]
     # GET — данные, POST — Web Push subscribe (/api/push/subscribe), OPTIONS — preflight.
     allowed-methods: [ "GET", "POST", "OPTIONS" ]
-    # Стандартные заголовки; Authorization оставлен на вырост (JWT/Bearer).
-    allowed-headers: [ "Content-Type", "Authorization" ]
+    # Content-Type и Authorization — стандартные заголовки запроса.
+    # If-None-Match и If-Match — заголовки условного запроса (RFC 7232);
+    # необходимы для ETag-кэширования topology-эндпоинтов.
+    # Без явного разрешения браузер отклоняет preflight с этими заголовками.
+    allowed-headers: [ "Content-Type", "Authorization", "If-None-Match", "If-Match" ]
     # ETag добавляется автоматически в CorsConfig.mergeWithETag() — не дублируем здесь.
     exposed-headers: [ ]
     # Включать только при cookie-based auth; с wildcard origins несовместимо.

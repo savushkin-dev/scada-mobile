@@ -1,7 +1,6 @@
 package dev.savushkin.scada.mobile.backend.config;
 
-import dev.savushkin.scada.mobile.backend.infrastructure.ws.UnitsStatusWsHandler;
-import dev.savushkin.scada.mobile.backend.infrastructure.ws.WorkshopsStatusWsHandler;
+import dev.savushkin.scada.mobile.backend.infrastructure.ws.LiveWsHandler;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,20 +10,26 @@ import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 
 /**
- * Конфигурация WebSocket-эндпоинтов для рассылки live-статуса.
+ * Конфигурация единственного WebSocket-эндпоинта {@code /ws/live}.
  * <p>
- * Зарегистрированные каналы:
+ * Единое мультиплексированное соединение заменяет три отдельных канала:
  * <ul>
- *   <li>{@code /ws/workshops/status} — статус всех цехов (problemUnits).
- *       Сервер пушит {@link dev.savushkin.scada.mobile.backend.api.dto.WorkshopsStatusMessageDTO}
- *       после каждого scan cycle.</li>
- *   <li>{@code /ws/workshops/{workshopId}/units/status} — статус аппаратов конкретного цеха.
- *       Паттерн {@code /**} регистрируется как URI-prefix, workshopId извлекается из URI
- *       в {@link UnitsStatusWsHandler}.</li>
+ *   <li>{@code /ws/workshops/status} (упразднён — {@code problemUnits} вычисляет клиент из алёртов)</li>
+ *   <li>{@code /ws/workshops/{id}/units/status} (теперь через подписку SUBSCRIBE_WORKSHOP)</li>
+ *   <li>{@code /ws/alerts} (теперь встроен в /ws/live)</li>
+ * </ul>
+ *
+ * <h3>Протокол</h3>
+ * <ul>
+ *   <li>При подключении сервер немедленно отправляет {@code ALERT_SNAPSHOT}.</li>
+ *   <li>Клиент отправляет {@code {"action":"SUBSCRIBE_WORKSHOP","workshopId":"..."}}
+ *       при входе на экран цеха.</li>
+ *   <li>Клиент отправляет {@code {"action":"UNSUBSCRIBE_WORKSHOP","workshopId":"..."}}
+ *       при уходе.</li>
+ *   <li>Сервер пушит {@code UNITS_STATUS} подписчикам цеха и {@code ALERT} всем клиентам.</li>
  * </ul>
  * <p>
- * Политика CORS: разрешённые origins берутся из {@link CorsProperties} (application-*.yaml),
- * чтобы не дублировать конфигурацию. В prod держим строгий allowlist.
+ * Политика CORS: разрешённые origins берутся из {@link CorsProperties} (application-*.yaml).
  */
 @Configuration
 @EnableWebSocket
@@ -32,17 +37,11 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     private static final Logger log = LoggerFactory.getLogger(WebSocketConfig.class);
 
-    private final WorkshopsStatusWsHandler workshopsStatusHandler;
-    private final UnitsStatusWsHandler unitsStatusHandler;
+    private final LiveWsHandler liveWsHandler;
     private final CorsProperties corsProperties;
 
-    public WebSocketConfig(
-            WorkshopsStatusWsHandler workshopsStatusHandler,
-            UnitsStatusWsHandler unitsStatusHandler,
-            CorsProperties corsProperties
-    ) {
-        this.workshopsStatusHandler = workshopsStatusHandler;
-        this.unitsStatusHandler = unitsStatusHandler;
+    public WebSocketConfig(LiveWsHandler liveWsHandler, CorsProperties corsProperties) {
+        this.liveWsHandler = liveWsHandler;
         this.corsProperties = corsProperties;
     }
 
@@ -52,16 +51,10 @@ public class WebSocketConfig implements WebSocketConfigurer {
                 .getAllowedOrigins()
                 .toArray(String[]::new);
 
-        registry.addHandler(workshopsStatusHandler, "/ws/workshops/status")
+        registry.addHandler(liveWsHandler, "/ws/live")
                 .setAllowedOrigins(allowedOrigins);
 
-        // Регистрируем как prefix-паттерн: обрабатывает всё вида
-        // /ws/workshops/dess/units/status, /ws/workshops/cheese/units/status, …
-        // workshopId извлекается из URI внутри UnitsStatusWsHandler.
-        registry.addHandler(unitsStatusHandler, "/ws/workshops/*/units/status")
-                .setAllowedOrigins(allowedOrigins);
-
-        log.info("WebSocket endpoints registered: /ws/workshops/status, /ws/workshops/*/units/status" +
-                " (allowedOrigins: {})", corsProperties.getPolicy().getAllowedOrigins());
+        log.info("WebSocket endpoint registered: /ws/live (allowedOrigins: {})",
+                corsProperties.getPolicy().getAllowedOrigins());
     }
 }

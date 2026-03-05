@@ -6,9 +6,11 @@
  * отображается обычное состояние загрузки (скелетон/индикатор).
  */
 
+import type { AppError } from '../errors/AppError';
+
 interface RetryBannerProps {
-  /** Не null — все попытки исчерпаны, показываем sonbaннер. */
-  error: string | null;
+  /** Не null — все попытки исчерпаны, показываем баннер. */
+  error: AppError | null;
   onRetry: () => void;
 }
 
@@ -37,25 +39,29 @@ export function RetryBanner({ error, onRetry }: RetryBannerProps) {
     >
       <span style={{ flex: 1 }}>
         <span style={{ marginRight: '6px' }}>⚠</span>
-        Не удалось загрузить данные
+        {/* Сообщение уже человекочитаемое — сформировано classifyError. */}
+        {error.message}
       </span>
-      <button
-        onClick={onRetry}
-        style={{
-          flexShrink: 0,
-          background: 'none',
-          border: '1.5px solid currentColor',
-          borderRadius: '8px',
-          padding: '4px 12px',
-          cursor: 'pointer',
-          fontSize: '0.8rem',
-          fontWeight: 600,
-          color: 'inherit',
-          lineHeight: '1.4',
-        }}
-      >
-        Повторить
-      </button>
+      {/* Кнопка повтора показывается только если ошибка повторяема: 404 — не показываем. */}
+      {error.retryable && (
+        <button
+          onClick={onRetry}
+          style={{
+            flexShrink: 0,
+            background: 'none',
+            border: '1.5px solid currentColor',
+            borderRadius: '8px',
+            padding: '4px 12px',
+            cursor: 'pointer',
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            color: 'inherit',
+            lineHeight: '1.4',
+          }}
+        >
+          Повторить
+        </button>
+      )}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { getUnitStatusLevel, UNIT_STATUS_CLASS } from '../constants/statusUtils';
 import type { AlertData, Unit } from '../types';
 
 interface Props {
@@ -7,22 +8,32 @@ interface Props {
 }
 
 export function UnitCard({ unit, alerts, onClick }: Props) {
-  const alert = alerts.get(String(unit.id));
-  const isCritical = alert?.severity === 'Critical';
-  const isWarning = alert?.severity === 'Warning';
-  const hasAlert = isCritical || isWarning;
-  const timerNotZero = unit.timer && unit.timer !== '00:00:00';
+  const statusLevel = getUnitStatusLevel(unit, alerts);
+  const isPending = statusLevel === 'pending';
+  const isOffline = statusLevel === 'offline';
+  const isCritical = statusLevel === 'critical';
+  // Блок простоя показываем только когда статус известен (не pending/offline):
+  // pending — WS ещё не ответил; offline — устройство недоступно.
+  const hasAlert = !isPending && !isOffline && statusLevel !== 'normal';
+  const timerNotZero = !isPending && !isOffline && !!(unit.timer && unit.timer !== '00:00:00');
 
-  const statusClass = isCritical
-    ? 'status-critical'
-    : isWarning
-      ? 'status-warning'
-      : 'status-normal';
+  const statusClass = UNIT_STATUS_CLASS[statusLevel];
+  // offline: карточка некликабельна; card-static отключает cursor:pointer и :active-scale.
+  const interactiveProps = isOffline
+    ? { 'aria-disabled': true as const }
+    : { onClick, role: 'button' as const };
 
   return (
-    <div className={`card p-4 ${statusClass}`} onClick={onClick}>
+    <div
+      className={`card p-4 md:h-full ${statusClass}${isOffline ? ' card-static' : ''}`}
+      {...interactiveProps}
+    >
       <h3 className="font-bold text-lg mb-1">{unit.unit}</h3>
-      <p className="text-sm text-gray-500 mb-3 italic">{unit.event}</p>
+      <p
+        className={`text-sm mb-3 italic ${isPending || isOffline ? 'text-gray-400' : 'text-gray-500'}`}
+      >
+        {unit.event}
+      </p>
       {(hasAlert || timerNotZero) && (
         <div
           className={`flex justify-between items-center p-3 rounded-xl ${

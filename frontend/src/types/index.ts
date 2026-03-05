@@ -1,5 +1,5 @@
 // ── Navigation ────────────────────────────────────────────────────────
-export type ScreenId = 'dashboard' | 'workshop' | 'details';
+/** URL search-param «?tab=» для детальной страницы аппарата. */
 export type TabId = 'tab-batch' | 'tab-devices' | 'tab-queue' | 'tab-logs';
 
 // ── Domain models ─────────────────────────────────────────────────────
@@ -57,6 +57,24 @@ export interface UnitsStatusMessage {
   payload: UnitStatus[];
 }
 
+/**
+ * WS-сообщение типа ALERT_SNAPSHOT — начальный срез активных алёртов,
+ * отправляемый сервером сразу после установки соединения /ws/live.
+ * payload-элементы имеют ту же форму, что и AlertWsMessage (active всегда true).
+ */
+export interface AlertSnapshotMessage {
+  type: 'ALERT_SNAPSHOT';
+  payload: AlertWsMessage[];
+}
+
+/** Действия, отправляемые клиентом на сервер через /ws/live */
+export type LiveWsClientAction =
+  | { action: 'SUBSCRIBE_WORKSHOP'; workshopId: string }
+  | { action: 'UNSUBSCRIBE_WORKSHOP' };
+
+/** Объединённый тип всех входящих сообщений /ws/live */
+export type LiveWsIncomingMessage = AlertSnapshotMessage | UnitsStatusMessage | AlertWsMessage;
+
 // ── Merged view types (topology + status, используются компонентами) ──
 
 /** Полные данные цеха для UI — topology + статус объединённые */
@@ -74,6 +92,14 @@ export interface Unit {
   unit: string;
   event: string;
   timer: string;
+  /**
+   * `true` — WS-статус для этого аппарата уже получен.
+   * `false` — топология загружена, но первый UNITS_STATUS ещё не пришёл.
+   *
+   * Используется в {@link getUnitStatusLevel} для возврата `'pending'` вместо
+   * `'warning'`, чтобы карточка оставалась серой, а не жёлтой при старте.
+   */
+  statusReady: boolean;
 }
 
 // ── WebSocket message payloads ────────────────────────────────────────

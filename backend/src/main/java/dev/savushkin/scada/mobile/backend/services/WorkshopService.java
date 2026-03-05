@@ -2,13 +2,12 @@ package dev.savushkin.scada.mobile.backend.services;
 
 import dev.savushkin.scada.mobile.backend.api.dto.UnitStatusDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitTopologyDTO;
-import dev.savushkin.scada.mobile.backend.api.dto.WorkshopStatusDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.WorkshopTopologyDTO;
 import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepository;
 import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitSnapshot;
-import org.jetbrains.annotations.Contract;
+import dev.savushkin.scada.mobile.backend.infrastructure.store.DowntimeTracker;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +42,7 @@ public class WorkshopService {
 
     private final PrintSrvProperties config;
     private final InstanceSnapshotRepository snapshotRepo;
+    private final DowntimeTracker downtimeTracker;
 
     /** Быстрый lookup: workshopId → список инстансов. */
     private final Map<String, List<PrintSrvProperties.InstanceProperties>> instancesByWorkshop;
@@ -50,13 +50,16 @@ public class WorkshopService {
     /**
      * ETag для topology-эндпоинтов. Вычисляется один раз при старте
      * как SHA-256 от конфигурации цехов и инстансов.
-     * Следующий шаг: контроллер будет проверять If-None-Match против этого значения.
+     * Контроллер проверяет {@code If-None-Match} против этого значения
+     * и возвращает {@code 304 Not Modified} при совпадении.
      */
     private final String configETag;
 
-    public WorkshopService(PrintSrvProperties config, InstanceSnapshotRepository snapshotRepo) {
+    public WorkshopService(PrintSrvProperties config, InstanceSnapshotRepository snapshotRepo,
+                           DowntimeTracker downtimeTracker) {
         this.config = config;
         this.snapshotRepo = snapshotRepo;
+        this.downtimeTracker = downtimeTracker;
         this.instancesByWorkshop = config.getInstances().stream()
                 .collect(Collectors.groupingBy(
                         PrintSrvProperties.InstanceProperties::getWorkshopId,
@@ -125,20 +128,6 @@ public class WorkshopService {
         return instancesByWorkshop.getOrDefault(workshopId, Collections.emptyList())
                 .stream()
                 .map(inst -> new UnitTopologyDTO(inst.getId(), inst.getWorkshopId(), inst.getDisplayName()))
-                .toList();
-    }
-
-    /**
-     * Возвращает live-статус всех цехов (счётчики проблемных аппаратов).
-     * Используется {@code StatusBroadcaster} после каждого scan cycle.
-     */
-    public List<WorkshopStatusDTO> getWorkshopsStatus() {
-        return config.getWorkshops().stream()
-                .map(ws -> {
-                    List<PrintSrvProperties.InstanceProperties> instances =
-                            instancesByWorkshop.getOrDefault(ws.getId(), Collections.emptyList());
-                    return new WorkshopStatusDTO(ws.getId(), countProblemUnits(instances));
-                })
                 .toList();
     }
 
@@ -233,14 +222,16 @@ public class WorkshopService {
     // ─── ETag groundwork ──────────────────────────────────────────────────────
 
     /**
-     * Формирует таймер текущего состояния.
+     * Формирует таймер текущего состояния аппарата.
      * <p>
-     * Для полноценной реализации требуется отслеживание времени смены состояний
-     * (в будущем). Сейчас возвращает {@code "00:00:00"}.
+     * Если аппарат находится в простое (активен алёрт), возвращает время, прошедшее
+     * с момента начала простоя, в формате {@code HH:MM:SS}.
+     * Если аппарат в работе — возвращает {@code "00:00:00"}.
+     *
+     * @param instanceId идентификатор инстанса (аппарата)
+     * @return строка таймера в формате {@code HH:MM:SS}
      */
-    @Contract(pure = true)
-    private @NonNull String deriveTimer(String ignoredInstanceId) {
-        // TODO: отслеживание времени смены состояний для расчёта реального таймера
-        return "00:00:00";
+    private @NonNull String deriveTimer(String instanceId) {
+        return downtimeTracker.getElapsedFormatted(instanceId).orElse("00:00:00");
     }
 }
