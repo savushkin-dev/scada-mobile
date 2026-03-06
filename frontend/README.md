@@ -45,7 +45,8 @@ frontend/
 ├── tsconfig.app.json
 ├── eslint.config.js
 ├── prettier.config.js
-└── netlify.toml
+└── deploy/
+    └── nginx.conf         # Шаблон конфигурации Nginx для внутреннего сервера
 ```
 
 ## Быстрый запуск

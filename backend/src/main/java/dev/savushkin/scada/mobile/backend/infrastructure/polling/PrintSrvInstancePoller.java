@@ -46,6 +46,7 @@ public final class PrintSrvInstancePoller {
     private final PrintSrvMapper mapper;
     private final InstanceSnapshotRepository snapshotRepo;
     private final InstanceConnectionState state;
+    private final List<String> devices;
 
     /**
      * Package-private: создаётся только через {@link PrintSrvPollerFactory}.
@@ -53,12 +54,14 @@ public final class PrintSrvInstancePoller {
     PrintSrvInstancePoller(
             @NonNull PrintSrvClient client,
             PrintSrvMapper mapper,
-            InstanceSnapshotRepository snapshotRepo
+            InstanceSnapshotRepository snapshotRepo,
+            @NonNull List<String> devices
     ) {
         this.client = client;
         this.mapper = mapper;
         this.snapshotRepo = snapshotRepo;
         this.state = new InstanceConnectionState(client.getInstanceId());
+        this.devices = List.copyOf(devices);
     }
 
     // ─── Public API ───────────────────────────────────────────────────────────
@@ -73,13 +76,11 @@ public final class PrintSrvInstancePoller {
     /**
      * Выполняет один poll-цикл для данного инстанса.
      *
-     * <p>Опрашивает все {@code devices} подряд. Результаты успешных запросов
+     * <p>Опрашивает все устройства, сконфигурированные для данного инстанса. Результаты успешных запросов
      * сохраняются в репозиторий. Ошибки отдельных устройств логируются на уровне
      * {@code TRACE} и не прерывают опрос остальных.
-     *
-     * @param devices список имён устройств (например, {@code "Line"}, {@code "scada"})
      */
-    public void poll(@NonNull List<String> devices) {
+    public void poll() {
         boolean anySuccess = false;
 
         for (String device : devices) {
@@ -112,5 +113,9 @@ public final class PrintSrvInstancePoller {
                         client.getInstanceId(), count);
             }
         }
+    }
+
+    public int getConfiguredDeviceCount() {
+        return devices.size();
     }
 }

@@ -16,6 +16,11 @@ scada:
 # или моки). В prod они переопределяются через переменные окружения:
 #   PRINTSRV_INSTANCES_0_HOST, PRINTSRV_INSTANCES_0_PORT
 #   PRINTSRV_INSTANCES_1_HOST, PRINTSRV_INSTANCES_1_PORT  … и т.д.
+# devices — topology конкретного инстанса PrintSrv. Если блок не задан,
+# используются безопасные дефолты для одно-принтерной линии:
+#   line=Line, scada=scada, batchQueue=BatchQueue,
+#   printers=[Printer11], aggregationCams=[CamAgregation],
+#   aggregationBoxCams=[CamAgregationBox], checkerCams=[CamChecker]
 # ─────────────────────────────────────────────────────────────────────────────
 printsrv:
   # Справочник цехов: id → displayName.
@@ -99,6 +104,11 @@ printsrv:
       port: 5577
       displayName: "Grunwald №11"
       workshopId: "dess_pouring"
+      devices:
+        printers: [ "Printer11", "Printer12", "Printer13", "Printer14" ]
+        aggregationCams: [ "CamAgregation1", "CamAgregation2" ]
+        aggregationBoxCams: [ "CamAgregationBox1", "CamAgregationBox2" ]
+        checkerCams: [ "CamChecker1", "CamChecker2" ]
 
   polling:
     fixed-delay-ms: 5000              # Интервал scan cycle (fixedDelay) — переопределяется в профилях

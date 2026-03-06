@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchWorkshopsTopology, type TopologyFetchResult } from '../api/workshops';
+import { PageHeader } from '../components/PageHeader';
 import { WorkshopCard } from '../components/WorkshopCard';
 import { RetryBanner } from '../components/RetryBanner';
 import { WorkshopCardSkeleton } from '../components/skeleton/WorkshopCardSkeleton';
@@ -12,15 +13,17 @@ export function DashboardPage() {
   const { state, workshops, setWorkshopTopology, setTopologyETag } = useAppContext();
   const navigate = useNavigate();
 
-  // Загружаем topology один раз — если уже есть в памяти, пропускаем запрос.
-  // Данные меняются только при изменении конфигурации (раз в несколько лет),
-  // поэтому кэшируем на всё время сессии без повторных запросов.
-  // При наличии сохранённого ETag передаём If-None-Match — сервер вернёт
-  // 304 без тела, если конфигурация не менялась.
-  const topologyLoaded = state.workshopTopology.length > 0;
+  // Запрашиваем topology при каждом монтировании страницы (deps = []).
+  // Стратегия: stale-while-revalidate на уровне приложения:
+  //   • данные уже есть (hasTopology = true) → передаём ETag → на 304 стейт не трогаем,
+  //     на 200 обновляем; скелетон не мигает, пользователь видит актуальный список.
+  //   • данных ещё нет (первая загрузка) → ETag не передаём: 304 при отсутствии
+  //     локальных данных семантически некорректен — нам нечего было бы показать.
+  // cache: 'no-store' в fetchTopology исключает конкуренцию с браузерным HTTP-кешем.
+  const hasTopology = state.workshopTopology.length > 0;
   const fetchState = useAsyncFetch<TopologyFetchResult<WorkshopTopology[]>>(
-    topologyLoaded ? null : (signal) => fetchWorkshopsTopology(signal, state.topologyETag),
-    [topologyLoaded],
+    (signal) => fetchWorkshopsTopology(signal, hasTopology ? state.topologyETag : null),
+    [],
     { source: 'topology/workshops' }
   );
 
@@ -35,6 +38,7 @@ export function DashboardPage() {
 
   return (
     <section
+      data-scroll
       style={{
         flex: 1,
         overflowY: 'auto',
@@ -44,14 +48,7 @@ export function DashboardPage() {
         animation: 'fadeIn 0.3s ease',
       }}
     >
-      <header className="p-6 flex justify-between items-start mt-4 flex-shrink-0 sm:px-8 sm:pt-6 sm:pb-6 lg:px-10">
-        <div>
-          <p className="text-[10px] font-bold tracking-wider text-[#74777F] uppercase mb-1">
-            Площадка г. Брест
-          </p>
-          <h1 className="text-2xl font-bold text-[#1A1C1E]">Савушкин продукт</h1>
-        </div>
-      </header>
+      <PageHeader title="Савушкин продукт" subtitle="Площадка г. Брест" />
 
       <RetryBanner error={fetchState.error} onRetry={fetchState.refetch} />
 

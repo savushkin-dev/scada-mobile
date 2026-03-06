@@ -29,7 +29,11 @@ async function fetchTopology<T>(
   knownETag?: string | null
 ): Promise<TopologyFetchResult<T>> {
   const headers: HeadersInit = knownETag ? { 'If-None-Match': knownETag } : {};
-  const resp = await fetch(url, { signal, headers });
+  // cache: 'no-store' — браузерный HTTP-кеш полностью обходится.
+  // ETag-логикой управляет приложение само через If-None-Match / 304.
+  // Без этого браузер может отдать max-age-ответ из HTTP-кеша прежде,
+  // чем наш код отправит If-None-Match, нарушив семантику условного GET.
+  const resp = await fetch(url, { signal, headers, cache: 'no-store' });
 
   if (resp.status === 304) {
     // Данные не изменились: возвращаем null, чтобы вызывающий код

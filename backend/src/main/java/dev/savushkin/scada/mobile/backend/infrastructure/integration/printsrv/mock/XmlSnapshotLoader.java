@@ -23,7 +23,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -58,19 +57,6 @@ import java.util.regex.Pattern;
 @Profile("dev")
 public class XmlSnapshotLoader {
 
-    /**
-     * Все имена устройств, существующих на каждом инстансе PrintSrv.
-     * Порядок важен: Line загружается первым (определяет LineID, Level1Printers и т.д.).
-     */
-    public static final List<String> KNOWN_DEVICES = List.of(
-            "Line",
-            "BatchQueue",
-            "Printer11",
-            "CamAgregation",
-            "CamAgregationBox",
-            "CamChecker",
-            "scada"
-    );
     private static final Logger log = LoggerFactory.getLogger(XmlSnapshotLoader.class);
     /**
      * Регулярное выражение для поиска всех XML character references вида {@code &#xNN;}.

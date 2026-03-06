@@ -3,6 +3,7 @@ package dev.savushkin.scada.mobile.backend.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
@@ -53,6 +54,10 @@ public class PrintSrvProperties {
         private String displayName;
         /** Ссылка на ID цеха из workshops[]. */
         private String workshopId;
+        /**
+         * Имена устройств PrintSrv для данного инстанса.
+         */
+        private DeviceNamesProperties devices = new DeviceNamesProperties();
 
         public String getId() { return id; }
         public void setId(String id) { this.id = id; }
@@ -67,12 +72,136 @@ public class PrintSrvProperties {
         public void setDisplayName(String displayName) { this.displayName = displayName; }
 
         public String getWorkshopId() { return workshopId; }
-        public void setWorkshopId(String workshopId) { this.workshopId = workshopId; }
+        public void setWorkshopId(String workshopId) { this.workshopId = workshopId;
+        }
+
+        public DeviceNamesProperties getDevices() {
+            if (devices == null) {
+                devices = new DeviceNamesProperties();
+            }
+            return devices;
+        }
+
+        public void setDevices(DeviceNamesProperties devices) {
+            this.devices = devices;
+        }
+
+        public List<String> getAllDeviceNames() {
+            return getDevices().getAllDeviceNames();
+        }
 
         @Override
         public String toString() {
-            return "InstanceProperties{id='%s', host='%s', port=%d, workshopId='%s'}"
-                    .formatted(id, host, port, workshopId);
+            return "InstanceProperties{id='%s', host='%s', port=%d, workshopId='%s', devices=%s}"
+                    .formatted(id, host, port, workshopId, getAllDeviceNames());
+        }
+    }
+
+    // ─── Nested: имена устройств инстанса ───────────────────────────────────
+
+    public static class DeviceNamesProperties {
+        private String line = "Line";
+        private String scada = "scada";
+        private String batchQueue = "BatchQueue";
+        private List<String> printers = new ArrayList<>(List.of("Printer11"));
+        private List<String> aggregationCams = new ArrayList<>(List.of("CamAgregation"));
+        private List<String> aggregationBoxCams = new ArrayList<>(List.of("CamAgregationBox"));
+        private List<String> checkerCams = new ArrayList<>(List.of("CamChecker"));
+
+        private static void addAllIfPresent(LinkedHashSet<String> target, List<String> values) {
+            for (String value : values) {
+                addIfPresent(target, value);
+            }
+        }
+
+        private static void addIfPresent(LinkedHashSet<String> target, String value) {
+            if (value == null) {
+                return;
+            }
+            String trimmed = value.trim();
+            if (!trimmed.isEmpty()) {
+                target.add(trimmed);
+            }
+        }
+
+        public String getLine() {
+            return line;
+        }
+
+        public void setLine(String line) {
+            this.line = line;
+        }
+
+        public String getScada() {
+            return scada;
+        }
+
+        public void setScada(String scada) {
+            this.scada = scada;
+        }
+
+        public String getBatchQueue() {
+            return batchQueue;
+        }
+
+        public void setBatchQueue(String batchQueue) {
+            this.batchQueue = batchQueue;
+        }
+
+        public List<String> getPrinters() {
+            if (printers == null) {
+                printers = new ArrayList<>();
+            }
+            return printers;
+        }
+
+        public void setPrinters(List<String> printers) {
+            this.printers = printers;
+        }
+
+        public List<String> getAggregationCams() {
+            if (aggregationCams == null) {
+                aggregationCams = new ArrayList<>();
+            }
+            return aggregationCams;
+        }
+
+        public void setAggregationCams(List<String> aggregationCams) {
+            this.aggregationCams = aggregationCams;
+        }
+
+        public List<String> getAggregationBoxCams() {
+            if (aggregationBoxCams == null) {
+                aggregationBoxCams = new ArrayList<>();
+            }
+            return aggregationBoxCams;
+        }
+
+        public void setAggregationBoxCams(List<String> aggregationBoxCams) {
+            this.aggregationBoxCams = aggregationBoxCams;
+        }
+
+        public List<String> getCheckerCams() {
+            if (checkerCams == null) {
+                checkerCams = new ArrayList<>();
+            }
+            return checkerCams;
+        }
+
+        public void setCheckerCams(List<String> checkerCams) {
+            this.checkerCams = checkerCams;
+        }
+
+        public List<String> getAllDeviceNames() {
+            LinkedHashSet<String> names = new LinkedHashSet<>();
+            addIfPresent(names, line);
+            addIfPresent(names, scada);
+            addIfPresent(names, batchQueue);
+            addAllIfPresent(names, getPrinters());
+            addAllIfPresent(names, getAggregationCams());
+            addAllIfPresent(names, getAggregationBoxCams());
+            addAllIfPresent(names, getCheckerCams());
+            return List.copyOf(names);
         }
     }
 

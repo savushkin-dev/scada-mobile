@@ -39,7 +39,6 @@ import java.util.stream.Collectors;
 @Service
 public class AlertService {
 
-    private static final String LINE_DEVICE = "Line";
     private static final String SEVERITY_CRITICAL = "Critical";
     private static final String SEVERITY_WARNING = "Warning";
 
@@ -95,7 +94,8 @@ public class AlertService {
             PrintSrvProperties.@NonNull InstanceProperties inst,
             String timestamp
     ) {
-        DeviceSnapshot lineSnapshot = snapshotRepo.get(inst.getId(), LINE_DEVICE);
+        String lineDevice = inst.getDevices().getLine();
+        DeviceSnapshot lineSnapshot = snapshotRepo.get(inst.getId(), lineDevice);
         if (lineSnapshot == null) {
             return Optional.empty();
         }
@@ -120,7 +120,7 @@ public class AlertService {
                     inst.getId(),
                     inst.getDisplayName(),
                     SEVERITY_WARNING,
-                    List.of(new AlertErrorDTO(LINE_DEVICE, 0, "Линия остановлена")),
+                    List.of(new AlertErrorDTO(lineDevice, 0, "Линия остановлена")),
                     timestamp
             ));
         }
@@ -140,7 +140,7 @@ public class AlertService {
                 String message = unit.properties().getErrorMessage()
                         .filter(m -> !m.isEmpty())
                         .orElse("Ошибка");
-                errors.add(new AlertErrorDTO(LINE_DEVICE, 0, message));
+                errors.add(new AlertErrorDTO(snapshot.deviceName(), 0, message));
             }
         }
         return errors;

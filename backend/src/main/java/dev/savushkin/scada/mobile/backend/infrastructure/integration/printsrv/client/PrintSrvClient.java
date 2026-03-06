@@ -10,7 +10,9 @@ import java.io.IOException;
  * <p>Одна физическая машина маркировки = один {@code PrintSrvClient}.
  * Идентичность машины определяется исключительно {@code instanceId} (host:port
  * в реальной реализации), а не именами устройств внутри неё — они одинаковы
- * на всех машинах ({@code Line}, {@code BatchQueue}, {@code Printer11}, и т.д.).
+ * на конкретном инстансе ({@code Line}, {@code BatchQueue}, {@code Printer11},
+ * {@code Printer12}, {@code CamAgregation1} и т.д.). Имена устройств должны
+ * браться из конфигурации инстанса, а не предполагаться глобально одинаковыми.
  *
  * <p>Все реализации должны быть thread-safe: polling scheduler и обработчики
  * REST-запросов могут вызывать методы одновременно из разных потоков.
@@ -38,7 +40,7 @@ public interface PrintSrvClient {
      * счётчики и статусы.
      *
      * @param deviceName имя устройства на инстансе, например {@code "Line"},
-     *                   {@code "scada"}, {@code "Printer11"}
+     *                   {@code "scada"}, {@code "Printer11"}, {@code "Printer12"}
      * @return полный ответ QueryAll; никогда не null
      * @throws IOException если инстанс недоступен, соединение разорвано или
      *                     ответ не удалось десериализовать

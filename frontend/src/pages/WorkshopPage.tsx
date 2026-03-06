@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { fetchUnitsTopology, type TopologyFetchResult } from '../api/workshops';
+import { PageHeader } from '../components/PageHeader';
 import { UnitCard } from '../components/UnitCard';
 import { RetryBanner } from '../components/RetryBanner';
 import { UnitCardSkeleton } from '../components/skeleton/UnitCardSkeleton';
@@ -24,19 +25,22 @@ export function WorkshopPage() {
 
   const units = unitsByWorkshop[workshopId] ?? [];
 
-  // Загружаем topology один раз для каждого цеха.
-  // При повторном заходе в тот же цех данные уже в памяти — запрос не отправляется.
-  //
-  // Важно: If-None-Match НЕ передаётся здесь намеренно.
-  // Этот fetch выполняется только когда topologyLoaded = false — данных у нас нет.
-  // Отправить If-None-Match без кэшированных данных семантически некорректно: сервер
-  // вернёт 304, мы получим data = null и топология аппаратов так и не загрузится.
-  // (state.topologyETag мог быть уже установлен после загрузки топологии цехов,
-  //  поскольку оба эндпоинта используют один ETag хэша конфигурации.)
-  const topologyLoaded = (state.unitTopologyByWorkshop[workshopId]?.length ?? 0) > 0;
+  // Запрашиваем topology аппаратов при каждом открытии цеха и при смене цеха (deps = [workshopId]).
+  // Стратегия: stale-while-revalidate на уровне приложения:
+  //   • данные для этого цеха уже есть (hasUnitsTopology) → передаём ETag:
+  //       304 → data === null → оставляем текущий стейт, скелетон не показываем
+  //       200 → data !== null → обновляем (переименование аппарата и т.п.)
+  //   • данных нет (первый визит в цех) → ETag не передаём:
+  //       state.topologyETag мог быть установлен после загрузки topology цехов,
+  //       но у нас нет локальных данных — 304 оставил бы нас с пустым списком.
+  // cache: 'no-store' в fetchTopology исключает конкуренцию с браузерным HTTP-кешем.
+  const hasUnitsTopology = (state.unitTopologyByWorkshop[workshopId]?.length ?? 0) > 0;
   const fetchState = useAsyncFetch<TopologyFetchResult<UnitTopology[]>>(
-    workshopId && !topologyLoaded ? (signal) => fetchUnitsTopology(workshopId, signal) : null,
-    [workshopId, topologyLoaded],
+    workshopId
+      ? (signal) =>
+          fetchUnitsTopology(workshopId, signal, hasUnitsTopology ? state.topologyETag : null)
+      : null,
+    [workshopId],
     { source: 'topology/units' }
   );
 
@@ -54,6 +58,7 @@ export function WorkshopPage() {
 
   return (
     <section
+      data-scroll
       style={{
         flex: 1,
         overflowY: 'auto',
@@ -63,33 +68,7 @@ export function WorkshopPage() {
         animation: 'fadeIn 0.3s ease',
       }}
     >
-      <header className="p-6 flex items-center gap-3 mt-2 flex-shrink-0 sm:px-8 lg:px-10">
-        <button
-          onClick={() => navigate(-1)}
-          style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            border: 'none',
-            background: '#F0F7FF',
-            cursor: 'pointer',
-            fontSize: '1.1rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-          aria-label="Назад"
-        >
-          ←
-        </button>
-        <div>
-          <p className="text-[10px] font-bold tracking-wider text-[#74777F] uppercase mb-0.5">
-            Цех
-          </p>
-          <h1 className="text-xl font-bold text-[#1A1C1E] leading-tight">{workshopName}</h1>
-        </div>
-      </header>
+      <PageHeader title={workshopName} subtitle="Цех" onBack={() => navigate(-1)} />
 
       <RetryBanner error={fetchState.error} onRetry={fetchState.refetch} />
 

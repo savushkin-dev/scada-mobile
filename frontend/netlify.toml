@@ -1,5 +1,0 @@
-[[redirects]]
-  from = "/.well-known/:splat"
-  to = "/well-known/:splat"
-  status = 200
-  force = true

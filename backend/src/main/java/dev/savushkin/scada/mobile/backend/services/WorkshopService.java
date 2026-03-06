@@ -38,14 +38,16 @@ public class WorkshopService {
 
     private static final Logger log = LoggerFactory.getLogger(WorkshopService.class);
 
-    private static final String LINE_DEVICE = "Line";
-
     private final PrintSrvProperties config;
     private final InstanceSnapshotRepository snapshotRepo;
     private final DowntimeTracker downtimeTracker;
 
     /** Быстрый lookup: workshopId → список инстансов. */
     private final Map<String, List<PrintSrvProperties.InstanceProperties>> instancesByWorkshop;
+    /**
+     * Быстрый lookup: instanceId → конфиг инстанса.
+     */
+    private final Map<String, PrintSrvProperties.InstanceProperties> instancesById;
 
     /**
      * ETag для topology-эндпоинтов. Вычисляется один раз при старте
@@ -65,6 +67,13 @@ public class WorkshopService {
                         PrintSrvProperties.InstanceProperties::getWorkshopId,
                         LinkedHashMap::new,
                         Collectors.toList()));
+        this.instancesById = config.getInstances().stream()
+                .collect(Collectors.toMap(
+                        PrintSrvProperties.InstanceProperties::getId,
+                        inst -> inst,
+                        (left, right) -> left,
+                        LinkedHashMap::new
+                ));
         this.configETag = computeConfigETag(config);
         log.info("WorkshopService initialized: {} workshops, {} instances, ETag={}",
                 config.getWorkshops().size(), config.getInstances().size(), configETag);
@@ -172,7 +181,7 @@ public class WorkshopService {
      * Проверяет флаг Error на устройстве Line.
      */
     private boolean hasActiveError(String instanceId) {
-        DeviceSnapshot lineSnapshot = snapshotRepo.get(instanceId, LINE_DEVICE);
+        DeviceSnapshot lineSnapshot = snapshotRepo.get(instanceId, getLineDeviceName(instanceId));
         if (lineSnapshot == null) {
             return false;
         }
@@ -199,7 +208,7 @@ public class WorkshopService {
      * Формирует текстовое описание текущего события для аппарата.
      */
     private @NonNull String deriveEvent(String instanceId) {
-        DeviceSnapshot lineSnapshot = snapshotRepo.get(instanceId, LINE_DEVICE);
+        DeviceSnapshot lineSnapshot = snapshotRepo.get(instanceId, getLineDeviceName(instanceId));
         if (lineSnapshot == null) {
             return "Нет данных";
         }
@@ -233,5 +242,11 @@ public class WorkshopService {
      */
     private @NonNull String deriveTimer(String instanceId) {
         return downtimeTracker.getElapsedFormatted(instanceId).orElse("00:00:00");
+    }
+
+    private @NonNull String getLineDeviceName(@NonNull String instanceId) {
+        return Optional.ofNullable(instancesById.get(instanceId))
+                .map(inst -> inst.getDevices().getLine())
+                .orElse("Line");
     }
 }

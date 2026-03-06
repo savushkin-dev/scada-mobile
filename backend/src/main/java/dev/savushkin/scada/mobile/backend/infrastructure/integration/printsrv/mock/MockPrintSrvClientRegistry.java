@@ -9,13 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Реализация {@link PrintSrvClientRegistry} для профиля {@code dev}.
@@ -29,7 +23,7 @@ import java.util.Set;
  *   <li>Считать список инстансов из {@link PrintSrvProperties}</li>
  *   <li>Определить множество «offline»-инстансов из {@link MockPrintSrvProperties}</li>
  *   <li>Для каждого инстанса создать {@link MockInstanceState}</li>
- *   <li>Для каждого из 7 известных устройств вызвать
+ *   <li>Для каждого устройства из конфигурации инстанса вызвать
  *       {@link XmlSnapshotLoader#loadForDevice} и записать результат в состояние</li>
  *   <li>Обернуть состояние в {@link MockPrintSrvClient} с флагом offline</li>
  * </ol>
@@ -85,8 +79,8 @@ public class MockPrintSrvClientRegistry implements PrintSrvClientRegistry {
             // --- создаём изолированное состояние для инстанса ---
             MockInstanceState state = new MockInstanceState(id);
 
-            // --- загружаем seed из XML для каждого устройства ---
-            for (String device : XmlSnapshotLoader.KNOWN_DEVICES) {
+            // --- загружаем seed из XML для каждого устройства данного инстанса ---
+            for (String device : inst.getAllDeviceNames()) {
                 Map<String, String> props = snapshotLoader.loadForDevice(device, baseDir, id);
                 state.initDevice(device, props);
             }

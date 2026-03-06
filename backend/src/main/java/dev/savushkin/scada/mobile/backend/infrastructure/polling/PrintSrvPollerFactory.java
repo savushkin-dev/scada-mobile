@@ -1,6 +1,7 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.polling;
 
 import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepository;
+import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.PrintSrvMapper;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.client.PrintSrvClient;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.client.PrintSrvClientRegistry;
@@ -9,7 +10,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Фабрика поллеров: создаёт по одному {@link PrintSrvInstancePoller} на каждый
@@ -34,15 +37,21 @@ public class PrintSrvPollerFactory {
     private final PrintSrvClientRegistry registry;
     private final PrintSrvMapper mapper;
     private final InstanceSnapshotRepository snapshotRepo;
+    private final Map<String, PrintSrvProperties.InstanceProperties> instancesById;
 
     public PrintSrvPollerFactory(
             PrintSrvClientRegistry registry,
             PrintSrvMapper mapper,
-            InstanceSnapshotRepository snapshotRepo
+            InstanceSnapshotRepository snapshotRepo,
+            PrintSrvProperties printSrvProperties
     ) {
         this.registry = registry;
         this.mapper = mapper;
         this.snapshotRepo = snapshotRepo;
+        this.instancesById = printSrvProperties.getInstances().stream()
+                .collect(LinkedHashMap::new,
+                        (map, inst) -> map.put(inst.getId(), inst),
+                        Map::putAll);
     }
 
     /**
@@ -73,6 +82,10 @@ public class PrintSrvPollerFactory {
      */
     public PrintSrvInstancePoller createFor(@NonNull PrintSrvClient client) {
         log.debug("PrintSrvPollerFactory: creating poller for instance '{}'", client.getInstanceId());
-        return new PrintSrvInstancePoller(client, mapper, snapshotRepo);
+        PrintSrvProperties.InstanceProperties inst = instancesById.get(client.getInstanceId());
+        List<String> devices = inst != null
+                ? inst.getAllDeviceNames()
+                : new PrintSrvProperties.InstanceProperties().getAllDeviceNames();
+        return new PrintSrvInstancePoller(client, mapper, snapshotRepo, devices);
     }
 }

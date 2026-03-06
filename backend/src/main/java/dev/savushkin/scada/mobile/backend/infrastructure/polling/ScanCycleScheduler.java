@@ -41,20 +41,6 @@ public class ScanCycleScheduler {
 
     private static final Logger log = LoggerFactory.getLogger(ScanCycleScheduler.class);
 
-    /**
-     * Устройства, опрашиваемые на каждом инстансе PrintSrv.
-     * Список одинаков для всех инстансов согласно документации протокола.
-     */
-    static final List<String> DEVICES = List.of(
-            "Line",
-            "scada",
-            "BatchQueue",
-            "Printer11",
-            "CamAgregation",
-            "CamAgregationBox",
-            "CamChecker"
-    );
-
     private final List<PrintSrvInstancePoller> pollers;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -64,8 +50,11 @@ public class ScanCycleScheduler {
     ) {
         this.pollers = pollerFactory.createAll();
         this.eventPublisher = eventPublisher;
-        log.info("ScanCycleScheduler initialized: {} instance poller(s), {} devices per instance",
-                pollers.size(), DEVICES.size());
+        int totalDevices = pollers.stream()
+                .mapToInt(PrintSrvInstancePoller::getConfiguredDeviceCount)
+                .sum();
+        log.info("ScanCycleScheduler initialized: {} instance poller(s), {} configured device(s) total",
+                pollers.size(), totalDevices);
     }
 
     /**
@@ -78,7 +67,7 @@ public class ScanCycleScheduler {
     @Scheduled(fixedDelayString = "${printsrv.polling.fixed-delay-ms:5000}")
     public void scanCycle() {
         for (PrintSrvInstancePoller poller : pollers) {
-            poller.poll(DEVICES);
+            poller.poll();
         }
         // Уведомляем StatusBroadcaster: snapshots обновлены, можно рассылать статус по WS
         eventPublisher.publishEvent(new ScanCycleCompletedEvent(this));

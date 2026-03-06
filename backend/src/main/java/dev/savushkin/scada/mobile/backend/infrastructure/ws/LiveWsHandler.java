@@ -4,7 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.savushkin.scada.mobile.backend.api.dto.AlertSnapshotMessageDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.UnitsStatusMessageDTO;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveAlertStore;
+import dev.savushkin.scada.mobile.backend.services.WorkshopService;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +66,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
     private static final String ATTR_SUBSCRIBED_WORKSHOP = "subscribedWorkshop";
 
     private final ActiveAlertStore alertStore;
+    private final WorkshopService workshopService;
     private final ObjectMapper objectMapper;
 
     /**
@@ -76,8 +79,13 @@ public class LiveWsHandler extends TextWebSocketHandler {
      */
     private final Map<String, Set<WebSocketSession>> sessionsByWorkshop = new ConcurrentHashMap<>();
 
-    public LiveWsHandler(ActiveAlertStore alertStore, ObjectMapper objectMapper) {
+    public LiveWsHandler(
+            ActiveAlertStore alertStore,
+            WorkshopService workshopService,
+            ObjectMapper objectMapper
+    ) {
         this.alertStore = alertStore;
+        this.workshopService = workshopService;
         this.objectMapper = objectMapper;
     }
 
@@ -139,6 +147,11 @@ public class LiveWsHandler extends TextWebSocketHandler {
                 .computeIfAbsent(workshopId, k -> new CopyOnWriteArraySet<>())
                 .add(session);
         session.getAttributes().put(ATTR_SUBSCRIBED_WORKSHOP, workshopId);
+
+        // Отправляем текущий snapshot сразу после подписки, чтобы клиент не ждал
+        // завершения следующего scan cycle и не показывал временно «Нет данных».
+        sendUnitsStatusSnapshot(session, workshopId);
+
         log.debug("WS /live: subscribed workshop={}, id={}", workshopId, session.getId());
     }
 
@@ -209,6 +222,28 @@ public class LiveWsHandler extends TextWebSocketHandler {
                     snapshotMsg.payload().size(), session.getId());
         } catch (Exception e) {
             log.warn("WS /live: failed to send ALERT_SNAPSHOT, id={}: {}", session.getId(), e.getMessage());
+        }
+    }
+
+    /**
+     * Отправляет подписавшейся сессии моментальный {@code UNITS_STATUS},
+     * вычисленный из текущего snapshot store.
+     *
+     * <p>Это устраняет окно до следующего scan cycle: после SUBSCRIBE_WORKSHOP
+     * клиент сразу получает актуальный статус аппаратов из памяти сервера.
+     */
+    private void sendUnitsStatusSnapshot(WebSocketSession session, String workshopId) {
+        try {
+            var status = workshopService.getUnitsStatus(workshopId);
+            var message = UnitsStatusMessageDTO.of(workshopId, status);
+            if (session.isOpen()) {
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(message)));
+            }
+            log.debug("WS /live: sent initial UNITS_STATUS, workshop={}, units={}, id={}",
+                    workshopId, status.size(), session.getId());
+        } catch (Exception e) {
+            log.warn("WS /live: failed to send initial UNITS_STATUS, workshop={}, id={}: {}",
+                    workshopId, session.getId(), e.getMessage());
         }
     }
 

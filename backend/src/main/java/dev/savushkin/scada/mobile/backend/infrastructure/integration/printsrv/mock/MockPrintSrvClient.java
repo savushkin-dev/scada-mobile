@@ -115,7 +115,7 @@ public class MockPrintSrvClient implements PrintSrvClient {
     /**
      * Пытается распарсить первое целое число из строки.
      *
-     * <p>Формат {@code CurItem} в Line и Printer11: {@code "1605 | 147 | 19.08.2025"}.
+     * <p>Формат {@code CurItem} в Line и принтерах: {@code "1605 | 147 | 19.08.2025"}.
      * Первое число — счётчик маркировок. Для других устройств, где CurItem не числовой,
      * возвращает null.
      */

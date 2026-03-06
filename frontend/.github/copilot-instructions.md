@@ -16,12 +16,12 @@
 
 ## 2. Текущее состояние → целевое
 
-| | Сейчас | Целевое |
-|---|---|---|
-| Технологии | Vanilla HTML + CSS + JS (ES-модули) | **React 18 + TypeScript 5 + Vite** |
-| Стейт/данные | ручная кнопка + fetch | **React Query** (polling или WebSocket в будущем) |
-| Валидация данных | JSDoc-типы | **Zod** (runtime-валидация ответов API) |
-| Линтинг | нет | ESLint + Prettier |
+|                  | Сейчас                              | Целевое                                           |
+| ---------------- | ----------------------------------- | ------------------------------------------------- |
+| Технологии       | Vanilla HTML + CSS + JS (ES-модули) | **React 18 + TypeScript 5 + Vite**                |
+| Стейт/данные     | ручная кнопка + fetch               | **React Query** (polling или WebSocket в будущем) |
+| Валидация данных | JSDoc-типы                          | **Zod** (runtime-валидация ответов API)           |
+| Линтинг          | нет                                 | ESLint + Prettier                                 |
 
 Текущие файлы в `frontend/` — **рабочий прототип**. При переписывании на React + Vite — держать ту же структуру обязательных файлов и ту же логику API (см. ниже).
 
@@ -57,17 +57,17 @@ frontend/
 
 ## 4. Обязательные файлы PWA/TWA — нельзя удалять или переименовывать
 
-| Файл | Зачем |
-|---|---|
-| `manifest.webmanifest` | PWA: установка на экран, иконки, `start_url`, `scope` |
-| `service-worker.js` | PWA: offline-режим; кэш-шела приложения |
-| `.well-known/assetlinks.json` | TWA: убирает адресную строку Chrome в Android-приложении |
-| `assets/icons/icon-192x192.png` | PWA: обязательный размер иконки |
-| `assets/icons/icon-512x512.png` | PWA: обязательный размер иконки |
+| Файл                            | Зачем                                                    |
+| ------------------------------- | -------------------------------------------------------- |
+| `manifest.webmanifest`          | PWA: установка на экран, иконки, `start_url`, `scope`    |
+| `service-worker.js`             | PWA: offline-режим; кэш-шела приложения                  |
+| `.well-known/assetlinks.json`   | TWA: убирает адресную строку Chrome в Android-приложении |
+| `assets/icons/icon-192x192.png` | PWA: обязательный размер иконки                          |
+| `assets/icons/icon-512x512.png` | PWA: обязательный размер иконки                          |
 
 Эти файлы должны быть **доступны по прямому URL** в production (не под хешами Vite). В `vite.config.ts` — размещать их в `public/` или прописывать явный `rollupOptions.input`.
 
-**Netlify:** файл `netlify.toml` содержит редирект `/.well-known/:splat → /well-known/:splat` — сохранять его.
+**Nginx (внутренний сервер):** шаблон конфигурации — `deploy/nginx.conf`. Там настроены Cache-Control-заголовки и редирект `/.well-known/ → /well-known/` для TWA Digital Asset Links.
 
 ---
 
@@ -77,24 +77,25 @@ frontend/
 
 ```typescript
 interface UnitState {
-  State:      string | null;   // статус аппарата (работает / стоит / ждёт)
-  Task:       string | null;   // текущее задание
-  Counter:    number | null;   // счётчик
+  State: string | null; // статус аппарата (работает / стоит / ждёт)
+  Task: string | null; // текущее задание
+  Counter: number | null; // счётчик
   Properties: {
-    command:      number | null;
-    message:      string | null;
-    Error:        string | null;
+    command: number | null;
+    message: string | null;
+    Error: string | null;
     ErrorMessage: string | null;
   } | null;
 }
 
 interface QueryStateResponse {
-  DeviceName: string;               // например "Line"
+  DeviceName: string; // например "Line"
   Units: Record<string, UnitState>; // ключи: "u1", "u2", ...
 }
 ```
 
 **Ключевое для UI:**
+
 - Данные **eventual consistent**: после отправки команды новое состояние появится только в следующем snapshot (~5 сек).
 - API **не гарантирует** мгновенного применения — показывай пользователю «команда принята», а не «команда выполнена».
 - Если `Error` или `ErrorMessage` не `null` — аппарат в ошибке, это нужно визуально выделить.
@@ -105,18 +106,18 @@ interface QueryStateResponse {
 
 ### Эндпоинты
 
-| | Метод | URL | Назначение |
-|---|---|---|---|
-| Snapshot | GET | `/api/v1/commands/queryAll` | Получить все units |
-| Команда | POST | `/api/v1/commands/setUnitVars?unit={n}&value={v}` | Отправить команду на аппарат `n` (1-based) |
-| Health | GET | `/api/v1/commands/health/ready` | Проверка доступности бекенда |
+|          | Метод | URL                                               | Назначение                                 |
+| -------- | ----- | ------------------------------------------------- | ------------------------------------------ |
+| Snapshot | GET   | `/api/v1/commands/queryAll`                       | Получить все units                         |
+| Команда  | POST  | `/api/v1/commands/setUnitVars?unit={n}&value={v}` | Отправить команду на аппарат `n` (1-based) |
+| Health   | GET   | `/api/v1/commands/health/ready`                   | Проверка доступности бекенда               |
 
 ### Определение базового URL (из прототипа)
 
 ```typescript
 // index.html (inline script) — до загрузки бандла:
 const port = location.port;
-if (port !== "" && port !== "80" && port !== "443") {
+if (port !== '' && port !== '80' && port !== '443') {
   window.SCADA_API_BASE_URL = `${location.protocol}//${location.hostname}:8080`;
 }
 // В Vite-приложении лучше использовать VITE_API_BASE_URL из .env
@@ -157,9 +158,11 @@ make front-build     # production-сборка (dist/)
 ```
 
 Для прототипа (vanilla) — любой статический сервер на порту 5500:
+
 ```bash
 cd frontend && python -m http.server 5500
 ```
+
 Порт 5500 включён в CORS allowlist dev-профиля бекенда.
 
 ---

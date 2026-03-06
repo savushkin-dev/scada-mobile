@@ -1,5 +1,6 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.mock;
 
+import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Random;
 
@@ -16,12 +18,12 @@ import java.util.Random;
  *
  * <h3>Что симулируется</h3>
  * <ul>
- *   <li><b>CamAgregation / CamAgregationBox</b> — непрерывно набирают {@code Total}
+ *   <li><b>Камеры агрегации</b> — непрерывно набирают {@code Total}
  *       и {@code Succeeded}; с вероятностью {@code errorFlipProbability} появляются
  *       {@code Failed} и {@code BatchFailed}.</li>
  *   <li><b>Line</b> — если {@code ST=1} (активна), счётчик в {@code CurItem} растёт;
  *       с той же вероятностью устанавливается / снимается флаг {@code Error=1}.</li>
- *   <li><b>Printer11</b> — если {@code ST=1}, инкрементируется {@code CurItem}.</li>
+ *   <li><b>Принтеры</b> — если {@code ST=1}, инкрементируется {@code CurItem}.</li>
  * </ul>
  *
  * <h3>Детерминированность при тестировании</h3>
@@ -44,14 +46,20 @@ public class MockStateSimulator {
 
     private final MockPrintSrvClientRegistry registry;
     private final MockPrintSrvProperties mockProperties;
+    private final Map<String, PrintSrvProperties.InstanceProperties> instancesById;
     private final Random random;
 
     public MockStateSimulator(
             MockPrintSrvClientRegistry registry,
-            MockPrintSrvProperties mockProperties
+            MockPrintSrvProperties mockProperties,
+            PrintSrvProperties printSrvProperties
     ) {
         this.registry = registry;
         this.mockProperties = mockProperties;
+        this.instancesById = printSrvProperties.getInstances().stream()
+                .collect(LinkedHashMap::new,
+                        (map, inst) -> map.put(inst.getId(), inst),
+                        Map::putAll);
         this.random = new Random(mockProperties.getRandomSeed());
     }
 
@@ -97,11 +105,23 @@ public class MockStateSimulator {
     private void tickInstance(MockPrintSrvClient client) {
         MockInstanceState state = client.getState();
         String id = client.getInstanceId();
+        PrintSrvProperties.InstanceProperties inst = instancesById.get(id);
+        if (inst == null) {
+            log.debug("[{}] Simulator: instance config not found, skipping", id);
+            return;
+        }
 
-        tickCamAggregation(state, "CamAgregation", id);
-        tickCamAggregation(state, "CamAgregationBox", id);
-        tickLine(state, id);
-        tickPrinter(state, "Printer11", id);
+        tickLine(state, inst.getDevices().getLine(), id);
+
+        for (String device : inst.getDevices().getAggregationCams()) {
+            tickCamAggregation(state, device, id);
+        }
+        for (String device : inst.getDevices().getAggregationBoxCams()) {
+            tickCamAggregation(state, device, id);
+        }
+        for (String device : inst.getDevices().getPrinters()) {
+            tickPrinter(state, device, id);
+        }
     }
 
     // ─── CamAgregation / CamAgregationBox ──────────────────────────────────
@@ -146,8 +166,8 @@ public class MockStateSimulator {
      * обновляется {@code LastReadTime}.
      * С вероятностью {@code errorFlipProbability} флаг {@code Error} инвертируется.
      */
-    private void tickLine(MockInstanceState state, String instanceId) {
-        Map<String, String> props = state.getPropertiesCopy("Line");
+    private void tickLine(MockInstanceState state, String device, String instanceId) {
+        Map<String, String> props = state.getPropertiesCopy(device);
         if (props.isEmpty()) {
             return;
         }
@@ -156,8 +176,8 @@ public class MockStateSimulator {
         if (flipProbability()) {
             String currentError = props.getOrDefault("Error", "0");
             String newError = "1".equals(currentError) ? "0" : "1";
-            state.setProperty("Line", "Error", newError);
-            log.debug("[{}] Line — Error flipped to {}", instanceId, newError);
+            state.setProperty(device, "Error", newError);
+            log.debug("[{}] {} — Error flipped to {}", instanceId, device, newError);
         }
 
         String st = props.getOrDefault("ST", "0");
@@ -168,13 +188,13 @@ public class MockStateSimulator {
         // Инкрементируем первый числовой токен в CurItem
         String curItem = props.getOrDefault("CurItem", "");
         String updatedCurItem = incrementCurItemCounter(curItem);
-        state.setProperty("Line", "CurItem", updatedCurItem);
+        state.setProperty(device, "CurItem", updatedCurItem);
 
         // Обновляем время последнего чтения (HH:mm:ss)
-        state.setProperty("Line", "LastReadTime", LocalTime.now().format(TIME_FMT));
+        state.setProperty(device, "LastReadTime", LocalTime.now().format(TIME_FMT));
     }
 
-    // ─── Printer11 ─────────────────────────────────────────────────────────
+    // ─── Printers ──────────────────────────────────────────────────────────
 
     /**
      * Симулирует принтер маркировки: если активен — инкрементирует CurItem.
