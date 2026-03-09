@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { API_BASE } from '../config';
+import {
+  API_BASE,
+  FAB_ICON_STYLE,
+  FAB_LABEL_STYLE,
+  getFabButtonStyle,
+  HTTP_REQUEST,
+  UI_BEHAVIOR,
+  UI_COPY,
+} from '../config';
 
 interface Props {
   visible: boolean;
@@ -20,8 +28,8 @@ export function Fab({ visible, unitId, scrollContainer }: Props) {
     function handleScroll() {
       const currentY = el.scrollTop;
       const delta = currentY - lastScrollY.current;
-      if (delta > 4) setCollapsed(true);
-      else if (delta < -4) setCollapsed(false);
+      if (delta > UI_BEHAVIOR.fabCollapseScrollDeltaPx) setCollapsed(true);
+      else if (delta < -UI_BEHAVIOR.fabCollapseScrollDeltaPx) setCollapsed(false);
       lastScrollY.current = currentY;
     }
 
@@ -41,8 +49,8 @@ export function Fab({ visible, unitId, scrollContainer }: Props) {
     setSending(true);
     try {
       const resp = await fetch(`${API_BASE}/api/line/${unitId}/last-batch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: HTTP_REQUEST.post,
+        headers: { 'Content-Type': HTTP_REQUEST.jsonContentType },
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     } catch (e) {
@@ -50,63 +58,21 @@ export function Fab({ visible, unitId, scrollContainer }: Props) {
     }
     setSent(true);
     setSending(false);
-    setTimeout(() => setSent(false), 2000);
+    setTimeout(() => setSent(false), UI_BEHAVIOR.fabSentResetDelayMs);
   }
 
   if (!visible) return null;
 
   return (
     <button
-      aria-label="Сообщить: партия последняя"
+      aria-label={UI_COPY.fabAriaLabel}
       disabled={sending}
       onClick={handleClick}
-      style={{
-        position: 'fixed',
-        bottom: `calc(64px + env(safe-area-inset-bottom) + 16px)`,
-        right: '16px',
-        width: collapsed ? '52px' : 'calc(50% - 8px)',
-        maxWidth: collapsed ? '52px' : '210px',
-        minWidth: '52px',
-        height: '52px',
-        padding: collapsed ? '0' : '0 18px',
-        borderRadius: collapsed ? '50%' : '26px',
-        justifyContent: collapsed ? 'center' : 'flex-start',
-        background: sent ? '#34A853' : '#F97316',
-        boxShadow: sent
-          ? '0 4px 20px rgba(52,168,83,0.4)'
-          : collapsed
-            ? '0 4px 14px rgba(249,115,22,0.5)'
-            : '0 4px 20px rgba(249,115,22,0.4)',
-        zIndex: 9,
-        display: 'flex',
-        alignItems: 'center',
-        overflow: 'hidden',
-        whiteSpace: 'nowrap',
-        border: 'none',
-        cursor: 'pointer',
-        fontFamily: 'Inter, sans-serif',
-        fontSize: '0.85rem',
-        fontWeight: 700,
-        letterSpacing: '0.01em',
-        color: 'white',
-        transition:
-          'width 0.3s ease, max-width 0.3s ease, padding 0.3s ease, border-radius 0.3s ease, opacity 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease',
-      }}
+      style={getFabButtonStyle(collapsed, sent)}
     >
-      <span style={{ fontSize: '1.15rem', flexShrink: 0, lineHeight: 1 }}>
-        {sent ? '✅' : '🔔'}
-      </span>
+      <span style={FAB_ICON_STYLE}>{sent ? UI_COPY.fabSentIcon : UI_COPY.fabDefaultIcon}</span>
       {!collapsed && (
-        <span
-          style={{
-            overflow: 'hidden',
-            maxWidth: '160px',
-            opacity: 1,
-            marginLeft: '8px',
-          }}
-        >
-          {sent ? 'Отправлено!' : 'Последняя партия'}
-        </span>
+        <span style={FAB_LABEL_STYLE}>{sent ? UI_COPY.fabSentLabel : UI_COPY.fabActionLabel}</span>
       )}
     </button>
   );

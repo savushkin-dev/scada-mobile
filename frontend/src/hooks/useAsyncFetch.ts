@@ -13,6 +13,11 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type DependencyList } from 'react';
+import {
+  ASYNC_FETCH_DEFAULT_RETRY_CONFIG,
+  ASYNC_FETCH_JITTER_CONFIG,
+  ERROR_MESSAGES,
+} from '../config';
 import { classifyError } from '../errors/classifyError';
 import type { AppError, AppErrorSource } from '../errors/AppError';
 
@@ -47,10 +52,10 @@ export interface RetryConfig {
 export type FetchStatus = 'idle' | 'loading' | 'error' | 'success';
 
 const DEFAULT_RETRY_CONFIG: RetryConfig = {
-  maxAttempts: 4,
-  baseDelayMs: 1_000,
-  maxDelayMs: 30_000,
-  factor: 2,
+  maxAttempts: ASYNC_FETCH_DEFAULT_RETRY_CONFIG.maxAttempts,
+  baseDelayMs: ASYNC_FETCH_DEFAULT_RETRY_CONFIG.baseDelayMs,
+  maxDelayMs: ASYNC_FETCH_DEFAULT_RETRY_CONFIG.maxDelayMs,
+  factor: ASYNC_FETCH_DEFAULT_RETRY_CONFIG.factor,
 };
 
 // ── Утилиты ───────────────────────────────────────────────────────────
@@ -58,7 +63,11 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
 function computeDelay(attempt: number, cfg: RetryConfig): number {
   const exp = cfg.baseDelayMs * Math.pow(cfg.factor, attempt - 1);
   const capped = Math.min(exp, cfg.maxDelayMs);
-  return Math.round(capped * (0.75 + Math.random() * 0.25));
+  return Math.round(
+    capped *
+      (ASYNC_FETCH_JITTER_CONFIG.baseMultiplier +
+        Math.random() * ASYNC_FETCH_JITTER_CONFIG.rangeMultiplier)
+  );
 }
 
 /** Promise, который разрешается через `ms` мс или отменяется по сигналу. */
@@ -207,7 +216,7 @@ export function useAsyncFetch<T>(
       if (stale || runIdRef.current !== runId) return;
 
       const finalError =
-        lastError ?? classifyError(new Error('Неизвестная ошибка'), cfg.source ?? 'unknown');
+        lastError ?? classifyError(new Error(ERROR_MESSAGES.unknownError), cfg.source ?? 'unknown');
       console.error(`[useAsyncFetch] all ${cfg.maxAttempts} attempts failed: ${finalError.raw}`);
       setState({ loading: false, status: 'error', data: null, error: finalError });
     })();

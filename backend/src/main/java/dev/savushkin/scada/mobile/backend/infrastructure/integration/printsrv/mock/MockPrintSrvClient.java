@@ -23,8 +23,8 @@ import java.util.Map;
  *
  * <h3>Режим offline</h3>
  * Если {@code offline=true} — {@code queryAll} немедленно кидает
- * {@link IOException} с диагностическим сообщением. Это позволяет тестировать retry/recovery
- * в {@code PrintSrvConnectionManager} без реальной сетевой недоступности.
+ * {@link IOException} с диагностическим сообщением. Это позволяет тестировать
+ * поведение polling-слоя при недоступности конкретного аппарата.
  */
 public class MockPrintSrvClient implements PrintSrvClient {
 

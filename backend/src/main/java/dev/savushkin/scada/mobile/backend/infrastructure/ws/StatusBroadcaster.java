@@ -2,7 +2,9 @@ package dev.savushkin.scada.mobile.backend.infrastructure.ws;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import dev.savushkin.scada.mobile.backend.api.dto.AlertMessageDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.UnitStatusDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitsStatusMessageDTO;
+import dev.savushkin.scada.mobile.backend.infrastructure.polling.PrintSrvInstancePolledEvent;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveAlertStore;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.DowntimeTracker;
 import dev.savushkin.scada.mobile.backend.services.AlertService;
@@ -15,26 +17,23 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.Map;
+import java.util.List;
 
 /**
  * Рассылает live-данные через единственный WebSocket-канал {@code /ws/live}
- * после каждого scan cycle.
+ * по мере готовности конкретных инстансов PrintSrv.
  * <p>
  * Поток данных:
  * <ol>
- *   <li>{@code ScanCycleScheduler} опрашивает PrintSrv, сохраняет snapshots</li>
- *   <li>Публикует {@link ScanCycleCompletedEvent}</li>
+ *   <li>Worker инстанса опрашивает PrintSrv и сохраняет snapshots</li>
+ *   <li>Публикует {@link PrintSrvInstancePolledEvent}</li>
  *   <li>Этот компонент обрабатывает событие:
  *     <ul>
- *       <li>Рассылает {@code UNITS_STATUS} подписчикам активных цехов</li>
- *       <li>Вычисляет дельту алёртов и рассылает {@code ALERT} всем клиентам</li>
+ *       <li>Рассылает обновление статуса конкретного аппарата</li>
+ *       <li>Вычисляет дельту алёрта этого аппарата и при необходимости рассылает {@code ALERT}</li>
  *     </ul>
  *   </li>
  * </ol>
- * <p>
- * Рассылка выполняется синхронно в потоке планировщика. Все данные in-memory,
- * поэтому задержки минимальны. При необходимости можно добавить {@code @Async}.
  */
 @Component
 public class StatusBroadcaster {
@@ -61,49 +60,51 @@ public class StatusBroadcaster {
         this.liveWsHandler = liveWsHandler;
     }
 
-    /**
-     * Обрабатывает завершение scan cycle.
-     * <p>
-     * Порядок действий:
-     * <ol>
-     *   <li>Рассылает {@code UNITS_STATUS} для каждого цеха с активными подписчиками.</li>
-     *   <li>Вычисляет текущие алёрты, сравнивает с предыдущим состоянием, рассылает дельты.</li>
-     * </ol>
-     */
     @EventListener
-    public void onScanCycleCompleted(ScanCycleCompletedEvent ignoredEvent) {
-        broadcastUnitsStatusForSubscribedWorkshops();
-        broadcastAlertDeltas();
+    public void onInstancePolled(PrintSrvInstancePolledEvent event) {
+        broadcastUnitStatus(event.instanceId());
+        broadcastAlertDelta(event.instanceId());
     }
 
     // ─── Private ─────────────────────────────────────────────────────────────
 
-    private void broadcastUnitsStatusForSubscribedWorkshops() {
-        if (liveWsHandler.getSubscribedWorkshopIds().isEmpty()) return;
+    private void broadcastUnitStatus(String instanceId) {
+        if (liveWsHandler.getSubscribedWorkshopIds().isEmpty()) {
+            return;
+        }
 
-        for (String workshopId : liveWsHandler.getSubscribedWorkshopIds()) {
-            try {
-                var status = workshopService.getUnitsStatus(workshopId);
-                var message = UnitsStatusMessageDTO.of(workshopId, status);
-                liveWsHandler.broadcastToWorkshop(workshopId, liveWsHandler.toJson(message));
-            } catch (JsonProcessingException e) {
-                log.error("StatusBroadcaster: failed to serialize UNITS_STATUS for workshop '{}'", workshopId, e);
-            }
+        String workshopId = workshopService.getWorkshopIdForInstance(instanceId).orElse(null);
+        if (workshopId == null || !liveWsHandler.getSubscribedWorkshopIds().contains(workshopId)) {
+            return;
+        }
+
+        UnitStatusDTO status = workshopService.getUnitStatus(instanceId).orElse(null);
+        if (status == null) {
+            return;
+        }
+
+        try {
+            UnitsStatusMessageDTO message = UnitsStatusMessageDTO.of(workshopId, List.of(status));
+            liveWsHandler.broadcastToWorkshop(workshopId, liveWsHandler.toJson(message));
+        } catch (JsonProcessingException e) {
+            log.error("StatusBroadcaster: failed to serialize UNITS_STATUS for instance '{}'", instanceId, e);
         }
     }
 
-    private void broadcastAlertDeltas() {
-        if (liveWsHandler.getTotalSessionCount() == 0) return;
+    private void broadcastAlertDelta(String instanceId) {
+        if (liveWsHandler.getTotalSessionCount() == 0) {
+            return;
+        }
 
-        Map<String, AlertMessageDTO> current = alertService.computeCurrentAlerts();
-        ActiveAlertStore.Delta delta = alertStore.updateAndDiff(current);
+        AlertMessageDTO currentAlert = alertService.computeAlertForInstance(instanceId).orElse(null);
+        ActiveAlertStore.Delta delta = alertStore.updateAndDiff(instanceId, currentAlert);
 
-        // Обновляем трекер простоев ДО проверки isEmpty:
-        // onAlertStarted идемпотентен (putIfAbsent), поэтому безопасно вызывать каждый раз.
         delta.added().forEach(alert -> downtimeTracker.onAlertStarted(alert.unitId()));
         delta.removed().forEach(alert -> downtimeTracker.onAlertResolved(alert.unitId()));
 
-        if (delta.added().isEmpty() && delta.removed().isEmpty()) return;
+        if (delta.added().isEmpty() && delta.removed().isEmpty()) {
+            return;
+        }
 
         String resolvedAt = LocalDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
 

@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
  *   <li><b>Topology</b> — статика из конфига, меняется крайне редко.
  *       Возвращается REST-эндпоинтами с поддержкой ETag-кэширования.</li>
  *   <li><b>Status</b> — live-данные из snapshot store.
- *       Рассылается по WebSocket после каждого scan cycle.</li>
+ *       Рассылается по WebSocket по мере готовности конкретных аппаратов.</li>
  * </ul>
  */
 @Service
@@ -158,11 +158,33 @@ public class WorkshopService {
     }
 
     /**
+     * Возвращает live-статус только одного аппарата.
+     */
+    public Optional<UnitStatusDTO> getUnitStatus(String instanceId) {
+        PrintSrvProperties.InstanceProperties inst = instancesById.get(instanceId);
+        if (inst == null) {
+            return Optional.empty();
+        }
+
+        return Optional.of(new UnitStatusDTO(
+                inst.getId(),
+                inst.getWorkshopId(),
+                deriveEvent(inst.getId()),
+                deriveTimer(inst.getId())
+        ));
+    }
+
+    /**
      * Проверяет, существует ли цех с заданным id.
      */
     public boolean workshopExists(String workshopId) {
         return config.getWorkshops().stream()
                 .anyMatch(ws -> ws.getId().equals(workshopId));
+    }
+
+    public Optional<String> getWorkshopIdForInstance(String instanceId) {
+        return Optional.ofNullable(instancesById.get(instanceId))
+                .map(PrintSrvProperties.InstanceProperties::getWorkshopId);
     }
 
     // ─── Внутренние методы формирования live-данных ───────────────────────────

@@ -12,7 +12,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * Приложение предоставляет REST API для мониторинга состояния аппаратов
  * производственных линий через PrintSrv. Основные функции:
  * <ul>
- *   <li>Периодический опрос состояния всех инстансов PrintSrv (QueryAll)</li>
+ *   <li>Независимый polling состояния всех инстансов PrintSrv (QueryAll)</li>
  *   <li>Хранение per-instance snapshot-ов состояния в памяти</li>
  *   <li>REST API для цехов и аппаратов</li>
  * </ul>

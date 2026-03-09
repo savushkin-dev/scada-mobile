@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { DOMAIN_DEFAULTS, PAGE_FADE_SECTION_STYLE, UI_BEHAVIOR, UI_COPY } from '../config';
 import { fetchUnitsTopology, type TopologyFetchResult } from '../api/workshops';
 import { PageHeader } from '../components/PageHeader';
 import { UnitCard } from '../components/UnitCard';
@@ -21,7 +22,7 @@ export function WorkshopPage() {
   const workshopName =
     locationState?.workshopName ??
     state.workshopTopology.find((w) => w.id === workshopId)?.name ??
-    'Цех';
+    DOMAIN_DEFAULTS.workshopName;
 
   const units = unitsByWorkshop[workshopId] ?? [];
 
@@ -34,7 +35,9 @@ export function WorkshopPage() {
   //       state.topologyETag мог быть установлен после загрузки topology цехов,
   //       но у нас нет локальных данных — 304 оставил бы нас с пустым списком.
   // cache: 'no-store' в fetchTopology исключает конкуренцию с браузерным HTTP-кешем.
-  const hasUnitsTopology = (state.unitTopologyByWorkshop[workshopId]?.length ?? 0) > 0;
+  const hasUnitsTopology =
+    (state.unitTopologyByWorkshop[workshopId]?.length ?? UI_BEHAVIOR.emptyCollectionSize) >
+    UI_BEHAVIOR.emptyCollectionSize;
   const fetchState = useAsyncFetch<TopologyFetchResult<UnitTopology[]>>(
     workshopId
       ? (signal) =>
@@ -57,26 +60,20 @@ export function WorkshopPage() {
   // SUBSCRIBE_WORKSHOP отправляется автоматически при открытии этого маршрута.
 
   return (
-    <section
-      data-scroll
-      style={{
-        flex: 1,
-        overflowY: 'auto',
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        animation: 'fadeIn 0.3s ease',
-      }}
-    >
-      <PageHeader title={workshopName} subtitle="Цех" onBack={() => navigate(-1)} />
+    <section data-scroll style={PAGE_FADE_SECTION_STYLE}>
+      <PageHeader
+        title={workshopName}
+        subtitle={UI_COPY.workshopSubtitle}
+        onBack={() => navigate(-1)}
+      />
 
       <RetryBanner error={fetchState.error} onRetry={fetchState.refetch} />
 
       <main className="px-4 space-y-4 pb-10 sm:px-6 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 lg:grid-cols-3 lg:px-8">
         {fetchState.status === 'loading' && !units.length ? (
-          <UnitCardSkeleton count={4} />
+          <UnitCardSkeleton count={UI_BEHAVIOR.workshopSkeletonCount} />
         ) : !units.length && fetchState.status !== 'loading' ? (
-          <p className="text-center text-[#74777F] py-5 text-[0.88rem]">Нет данных</p>
+          <p className="text-center text-[#74777F] py-5 text-[0.88rem]">{UI_COPY.noData}</p>
         ) : (
           units.map((u) => (
             <UnitCard

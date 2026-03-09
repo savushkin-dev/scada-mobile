@@ -21,7 +21,6 @@ public class PrintSrvProperties {
     private List<WorkshopProperties> workshops = new ArrayList<>();
     private List<InstanceProperties> instances = new ArrayList<>();
     private PollingProperties polling = new PollingProperties();
-    private RetryProperties retry = new RetryProperties();
     private SocketProperties socket = new SocketProperties();
 
     // ─── getters / setters ────────────────────────────────────────────────────
@@ -34,9 +33,6 @@ public class PrintSrvProperties {
 
     public PollingProperties getPolling() { return polling; }
     public void setPolling(PollingProperties polling) { this.polling = polling; }
-
-    public RetryProperties getRetry() { return retry; }
-    public void setRetry(RetryProperties retry) { this.retry = retry; }
 
     public SocketProperties getSocket() { return socket; }
     public void setSocket(SocketProperties socket) { this.socket = socket; }
@@ -221,34 +217,13 @@ public class PrintSrvProperties {
     // ─── Nested: polling ─────────────────────────────────────────────────────
 
     public static class PollingProperties {
-        /** fixedDelay между scan cycle в мс. Переопределяется в профилях. */
+        /**
+         * Задержка между polling-проходами каждого instance worker в мс.
+         */
         private long fixedDelayMs = 5000;
 
         public long getFixedDelayMs() { return fixedDelayMs; }
         public void setFixedDelayMs(long fixedDelayMs) { this.fixedDelayMs = fixedDelayMs; }
-    }
-
-    // ─── Nested: retry ───────────────────────────────────────────────────────
-
-    public static class RetryProperties {
-        private int maxAttempts = 5;
-        private int initialDelayMs = 200;
-        private int maxDelayMs = 5000;
-        private long recoveryCheckIntervalMs = 60_000;
-
-        public int getMaxAttempts() { return maxAttempts; }
-        public void setMaxAttempts(int maxAttempts) { this.maxAttempts = maxAttempts; }
-
-        public int getInitialDelayMs() { return initialDelayMs; }
-        public void setInitialDelayMs(int initialDelayMs) { this.initialDelayMs = initialDelayMs; }
-
-        public int getMaxDelayMs() { return maxDelayMs; }
-        public void setMaxDelayMs(int maxDelayMs) { this.maxDelayMs = maxDelayMs; }
-
-        public long getRecoveryCheckIntervalMs() { return recoveryCheckIntervalMs; }
-        public void setRecoveryCheckIntervalMs(long recoveryCheckIntervalMs) {
-            this.recoveryCheckIntervalMs = recoveryCheckIntervalMs;
-        }
     }
 
     // ─── Nested: socket ──────────────────────────────────────────────────────

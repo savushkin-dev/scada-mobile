@@ -111,13 +111,7 @@ printsrv:
         checkerCams: [ "CamChecker1", "CamChecker2" ]
 
   polling:
-    fixed-delay-ms: 5000              # Интервал scan cycle (fixedDelay) — переопределяется в профилях
-  # Retry — базовые значения, профили могут ужесточить
-  retry:
-    max-attempts: 5
-    initial-delay-ms: 200
-    max-delay-ms: 5000
-    recovery-check-interval-ms: 60000
+    fixed-delay-ms: 5000              # Задержка между polling-проходами каждого instance worker
   # Таймауты для Socket операций
   socket:
     connect-timeout-ms: 5000

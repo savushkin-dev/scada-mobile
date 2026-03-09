@@ -91,12 +91,10 @@
   .status-warning {
     border-color: var(--clr-warn-border);
     background-color: var(--clr-warn-bg);
-    animation: border-pulse-warning 2s infinite;
   }
   .status-critical {
     border-color: var(--clr-crit-border);
     background-color: var(--clr-crit-bg);
-    animation: border-pulse-critical 2s infinite;
   }
 
   .status-indicator {
@@ -110,7 +108,6 @@
   .status-indicator.error {
     background-color: var(--clr-crit-border);
     box-shadow: 0 0 0 3px var(--clr-crit-glow);
-    animation: pulse-error 1.5s infinite;
   }
 
   .card-title {
@@ -324,28 +321,6 @@
   }
 }
 
-@keyframes border-pulse-warning {
-  0% {
-    border-color: rgba(251, 188, 4, 1);
-  }
-  50% {
-    border-color: rgba(251, 188, 4, 0.3);
-  }
-  100% {
-    border-color: rgba(251, 188, 4, 1);
-  }
-}
-@keyframes border-pulse-critical {
-  0% {
-    border-color: rgba(234, 67, 53, 1);
-  }
-  50% {
-    border-color: rgba(234, 67, 53, 0.3);
-  }
-  100% {
-    border-color: rgba(234, 67, 53, 1);
-  }
-}
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -354,17 +329,6 @@
   to {
     opacity: 1;
     transform: translateY(0);
-  }
-}
-@keyframes pulse-error {
-  0% {
-    box-shadow: 0 0 0 0 rgba(234, 67, 53, 0.5);
-  }
-  70% {
-    box-shadow: 0 0 0 8px rgba(234, 67, 53, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(234, 67, 53, 0);
   }
 }
 

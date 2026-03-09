@@ -21,12 +21,11 @@ import java.util.Map;
  * <h3>Паттерн Factory</h3>
  * Разделяет ответственность: {@link PrintSrvClientRegistry} знает о соединениях,
  * {@link PrintSrvInstancePoller} — о логике опроса, а фабрика — о том, как
- * соединить клиент с поллером. {@link ScanCycleScheduler} остаётся чистым —
- * он только итерирует готовые поллеры.
+ * соединить клиент с поллером. Runtime-слой получает уже готовые instance-poller-ы.
  *
  * <h3>Spring-инициализация</h3>
- * Бин создаётся до {@link ScanCycleScheduler}, который инжектирует эту фабрику
- * и вызывает {@link #createAll()} в конструкторе. Порядок гарантируется
+ * Бин создаётся до polling runtime, который инжектирует эту фабрику
+ * и вызывает {@link #createAll()} при старте. Порядок гарантируется
  * стандартным Spring DI (зависимость по типу).
  */
 @Component
@@ -78,7 +77,7 @@ public class PrintSrvPollerFactory {
      * Используется как в {@link #createAll()}, так и в тестах напрямую.
      *
      * @param client уже сконфигурированный клиент PrintSrv
-     * @return новый поллер с изолированным {@link InstanceConnectionState}
+     * @return новый поллер {@link PrintSrvInstancePoller}
      */
     public PrintSrvInstancePoller createFor(@NonNull PrintSrvClient client) {
         log.debug("PrintSrvPollerFactory: creating poller for instance '{}'", client.getInstanceId());

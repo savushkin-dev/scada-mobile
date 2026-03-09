@@ -5,6 +5,7 @@
  * Используется вместо текста «Загрузка…» пока данные цеха ещё не пришли.
  */
 
+import { SKELETON_CARD_STYLE, UI_BEHAVIOR, UNIT_SKELETON_STATE_STYLE } from '../../config';
 import { SkeletonBlock } from './SkeletonBlock';
 
 interface Props {
@@ -12,7 +13,7 @@ interface Props {
   count?: number;
 }
 
-export function UnitCardSkeleton({ count = 4 }: Props) {
+export function UnitCardSkeleton({ count = UI_BEHAVIOR.workshopSkeletonCount }: Props) {
   return (
     <>
       {Array.from({ length: count }, (_, i) => (
@@ -20,13 +21,13 @@ export function UnitCardSkeleton({ count = 4 }: Props) {
           key={i}
           aria-hidden="true"
           className="card card-static p-4"
-          style={{ borderColor: 'transparent' }}
+          style={SKELETON_CARD_STYLE}
         >
           {/* Название аппарата/линии */}
           <SkeletonBlock height="20px" width="72%" borderRadius="8px" />
 
           {/* Строка текущего состояния */}
-          <div style={{ marginTop: '8px' }}>
+          <div style={UNIT_SKELETON_STATE_STYLE}>
             <SkeletonBlock height="13px" width="48%" borderRadius="4px" />
           </div>
         </div>

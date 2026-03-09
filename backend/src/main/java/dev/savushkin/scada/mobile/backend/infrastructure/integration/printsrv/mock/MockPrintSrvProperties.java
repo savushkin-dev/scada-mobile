@@ -47,7 +47,7 @@ public class MockPrintSrvProperties {
      * Instance ID-ы, которые всегда выбрасывают {@link java.io.IOException}
      * при вызове {@code queryAll}.
      *
-     * <p>Используется для тестирования retry/recovery-логики polling-слоя.
+     * <p>Используется для тестирования поведения polling-слоя при недоступности инстансов.
      */
     private List<String> offlineInstances = new ArrayList<>();
 

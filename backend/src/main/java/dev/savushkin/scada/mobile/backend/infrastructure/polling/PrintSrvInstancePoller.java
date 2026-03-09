@@ -45,7 +45,6 @@ public final class PrintSrvInstancePoller {
     private final PrintSrvClient client;
     private final PrintSrvMapper mapper;
     private final InstanceSnapshotRepository snapshotRepo;
-    private final InstanceConnectionState state;
     private final List<String> devices;
 
     /**
@@ -60,7 +59,6 @@ public final class PrintSrvInstancePoller {
         this.client = client;
         this.mapper = mapper;
         this.snapshotRepo = snapshotRepo;
-        this.state = new InstanceConnectionState(client.getInstanceId());
         this.devices = List.copyOf(devices);
     }
 
@@ -80,7 +78,7 @@ public final class PrintSrvInstancePoller {
      * сохраняются в репозиторий. Ошибки отдельных устройств логируются на уровне
      * {@code TRACE} и не прерывают опрос остальных.
      */
-    public void poll() {
+    public boolean poll() {
         boolean anySuccess = false;
 
         for (String device : devices) {
@@ -95,24 +93,12 @@ public final class PrintSrvInstancePoller {
         }
 
         if (anySuccess) {
-            boolean wasRecovering = state.recordSuccess();
-            if (wasRecovering) {
-                log.info("[{}] ✅ PrintSrv reconnected after {} consecutive failure(s)",
-                        client.getInstanceId(), state.getConsecutiveFailures());
-            } else {
-                log.trace("[{}] poll ok", client.getInstanceId());
-            }
+            log.trace("[{}] poll ok", client.getInstanceId());
         } else {
-            int count = state.recordFailure();
-            if (count == 1) {
-                // Первый сбой — WARN: оператор должен обратить внимание
-                log.warn("[{}] ⚠️ PrintSrv unreachable (first failure)", client.getInstanceId());
-            } else {
-                // Повторные сбои — DEBUG: в prod не засоряем лог
-                log.debug("[{}] ❌ PrintSrv still unreachable (consecutive failures: {})",
-                        client.getInstanceId(), count);
-            }
+            log.warn("[{}] PrintSrv unreachable for all configured devices", client.getInstanceId());
         }
+
+        return anySuccess;
     }
 
     public int getConfiguredDeviceCount() {

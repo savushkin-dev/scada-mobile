@@ -21,6 +21,15 @@
  */
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import {
+  ERROR_FALLBACK_BUTTON_STYLE,
+  ERROR_FALLBACK_CONTAINER_STYLE,
+  ERROR_FALLBACK_DEBUG_STYLE,
+  ERROR_FALLBACK_ICON_STYLE,
+  ERROR_FALLBACK_MESSAGE_STYLE,
+  ERROR_FALLBACK_TITLE_STYLE,
+  UI_COPY,
+} from '../config';
 import { classifyError } from './classifyError';
 import type { AppError } from './AppError';
 
@@ -95,100 +104,22 @@ interface ErrorFallbackProps {
 // eslint-disable-next-line react-refresh/only-export-components
 function ErrorFallback({ error, onReset }: ErrorFallbackProps) {
   return (
-    <div
-      role="alert"
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '100dvh',
-        padding: '24px',
-        background: 'var(--clr-bg-app, #f8f9fa)',
-        textAlign: 'center',
-        gap: '16px',
-      }}
-    >
+    <div role="alert" style={ERROR_FALLBACK_CONTAINER_STYLE}>
       {/* Иконка */}
-      <div
-        style={{
-          width: '56px',
-          height: '56px',
-          borderRadius: '50%',
-          background: 'var(--clr-crit-bg, #fff5f5)',
-          border: '1.5px solid var(--clr-crit-border, #ea4335)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '1.6rem',
-          flexShrink: 0,
-        }}
-      >
-        ⚠
-      </div>
+      <div style={ERROR_FALLBACK_ICON_STYLE}>{UI_COPY.retryIcon}</div>
 
       {/* Заголовок */}
-      <h2
-        style={{
-          margin: 0,
-          fontSize: '1.1rem',
-          fontWeight: 700,
-          color: 'var(--clr-text, #1a1c1e)',
-        }}
-      >
-        Что-то пошло не так
-      </h2>
+      <h2 style={ERROR_FALLBACK_TITLE_STYLE}>{UI_COPY.errorFallbackTitle}</h2>
 
       {/* Сообщение из classifyError — всегда на русском */}
-      <p
-        style={{
-          margin: 0,
-          fontSize: '0.88rem',
-          color: 'var(--clr-text-muted, #74777f)',
-          maxWidth: '280px',
-          lineHeight: 1.5,
-        }}
-      >
-        {error.message}
-      </p>
+      <p style={ERROR_FALLBACK_MESSAGE_STYLE}>{error.message}</p>
 
       {/* Техническое сообщение — только в dev */}
-      {import.meta.env.DEV && (
-        <pre
-          style={{
-            margin: 0,
-            padding: '8px 12px',
-            borderRadius: '8px',
-            background: '#f4f4f4',
-            fontSize: '0.72rem',
-            color: '#555',
-            maxWidth: '320px',
-            overflowX: 'auto',
-            textAlign: 'left',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-          }}
-        >
-          {error.raw}
-        </pre>
-      )}
+      {import.meta.env.DEV && <pre style={ERROR_FALLBACK_DEBUG_STYLE}>{error.raw}</pre>}
 
       {/* Кнопка перезагрузки */}
-      <button
-        onClick={onReset}
-        style={{
-          marginTop: '4px',
-          padding: '10px 28px',
-          borderRadius: '10px',
-          border: 'none',
-          background: 'var(--clr-crit-border, #ea4335)',
-          color: '#fff',
-          fontSize: '0.9rem',
-          fontWeight: 600,
-          cursor: 'pointer',
-        }}
-      >
-        Перезагрузить
+      <button onClick={onReset} style={ERROR_FALLBACK_BUTTON_STYLE}>
+        {UI_COPY.errorFallbackReload}
       </button>
     </div>
   );

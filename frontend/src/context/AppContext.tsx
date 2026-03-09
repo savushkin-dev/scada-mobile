@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useReducer } from 'react';
 import type { ReactNode } from 'react';
+import { ALERT_VIBRATION_PATTERN, DOMAIN_DEFAULTS } from '../config';
 import type {
   AlertData,
   AlertWsMessage,
@@ -9,9 +10,6 @@ import type {
   Workshop,
   WorkshopTopology,
 } from '../types';
-
-// ── Constants ──────────────────────────────────────────────────────────
-const ALERT_VIBRATION_PATTERN = [200, 100, 200];
 
 // ── State ──────────────────────────────────────────────────────────────
 
@@ -199,8 +197,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         id: t.id,
         workshopId: t.workshopId,
         unit: t.unit,
-        event: statusMap[t.id]?.event ?? 'Нет данных',
-        timer: statusMap[t.id]?.timer ?? '00:00:00',
+        event: statusMap[t.id]?.event ?? DOMAIN_DEFAULTS.noDataEvent,
+        timer: statusMap[t.id]?.timer ?? DOMAIN_DEFAULTS.zeroTimer,
         // statusReady = false пока UNITS_STATUS от WS ещё не пришёл для этого аппарата.
         // Позволяет UnitCard показывать серый цвет вместо жёлтого при старте.
         statusReady: t.id in statusMap,

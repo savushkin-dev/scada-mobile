@@ -1,5 +1,19 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams, useLocation } from 'react-router-dom';
+import {
+  BACK_BUTTON_STYLE,
+  DEFAULT_DETAIL_TAB,
+  DETAILS_HEADER_CAPTION_STYLE,
+  DETAILS_HEADER_META_STYLE,
+  DETAILS_HEADER_STYLE,
+  DETAILS_HEADER_TITLE_STYLE,
+  DETAILS_PAGE_STYLE,
+  DETAILS_SCROLL_SECTION_STYLE,
+  DETAIL_TABS,
+  DOMAIN_DEFAULTS,
+  DOMAIN_FLAGS,
+  UI_COPY,
+} from '../config';
 import { BatchTab } from '../components/details/BatchTab';
 import { DevicesTab } from '../components/details/DevicesTab';
 import { QueueTab } from '../components/details/QueueTab';
@@ -18,10 +32,15 @@ import type {
 } from '../types';
 
 /** Допустимые значения search-параметра «?tab=». */
-const VALID_TABS = new Set<TabId>(['tab-batch', 'tab-devices', 'tab-queue', 'tab-logs']);
+const VALID_TABS = new Set<TabId>([
+  DETAIL_TABS.batch,
+  DETAIL_TABS.devices,
+  DETAIL_TABS.queue,
+  DETAIL_TABS.logs,
+]);
 
 function parseTab(raw: string | null): TabId {
-  return raw && VALID_TABS.has(raw as TabId) ? (raw as TabId) : 'tab-batch';
+  return raw && VALID_TABS.has(raw as TabId) ? (raw as TabId) : DEFAULT_DETAIL_TAB;
 }
 
 export function DetailsPage() {
@@ -63,7 +82,9 @@ export function DetailsPage() {
 
   useUnitWs(unitId || null, handleMessage);
 
-  const errorCount = (errorsData?.deviceErrors ?? []).filter((e) => e.value === 1).length;
+  const errorCount = (errorsData?.deviceErrors ?? []).filter(
+    (e) => e.value === DOMAIN_FLAGS.active
+  ).length;
 
   // Имя цеха: приоритет — location.state (передаётся при навигации из WorkshopPage).
   // Фоллбэк — поиск по topology (актуален при прямом открытии URL / refresh).
@@ -71,12 +92,12 @@ export function DetailsPage() {
   const workshopName =
     locationState?.workshopName ??
     state.workshopTopology.find((w) => w.id === workshopId)?.name ??
-    'Цех';
+    DOMAIN_DEFAULTS.workshopName;
 
   // Имя аппарата из topology (может не быть загружено при прямом открытии URL).
   const units = unitsByWorkshop[workshopId] ?? [];
   const currentUnit = units.find((u) => u.id === unitId);
-  const unitName = currentUnit?.unit ?? unitId ?? 'Устройство';
+  const unitName = currentUnit?.unit ?? unitId ?? DOMAIN_DEFAULTS.unitName;
 
   function handleTabChange(tab: TabId) {
     // replace: true — не засоряем историю смену табов.
@@ -88,72 +109,21 @@ export function DetailsPage() {
   }
 
   return (
-    <div
-      className="flex flex-col lg:flex-row"
-      style={{
-        flex: 1,
-        overflow: 'hidden',
-        animation: 'fadeIn 0.3s ease',
-      }}
-    >
+    <div className="flex flex-col lg:flex-row" style={DETAILS_PAGE_STYLE}>
       {/* ── Основной контент: header + прокручиваемая область + FAB ── */}
       <div className="flex flex-col flex-1 overflow-hidden min-w-0">
         {/* Header */}
-        <header
-          style={{
-            padding: '16px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            flexShrink: 0,
-            marginTop: '8px',
-          }}
-        >
+        <header style={DETAILS_HEADER_STYLE}>
           <button
             onClick={handleBack}
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              border: 'none',
-              background: '#F0F7FF',
-              cursor: 'pointer',
-              fontSize: '1.1rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-            aria-label="Назад"
+            style={BACK_BUTTON_STYLE}
+            aria-label={UI_COPY.backButtonAriaLabel}
           >
-            ←
+            {UI_COPY.backIcon}
           </button>
-          <div style={{ overflow: 'hidden' }}>
-            <p
-              style={{
-                fontSize: '0.62rem',
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                color: '#74777F',
-                textTransform: 'uppercase',
-                marginBottom: '2px',
-              }}
-            >
-              {workshopName}
-            </p>
-            <h1
-              style={{
-                fontSize: '1rem',
-                fontWeight: 700,
-                color: '#1A1C1E',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                margin: 0,
-              }}
-            >
-              {unitName}
-            </h1>
+          <div style={DETAILS_HEADER_META_STYLE}>
+            <p style={DETAILS_HEADER_CAPTION_STYLE}>{workshopName}</p>
+            <h1 style={DETAILS_HEADER_TITLE_STYLE}>{unitName}</h1>
           </div>
         </header>
 
@@ -164,22 +134,17 @@ export function DetailsPage() {
           }}
           data-scroll
           className="details-content"
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '0 16px',
-            paddingBottom: '80px',
-          }}
+          style={DETAILS_SCROLL_SECTION_STYLE}
         >
-          {activeTab === 'tab-batch' && <BatchTab data={lineData} />}
-          {activeTab === 'tab-devices' && <DevicesTab data={devicesData} />}
-          {activeTab === 'tab-queue' && <QueueTab data={queueData} />}
-          {activeTab === 'tab-logs' && <LogsTab data={errorsData} />}
+          {activeTab === DETAIL_TABS.batch && <BatchTab data={lineData} />}
+          {activeTab === DETAIL_TABS.devices && <DevicesTab data={devicesData} />}
+          {activeTab === DETAIL_TABS.queue && <QueueTab data={queueData} />}
+          {activeTab === DETAIL_TABS.logs && <LogsTab data={errorsData} />}
         </section>
 
         {/* FAB */}
         <Fab
-          visible={activeTab === 'tab-batch'}
+          visible={activeTab === DETAIL_TABS.batch}
           unitId={unitId || null}
           scrollContainer={scrollRef.current}
         />

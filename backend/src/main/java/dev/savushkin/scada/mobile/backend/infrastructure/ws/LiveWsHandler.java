@@ -39,8 +39,8 @@ import java.util.concurrent.CopyOnWriteArraySet;
  * <ul>
  *   <li>{@code ALERT_SNAPSHOT} — отправляется <b>один раз</b> сразу после установки
  *       соединения; содержит все активные алёрты на текущий момент.</li>
- *   <li>{@code UNITS_STATUS} — рассылается подписчикам конкретного цеха после каждого
- *       scan cycle (только если у цеха есть подписчики).</li>
+ *   <li>{@code UNITS_STATUS} — рассылается подписчикам конкретного цеха по мере
+ *       готовности отдельных аппаратов.</li>
  *   <li>{@code ALERT} — рассылается <b>всем</b> подключённым клиентам при изменении
  *       набора активных ошибок (дельта: появилась / исчезла).</li>
  * </ul>
@@ -133,7 +133,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
         }
     }
 
-    private void handleSubscribeWorkshop(WebSocketSession session, JsonNode node) {
+    private void handleSubscribeWorkshop(WebSocketSession session, @NonNull JsonNode node) {
         // Сначала отписываемся от предыдущего цеха (если был)
         handleUnsubscribeWorkshop(session);
 
@@ -149,13 +149,13 @@ public class LiveWsHandler extends TextWebSocketHandler {
         session.getAttributes().put(ATTR_SUBSCRIBED_WORKSHOP, workshopId);
 
         // Отправляем текущий snapshot сразу после подписки, чтобы клиент не ждал
-        // завершения следующего scan cycle и не показывал временно «Нет данных».
+        // следующего polling-обновления и не показывал временно «Нет данных».
         sendUnitsStatusSnapshot(session, workshopId);
 
         log.debug("WS /live: subscribed workshop={}, id={}", workshopId, session.getId());
     }
 
-    private void handleUnsubscribeWorkshop(WebSocketSession session) {
+    private void handleUnsubscribeWorkshop(@NonNull WebSocketSession session) {
         String prev = (String) session.getAttributes().remove(ATTR_SUBSCRIBED_WORKSHOP);
         if (prev == null) return;
 
@@ -217,7 +217,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
     private void sendAlertSnapshot(WebSocketSession session) {
         try {
             var snapshotMsg = AlertSnapshotMessageDTO.of(alertStore.getAll());
-            session.sendMessage(new TextMessage(objectMapper.writeValueAsString(snapshotMsg)));
+            sendMessageSafely(session, objectMapper.writeValueAsString(snapshotMsg));
             log.debug("WS /live: sent ALERT_SNAPSHOT, alerts={}, id={}",
                     snapshotMsg.payload().size(), session.getId());
         } catch (Exception e) {
@@ -229,7 +229,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
      * Отправляет подписавшейся сессии моментальный {@code UNITS_STATUS},
      * вычисленный из текущего snapshot store.
      *
-     * <p>Это устраняет окно до следующего scan cycle: после SUBSCRIBE_WORKSHOP
+     * <p>Это устраняет окно до следующего polling-обновления: после SUBSCRIBE_WORKSHOP
      * клиент сразу получает актуальный статус аппаратов из памяти сервера.
      */
     private void sendUnitsStatusSnapshot(WebSocketSession session, String workshopId) {
@@ -237,7 +237,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
             var status = workshopService.getUnitsStatus(workshopId);
             var message = UnitsStatusMessageDTO.of(workshopId, status);
             if (session.isOpen()) {
-                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(message)));
+                sendMessageSafely(session, objectMapper.writeValueAsString(message));
             }
             log.debug("WS /live: sent initial UNITS_STATUS, workshop={}, units={}, id={}",
                     workshopId, status.size(), session.getId());
@@ -252,18 +252,26 @@ public class LiveWsHandler extends TextWebSocketHandler {
      * Закрытые/недоступные сессии удаляются из набора.
      */
     private void sendToSessions(Set<WebSocketSession> sessions, String json) {
-        TextMessage message = new TextMessage(json);
         for (WebSocketSession session : sessions) {
             if (!session.isOpen()) {
                 sessions.remove(session);
                 continue;
             }
             try {
-                session.sendMessage(message);
-            } catch (IOException e) {
+                sendMessageSafely(session, json);
+            } catch (IOException | IllegalStateException e) {
                 log.warn("WS /live: send failed, id={}: {}", session.getId(), e.getMessage());
                 sessions.remove(session);
             }
+        }
+    }
+
+    private void sendMessageSafely(WebSocketSession session, String json) throws IOException {
+        synchronized (session) {
+            if (!session.isOpen()) {
+                throw new IOException("WebSocket session is closed");
+            }
+            session.sendMessage(new TextMessage(json));
         }
     }
 

@@ -10,13 +10,12 @@
 #     2) PrintSrv на удалённой машине — пробросить SSH-туннель:
 #          ssh -L 5561:localhost:5561 ... -L 5577:localhost:5577 user@prod-host
 #        Тогда localhost-порты из application.yaml сработают без изменений.
-#     3) Для тестирования без PrintSrv — порт/хост роли не играют,
-#        scheduler деградирует в recovery-mode (см. PrintSrvConnectionManager).
+#     3) Для тестирования без PrintSrv — используйте мок-клиенты и offline-instances.
 # ─────────────────────────────────────────────────────────────────────────────
 
 printsrv:
   polling:
-    fixed-delay-ms: 5000  # Dev: медленный цикл (5 секунд) для комфортной отладки
+    fixed-delay-ms: 500  # Dev: задержка между проходами каждого instance worker
 
   # ─────────────────────────────────────────────────────────────────────────
   # MockPrintSrv — используется ТОЛЬКО в профиле dev.

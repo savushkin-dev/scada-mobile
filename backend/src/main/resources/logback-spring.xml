@@ -31,7 +31,7 @@
                 %X{method:-    }     — HTTP-метод запроса
                 %X{uri}              — URI запроса (пусто для scan cycle / не-HTTP потоков)
             -->
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [%15.15thread] [%8.8X{requestId:- }]
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %highlight(%-5level) [%25thread] [%8.8X{requestId:- }]
                 %cyan(%-40logger{40}) : %msg%n
             </pattern>
             <charset>UTF-8</charset>
@@ -54,7 +54,7 @@
             <cleanHistoryOnStart>true</cleanHistoryOnStart>
         </rollingPolicy>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%15.15thread] [%8.8X{requestId:- }] %-40logger{40} : %msg%n
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%25thread] [%8.8X{requestId:- }] %-40logger{40} : %msg%n
             </pattern>
             <charset>UTF-8</charset>
         </encoder>

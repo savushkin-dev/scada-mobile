@@ -1,3 +1,5 @@
+import { BACK_BUTTON_STYLE, UI_COPY } from '../config';
+
 /**
  * Универсальная закреплённая шапка страницы.
  *
@@ -24,24 +26,8 @@ export function PageHeader({ title, subtitle, onBack }: PageHeaderProps) {
   return (
     <header className="sticky top-0 z-10 backdrop-blur-md bg-[#f8f9fa]/30 border-b border-white/15 flex items-center gap-3 px-6 pt-5 pb-4 flex-shrink-0 sm:px-8 lg:px-10">
       {onBack && (
-        <button
-          onClick={onBack}
-          style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '50%',
-            border: 'none',
-            background: '#F0F7FF',
-            cursor: 'pointer',
-            fontSize: '1.1rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-          }}
-          aria-label="Назад"
-        >
-          ←
+        <button onClick={onBack} style={BACK_BUTTON_STYLE} aria-label={UI_COPY.backButtonAriaLabel}>
+          {UI_COPY.backIcon}
         </button>
       )}
       <div>

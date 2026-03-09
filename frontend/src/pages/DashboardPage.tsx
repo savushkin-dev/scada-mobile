@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { APP_BRAND, PAGE_FADE_SECTION_STYLE, UI_BEHAVIOR, UI_COPY } from '../config';
 import { fetchWorkshopsTopology, type TopologyFetchResult } from '../api/workshops';
 import { PageHeader } from '../components/PageHeader';
 import { WorkshopCard } from '../components/WorkshopCard';
@@ -20,7 +21,7 @@ export function DashboardPage() {
   //   • данных ещё нет (первая загрузка) → ETag не передаём: 304 при отсутствии
   //     локальных данных семантически некорректен — нам нечего было бы показать.
   // cache: 'no-store' в fetchTopology исключает конкуренцию с браузерным HTTP-кешем.
-  const hasTopology = state.workshopTopology.length > 0;
+  const hasTopology = state.workshopTopology.length > UI_BEHAVIOR.emptyCollectionSize;
   const fetchState = useAsyncFetch<TopologyFetchResult<WorkshopTopology[]>>(
     (signal) => fetchWorkshopsTopology(signal, hasTopology ? state.topologyETag : null),
     [],
@@ -37,26 +38,16 @@ export function DashboardPage() {
   }, [fetchState.data, setWorkshopTopology, setTopologyETag]);
 
   return (
-    <section
-      data-scroll
-      style={{
-        flex: 1,
-        overflowY: 'auto',
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        animation: 'fadeIn 0.3s ease',
-      }}
-    >
-      <PageHeader title="Савушкин продукт" subtitle="Площадка г. Брест" />
+    <section data-scroll style={PAGE_FADE_SECTION_STYLE}>
+      <PageHeader title={APP_BRAND.title} subtitle={APP_BRAND.subtitle} />
 
       <RetryBanner error={fetchState.error} onRetry={fetchState.refetch} />
 
       <main className="px-4 space-y-4 pb-10 sm:px-6 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 lg:grid-cols-3 lg:px-8">
         {fetchState.status === 'loading' && !workshops.length ? (
-          <WorkshopCardSkeleton count={3} />
+          <WorkshopCardSkeleton count={UI_BEHAVIOR.dashboardSkeletonCount} />
         ) : !workshops.length && fetchState.status !== 'loading' ? (
-          <p className="text-center text-[#74777F] py-5 text-[0.88rem]">Нет данных</p>
+          <p className="text-center text-[#74777F] py-5 text-[0.88rem]">{UI_COPY.noData}</p>
         ) : (
           workshops.map((ws) => (
             <WorkshopCard

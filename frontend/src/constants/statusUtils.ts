@@ -1,3 +1,4 @@
+import { ALERT_SEVERITY, NO_DATA_UNIT_EVENTS, NORMAL_UNIT_EVENTS } from '../config';
 import type { AlertData, Unit } from '../types';
 
 // ── Уровни статуса ────────────────────────────────────────────────────────────
@@ -22,15 +23,6 @@ export type UnitStatusLevel = 'pending' | 'offline' | 'critical' | 'warning' | '
  * Пустая строка — статус ещё не получен; отображаем как normal
  * (карточка зеленеет сразу как придут данные о нормальной работе).
  */
-const NORMAL_EVENTS = new Set<string>(['', 'В работе']);
-
-/**
- * События, означающие «аппарат недоступен / данных нет».
- * Несмотря на то что statusReady = true (WS ответил), реальный статус
- * устройства неизвестен → карточка серая, как pending.
- */
-const NO_DATA_EVENTS = new Set<string>(['Нет данных']);
-
 // ── Статус аппарата (unit) ───────────────────────────────────────────────────
 
 /**
@@ -51,12 +43,12 @@ export function getUnitStatusLevel(unit: Unit, alerts: Map<string, AlertData>): 
   // Аппарат недоступен / бэкенд не получил данных — статус неизвестен.
   // Визуально та же серая карточка, но семантически отличается от pending:
   // данные получены, устройство офлайн → переход в детали бессмысленен.
-  if (NO_DATA_EVENTS.has(unit.event)) return 'offline';
+  if (NO_DATA_UNIT_EVENTS.has(unit.event)) return 'offline';
 
   const alert = alerts.get(String(unit.id));
-  if (alert?.severity === 'Critical') return 'critical';
-  if (alert?.severity === 'Warning') return 'warning';
-  if (!NORMAL_EVENTS.has(unit.event)) return 'warning';
+  if (alert?.severity === ALERT_SEVERITY.critical) return 'critical';
+  if (alert?.severity === ALERT_SEVERITY.warning) return 'warning';
+  if (!NORMAL_UNIT_EVENTS.has(unit.event)) return 'warning';
   return 'normal';
 }
 
@@ -76,8 +68,8 @@ export function getWorkshopStatusLevel(
   let hasWarning = false;
   alerts.forEach((alert) => {
     if (alert.workshopId === workshopId) {
-      if (alert.severity === 'Critical') hasCritical = true;
-      else if (alert.severity === 'Warning') hasWarning = true;
+      if (alert.severity === ALERT_SEVERITY.critical) hasCritical = true;
+      else if (alert.severity === ALERT_SEVERITY.warning) hasWarning = true;
     }
   });
   if (hasCritical) return 'critical';

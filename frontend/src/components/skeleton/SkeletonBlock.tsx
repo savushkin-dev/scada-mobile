@@ -17,12 +17,13 @@ interface SkeletonBlockProps {
   style?: React.CSSProperties;
 }
 
+import { SKELETON_BLOCK_DEFAULTS } from '../../config';
 import type React from 'react';
 
 export function SkeletonBlock({
-  width = '100%',
-  height = '16px',
-  borderRadius = '6px',
+  width = SKELETON_BLOCK_DEFAULTS.width,
+  height = SKELETON_BLOCK_DEFAULTS.height,
+  borderRadius = SKELETON_BLOCK_DEFAULTS.borderRadius,
   className,
   style,
 }: SkeletonBlockProps) {
@@ -36,9 +37,9 @@ export function SkeletonBlock({
         height,
         borderRadius,
         ...style,
-        background: 'linear-gradient(90deg, #eaebec 25%, #f4f5f6 50%, #eaebec 75%)',
-        backgroundSize: '200% 100%',
-        animation: 'skeleton-shimmer 1.6s ease-in-out infinite',
+        background: SKELETON_BLOCK_DEFAULTS.background,
+        backgroundSize: SKELETON_BLOCK_DEFAULTS.backgroundSize,
+        animation: SKELETON_BLOCK_DEFAULTS.animation,
         flexShrink: 0,
       }}
     />

@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
  * Сервис приложения для координации health-check логики SCADA.
  * <p>
  * Данные о состоянии аппаратов предоставляются через {@link InstanceSnapshotRepository},
- * который автоматически заполняется планировщиком опроса {@code ScanCycleScheduler}.
+ * который автоматически заполняется polling runtime по мере готовности инстансов.
  */
 @Service
 public class ScadaApplicationService {

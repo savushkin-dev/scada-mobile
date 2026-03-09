@@ -1,4 +1,13 @@
 import { useState } from 'react';
+import {
+  BATCH_ADDITIONAL_FIELDS,
+  BATCH_EXPANDED_SECTION_STYLE,
+  BATCH_PRIMARY_FIELDS,
+  BOOLEAN_LABEL,
+  DOMAIN_DEFAULTS,
+  DOMAIN_FLAGS,
+  UI_COPY,
+} from '../../config';
 import type { LineStatusPayload } from '../../types';
 
 interface Props {
@@ -6,8 +15,20 @@ interface Props {
 }
 
 function val(v: string | number | undefined | null): string {
-  if (v === null || v === undefined) return '-';
+  if (v === null || v === undefined) return DOMAIN_DEFAULTS.emptyValue;
   return String(v);
+}
+
+function formatFieldValue(
+  data: LineStatusPayload | null,
+  key: keyof LineStatusPayload,
+  format?: 'boolean'
+) {
+  const value = data?.[key];
+  if (format === 'boolean') {
+    return value === DOMAIN_FLAGS.active ? BOOLEAN_LABEL.yes : BOOLEAN_LABEL.no;
+  }
+  return val(value as string | number | undefined | null);
 }
 
 export function BatchTab({ data }: Props) {
@@ -15,87 +36,27 @@ export function BatchTab({ data }: Props) {
 
   return (
     <div className="card p-5 card-static mb-4">
-      <div className="card-title">📦 Текущая партия</div>
+      <div className="card-title">{UI_COPY.batchTitle}</div>
 
-      <div className="kv-row">
-        <div className="kv-key">Описание</div>
-        <div className="kv-val">{val(data?.description)}</div>
-      </div>
-      <div className="kv-row">
-        <div className="kv-key">EAN</div>
-        <div className="kv-val">{val(data?.ean13)}</div>
-      </div>
-      <div className="kv-row">
-        <div className="kv-key">Номер партии</div>
-        <div className="kv-val">{val(data?.batchNumber)}</div>
-      </div>
-      <div className="kv-row">
-        <div className="kv-key">Дата выработки</div>
-        <div className="kv-val">{val(data?.dateProduced)}</div>
-      </div>
-      <div className="kv-row">
-        <div className="kv-key">Дата годности</div>
-        <div className="kv-val">{val(data?.dateExpiration)}</div>
-      </div>
+      {BATCH_PRIMARY_FIELDS.map(({ key, label, format }) => (
+        <div key={key} className="kv-row">
+          <div className="kv-key">{label}</div>
+          <div className="kv-val">{formatFieldValue(data, key, format)}</div>
+        </div>
+      ))}
 
       <button className="accordion-btn" onClick={() => setExpanded((e) => !e)}>
-        {expanded ? 'Скрыть дополнительные свойства ▴' : 'Показать все свойства ▾'}
+        {expanded ? UI_COPY.batchShowLess : UI_COPY.batchShowMore}
       </button>
 
       {expanded && (
-        <div style={{ paddingTop: '12px', animation: 'fadeIn 0.2s ease' }}>
-          <div className="kv-row">
-            <div className="kv-key">Краткий код</div>
-            <div className="kv-val">{val(data?.shortCode)}</div>
-          </div>
-          <div className="kv-row">
-            <div className="kv-key">КМС</div>
-            <div className="kv-val">{val(data?.kms)}</div>
-          </div>
-          <div className="kv-row">
-            <div className="kv-key">Дата фасовки</div>
-            <div className="kv-val">{val(data?.datePacking)}</div>
-          </div>
-          <div className="kv-row">
-            <div className="kv-key">Начальный счётчик</div>
-            <div className="kv-val">{val(data?.initialCounter)}</div>
-          </div>
-          <div className="kv-row">
-            <div className="kv-key">Площадка</div>
-            <div className="kv-val">{val(data?.site)}</div>
-          </div>
-          <div className="kv-row">
-            <div className="kv-key">ITF</div>
-            <div className="kv-val">{val(data?.itf)}</div>
-          </div>
-          <div className="kv-row">
-            <div className="kv-key">Ёмкость</div>
-            <div className="kv-val">{val(data?.capacity)}</div>
-          </div>
-          <div className="kv-row">
-            <div className="kv-key">Кол-во коробок</div>
-            <div className="kv-val">{val(data?.boxCount)}</div>
-          </div>
-          <div className="kv-row">
-            <div className="kv-key">Кол-во упаковок</div>
-            <div className="kv-val">{val(data?.packageCount)}</div>
-          </div>
-          <div className="kv-row">
-            <div className="kv-key">Заморозка</div>
-            <div className="kv-val">{data?.freeze === 1 ? 'Да' : 'Нет'}</div>
-          </div>
-          <div className="kv-row">
-            <div className="kv-key">Регион</div>
-            <div className="kv-val">{val(data?.region)}</div>
-          </div>
-          <div className="kv-row">
-            <div className="kv-key">Дизайн</div>
-            <div className="kv-val">{val(data?.design)}</div>
-          </div>
-          <div className="kv-row">
-            <div className="kv-key">Печать DM</div>
-            <div className="kv-val">{data?.printDM === 1 ? 'Да' : 'Нет'}</div>
-          </div>
+        <div style={BATCH_EXPANDED_SECTION_STYLE}>
+          {BATCH_ADDITIONAL_FIELDS.map(({ key, label, format }) => (
+            <div key={key} className="kv-row">
+              <div className="kv-key">{label}</div>
+              <div className="kv-val">{formatFieldValue(data, key, format)}</div>
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -1,17 +1,5 @@
+import { BOTTOM_NAV_ITEMS, DETAIL_TABS, UI_BEHAVIOR } from '../config';
 import type { TabId } from '../types';
-
-interface NavItemConfig {
-  tab: TabId;
-  icon: string;
-  label: string;
-}
-
-const NAV_ITEMS: NavItemConfig[] = [
-  { tab: 'tab-batch', icon: '📦', label: 'Партия' },
-  { tab: 'tab-devices', icon: '⚙️', label: 'Устройства' },
-  { tab: 'tab-queue', icon: '📋', label: 'Очередь' },
-  { tab: 'tab-logs', icon: '⚠️', label: 'Журнал' },
-];
 
 interface Props {
   activeTab: TabId;
@@ -24,8 +12,8 @@ interface Props {
 export function BottomNav({ activeTab, onTabChange, errorCount, className }: Props) {
   return (
     <nav className={`bottom-nav${className ? ` ${className}` : ''}`}>
-      {NAV_ITEMS.map(({ tab, icon, label }) => {
-        const isLogsTab = tab === 'tab-logs';
+      {BOTTOM_NAV_ITEMS.map(({ tab, icon, label }) => {
+        const isLogsTab = tab === DETAIL_TABS.logs;
         return (
           <div
             key={tab}
@@ -34,7 +22,9 @@ export function BottomNav({ activeTab, onTabChange, errorCount, className }: Pro
           >
             <span className="nav-icon">
               {icon}
-              {isLogsTab && errorCount > 0 && <span className="nav-badge">{errorCount}</span>}
+              {isLogsTab && errorCount > UI_BEHAVIOR.emptyCollectionSize && (
+                <span className="nav-badge">{errorCount}</span>
+              )}
             </span>
             <span>{label}</span>
           </div>

@@ -1,3 +1,4 @@
+import { DOMAIN_DEFAULTS } from '../config';
 import { getUnitStatusLevel, UNIT_STATUS_CLASS } from '../constants/statusUtils';
 import type { AlertData, Unit } from '../types';
 
@@ -15,7 +16,8 @@ export function UnitCard({ unit, alerts, onClick }: Props) {
   // Блок простоя показываем только когда статус известен (не pending/offline):
   // pending — WS ещё не ответил; offline — устройство недоступно.
   const hasAlert = !isPending && !isOffline && statusLevel !== 'normal';
-  const timerNotZero = !isPending && !isOffline && !!(unit.timer && unit.timer !== '00:00:00');
+  const timerNotZero =
+    !isPending && !isOffline && !!(unit.timer && unit.timer !== DOMAIN_DEFAULTS.zeroTimer);
 
   const statusClass = UNIT_STATUS_CLASS[statusLevel];
   // offline: карточка некликабельна; card-static отключает cursor:pointer и :active-scale.

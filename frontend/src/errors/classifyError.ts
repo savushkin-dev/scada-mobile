@@ -24,6 +24,7 @@
  * Если нужно обработать новый тип ошибки — добавь ветку здесь.
  */
 
+import { ERROR_MESSAGES, HTTP_STATUS } from '../config';
 import type { AppError, AppErrorCode, AppErrorSeverity, AppErrorSource } from './AppError';
 import { HttpError } from './AppError';
 
@@ -73,7 +74,7 @@ function resolveHandler(error: unknown): ErrorResolution {
   if (error.name === 'AbortError') {
     return {
       code: 'timeout',
-      message: 'Запрос был отменён',
+      message: ERROR_MESSAGES.timeout,
       severity: 'transient',
       retryable: true,
     };
@@ -91,7 +92,7 @@ function resolveHandler(error: unknown): ErrorResolution {
   ) {
     return {
       code: 'network_unavailable',
-      message: 'Нет связи с сервером',
+      message: ERROR_MESSAGES.networkUnavailable,
       severity: 'degraded',
       retryable: true,
     };
@@ -102,7 +103,7 @@ function resolveHandler(error: unknown): ErrorResolution {
   if (error instanceof SyntaxError) {
     return {
       code: 'parse_error',
-      message: 'Получен некорректный ответ от сервера',
+      message: ERROR_MESSAGES.parseError,
       severity: 'degraded',
       retryable: true,
     };
@@ -112,7 +113,7 @@ function resolveHandler(error: unknown): ErrorResolution {
   if (error.name === 'RenderError') {
     return {
       code: 'render_crash',
-      message: 'Произошла ошибка отображения',
+      message: ERROR_MESSAGES.renderCrash,
       severity: 'critical',
       retryable: true,
     };
@@ -134,34 +135,34 @@ function resolveHandler(error: unknown): ErrorResolution {
  * - 5xx     → degraded (ошибка сервера, повтор имеет смысл)
  */
 function handleHttpError(status: number): ErrorResolution {
-  if (status === 401 || status === 403) {
+  if (status === HTTP_STATUS.unauthorized || status === HTTP_STATUS.forbidden) {
     return {
       code: 'client_error',
-      message: 'Нет доступа к данным',
+      message: ERROR_MESSAGES.accessDenied,
       severity: 'critical',
       retryable: false,
     };
   }
-  if (status === 404) {
+  if (status === HTTP_STATUS.notFound) {
     return {
       code: 'not_found',
-      message: 'Данные не найдены на сервере',
+      message: ERROR_MESSAGES.notFound,
       severity: 'degraded',
       retryable: false,
     };
   }
-  if (status >= 400 && status < 500) {
+  if (status >= HTTP_STATUS.clientErrorMin && status < HTTP_STATUS.serverErrorMin) {
     return {
       code: 'client_error',
-      message: `Ошибка запроса (${status})`,
+      message: ERROR_MESSAGES.requestError(status),
       severity: 'degraded',
       retryable: false,
     };
   }
-  if (status >= 500) {
+  if (status >= HTTP_STATUS.serverErrorMin) {
     return {
       code: 'server_error',
-      message: 'Ошибка сервера. Повторите попытку',
+      message: ERROR_MESSAGES.serverError,
       severity: 'degraded',
       retryable: true,
     };
@@ -169,7 +170,7 @@ function handleHttpError(status: number): ErrorResolution {
   // Неожиданный статус (1xx, 2xx с ошибкой, 3xx без редиректа)
   return {
     code: 'unknown' as AppErrorCode,
-    message: `Неожиданный ответ сервера (${status})`,
+    message: ERROR_MESSAGES.unexpectedServerResponse(status),
     severity: 'degraded' as AppErrorSeverity,
     retryable: true,
   };
@@ -179,7 +180,7 @@ function handleHttpError(status: number): ErrorResolution {
 function fallback(): ErrorResolution {
   return {
     code: 'unknown',
-    message: 'Произошла непредвиденная ошибка',
+    message: ERROR_MESSAGES.unexpectedError,
     severity: 'degraded',
     retryable: true,
   };

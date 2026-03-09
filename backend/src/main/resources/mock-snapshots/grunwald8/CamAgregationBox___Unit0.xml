@@ -1,4 +1,4 @@
-<DeviceUnit
+﻿<DeviceUnit
     xmlns="http://schemas.datacontract.org/2004/07/MarkPrintServer.Classes">
     <counterloginterval>1000</counterloginterval>
     <properties xmlns:d2p1="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
@@ -16,8 +16,8 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>LastRead</d2p1:Key>
-            <d2p1:Value><start>ok
-                <stop>
+            <d2p1:Value>&lt;start&gt;ok
+                &lt;stop&gt;
             </d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
@@ -118,3 +118,4 @@
         </d2p1:KeyValueOfstringstring>
     </properties>
 </DeviceUnit>
+
