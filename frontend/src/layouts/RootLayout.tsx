@@ -1,13 +1,22 @@
 import { useCallback, useEffect } from 'react';
 import { Outlet, useMatch } from 'react-router-dom';
 import { AppProvider, useAppContext } from '../context/AppContext';
+import { PageHeaderProvider, usePageHeaderContext } from '../context/PageHeaderContext';
+import { PageHeader } from '../components/PageHeader';
 import { useLiveWs } from '../hooks/useLiveWs';
 import type { AlertWsMessage, UnitsStatusMessage } from '../types';
 
 /**
- * Внутренний компонент, имеющий доступ к AppContext.
- * Живёт внутри AppProvider — именно здесь размещается вся логика,
- * которая должна работать на протяжении всей сессии приложения.
+ * Внутренний компонент, имеющий доступ к AppContext и PageHeaderContext.
+ *
+ * Содержит:
+ *  - единственный экземпляр `<PageHeader />`, управляемый через контекст;
+ *  - глобальное WS-соединение (useLiveWs);
+ *  - блокировку pull-to-refresh на мобильных.
+ *
+ * Шапка не пересоздаётся при смене маршрута — она всегда присутствует
+ * в DOM, а её содержимое обновляется из активной страницы через хук
+ * {@link usePageHeader}.
  */
 function RootLayoutInner() {
   const {
@@ -18,6 +27,8 @@ function RootLayoutInner() {
     clearHeaderError,
     setSignalState,
   } = useAppContext();
+
+  const { config } = usePageHeaderContext();
 
   // Подписываемся на UNITS_STATUS только когда открыт экран цеха (/workshops/:workshopId).
   // На странице деталей аппарата (/units/:unitId) используется отдельный useUnitWs.
@@ -38,12 +49,6 @@ function RootLayoutInner() {
   // Единственное WebSocket-соединение для всего приложения:
   // ALERT_SNAPSHOT при подключении, UNITS_STATUS для цеха, ALERT-дельты глобально.
   // Соединение живёт всю сессию и не обрывается при смене страниц.
-  //
-  // Логика переходов signalState для канала 'live':
-  //   idle / connected → первый разрыв   → 'reconnecting' (skeleton, без ошибки)
-  //   'reconnecting'  → N-я удачная   → 'connected'    (данные пошли)
-  //   'reconnecting'  → 5-й разрыв    → 'error'        (ошибка + заголовок)
-  //   'error'         → восстановление   → 'connected'    (убираем ошибку)
   useLiveWs(subscribedWorkshopId, {
     onAlertSnapshot: handleAlertSnapshot,
     onUnitsStatus: handleUnitsStatus,
@@ -73,22 +78,35 @@ function RootLayoutInner() {
     return () => document.body.removeEventListener('touchmove', handler);
   }, []);
 
-  return <Outlet />;
+  return (
+    <>
+      <PageHeader
+        title={config.title}
+        subtitle={config.subtitle}
+        variant={config.variant}
+        onBack={config.onBack}
+      />
+      <Outlet />
+    </>
+  );
 }
 
 /**
  * Корневой layout-компонент приложения.
  *
- * Оборачивает всё дерево маршрутов в AppProvider и монтирует
- * глобальные side-эффекты (WebSocket, touch-блокировка).
+ * Оборачивает всё дерево маршрутов в AppProvider + PageHeaderProvider
+ * и монтирует глобальные side-эффекты (WebSocket, touch-блокировка).
  *
- * Архитектурно: AppProvider → RootLayoutInner → <Outlet />
- * (дочерние маршруты рендерятся через Outlet).
+ * Архитектурно: AppProvider → PageHeaderProvider → RootLayoutInner → <Outlet />
+ * Единственный экземпляр PageHeader рендерится здесь, а дочерние маршруты
+ * управляют его содержимым через хук usePageHeader.
  */
 export function RootLayout() {
   return (
     <AppProvider>
-      <RootLayoutInner />
+      <PageHeaderProvider>
+        <RootLayoutInner />
+      </PageHeaderProvider>
     </AppProvider>
   );
 }

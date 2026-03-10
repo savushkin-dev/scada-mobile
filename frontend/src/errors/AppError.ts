@@ -25,6 +25,7 @@
 export type AppErrorSource =
   | 'topology/workshops' // GET /workshops/topology
   | 'topology/units' // GET /workshops/{id}/units/topology
+  | 'topology/devices' // GET /workshops/{id}/units/{unitId}/devices/topology
   | 'ws/live' // WS  /ws/live (мультиплексный канал)
   | 'ws/unit' // WS  /ws/unit/{unitId}
   | 'ws/workshops-status' // WS  /ws/workshops/status (legacy)

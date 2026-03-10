@@ -2,10 +2,10 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { APP_BRAND, PAGE_FADE_SECTION_STYLE, UI_BEHAVIOR, UI_COPY } from '../config';
 import { fetchWorkshopsTopology, type TopologyFetchResult } from '../api/workshops';
-import { PageHeader } from '../components/PageHeader';
 import { WorkshopCard } from '../components/WorkshopCard';
 import { WorkshopCardSkeleton } from '../components/skeleton/WorkshopCardSkeleton';
 import { useAppContext } from '../context/AppContext';
+import { usePageHeader } from '../context/PageHeaderContext';
 import { useAsyncFetch } from '../hooks/useAsyncFetch';
 import { useHeaderErrorSlot } from '../hooks/useHeaderErrorSlot';
 import type { WorkshopTopology } from '../types';
@@ -14,6 +14,9 @@ export function DashboardPage() {
   const { state, workshops, setWorkshopTopology, setTopologyETag } = useAppContext();
   const navigate = useNavigate();
   const liveSignal = state.signalStates.live;
+
+  // Шапка: бренд, без кнопки «назад» (корневой экран).
+  usePageHeader(APP_BRAND.title, APP_BRAND.subtitle);
 
   // Запрашиваем topology при каждом монтировании страницы (deps = []).
   // Стратегия: stale-while-revalidate на уровне приложения:
@@ -50,8 +53,6 @@ export function DashboardPage() {
 
   return (
     <section data-scroll style={PAGE_FADE_SECTION_STYLE}>
-      <PageHeader title={APP_BRAND.title} subtitle={APP_BRAND.subtitle} />
-
       <main className="px-4 space-y-4 pb-10 sm:px-6 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 lg:grid-cols-3 lg:px-8">
         {isErrorState ? (
           <p className="text-center text-[#74777F] py-10 text-[0.88rem] col-span-full">

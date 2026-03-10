@@ -8,11 +8,8 @@ import {
   DOMAIN_FLAGS,
   UI_COPY,
 } from '../../config';
+import { useDetailsContext } from '../../context/DetailsContext';
 import type { LineStatusPayload } from '../../types';
-
-interface Props {
-  data: LineStatusPayload | null;
-}
 
 function val(v: string | number | undefined | null): string {
   if (v === null || v === undefined) return DOMAIN_DEFAULTS.emptyValue;
@@ -31,7 +28,8 @@ function formatFieldValue(
   return val(value as string | number | undefined | null);
 }
 
-export function BatchTab({ data }: Props) {
+export function BatchTab() {
+  const { lineData } = useDetailsContext();
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -41,7 +39,7 @@ export function BatchTab({ data }: Props) {
       {BATCH_PRIMARY_FIELDS.map(({ key, label, format }) => (
         <div key={key} className="kv-row">
           <div className="kv-key">{label}</div>
-          <div className="kv-val">{formatFieldValue(data, key, format)}</div>
+          <div className="kv-val">{formatFieldValue(lineData, key, format)}</div>
         </div>
       ))}
 
@@ -54,7 +52,7 @@ export function BatchTab({ data }: Props) {
           {BATCH_ADDITIONAL_FIELDS.map(({ key, label, format }) => (
             <div key={key} className="kv-row">
               <div className="kv-key">{label}</div>
-              <div className="kv-val">{formatFieldValue(data, key, format)}</div>
+              <div className="kv-val">{formatFieldValue(lineData, key, format)}</div>
             </div>
           ))}
         </div>
