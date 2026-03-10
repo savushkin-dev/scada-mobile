@@ -1,7 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { WS_BASE } from '../config';
+import { classifyError } from '../errors/classifyError';
+import type { AppError } from '../errors/AppError';
 import { createManagedWs } from '../lib/createManagedWs';
 import type { UnitWsMessage } from '../types';
+
+interface UnitWsCallbacks {
+  onReconnecting?: () => void;
+  onError?: (error: AppError) => void;
+  onRecovered?: () => void;
+}
 
 /**
  * Подключается к WebSocket-каналу {@code /ws/unit/{unitId}} и вызывает
@@ -13,25 +21,40 @@ import type { UnitWsMessage } from '../types';
  * @param unitId    ID аппарата для подписки, или {@code null} для отключения.
  * @param onMessage Callback, вызываемый при каждом новом сообщении.
  */
-export function useUnitWs(unitId: string | null, onMessage: (msg: UnitWsMessage) => void): void {
+export function useUnitWs(
+  unitId: string | null,
+  onMessage: (msg: UnitWsMessage) => void,
+  callbacks?: UnitWsCallbacks
+): void {
   const onMessageRef = useRef(onMessage);
   onMessageRef.current = onMessage;
+
+  const callbacksRef = useRef(callbacks);
+  callbacksRef.current = callbacks;
 
   useEffect(() => {
     if (!unitId) return;
 
     const conn = createManagedWs({
       url: `${WS_BASE}/ws/unit/${unitId}`,
+      source: 'ws/unit',
+      onReconnecting: () => callbacksRef.current?.onReconnecting?.(),
+      onError: (error) => callbacksRef.current?.onError?.(error),
+      onRecovered: () => callbacksRef.current?.onRecovered?.(),
       onMessage: (e) => {
         try {
           const msg = JSON.parse(e.data as string) as UnitWsMessage;
+          callbacksRef.current?.onRecovered?.();
           onMessageRef.current(msg);
-        } catch {
-          /* ignore parse errors */
+        } catch (error) {
+          callbacksRef.current?.onError?.(classifyError(error, 'ws/unit'));
         }
       },
     });
 
-    return () => conn.destroy();
+    return () => {
+      callbacksRef.current?.onRecovered?.();
+      conn.destroy();
+    };
   }, [unitId]);
 }

@@ -1,26 +1,11 @@
-import type { DevicesStatusPayload, LineStatusPayload, TabId } from '../types';
+import type { LineStatusPayload, TabId } from '../types';
 
-type DeviceKey = keyof DevicesStatusPayload;
-type DeviceStatKey = 'read' | 'unread';
 type BatchFieldKey = keyof LineStatusPayload;
 
 export interface NavItemConfig {
   tab: TabId;
   icon: string;
   label: string;
-}
-
-export interface DeviceStatConfig {
-  key: DeviceStatKey;
-  label: string;
-  danger?: boolean;
-}
-
-export interface DeviceSectionConfig {
-  key: DeviceKey;
-  title: string;
-  showBatch?: boolean;
-  stats?: readonly DeviceStatConfig[];
 }
 
 export interface BatchFieldConfig {
@@ -67,6 +52,24 @@ export const UI_COPY = Object.freeze({
   fabSentIcon: '✅',
   backIcon: '←',
   retryIcon: '⚠',
+  /**
+   * Отображается вместо skeleton после исчерпания порога переподключений.
+   * Фоновые попытки продолжаются автоматически.
+   */
+  wsConnectionError: 'Нет связи с сервером. Выполняются попытки переподключения…',
+  // Вкладка «Устройства» — заголовки групп устройств и статусы
+  devicesGroupPrinters: '🖨️ Принтеры',
+  devicesGroupAggrCams: '📷 Камеры агрегации',
+  devicesGroupAggrBoxCams: '📷 Камеры агрегации (короб)',
+  devicesGroupCheckerCams: '🔍 Камеры проверки',
+  /** Статус карточки устройства пока WS не подключён. */
+  devicesPending: 'Нет данных',
+  /** Отображается, если топология загружена, но все списки устройств пусты. */
+  devicesNoneConfigured: 'Устройства не настроены',
+  /** Отображается, если топология не загружена (ошибка в шапке). */
+  devicesNoTopology: 'Не удалось загрузить список устройств',
+  devicesStatRead: 'Считано',
+  devicesStatUnread: 'Несчитано',
 });
 
 export const UI_PALETTE = Object.freeze({
@@ -101,31 +104,6 @@ export const BOTTOM_NAV_ITEMS: ReadonlyArray<NavItemConfig> = [
 ];
 
 export const VALID_DETAIL_TABS = new Set<TabId>(BOTTOM_NAV_ITEMS.map(({ tab }) => tab));
-
-export const DEVICE_SECTION_CONFIG: ReadonlyArray<DeviceSectionConfig> = [
-  {
-    key: 'printer',
-    title: '🖨️ Принтер 1',
-    showBatch: true,
-  },
-  {
-    key: 'cam41',
-    title: '📷 Камера 41 (Поток)',
-    showBatch: true,
-    stats: [
-      { key: 'read', label: 'Считано' },
-      { key: 'unread', label: 'Несчитано', danger: true },
-    ],
-  },
-  {
-    key: 'cam42',
-    title: '📷 Камера 42 (Поток)',
-    stats: [
-      { key: 'read', label: 'Считано' },
-      { key: 'unread', label: 'Несчитано', danger: true },
-    ],
-  },
-];
 
 export const BATCH_PRIMARY_FIELDS: ReadonlyArray<BatchFieldConfig> = [
   { key: 'description', label: 'Описание' },

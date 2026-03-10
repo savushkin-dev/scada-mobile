@@ -140,32 +140,42 @@ public class MockPrintSrvClient implements PrintSrvClient {
      * конфигурации. Если ключа нет в карте — поле в DTO останется null (PrintSrv-протокол
      * допускает отсутствие любого поля).
      */
+    /**
+     * Строит {@link PropertiesDTO} из сырой карты свойств.
+     *
+     * <p>Именованные поля заполняются по известным ключам PrintSrv-протокола.
+     * Полная карта {@code p} дополнительно передаётся в {@code rawProperties},
+     * так что camera-специфичные поля ({@code Total}, {@code Failed}, {@code kd},
+     * {@code LastRead} и т.д.) не теряются и доступны через
+     * {@link dev.savushkin.scada.mobile.backend.domain.model.UnitProperties#getRawProperties()}.
+     */
     private static PropertiesDTO buildPropertiesDto(Map<String, String> p) {
-        return new PropertiesDTO(
-                parseIntOrNull(p.get("command")),
-                p.get("message"),
-                p.get("Error"),
-                p.get("ErrorMessage"),
-                p.get("cmdsuccess"),
-                p.get("ST"),
-                p.get("batchId"),
-                p.get("CurItem"),
-                p.get("batchIdCodesQueue"),
-                p.get("setBatchID"),
-                p.get("devChangeBatch"),
-                p.get("devsChangeBatchIDQueueControl"),
-                p.get("devType"),
-                p.get("LineID"),
-                p.get("OnChangeBatchPrinters"),
-                p.get("Level1Printers"),
-                p.get("Level2Printers"),
-                p.get("OnChangeBatchCams"),
-                p.get("Level1Cams"),
-                p.get("Level2Cams"),
-                p.get("SignalCams"),
-                p.get("LineDevices"),
-                p.get("enableErrors")
-        );
+        return PropertiesDTO.builder()
+                .command(parseIntOrNull(p.get("command")))
+                .message(p.get("message"))
+                .error(p.get("Error"))
+                .errorMessage(p.get("ErrorMessage"))
+                .cmdSuccess(p.get("cmdsuccess"))
+                .st(p.get("ST"))
+                .batchId(p.get("batchId"))
+                .curItem(p.get("CurItem"))
+                .batchIdCodesQueue(p.get("batchIdCodesQueue"))
+                .setBatchId(p.get("setBatchID"))
+                .devChangeBatch(p.get("devChangeBatch"))
+                .devsChangeBatchIdQueueControl(p.get("devsChangeBatchIDQueueControl"))
+                .devType(p.get("devType"))
+                .lineId(p.get("LineID"))
+                .onChangeBatchPrinters(p.get("OnChangeBatchPrinters"))
+                .level1Printers(p.get("Level1Printers"))
+                .level2Printers(p.get("Level2Printers"))
+                .onChangeBatchCams(p.get("OnChangeBatchCams"))
+                .level1Cams(p.get("Level1Cams"))
+                .level2Cams(p.get("Level2Cams"))
+                .signalCams(p.get("SignalCams"))
+                .lineDevices(p.get("LineDevices"))
+                .enableErrors(p.get("enableErrors"))
+                .rawProperties(p)  // все ключи, включая camera-специфичные (Total, Failed, kd, …)
+                .build();
     }
 
     /**

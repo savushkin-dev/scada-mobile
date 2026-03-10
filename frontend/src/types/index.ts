@@ -28,6 +28,29 @@ export interface UnitTopology {
   unit: string;
 }
 
+/**
+ * Статическая топология устройств аппарата —
+ * данные из GET /workshops/{id}/units/{unitId}/devices/topology.
+ *
+ * Тот же ETag, что у остальных topology-эндпоинтов.
+ * Устройства сгруппированы по функциональной роли.
+ */
+export interface DevicesTopology {
+  unitId: string;
+  workshopId: string;
+  unit: string;
+  devices: {
+    /** Принтеры маркировки (может быть пустым, например, у trepko). */
+    printers: string[];
+    /** Камеры агрегации на потоке (DataMatrix). */
+    aggregationCams: string[];
+    /** Камеры агрегации на коробе. */
+    aggregationBoxCams: string[];
+    /** Камеры проверки (EAN, DataMatrix и др.). */
+    checkerCams: string[];
+  };
+}
+
 // ── Live status (поступает по WebSocket) ─────────────────────────────
 
 /** Live-статус цеха из WS /ws/workshops/status */
@@ -134,10 +157,13 @@ export interface DeviceInfo {
   batch?: string;
 }
 
+/**
+ * Live-статус устройств аппарата из WS /ws/unit/{unitId}, сообщение DEVICES_STATUS.
+ * Ключи — имена устройств из {@link DevicesTopology} (например, "Printer11", "CamAgregation1").
+ * Такая форма позволяет масштабировать на произвольное число устройств любого типа.
+ */
 export interface DevicesStatusPayload {
-  printer?: DeviceInfo;
-  cam41?: DeviceInfo;
-  cam42?: DeviceInfo;
+  [deviceName: string]: DeviceInfo;
 }
 
 export interface QueueItem {

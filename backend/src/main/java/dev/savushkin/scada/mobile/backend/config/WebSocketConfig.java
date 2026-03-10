@@ -1,6 +1,7 @@
 package dev.savushkin.scada.mobile.backend.config;
 
 import dev.savushkin.scada.mobile.backend.infrastructure.ws.LiveWsHandler;
+import dev.savushkin.scada.mobile.backend.infrastructure.ws.UnitWsHandler;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,10 +39,13 @@ public class WebSocketConfig implements WebSocketConfigurer {
     private static final Logger log = LoggerFactory.getLogger(WebSocketConfig.class);
 
     private final LiveWsHandler liveWsHandler;
+    private final UnitWsHandler unitWsHandler;
     private final CorsProperties corsProperties;
 
-    public WebSocketConfig(LiveWsHandler liveWsHandler, CorsProperties corsProperties) {
+    public WebSocketConfig(LiveWsHandler liveWsHandler, UnitWsHandler unitWsHandler,
+                           CorsProperties corsProperties) {
         this.liveWsHandler = liveWsHandler;
+        this.unitWsHandler = unitWsHandler;
         this.corsProperties = corsProperties;
     }
 
@@ -54,7 +58,10 @@ public class WebSocketConfig implements WebSocketConfigurer {
         registry.addHandler(liveWsHandler, "/ws/live")
                 .setAllowedOrigins(allowedOrigins);
 
-        log.info("WebSocket endpoint registered: /ws/live (allowedOrigins: {})",
+        registry.addHandler(unitWsHandler, "/ws/unit/*")
+                .setAllowedOrigins(allowedOrigins);
+
+        log.info("WebSocket endpoints registered: /ws/live, /ws/unit/* (allowedOrigins: {})",
                 corsProperties.getPolicy().getAllowedOrigins());
     }
 }

@@ -1,5 +1,6 @@
 package dev.savushkin.scada.mobile.backend.api.controller;
 
+import dev.savushkin.scada.mobile.backend.api.dto.UnitDeviceTopologyDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitTopologyDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.WorkshopTopologyDTO;
 import dev.savushkin.scada.mobile.backend.services.HealthService;
@@ -24,6 +25,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * REST контроллер SCADA Mobile API.
@@ -32,6 +34,7 @@ import java.util.Map;
  * <ul>
  *   <li>GET .../workshops/topology — статическая топология цехов (кэшируется по ETag)</li>
  *   <li>GET .../workshops/{id}/units/topology — статическая топология аппаратов цеха</li>
+ *   <li>GET .../workshops/{id}/units/{unitId}/devices/topology — топология устройств аппарата</li>
  *   <li>GET .../health/live — liveness probe</li>
  *   <li>GET .../health/ready — readiness probe</li>
  * </ul>
@@ -138,6 +141,42 @@ public class Controller {
         return ResponseEntity.ok()
                 .headers(etagHeaders(etag))
                 .body(workshopService.getWorkshopsTopology());
+    }
+
+    @Operation(
+            summary = "Топология устройств аппарата",
+            description = "Возвращает статическую топологию устройств PrintSrv (принтеры, камеры агрегации, " +
+                    "камеры проверки и системные устройства) для указанного аппарата. " +
+                    "Данные меняются только при изменении конфигурации. " +
+                    "Ответ содержит заголовок ETag — клиент может кэшировать бессрочно. " +
+                    "Поддерживает If-None-Match: при совпадении ETag возвращает 304 без тела."
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Топология устройств аппарата"),
+            @ApiResponse(responseCode = "304", description = "Топология не изменилась (ETag совпал)"),
+            @ApiResponse(responseCode = "404", description = "Цех или аппарат не найден")
+    })
+    @GetMapping("/workshops/{id}/units/{unitId}/devices/topology")
+    public ResponseEntity<UnitDeviceTopologyDTO> getUnitDevicesTopology(
+            @PathVariable @NonNull String id,
+            @PathVariable @NonNull String unitId,
+            @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
+        if (!workshopService.workshopExists(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        Optional<UnitDeviceTopologyDTO> topology = workshopService.getUnitDeviceTopology(id, unitId);
+        if (topology.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        String etag = workshopService.getConfigETag();
+        if (isNotModified(ifNoneMatch, etag)) {
+            return ResponseEntity.status(HttpStatus.NOT_MODIFIED)
+                    .headers(etagHeaders(etag))
+                    .build();
+        }
+        return ResponseEntity.ok()
+                .headers(etagHeaders(etag))
+                .body(topology.get());
     }
 
     // ─── Health probes ────────────────────────────────────────────────────────

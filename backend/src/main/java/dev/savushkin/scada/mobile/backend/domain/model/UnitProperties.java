@@ -3,6 +3,9 @@ package dev.savushkin.scada.mobile.backend.domain.model;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -40,6 +43,13 @@ public final class UnitProperties {
     private final String lineDevices;
     private final String enableErrors;
 
+    /**
+     * Все свойства устройства, не покрытые именованными полями.
+     * Для camera-устройств содержит {@code Total}, {@code Failed}, {@code kd}, etc.
+     * Никогда не null.
+     */
+    private final Map<String, String> rawProperties;
+
     @Contract(pure = true)
     private UnitProperties(@NonNull Builder builder) {
         this.command = builder.command;
@@ -65,6 +75,9 @@ public final class UnitProperties {
         this.signalCams = builder.signalCams;
         this.lineDevices = builder.lineDevices;
         this.enableErrors = builder.enableErrors;
+        this.rawProperties = builder.rawProperties.isEmpty()
+                ? Map.of()
+                : Collections.unmodifiableMap(new LinkedHashMap<>(builder.rawProperties));
     }
 
     /**
@@ -214,7 +227,8 @@ public final class UnitProperties {
                 && Objects.equals(level2Cams, that.level2Cams)
                 && Objects.equals(signalCams, that.signalCams)
                 && Objects.equals(lineDevices, that.lineDevices)
-                && Objects.equals(enableErrors, that.enableErrors);
+                && Objects.equals(enableErrors, that.enableErrors)
+                && Objects.equals(rawProperties, that.rawProperties);
     }
 
     @Override
@@ -222,7 +236,8 @@ public final class UnitProperties {
         return Objects.hash(command, message, error, errorMessage, cmdSuccess, st, batchId,
                 curItem, batchIdCodesQueue, setBatchId, devChangeBatch, devsChangeBatchIdQueueControl,
                 devType, lineId, onChangeBatchPrinters, level1Printers, level2Printers,
-                onChangeBatchCams, level1Cams, level2Cams, signalCams, lineDevices, enableErrors);
+                onChangeBatchCams, level1Cams, level2Cams, signalCams, lineDevices, enableErrors,
+                rawProperties);
     }
 
     @Override
@@ -251,12 +266,24 @@ public final class UnitProperties {
                 ", signalCams='" + signalCams + '\'' +
                 ", lineDevices='" + lineDevices + '\'' +
                 ", enableErrors='" + enableErrors + '\'' +
+                ", rawProperties=" + rawProperties +
                 '}';
     }
 
     @Contract(pure = true)
     public @NonNull Optional<String> getEnableErrors() {
         return Optional.ofNullable(enableErrors);
+    }
+
+    /**
+     * Возвращает все свойства устройства, не покрытые именованными полями.
+     * Для camera-устройств: {@code Total}, {@code Failed}, {@code kd} и т.д.
+     *
+     * @return неизменяемая карта свойств; никогда не null
+     */
+    @Contract(pure = true)
+    public @NonNull Map<String, String> getRawProperties() {
+        return rawProperties;
     }
 
     public static class Builder {
@@ -283,6 +310,7 @@ public final class UnitProperties {
         private String signalCams;
         private String lineDevices;
         private String enableErrors;
+        private Map<String, String> rawProperties = new LinkedHashMap<>();
 
         private Builder() {
         }
@@ -399,6 +427,11 @@ public final class UnitProperties {
 
         public Builder enableErrors(String enableErrors) {
             this.enableErrors = enableErrors;
+            return this;
+        }
+
+        public Builder rawProperties(Map<String, String> rawProperties) {
+            this.rawProperties = rawProperties != null ? rawProperties : new LinkedHashMap<>();
             return this;
         }
 

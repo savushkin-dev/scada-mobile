@@ -4,12 +4,30 @@ export const WS_BASE = import.meta.env.VITE_WS_BASE ?? 'ws://localhost:8080';
 export const WS_RECONNECT_BASE_DELAY_MS = 2_000;
 export const WS_RECONNECT_MAX_DELAY_MS = 30_000;
 export const WS_RECONNECT_JITTER = 0.25;
+/**
+ * Фиксированный интервал между попытками в режиме recovery
+ * (после исчерпания {@link WS_ERROR_THRESHOLD_ATTEMPTS}).
+ * Концептуально отличается от {@link WS_RECONNECT_MAX_DELAY_MS}:
+ * это не ограничение backoff-а, а интервал опроса сервера.
+ */
+export const WS_RECOVERY_INTERVAL_MS = 30_000;
+/**
+ * Число последовательных неудачных попыток переподключения WS,
+ * после которых считается, что соединение «потеряно»:
+ * - в шапке появляется уведомление об ошибке;
+ * - skeleton-заглушка заменяется текстовым сообщением об ошибке.
+ *
+ * До достижения порога соединение молча переподключается в фоне,
+ * пользователь видит только skeleton.
+ */
+export const WS_ERROR_THRESHOLD_ATTEMPTS = 5;
 
 export const ASYNC_FETCH_DEFAULT_RETRY_CONFIG = Object.freeze({
   maxAttempts: 4,
   baseDelayMs: 1_000,
   maxDelayMs: 30_000,
   factor: 2,
+  recoveryDelayMs: 15_000,
 });
 
 export const ASYNC_FETCH_JITTER_CONFIG = Object.freeze({

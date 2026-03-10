@@ -10,7 +10,7 @@
  * Использование:
  * - classifyError.ts — единственное место, где создаются AppError-объекты.
  * - useAsyncFetch.ts — хранит AppError | null вместо string | null.
- * - RetryBanner.tsx — рендерит error.message (уже человекочитаемое).
+ * - HeaderErrorIndicator.tsx — рендерит активную ошибку в общей шапке.
  * - ErrorBoundary.tsx — фиксирует render-краши через classifyError.
  */
 

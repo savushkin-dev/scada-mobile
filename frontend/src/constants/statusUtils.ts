@@ -1,5 +1,5 @@
-import { ALERT_SEVERITY, NO_DATA_UNIT_EVENTS, NORMAL_UNIT_EVENTS } from '../config';
-import type { AlertData, Unit } from '../types';
+import { ALERT_SEVERITY, DOMAIN_FLAGS, NO_DATA_UNIT_EVENTS, NORMAL_UNIT_EVENTS } from '../config';
+import type { AlertData, DevicesStatusPayload, Unit } from '../types';
 
 // ── Уровни статуса ────────────────────────────────────────────────────────────
 /**
@@ -93,4 +93,42 @@ export const WORKSHOP_STATUS_CLASS: Record<WorkshopStatusLevel, string> = {
   critical: 'status-critical',
   warning: 'status-warning',
   none: 'status-normal',
+};
+
+// ── Статус устройства (device) ────────────────────────────────────────────────
+
+/**
+ * Уровни статуса карточки устройства.
+ *
+ * - `'pending'` — WS-данные ещё не пришли; статус неизвестен. Карточка серая.
+ * - `'error'`   — устройство сообщило об ошибке. Карточка красная.
+ * - `'working'` — устройство активно работает. Карточка зелёная.
+ * - `'stopped'` — данные есть, но устройство не активно и без ошибок. Карточка стандартная.
+ */
+export type DeviceStatusLevel = 'pending' | 'error' | 'working' | 'stopped';
+
+/**
+ * Определяет уровень статуса устройства по имени и текущим WS-данным.
+ *
+ * Если `wsData === null` — WS ещё не прислал ни одного `DEVICES_STATUS` → `pending`.
+ * Если устройство не нашлось в пейлоаде → считаем остановленным (`stopped`).
+ */
+export function getDeviceStatusLevel(
+  wsData: DevicesStatusPayload | null,
+  name: string
+): DeviceStatusLevel {
+  if (wsData === null) return 'pending';
+  const info = wsData[name];
+  if (!info) return 'stopped';
+  if (info.error === DOMAIN_FLAGS.active) return 'error';
+  if (info.state === DOMAIN_FLAGS.active) return 'working';
+  return 'stopped';
+}
+
+/** CSS-класс карточки устройства по уровню статуса. */
+export const DEVICE_STATUS_CLASS: Record<DeviceStatusLevel, string> = {
+  pending: 'status-pending', // серый — WS ещё не ответил
+  error: 'status-critical', // красный — ошибка устройства
+  working: 'status-normal', // зелёный — устройство работает
+  stopped: '', // дефолтный белый — не активно, без ошибок
 };

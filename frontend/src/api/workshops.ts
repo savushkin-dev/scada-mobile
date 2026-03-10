@@ -1,4 +1,4 @@
-import type { Unit, UnitTopology, Workshop, WorkshopTopology } from '../types';
+import type { DevicesTopology, UnitTopology, WorkshopTopology } from '../types';
 import { API_BASE } from '../config';
 import { HttpError } from '../errors/AppError';
 
@@ -86,19 +86,21 @@ export function fetchUnitsTopology(
 // ── Legacy (deprecated, только для обратной совместимости) ────────────
 
 /**
- * @deprecated Используй {@link fetchWorkshopsTopology} + WS /ws/workshops/status.
+ * Загружает статическую топологию устройств аппарата (принтеры, камеры).
+ * Тот же ETag, что и у остальных topology-эндпоинтов (единый хэш конфигурации) —
+ * передайте `knownETag` для получения 304 при неизменной конфигурации.
+ *
+ * Ответ 404 если цех не найден, или если unitId не принадлежит указанному workshopId.
  */
-export async function fetchWorkshops(signal?: AbortSignal): Promise<Workshop[]> {
-  const resp = await fetch(`${API_BASE}/api/v1.0.0/workshops`, { signal });
-  if (!resp.ok) throw new HttpError(resp.status);
-  return resp.json() as Promise<Workshop[]>;
-}
-
-/**
- * @deprecated Используй {@link fetchUnitsTopology} + WS /ws/workshops/{id}/units/status.
- */
-export async function fetchUnits(workshopId: string, signal?: AbortSignal): Promise<Unit[]> {
-  const resp = await fetch(`${API_BASE}/api/v1.0.0/workshops/${workshopId}/units`, { signal });
-  if (!resp.ok) throw new HttpError(resp.status);
-  return resp.json() as Promise<Unit[]>;
+export function fetchDevicesTopology(
+  workshopId: string,
+  unitId: string,
+  signal?: AbortSignal,
+  knownETag?: string | null
+): Promise<TopologyFetchResult<DevicesTopology>> {
+  return fetchTopology<DevicesTopology>(
+    `${API_BASE}/api/v1.0.0/workshops/${workshopId}/units/${unitId}/devices/topology`,
+    signal,
+    knownETag
+  );
 }

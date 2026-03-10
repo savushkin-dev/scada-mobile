@@ -31,38 +31,6 @@ export const BACK_BUTTON_STYLE: CSSProperties = {
   flexShrink: 0,
 };
 
-export const DETAILS_HEADER_STYLE: CSSProperties = {
-  padding: '16px 20px',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '12px',
-  flexShrink: 0,
-  marginTop: '8px',
-};
-
-export const DETAILS_HEADER_META_STYLE: CSSProperties = {
-  overflow: 'hidden',
-};
-
-export const DETAILS_HEADER_CAPTION_STYLE: CSSProperties = {
-  fontSize: '0.62rem',
-  fontWeight: 700,
-  letterSpacing: '0.08em',
-  color: UI_PALETTE.mutedText,
-  textTransform: 'uppercase',
-  marginBottom: '2px',
-};
-
-export const DETAILS_HEADER_TITLE_STYLE: CSSProperties = {
-  fontSize: '1rem',
-  fontWeight: 700,
-  color: UI_PALETTE.brandText,
-  whiteSpace: 'nowrap',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  margin: 0,
-};
-
 export const DETAILS_SCROLL_SECTION_STYLE: CSSProperties = {
   flex: 1,
   overflowY: 'auto',
@@ -72,43 +40,6 @@ export const DETAILS_SCROLL_SECTION_STYLE: CSSProperties = {
 
 export const CARD_TITLE_BETWEEN_STYLE: CSSProperties = {
   justifyContent: 'space-between',
-};
-
-export const RETRY_BANNER_STYLE: CSSProperties = {
-  margin: '0 16px 12px',
-  borderRadius: '12px',
-  padding: '12px 16px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: '12px',
-  fontSize: '0.82rem',
-  lineHeight: '1.4',
-  background: UI_PALETTE.retryBackground,
-  border: `1px solid ${UI_PALETTE.retryBorder}`,
-  color: UI_PALETTE.retryText,
-  flexShrink: 0,
-};
-
-export const FLEX_GROW_STYLE: CSSProperties = {
-  flex: 1,
-};
-
-export const RETRY_ICON_STYLE: CSSProperties = {
-  marginRight: '6px',
-};
-
-export const RETRY_BUTTON_STYLE: CSSProperties = {
-  flexShrink: 0,
-  background: 'none',
-  border: '1.5px solid currentColor',
-  borderRadius: '8px',
-  padding: '4px 12px',
-  cursor: 'pointer',
-  fontSize: '0.8rem',
-  fontWeight: 600,
-  color: 'inherit',
-  lineHeight: '1.4',
 };
 
 export const BATCH_EXPANDED_SECTION_STYLE: CSSProperties = {

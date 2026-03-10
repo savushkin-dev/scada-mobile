@@ -1,5 +1,7 @@
 package dev.savushkin.scada.mobile.backend.services;
 
+import dev.savushkin.scada.mobile.backend.api.dto.DeviceGroupsDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.UnitDeviceTopologyDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitStatusDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitTopologyDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.WorkshopTopologyDTO;
@@ -98,7 +100,8 @@ public class WorkshopService {
             config.getInstances().stream()
                     .sorted(Comparator.comparing(PrintSrvProperties.InstanceProperties::getId))
                     .forEach(inst -> sb.append("i:").append(inst.getId()).append(':')
-                            .append(inst.getWorkshopId()).append(':').append(inst.getDisplayName()).append(';'));
+                            .append(inst.getWorkshopId()).append(':').append(inst.getDisplayName()).append(':')
+                            .append(String.join(",", inst.getAllDeviceNames())).append(';'));
 
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(sb.toString().getBytes(StandardCharsets.UTF_8));
@@ -138,6 +141,36 @@ public class WorkshopService {
                 .stream()
                 .map(inst -> new UnitTopologyDTO(inst.getId(), inst.getWorkshopId(), inst.getDisplayName()))
                 .toList();
+    }
+
+    /**
+     * Возвращает статическую топологию устройств конкретного аппарата.
+     * <p>
+     * Дополнительно проверяет принадлежность аппарата указанному цеху:
+     * если {@code instanceId} существует, но относится к другому цеху,
+     * метод возвращает {@link Optional#empty()}.
+     *
+     * @param workshopId идентификатор цеха
+     * @param instanceId идентификатор аппарата
+     * @return DTO с группами устройств, или {@link Optional#empty()} если не найден
+     */
+    public Optional<UnitDeviceTopologyDTO> getUnitDeviceTopology(String workshopId, String instanceId) {
+        PrintSrvProperties.InstanceProperties inst = instancesById.get(instanceId);
+        if (inst == null || !inst.getWorkshopId().equals(workshopId)) {
+            return Optional.empty();
+        }
+        PrintSrvProperties.DeviceNamesProperties d = inst.getDevices();
+        return Optional.of(new UnitDeviceTopologyDTO(
+                inst.getId(),
+                inst.getWorkshopId(),
+                inst.getDisplayName(),
+                new DeviceGroupsDTO(
+                        List.copyOf(d.getPrinters()),
+                        List.copyOf(d.getAggregationCams()),
+                        List.copyOf(d.getAggregationBoxCams()),
+                        List.copyOf(d.getCheckerCams())
+                )
+        ));
     }
 
     /**

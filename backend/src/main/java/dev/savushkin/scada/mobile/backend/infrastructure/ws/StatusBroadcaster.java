@@ -9,6 +9,7 @@ import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveAlertStore;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.DowntimeTracker;
 import dev.savushkin.scada.mobile.backend.services.AlertService;
 import dev.savushkin.scada.mobile.backend.services.WorkshopService;
+import dev.savushkin.scada.mobile.backend.services.UnitDetailService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
@@ -45,25 +46,29 @@ public class StatusBroadcaster {
     private final ActiveAlertStore alertStore;
     private final DowntimeTracker downtimeTracker;
     private final LiveWsHandler liveWsHandler;
+    private final UnitWsHandler unitWsHandler;
 
     public StatusBroadcaster(
             WorkshopService workshopService,
             AlertService alertService,
             ActiveAlertStore alertStore,
             DowntimeTracker downtimeTracker,
-            LiveWsHandler liveWsHandler
+            LiveWsHandler liveWsHandler,
+            UnitWsHandler unitWsHandler
     ) {
         this.workshopService = workshopService;
         this.alertService = alertService;
         this.alertStore = alertStore;
         this.downtimeTracker = downtimeTracker;
         this.liveWsHandler = liveWsHandler;
+        this.unitWsHandler = unitWsHandler;
     }
 
     @EventListener
     public void onInstancePolled(PrintSrvInstancePolledEvent event) {
         broadcastUnitStatus(event.instanceId());
         broadcastAlertDelta(event.instanceId());
+        broadcastUnitDetails(event.instanceId());
     }
 
     // ─── Private ─────────────────────────────────────────────────────────────
@@ -127,5 +132,18 @@ public class StatusBroadcaster {
         } catch (JsonProcessingException e) {
             log.error("StatusBroadcaster: failed to serialize ALERT for unit '{}'", alert.unitId(), e);
         }
+    }
+
+    /**
+     * Рассылает обновления по всем четырём типам сообщений
+     * подписчикам канала {@code /ws/unit/{instanceId}}.
+     * <p>
+     * Вызов является no-op если нет активных подписчиков на данный аппарат.
+     */
+    private void broadcastUnitDetails(String instanceId) {
+        if (unitWsHandler.getSubscriberCount(instanceId) == 0) {
+            return;
+        }
+        unitWsHandler.broadcastToUnit(instanceId);
     }
 }

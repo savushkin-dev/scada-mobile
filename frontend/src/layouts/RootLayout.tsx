@@ -10,7 +10,14 @@ import type { AlertWsMessage, UnitsStatusMessage } from '../types';
  * которая должна работать на протяжении всей сессии приложения.
  */
 function RootLayoutInner() {
-  const { handleAlert, patchUnitsStatus, setAlertSnapshot } = useAppContext();
+  const {
+    handleAlert,
+    patchUnitsStatus,
+    setAlertSnapshot,
+    setHeaderError,
+    clearHeaderError,
+    setSignalState,
+  } = useAppContext();
 
   // Подписываемся на UNITS_STATUS только когда открыт экран цеха (/workshops/:workshopId).
   // На странице деталей аппарата (/units/:unitId) используется отдельный useUnitWs.
@@ -31,10 +38,27 @@ function RootLayoutInner() {
   // Единственное WebSocket-соединение для всего приложения:
   // ALERT_SNAPSHOT при подключении, UNITS_STATUS для цеха, ALERT-дельты глобально.
   // Соединение живёт всю сессию и не обрывается при смене страниц.
+  //
+  // Логика переходов signalState для канала 'live':
+  //   idle / connected → первый разрыв   → 'reconnecting' (skeleton, без ошибки)
+  //   'reconnecting'  → N-я удачная   → 'connected'    (данные пошли)
+  //   'reconnecting'  → 5-й разрыв    → 'error'        (ошибка + заголовок)
+  //   'error'         → восстановление   → 'connected'    (убираем ошибку)
   useLiveWs(subscribedWorkshopId, {
     onAlertSnapshot: handleAlertSnapshot,
     onUnitsStatus: handleUnitsStatus,
     onAlert: handleAlert,
+    onReconnecting: () => {
+      setSignalState('live', 'reconnecting');
+    },
+    onError: (error) => {
+      setSignalState('live', 'error');
+      setHeaderError('live', error);
+    },
+    onRecovered: () => {
+      setSignalState('live', 'connected');
+      clearHeaderError('live');
+    },
   });
 
   useEffect(() => {

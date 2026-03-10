@@ -1,15 +1,38 @@
 import { createContext, useCallback, useContext, useMemo, useReducer } from 'react';
 import type { ReactNode } from 'react';
 import { ALERT_VIBRATION_PATTERN, DOMAIN_DEFAULTS } from '../config';
+import type { AppError } from '../errors/AppError';
 import type {
   AlertData,
   AlertWsMessage,
+  DevicesTopology,
   Unit,
   UnitStatus,
   UnitTopology,
   Workshop,
   WorkshopTopology,
 } from '../types';
+
+export type HeaderErrorSlot = 'topology' | 'live' | 'unit';
+export type SignalSlot = 'live' | 'unit';
+/**
+ * Состояние WS-соединения.
+ *
+ * - `'idle'`         — начальное состояние, соединение ещё не установлено.
+ * - `'connected'`    — соединение активно, данные поступают в штатном режиме.
+ * - `'reconnecting'` — соединение потеряно, выполняются попытки 1…N-1;
+ *                    показывай skeleton-заглушку, но не ошибку в шапке.
+ * - `'error'`        — исчерпан порог попыток; показывай ошибку в шапке
+ *                    и текстовое сообщение вместо skeleton.
+ */
+export type SignalState = 'idle' | 'connected' | 'reconnecting' | 'error';
+
+export interface HeaderErrorEntry {
+  slot: HeaderErrorSlot;
+  error: AppError;
+  updatedAt: number;
+  retryAction?: (() => void) | undefined;
+}
 
 // ── State ──────────────────────────────────────────────────────────────
 
@@ -29,9 +52,21 @@ export interface AppState {
   // Alerts
   alerts: Map<string, AlertData>;
 
+  // UI-ошибки, отображаемые единообразно в шапке.
+  headerErrors: Partial<Record<HeaderErrorSlot, HeaderErrorEntry>>;
+
+  // Состояние live-каналов для управления деградацией UI.
+  signalStates: Record<SignalSlot, SignalState>;
+
   // ── Topology layer (статика, один раз) ──
   workshopTopology: WorkshopTopology[];
   unitTopologyByWorkshop: Record<string, UnitTopology[]>;
+  /**
+   * Статическая топология устройств по `unitId`.
+   * Загружается один раз при первом входе на экран деталей аппарата.
+   * Ключ — `unitId`.
+   */
+  devicesTopologyByUnit: Record<string, DevicesTopology>;
   /**
    * ETag, полученный от сервера при последней успешной загрузке topology.
    * Одинаков для обоих topology-эндпоинтов (хэш общей конфигурации).
@@ -46,8 +81,14 @@ export interface AppState {
 
 const initialState: AppState = {
   alerts: new Map(),
+  headerErrors: {},
+  signalStates: {
+    live: 'idle',
+    unit: 'idle',
+  },
   workshopTopology: [],
   unitTopologyByWorkshop: {},
+  devicesTopologyByUnit: {},
   topologyETag: null,
   unitStatusByWorkshop: {},
 };
@@ -55,9 +96,18 @@ const initialState: AppState = {
 // ── Actions ────────────────────────────────────────────────────────────
 type Action =
   | { type: 'HANDLE_ALERT'; msg: AlertWsMessage }
+  | {
+      type: 'SET_HEADER_ERROR';
+      slot: HeaderErrorSlot;
+      error: AppError;
+      retryAction?: (() => void) | undefined;
+    }
+  | { type: 'CLEAR_HEADER_ERROR'; slot: HeaderErrorSlot }
+  | { type: 'SET_SIGNAL_STATE'; slot: SignalSlot; signalState: SignalState }
   // Topology
   | { type: 'SET_WORKSHOP_TOPOLOGY'; topology: WorkshopTopology[] }
   | { type: 'SET_UNIT_TOPOLOGY'; workshopId: string; topology: UnitTopology[] }
+  | { type: 'SET_DEVICES_TOPOLOGY'; unitId: string; topology: DevicesTopology }
   | { type: 'SET_TOPOLOGY_ETAG'; etag: string }
   // Live status (from WebSocket)
   | { type: 'SET_ALERT_SNAPSHOT'; alerts: AlertWsMessage[] }
@@ -73,6 +123,39 @@ function reducer(state: AppState, action: Action): AppState {
       else next.delete(uid);
       return { ...state, alerts: next };
     }
+    case 'SET_HEADER_ERROR': {
+      return {
+        ...state,
+        headerErrors: {
+          ...state.headerErrors,
+          [action.slot]: {
+            slot: action.slot,
+            error: action.error,
+            updatedAt: Date.now(),
+            retryAction: action.retryAction,
+          },
+        },
+      };
+    }
+    case 'CLEAR_HEADER_ERROR': {
+      // Guard: если слот уже пустой — не создаём новый объект.
+      if (!(action.slot in state.headerErrors)) return state;
+      const nextErrors = { ...state.headerErrors };
+      delete nextErrors[action.slot];
+      return { ...state, headerErrors: nextErrors };
+    }
+    case 'SET_SIGNAL_STATE': {
+      // Guard: если состояние не изменилось — не вызываем перерендер;
+      // важно при частых вызовах из onRecovered через WS-сообщения.
+      if (state.signalStates[action.slot] === action.signalState) return state;
+      return {
+        ...state,
+        signalStates: {
+          ...state.signalStates,
+          [action.slot]: action.signalState,
+        },
+      };
+    }
     // ── Topology ─────────────────────────────────────────────────────
     case 'SET_WORKSHOP_TOPOLOGY':
       return { ...state, workshopTopology: action.topology };
@@ -82,6 +165,17 @@ function reducer(state: AppState, action: Action): AppState {
         unitTopologyByWorkshop: {
           ...state.unitTopologyByWorkshop,
           [action.workshopId]: action.topology,
+        },
+      };
+    case 'SET_DEVICES_TOPOLOGY':
+      // Guard: если топология для this unitId уже идентична — не обновляем
+      // (при 304 мы не вызываем этот action, но на всякий случай)
+      if (state.devicesTopologyByUnit[action.unitId] === action.topology) return state;
+      return {
+        ...state,
+        devicesTopologyByUnit: {
+          ...state.devicesTopologyByUnit,
+          [action.unitId]: action.topology,
         },
       };
     case 'SET_TOPOLOGY_ETAG':
@@ -127,11 +221,21 @@ interface AppContextValue {
   // Computed (topology merged with status — для компонентов UI)
   workshops: Workshop[];
   unitsByWorkshop: Record<string, Unit[]>;
+  headerError: HeaderErrorEntry | null;
   // Alerts
   handleAlert: (msg: AlertWsMessage) => void;
+  setSignalState: (slot: SignalSlot, signalState: SignalState) => void;
+  setHeaderError: (
+    slot: HeaderErrorSlot,
+    error: AppError,
+    retryAction?: (() => void) | undefined
+  ) => void;
+  clearHeaderError: (slot: HeaderErrorSlot) => void;
   // Topology actions (вызываются один раз при загрузке)
   setWorkshopTopology: (topology: WorkshopTopology[]) => void;
   setUnitTopology: (workshopId: string, topology: UnitTopology[]) => void;
+  /** Сохраняет топологию устройств аппарата (принтеры, камеры). */
+  setDevicesTopology: (unitId: string, topology: DevicesTopology) => void;
   /** Сохраняет ETag, полученный от topology-эндпоинтов. */
   setTopologyETag: (etag: string) => void;
   // Status actions (вызываются из WS-хуков)
@@ -152,6 +256,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       navigator.vibrate(ALERT_VIBRATION_PATTERN);
     }
   }, []);
+  const setSignalState = useCallback(
+    (slot: SignalSlot, signalState: SignalState) =>
+      dispatch({ type: 'SET_SIGNAL_STATE', slot, signalState }),
+    []
+  );
+  const setHeaderError = useCallback(
+    (slot: HeaderErrorSlot, error: AppError, retryAction?: (() => void) | undefined) =>
+      dispatch({ type: 'SET_HEADER_ERROR', slot, error, retryAction }),
+    []
+  );
+  const clearHeaderError = useCallback(
+    (slot: HeaderErrorSlot) => dispatch({ type: 'CLEAR_HEADER_ERROR', slot }),
+    []
+  );
   const setWorkshopTopology = useCallback(
     (topology: WorkshopTopology[]) => dispatch({ type: 'SET_WORKSHOP_TOPOLOGY', topology }),
     []
@@ -159,6 +277,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setUnitTopology = useCallback(
     (workshopId: string, topology: UnitTopology[]) =>
       dispatch({ type: 'SET_UNIT_TOPOLOGY', workshopId, topology }),
+    []
+  );
+  const setDevicesTopology = useCallback(
+    (unitId: string, topology: DevicesTopology) =>
+      dispatch({ type: 'SET_DEVICES_TOPOLOGY', unitId, topology }),
     []
   );
   const setTopologyETag = useCallback(
@@ -207,15 +330,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return result;
   }, [state.unitTopologyByWorkshop, state.unitStatusByWorkshop]);
 
+  const headerError = useMemo<HeaderErrorEntry | null>(
+    () => state.headerErrors.unit ?? state.headerErrors.live ?? state.headerErrors.topology ?? null,
+    [state.headerErrors]
+  );
+
   return (
     <AppContext.Provider
       value={{
         state,
         workshops,
         unitsByWorkshop,
+        headerError,
         handleAlert,
+        setSignalState,
+        setHeaderError,
+        clearHeaderError,
         setWorkshopTopology,
         setUnitTopology,
+        setDevicesTopology,
         setTopologyETag,
         setAlertSnapshot,
         patchUnitsStatus,

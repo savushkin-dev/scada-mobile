@@ -38,11 +38,21 @@ printsrv:
       port: 5561
       displayName: "Trepko №1"
       workshopId: "dess"
+      devices:
+        printers: []
+        aggregationCams: [ "CamBatch" ]
+        aggregationBoxCams: [ "CamPacker", "CamPackerBox" ]
+        checkerCams: [ "CamChecker" ]
     - id: "trepko2"
       host: 127.0.0.1
       port: 5562
       displayName: "Trepko №2"
       workshopId: "dess"
+      devices:
+        printers: []
+        aggregationCams: [ "CamBatch" ]
+        aggregationBoxCams: [ "CamPacker", "CamPackerBox" ]
+        checkerCams: [ "CamChecker" ]
     - id: "hassia1"
       host: 127.0.0.1
       port: 5563
@@ -58,47 +68,67 @@ printsrv:
       port: 5565
       displayName: "Hassia №4"
       workshopId: "dess"
+      devices:
+        printers: [ "Printer11", "Printer12", "Printer2" ]
     - id: "hassia5"
       host: 127.0.0.1
       port: 5566
       displayName: "Hassia №5"
       workshopId: "dess"
+      devices:
+        printers: [ "Printer11", "Printer12" ]
     - id: "hassia6"
       host: 127.0.0.1
       port: 5567
       displayName: "Hassia №6"
       workshopId: "dess"
+      devices:
+        printers: [ "Printer11", "Printer12" ]
     # Цех десертов и розлива (BR1_Marking_Dess_Pouring.mpr)
     - id: "grunwald1"
       host: 127.0.0.1
       port: 5571
       displayName: "Grunwald №1"
       workshopId: "dess_pouring"
+      devices:
+        printers: [ "Printer11", "Printer12" ]
+        checkerCams: [ "CamChecker", "CamEanChecker1", "CamEanChecker2", "CamEanChecker3", "CamEanChecker4" ]
     - id: "grunwald2"
       host: 127.0.0.1
       port: 5572
       displayName: "Grunwald №2"
       workshopId: "dess_pouring"
+      devices:
+        printers: [ "Printer11", "Printer12" ]
+        checkerCams: [ "CamChecker", "CamEanChecker1", "CamEanChecker2", "CamEanChecker3", "CamEanChecker4" ]
     - id: "hassia3"
       host: 127.0.0.1
       port: 5573
       displayName: "Hassia №3"
       workshopId: "dess_pouring"
+      devices:
+        printers: [ "Printer11", "Printer12" ]
     - id: "bosch"
       host: 127.0.0.1
       port: 5574
       displayName: "Bosch"
       workshopId: "dess_pouring"
+      devices:
+        printers: [ "Printer11", "Printer12" ]
     - id: "grunwald5"
       host: 127.0.0.1
       port: 5575
       displayName: "Grunwald №5"
       workshopId: "dess_pouring"
+      devices:
+        printers: [ "Printer11", "Printer12" ]
     - id: "grunwald8"
       host: 127.0.0.1
       port: 5576
       displayName: "Grunwald №8"
       workshopId: "dess_pouring"
+      devices:
+        printers: [ "Printer11", "Printer12" ]
     - id: "grunwald11"
       host: 127.0.0.1
       port: 5577
@@ -108,7 +138,7 @@ printsrv:
         printers: [ "Printer11", "Printer12", "Printer13", "Printer14" ]
         aggregationCams: [ "CamAgregation1", "CamAgregation2" ]
         aggregationBoxCams: [ "CamAgregationBox1", "CamAgregationBox2" ]
-        checkerCams: [ "CamChecker1", "CamChecker2" ]
+        checkerCams: [ "CamChecker1", "CamChecker2", "CamEanChecker1", "CamEanChecker2", "CamEanChecker3", "CamEanChecker4" ]
 
   polling:
     fixed-delay-ms: 5000              # Задержка между polling-проходами каждого instance worker

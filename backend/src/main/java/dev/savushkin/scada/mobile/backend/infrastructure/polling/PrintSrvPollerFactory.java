@@ -82,9 +82,14 @@ public class PrintSrvPollerFactory {
     public PrintSrvInstancePoller createFor(@NonNull PrintSrvClient client) {
         log.debug("PrintSrvPollerFactory: creating poller for instance '{}'", client.getInstanceId());
         PrintSrvProperties.InstanceProperties inst = instancesById.get(client.getInstanceId());
-        List<String> devices = inst != null
-                ? inst.getAllDeviceNames()
-                : new PrintSrvProperties.InstanceProperties().getAllDeviceNames();
-        return new PrintSrvInstancePoller(client, mapper, snapshotRepo, devices);
+        if (inst == null) {
+            // Этот путь теоретически недостижим: registry создаёт клиентов только для
+            // инстансов из конфигурации, которые есть и в instancesById. Если он всё же
+            // достигнут — это ошибка инициализации контекста, а не штатная ситуация.
+            throw new IllegalStateException(
+                    "PrintSrvPollerFactory: InstanceProperties not found for instanceId='%s'. Known ids: %s"
+                            .formatted(client.getInstanceId(), instancesById.keySet()));
+        }
+        return new PrintSrvInstancePoller(client, mapper, snapshotRepo, inst.getAllDeviceNames());
     }
 }

@@ -4,15 +4,16 @@ import { APP_BRAND, PAGE_FADE_SECTION_STYLE, UI_BEHAVIOR, UI_COPY } from '../con
 import { fetchWorkshopsTopology, type TopologyFetchResult } from '../api/workshops';
 import { PageHeader } from '../components/PageHeader';
 import { WorkshopCard } from '../components/WorkshopCard';
-import { RetryBanner } from '../components/RetryBanner';
 import { WorkshopCardSkeleton } from '../components/skeleton/WorkshopCardSkeleton';
 import { useAppContext } from '../context/AppContext';
 import { useAsyncFetch } from '../hooks/useAsyncFetch';
+import { useHeaderErrorSlot } from '../hooks/useHeaderErrorSlot';
 import type { WorkshopTopology } from '../types';
 
 export function DashboardPage() {
   const { state, workshops, setWorkshopTopology, setTopologyETag } = useAppContext();
   const navigate = useNavigate();
+  const liveSignal = state.signalStates.live;
 
   // Запрашиваем topology при каждом монтировании страницы (deps = []).
   // Стратегия: stale-while-revalidate на уровне приложения:
@@ -28,6 +29,16 @@ export function DashboardPage() {
     { source: 'topology/workshops' }
   );
 
+  useHeaderErrorSlot('topology', fetchState.error, fetchState.refetch);
+
+  // Контент страницы переходит в error-состояние при выполнении ЛЮБОГО из условий:
+  // 1. WS исчерпал порог переподключений (onError → liveSignal='error')
+  // 2. HTTP-запрос topology исчерпал попытки и данных нет — fetchState.status='error'
+  //    устанавливается одновременно с вызовом useHeaderErrorSlot,
+  //    поэтому заголовок и контент страницы меняются синхронно.
+  const isErrorState =
+    liveSignal === 'error' || (fetchState.status === 'error' && !workshops.length);
+
   useEffect(() => {
     if (!fetchState.data) return;
     const { data, etag } = fetchState.data;
@@ -41,14 +52,20 @@ export function DashboardPage() {
     <section data-scroll style={PAGE_FADE_SECTION_STYLE}>
       <PageHeader title={APP_BRAND.title} subtitle={APP_BRAND.subtitle} />
 
-      <RetryBanner error={fetchState.error} onRetry={fetchState.refetch} />
-
       <main className="px-4 space-y-4 pb-10 sm:px-6 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 lg:grid-cols-3 lg:px-8">
-        {fetchState.status === 'loading' && !workshops.length ? (
+        {isErrorState ? (
+          <p className="text-center text-[#74777F] py-10 text-[0.88rem] col-span-full">
+            {UI_COPY.wsConnectionError}
+          </p>
+        ) : liveSignal === 'reconnecting' ? (
+          <WorkshopCardSkeleton
+            count={Math.max(workshops.length, UI_BEHAVIOR.dashboardSkeletonCount)}
+          />
+        ) : fetchState.status === 'loading' && !workshops.length ? (
           <WorkshopCardSkeleton count={UI_BEHAVIOR.dashboardSkeletonCount} />
-        ) : !workshops.length && fetchState.status !== 'loading' ? (
+        ) : !workshops.length && fetchState.status === 'success' ? (
           <p className="text-center text-[#74777F] py-5 text-[0.88rem]">{UI_COPY.noData}</p>
-        ) : (
+        ) : !workshops.length ? null : (
           workshops.map((ws) => (
             <WorkshopCard
               key={ws.id}

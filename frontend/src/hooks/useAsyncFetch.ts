@@ -7,6 +7,8 @@
  * - Параллельные запуски защищены счётчиком run-id — устаревшие результаты
  *   не попадают в состояние.
  * - 4xx ошибки считаются окончательными: ретрай не выполняется.
+ * - После исчерпания обычных ретраев retryable-ошибки остаются видимыми в UI,
+ *   а хук продолжает фоновые попытки восстановления, пока ресурс не оживёт.
  * - Ретраи логируются в консоль; пользователь видит только состояние загрузки.
  * - refetch() принудительно перезапускает весь цикл.
  * - status: FetchStatus позволяет компонентам рендерить скелетоны вместо спиннеров.
@@ -30,7 +32,14 @@ export interface RetryConfig {
   /** Верхний предел задержки, мс. По умолчанию 30 000. */
   maxDelayMs: number;
   /** Множитель для экспоненциального роста. По умолчанию 2. */
-  factor: number; /**
+  factor: number;
+  /**
+   * Задержка между фоновыми циклами восстановления после исчерпания ретраев.
+   * Пока backend недоступен, хук остаётся в состоянии error и периодически
+   * выполняет новый полный retry-cycle без перезагрузки страницы.
+   */
+  recoveryDelayMs: number;
+  /**
    * Источник запроса — передаётся в classifyError для точной классификации.
    * Аналог указания конкретного @ExceptionHandler в Spring —
    * позволяет classifyError вернуть разные сообщения для topology/workshops
@@ -56,6 +65,7 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
   baseDelayMs: ASYNC_FETCH_DEFAULT_RETRY_CONFIG.baseDelayMs,
   maxDelayMs: ASYNC_FETCH_DEFAULT_RETRY_CONFIG.maxDelayMs,
   factor: ASYNC_FETCH_DEFAULT_RETRY_CONFIG.factor,
+  recoveryDelayMs: ASYNC_FETCH_DEFAULT_RETRY_CONFIG.recoveryDelayMs,
 };
 
 // ── Утилиты ───────────────────────────────────────────────────────────
@@ -169,62 +179,84 @@ export function useAsyncFetch<T>(
     setState({ loading: true, status: 'loading', data: null, error: null });
 
     (async () => {
-      // lastError: храним AppError вместо строки — передаётся в setState после исчерпания попыток.
-      let lastError: AppError | null = null;
+      while (!stale && runIdRef.current === runId) {
+        // lastError: храним AppError вместо строки — передаётся в setState после исчерпания попыток.
+        let lastError: AppError | null = null;
 
-      for (let attempt = 1; attempt <= cfg.maxAttempts; attempt++) {
-        if (stale || runIdRef.current !== runId) return;
-
-        if (attempt > 1 && lastError) {
-          // При ретраях: в лог идёт техническое сообщение (raw), пользователь видит только скелетон.
-          console.warn(
-            `[useAsyncFetch] retry ${attempt}/${cfg.maxAttempts} after: ${lastError.raw}`
-          );
-        }
-
-        try {
-          const data = await currentFn(controller.signal);
-
+        for (let attempt = 1; attempt <= cfg.maxAttempts; attempt++) {
           if (stale || runIdRef.current !== runId) return;
 
-          setState({ loading: false, status: 'success', data, error: null });
-          return;
-        } catch (e) {
-          if ((e as Error).name === 'AbortError') return;
-
-          // Классифицируем ерез единый классификатор. retryable=false заменяет
-          // старый isClientError(): не нужно парсить строки — информация есть на уровне типа.
-          const classified = classifyError(e, cfg.source ?? 'unknown');
-          lastError = classified;
-
-          if (!classified.retryable) break;
-
-          if (attempt < cfg.maxAttempts) {
-            const delay = computeDelay(attempt, cfg);
+          if (attempt > 1 && lastError) {
+            // При ретраях: в лог идёт техническое сообщение (raw), пользователь видит только скелетон.
             console.warn(
-              `[useAsyncFetch] waiting ${delay}ms before retry ${attempt + 1}/${cfg.maxAttempts}`
+              `[useAsyncFetch] retry ${attempt}/${cfg.maxAttempts} after: ${lastError.raw}`
             );
-            try {
-              await sleep(delay, controller.signal);
-            } catch {
-              return; // abort во время ожидания
+          }
+
+          try {
+            const data = await currentFn(controller.signal);
+
+            if (stale || runIdRef.current !== runId) return;
+
+            setState({ loading: false, status: 'success', data, error: null });
+            return;
+          } catch (e) {
+            if ((e as Error).name === 'AbortError') return;
+
+            // Классифицируем через единый классификатор. retryable=false заменяет
+            // старый isClientError(): не нужно парсить строки — информация есть на уровне типа.
+            const classified = classifyError(e, cfg.source ?? 'unknown');
+            lastError = classified;
+
+            if (!classified.retryable) break;
+
+            if (attempt < cfg.maxAttempts) {
+              const delay = computeDelay(attempt, cfg);
+              console.warn(
+                `[useAsyncFetch] waiting ${delay}ms before retry ${attempt + 1}/${cfg.maxAttempts}`
+              );
+              try {
+                await sleep(delay, controller.signal);
+              } catch {
+                return; // abort во время ожидания
+              }
             }
           }
         }
+
+        if (stale || runIdRef.current !== runId) return;
+
+        const finalError =
+          lastError ??
+          classifyError(new Error(ERROR_MESSAGES.unknownError), cfg.source ?? 'unknown');
+        console.error(`[useAsyncFetch] all ${cfg.maxAttempts} attempts failed: ${finalError.raw}`);
+        setState({ loading: false, status: 'error', data: null, error: finalError });
+
+        if (!finalError.retryable) return;
+
+        console.warn(
+          `[useAsyncFetch] scheduling recovery cycle in ${cfg.recoveryDelayMs}ms after failure: ${finalError.raw}`
+        );
+        try {
+          await sleep(cfg.recoveryDelayMs, controller.signal);
+        } catch {
+          return;
+        }
       }
-
-      if (stale || runIdRef.current !== runId) return;
-
-      const finalError =
-        lastError ?? classifyError(new Error(ERROR_MESSAGES.unknownError), cfg.source ?? 'unknown');
-      console.error(`[useAsyncFetch] all ${cfg.maxAttempts} attempts failed: ${finalError.raw}`);
-      setState({ loading: false, status: 'error', data: null, error: finalError });
     })();
 
     return markStale;
-    // cfg.* включены явно, чтобы eslint-plugin-react-hooks не жаловался
+    // cfg.* включены явно; spread ...deps не нарушает корректность — deps стабилен снаружи
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [...deps, refetchKey, cfg.maxAttempts, cfg.baseDelayMs, cfg.maxDelayMs, cfg.factor]);
+  }, [
+    ...deps, // eslint-disable-line react-hooks/exhaustive-deps
+    refetchKey,
+    cfg.maxAttempts,
+    cfg.baseDelayMs,
+    cfg.maxDelayMs,
+    cfg.factor,
+    cfg.recoveryDelayMs,
+  ]);
 
   return { ...state, refetch };
 }

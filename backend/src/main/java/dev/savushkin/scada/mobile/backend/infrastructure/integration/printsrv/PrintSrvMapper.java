@@ -109,6 +109,7 @@ public class PrintSrvMapper {
                 .signalCams(dto.signalCams())
                 .lineDevices(dto.lineDevices())
                 .enableErrors(dto.enableErrors())
+                .rawProperties(dto.rawProperties())
                 .build();
     }
 

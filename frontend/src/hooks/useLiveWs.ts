@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { WS_BASE } from '../config';
+import { classifyError } from '../errors/classifyError';
+import type { AppError } from '../errors/AppError';
 import { createManagedWs, type ManagedWsConnection } from '../lib/createManagedWs';
 import type { AlertWsMessage, UnitsStatusMessage } from '../types';
 
@@ -14,6 +16,15 @@ export interface LiveWsCallbacks {
   onUnitsStatus: (msg: UnitsStatusMessage) => void;
   /** ALERT — дельта изменения ошибки (active true/false) */
   onAlert: (msg: AlertWsMessage) => void;
+  /**
+   * Первый разрыв соединения — начало тихого переподключения.
+   * UI должен показывать skeleton, но не ошибку в шапке.
+   */
+  onReconnecting?: () => void;
+  /** Транспортная или parse-ошибка канала /ws/live — исчерпан порог попыток. */
+  onError?: (error: AppError) => void;
+  /** Соединение восстановлено: socket физически открыт или пришло валидное сообщение. */
+  onRecovered?: () => void;
 }
 
 /**
@@ -55,6 +66,10 @@ export function useLiveWs(subscribedWorkshopId: string | null, callbacks: LiveWs
   useEffect(() => {
     const conn = createManagedWs({
       url: `${WS_BASE}/ws/live`,
+      source: 'ws/live',
+      onReconnecting: () => callbacksRef.current.onReconnecting?.(),
+      onError: (error) => callbacksRef.current.onError?.(error),
+      onRecovered: () => callbacksRef.current.onRecovered?.(),
 
       // onOpen вызывается при каждом успешном подключении (в т.ч. после реконнекта).
       // Восстанавливаем подписку на цех, если она была активна в момент обрыва.
@@ -69,6 +84,7 @@ export function useLiveWs(subscribedWorkshopId: string | null, callbacks: LiveWs
         try {
           const msg = JSON.parse(e.data as string) as { type: string };
           const cb = callbacksRef.current;
+          cb.onRecovered?.();
           switch (msg.type) {
             case 'ALERT_SNAPSHOT':
               cb.onAlertSnapshot((msg as { type: string; payload: AlertWsMessage[] }).payload);
@@ -83,8 +99,8 @@ export function useLiveWs(subscribedWorkshopId: string | null, callbacks: LiveWs
               // Неизвестный тип — игнорируем (forward compat)
               break;
           }
-        } catch {
-          /* ignore parse errors */
+        } catch (error) {
+          callbacksRef.current.onError?.(classifyError(error, 'ws/live'));
         }
       },
     });
