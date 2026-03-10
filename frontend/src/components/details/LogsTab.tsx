@@ -9,14 +9,13 @@ import {
   LOGS_META_STYLE,
   UI_COPY,
 } from '../../config';
-import type { ErrorsPayload } from '../../types';
+import { useDetailsContext } from '../../context/DetailsContext';
 
-interface Props {
-  data: ErrorsPayload | null;
-}
-
-export function LogsTab({ data }: Props) {
-  const activeErrors = (data?.deviceErrors ?? []).filter((e) => e.value === DOMAIN_FLAGS.active);
+export function LogsTab() {
+  const { errorsData } = useDetailsContext();
+  const activeErrors = (errorsData?.deviceErrors ?? []).filter(
+    (e) => e.value === DOMAIN_FLAGS.active
+  );
 
   return (
     <>
@@ -38,12 +37,12 @@ export function LogsTab({ data }: Props) {
 
       <div className="card p-5 card-static mb-4">
         <div className="card-title">{UI_COPY.eventLogTitle}</div>
-        {!data?.logs?.length ? (
+        {!errorsData?.logs?.length ? (
           <p className="text-center text-[#74777F] py-2.5 text-[0.88rem]">
             {UI_COPY.eventLogEmpty}
           </p>
         ) : (
-          data.logs.map((log, i) => (
+          errorsData.logs.map((log, i) => (
             <div key={i} className="log-item">
               <div style={LOGS_META_STYLE}>
                 {log.time}

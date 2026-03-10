@@ -105,6 +105,28 @@ export const BOTTOM_NAV_ITEMS: ReadonlyArray<NavItemConfig> = [
 
 export const VALID_DETAIL_TABS = new Set<TabId>(BOTTOM_NAV_ITEMS.map(({ tab }) => tab));
 
+/**
+ * Маппинг TabId → сегмент URL маршрута.
+ * Используется в {@link DetailsLayout} для навигации между табами.
+ */
+export const TAB_ROUTE_SEGMENT = Object.freeze({
+  'tab-batch': 'batch',
+  'tab-devices': 'devices',
+  'tab-queue': 'queue',
+  'tab-logs': 'logs',
+} as const satisfies Record<TabId, string>);
+
+/**
+ * Обратный маппинг сегмента URL → TabId.
+ * Используется для определения активной вкладки по текущему URL.
+ */
+export const ROUTE_SEGMENT_TAB = Object.freeze({
+  batch: DETAIL_TABS.batch,
+  devices: DETAIL_TABS.devices,
+  queue: DETAIL_TABS.queue,
+  logs: DETAIL_TABS.logs,
+} as const satisfies Record<string, TabId>);
+
 export const BATCH_PRIMARY_FIELDS: ReadonlyArray<BatchFieldConfig> = [
   { key: 'description', label: 'Описание' },
   { key: 'ean13', label: 'EAN' },

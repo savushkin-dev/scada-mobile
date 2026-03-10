@@ -4,15 +4,9 @@ import {
   DeviceStatusLevel,
   getDeviceStatusLevel,
 } from '../../constants/statusUtils';
+import { useDetailsContext } from '../../context/DetailsContext';
 import { SkeletonBlock } from '../skeleton/SkeletonBlock';
 import type { DevicesStatusPayload, DevicesTopology } from '../../types';
-
-interface Props {
-  topology: DevicesTopology | null;
-  isLoading: boolean;
-  /** Live-статус устройств из WebSocket (пока не реализован — всегда null). */
-  data: DevicesStatusPayload | null;
-}
 
 // ── Конфигурация групп ─────────────────────────────────────────────────────────
 // Статичная таблица соответствия: ключ topology.devices → заголовок + поведение.
@@ -137,7 +131,13 @@ function DeviceCard({
 }
 
 // ── Основной компонент ─────────────────────────────────────────────────────────
-export function DevicesTab({ topology, isLoading, data }: Props) {
+export function DevicesTab() {
+  const {
+    devicesTopology: topology,
+    devicesLoading: isLoading,
+    devicesData: data,
+  } = useDetailsContext();
+
   if (isLoading && topology === null) {
     return <DevicesSkeleton />;
   }

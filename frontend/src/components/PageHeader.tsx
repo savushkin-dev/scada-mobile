@@ -2,13 +2,13 @@ import { BACK_BUTTON_STYLE, UI_COPY } from '../config';
 import { HeaderErrorIndicator } from './HeaderErrorIndicator';
 
 /**
- * Универсальная закреплённая шапка страницы.
+ * Единственная шапка приложения.
  *
- * Используется на DashboardPage (главная, без кнопки назад)
- * и WorkshopPage (вложенная, с кнопкой назад).
+ * Рендерится один раз в {@link RootLayout}, содержимое управляется
+ * из страниц через хук `usePageHeader()`.
  *
- * Позиционирование: position: sticky; top: 0 — шапка фиксируется
- * внутри ближайшего прокручиваемого предка (overflow-y: auto).
+ * Визуально шапка всегда закреплена в верхней части экрана (flex-shrink: 0)
+ * и не прокручивается вместе с контентом.
  */
 
 interface PageHeaderProps {
@@ -18,8 +18,6 @@ interface PageHeaderProps {
   subtitle?: string;
   /** Компактный режим для вложенных/детальных экранов. */
   variant?: 'default' | 'compact';
-  /** Нужна ли sticky-позиция внутри прокручиваемого контейнера. */
-  sticky?: boolean;
   /**
    * Если передан — рендерится кнопка «←» и вызывается при клике.
    * Отсутствие пропа означает корневую страницу без кнопки назад.
@@ -27,21 +25,12 @@ interface PageHeaderProps {
   onBack?: () => void;
 }
 
-export function PageHeader({
-  title,
-  subtitle,
-  variant = 'default',
-  sticky = true,
-  onBack,
-}: PageHeaderProps) {
+export function PageHeader({ title, subtitle, variant = 'default', onBack }: PageHeaderProps) {
   const isCompact = variant === 'compact';
   const headerClassName = [
-    sticky ? 'sticky top-0' : '',
     'z-10 backdrop-blur-md bg-[#f8f9fa]/30 border-b border-white/15 flex items-center gap-3 flex-shrink-0',
     isCompact ? 'px-5 py-4 sm:px-6 lg:px-8' : 'px-6 pt-5 pb-4 sm:px-8 lg:px-10',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  ].join(' ');
 
   const titleClassName = isCompact
     ? 'text-base font-bold text-[#1A1C1E] leading-tight truncate'
