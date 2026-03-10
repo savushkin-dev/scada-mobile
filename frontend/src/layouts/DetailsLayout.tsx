@@ -55,7 +55,8 @@ export function DetailsLayout() {
   const location = useLocation();
 
   // ── Активная вкладка (из URL) ─────────────────────────────────────────
-  const lastSegment = location.pathname.split('/').pop() ?? '';
+  const segments = location.pathname.split('/').filter(Boolean);
+  const lastSegment = segments[segments.length - 1] ?? '';
   const activeTab: TabId =
     (lastSegment in ROUTE_SEGMENT_TAB
       ? ROUTE_SEGMENT_TAB[lastSegment as keyof typeof ROUTE_SEGMENT_TAB]

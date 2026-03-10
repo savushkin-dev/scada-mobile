@@ -1,4 +1,12 @@
-import { createContext, useContext, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { ReactNode } from 'react';
 
 /**
@@ -55,16 +63,23 @@ export function usePageHeader(
   onBack?: (() => void) | undefined
 ): void {
   const { setConfig } = usePageHeaderContext();
-  // Храним onBack в ref, чтобы смена ссылки колбэка не вызывала лишний цикл.
+
+  // Стабильная обёртка: ref всегда хранит актуальный колбэк,
+  // а обёртка читает его при вызове — stale-closure невозможен.
+  // Эффект перезапускается только при смене title/subtitle/variant
+  // или при появлении/исчезновении onBack (hasBack).
   const onBackRef = useRef(onBack);
   onBackRef.current = onBack;
+
+  const hasBack = !!onBack;
+  const stableBack = useCallback(() => onBackRef.current?.(), []);
 
   useLayoutEffect(() => {
     setConfig({
       title,
       subtitle,
       variant,
-      onBack: onBack ? () => onBackRef.current?.() : undefined,
+      onBack: hasBack ? stableBack : undefined,
     });
-  }, [title, subtitle, variant, !!onBack, setConfig]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [title, subtitle, variant, hasBack, stableBack, setConfig]);
 }
