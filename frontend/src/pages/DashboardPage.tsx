@@ -8,6 +8,8 @@ import { useAppContext } from '../context/AppContext';
 import { usePageHeader } from '../context/PageHeaderContext';
 import { useAsyncFetch } from '../hooks/useAsyncFetch';
 import { useHeaderErrorSlot } from '../hooks/useHeaderErrorSlot';
+import { usePageError } from '../hooks/usePageError';
+import { getErrorBodyMessage } from '../errors/AppError';
 import type { WorkshopTopology } from '../types';
 
 export function DashboardPage() {
@@ -34,13 +36,13 @@ export function DashboardPage() {
 
   useHeaderErrorSlot('topology', fetchState.error, fetchState.refetch);
 
-  // Контент страницы переходит в error-состояние при выполнении ЛЮБОГО из условий:
-  // 1. WS исчерпал порог переподключений (onError → liveSignal='error')
-  // 2. HTTP-запрос topology исчерпал попытки и данных нет — fetchState.status='error'
-  //    устанавливается одновременно с вызовом useHeaderErrorSlot,
-  //    поэтому заголовок и контент страницы меняются синхронно.
-  const isErrorState =
-    liveSignal === 'error' || (fetchState.status === 'error' && !workshops.length);
+  // Агрегированная ошибка страницы: первый непустой слот из live → topology.
+  // Как только ЛЮБОЙ канал публикует ошибку в headerErrors, контент синхронно
+  // с шапкой переходит в error-состояние — независимо от timing-а отдельных каналов.
+  const pageError = usePageError(['live', 'topology']);
+  // Упал live (WS): показывать ошибку всегда — live-данные устарели и счётчики аппаратов недостоверны.
+  // Упал topology без кэша: список цехов непоказать — user нечего не знает.
+  const isErrorState = pageError !== null && (!workshops.length || liveSignal === 'error');
 
   useEffect(() => {
     if (!fetchState.data) return;
@@ -56,7 +58,7 @@ export function DashboardPage() {
       <main className="px-4 space-y-4 pb-10 sm:px-6 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 lg:grid-cols-3 lg:px-8">
         {isErrorState ? (
           <p className="text-center text-[#74777F] py-10 text-[0.88rem] col-span-full">
-            {UI_COPY.wsConnectionError}
+            {getErrorBodyMessage(pageError)}
           </p>
         ) : liveSignal === 'reconnecting' ? (
           <WorkshopCardSkeleton

@@ -105,8 +105,9 @@ public class XmlSnapshotLoader {
     }
 
     /**
-     * Загружает свойства устройства с приоритетом:
-     * filesystem → classpath/{instanceId}/ → classpath/default/ → empty.
+     * Загружает свойства устройства со стратегией «default + override»:
+     * поля из default служат базой, поля из instance-файла перекрывают их.
+     * Приоритет источников: filesystem → classpath/{instanceId}/ → classpath/default/.
      *
      * @param deviceName      имя устройства (например, {@code "CamAgregation"})
      * @param snapshotBaseDir путь к базовой директории seed-файлов; может быть null
@@ -120,14 +121,18 @@ public class XmlSnapshotLoader {
 
         String filename = FILENAME_TEMPLATE.formatted(deviceName);
 
+        // Загружаем default как базу для merge — instance-specific поля его перекроют
+        String defaultClasspathPath = CLASSPATH_DEFAULT_DIR + filename;
+        Map<String, String> defaultData = loadFromClasspath(defaultClasspathPath);
+
         // 1) Filesystem: {baseDir}/{instanceId}/{Device}___Unit0.xml
         if (snapshotBaseDir != null) {
             Path fsPath = Path.of(snapshotBaseDir, instanceId, filename);
             if (Files.exists(fsPath)) {
                 log.debug("[{}] Loading {} from filesystem: {}", instanceId, deviceName, fsPath);
-                Map<String, String> result = loadFromFile(fsPath);
-                if (!result.isEmpty()) {
-                    return result;
+                Map<String, String> instanceData = loadFromFile(fsPath);
+                if (!instanceData.isEmpty()) {
+                    return mergeWithDefaults(defaultData, instanceData);
                 }
                 log.warn("[{}] Filesystem file {} exists but yielded empty properties, falling back to classpath",
                         instanceId, fsPath);
@@ -139,24 +144,36 @@ public class XmlSnapshotLoader {
         ClassPathResource instanceResource = new ClassPathResource(instanceClasspathPath);
         if (instanceResource.exists()) {
             log.debug("[{}] Loading {} from classpath (instance): {}", instanceId, deviceName, instanceClasspathPath);
-            Map<String, String> result = loadFromClasspath(instanceClasspathPath);
-            if (!result.isEmpty()) {
-                return result;
+            Map<String, String> instanceData = loadFromClasspath(instanceClasspathPath);
+            if (!instanceData.isEmpty()) {
+                return mergeWithDefaults(defaultData, instanceData);
             }
             log.warn("[{}] Classpath instance file {} exists but yielded empty properties, falling back to default",
                     instanceId, instanceClasspathPath);
         }
 
-        // 3) Classpath default: mock-snapshots/default/{Device}___Unit0.xml
-        String defaultClasspathPath = CLASSPATH_DEFAULT_DIR + filename;
+        // 3) Classpath default only
         log.debug("[{}] Loading {} from classpath (default): {}", instanceId, deviceName, defaultClasspathPath);
-        Map<String, String> result = loadFromClasspath(defaultClasspathPath);
-
-        if (result.isEmpty()) {
+        if (defaultData.isEmpty()) {
             log.warn("[{}] No seed file found for device {}. Instance will start with empty state " +
                     "(properties will be null in QueryAll responses).", instanceId, deviceName);
         }
-        return result;
+        return defaultData;
+    }
+
+    /**
+     * Объединяет данные по умолчанию с данными конкретного инстанса.
+     * Поля инстанса имеют приоритет над полями по умолчанию.
+     * Это позволяет instance-файлам содержать только product-специфичные поля,
+     * получая аналитические поля (kmc, emk, kole, kolm, frozen и др.) из default.
+     */
+    private Map<String, String> mergeWithDefaults(Map<String, String> defaults, Map<String, String> instance) {
+        if (defaults.isEmpty()) {
+            return instance;
+        }
+        Map<String, String> merged = new LinkedHashMap<>(defaults);
+        merged.putAll(instance);
+        return merged;
     }
 
     /**

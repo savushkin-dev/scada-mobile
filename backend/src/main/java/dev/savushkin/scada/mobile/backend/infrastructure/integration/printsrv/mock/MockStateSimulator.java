@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
@@ -24,6 +25,9 @@ import java.util.Random;
  *   <li><b>Line</b> — если {@code ST=1} (активна), счётчик в {@code CurItem} растёт;
  *       с той же вероятностью устанавливается / снимается флаг {@code Error=1}.</li>
  *   <li><b>Принтеры</b> — если {@code ST=1}, инкрементируется {@code CurItem}.</li>
+ *   <li><b>SCADA</b> — агрегированные булевые (0/1) флаги ошибок устройств
+ *       ({@code Dev041Connection}, {@code Dev041Fail}, …, {@code LineDev011Error})
+ *       на устройстве {@code scada}, по логике {@code scada___Unit0_eval.py}.</li>
  * </ul>
  *
  * <h3>Детерминированность при тестировании</h3>
@@ -122,6 +126,8 @@ public class MockStateSimulator {
         for (String device : inst.getDevices().getPrinters()) {
             tickPrinter(state, device, id);
         }
+
+        tickScada(state, inst, id);
     }
 
     // ─── CamAgregation / CamAgregationBox ──────────────────────────────────
@@ -213,6 +219,99 @@ public class MockStateSimulator {
         String curItem = props.getOrDefault("CurItem", "");
         String updated = incrementCurItemCounter(curItem);
         state.setProperty(device, "CurItem", updated);
+    }
+
+    // ─── Scada (агрегированные флаги ошибок устройств) ─────────────────────
+
+    /**
+     * Суффиксы ошибок камер (devarr-устройства) — соответствуют {@code device.err*}
+     * свойствам из реального {@code scada___Unit0_eval.py}.
+     */
+    private static final List<String> CAM_ERROR_SUFFIXES = List.of(
+            "Connection", "Fail", "Dublicate", "DiffEan", "Work", "Data", "Batch", "Error"
+    );
+
+    /**
+     * Суффиксы ошибок принтеров/PLC (linedevarr-устройства).
+     */
+    private static final List<String> LINE_DEV_ERROR_SUFFIXES = List.of(
+            "Connection", "Error"
+    );
+
+    /**
+     * Симулирует обновление устройства {@code scada} —
+     * булевые (0/1) флаги ошибок для камер и принтеров.
+     *
+     * <p>Логика повторяет реальный {@code scada___Unit0_eval.py}:
+     * для каждого устройства из {@code devarr} (камеры, нумерация Dev041, Dev042, …)
+     * и {@code linedevarr} (принтеры, нумерация LineDev011, LineDev021, …)
+     * с вероятностью {@code errorFlipProbability} инвертируется каждый флаг,
+     * после чего {@code lineerr} вычисляется как OR всех {@code *Error} флагов.
+     */
+    private void tickScada(
+            MockInstanceState state,
+            PrintSrvProperties.InstanceProperties inst,
+            String instanceId
+    ) {
+        String scadaDevice = inst.getDevices().getScada();
+        Map<String, String> scadaProps = state.getPropertiesCopy(scadaDevice);
+        if (scadaProps.isEmpty()) {
+            return;
+        }
+
+        boolean lineErr = false;
+
+        // Камеры агрегации → Dev041, Dev042, ...
+        List<String> allCams = new java.util.ArrayList<>();
+        allCams.addAll(inst.getDevices().getAggregationCams());
+        allCams.addAll(inst.getDevices().getAggregationBoxCams());
+        for (int i = 0; i < allCams.size(); i++) {
+            String devPrefix = "Dev%03d".formatted(41 + i);
+            lineErr |= tickScadaErrorFlags(state, scadaDevice, scadaProps, devPrefix,
+                    CAM_ERROR_SUFFIXES, instanceId);
+        }
+
+        // Принтеры → LineDev011, LineDev021, ...
+        List<String> printers = inst.getDevices().getPrinters();
+        for (int i = 0; i < printers.size(); i++) {
+            String devPrefix = "LineDev%03d".formatted(11 + i * 10);
+            lineErr |= tickScadaErrorFlags(state, scadaDevice, scadaProps, devPrefix,
+                    LINE_DEV_ERROR_SUFFIXES, instanceId);
+        }
+
+        state.setProperty(scadaDevice, "lineerr", lineErr ? "1" : "0");
+    }
+
+    /**
+     * Обрабатывает одну группу error-флагов ({@code devPrefix + suffix})
+     * на устройстве {@code scada}: с вероятностью {@code errorFlipProbability}
+     * инвертирует каждый булев флаг.
+     *
+     * @return {@code true}, если хотя бы один {@code *Error} флаг сейчас равен "1"
+     */
+    private boolean tickScadaErrorFlags(
+            MockInstanceState state,
+            String scadaDevice,
+            Map<String, String> scadaProps,
+            String devPrefix,
+            List<String> suffixes,
+            String instanceId
+    ) {
+        boolean hasError = false;
+        for (String suffix : suffixes) {
+            String key = devPrefix + suffix;
+            String current = scadaProps.getOrDefault(key, "0");
+            if (flipProbability()) {
+                String flipped = "1".equals(current) ? "0" : "1";
+                state.setProperty(scadaDevice, key, flipped);
+                log.trace("[{}] scada.{} flipped {} → {}", instanceId, key, current, flipped);
+                current = flipped;
+            }
+            if ("Error".equals(suffix)) {
+                hasError = "1".equals(current);
+            }
+        }
+        return hasError;
     }
 
     // ─── Внутренние хелперы ─────────────────────────────────────────────────

@@ -52,9 +52,36 @@ public class UnitDetailService {
     /**
      * Ключи свойств scada, которые являются флагами ошибок устройств.
      * Ненулевое значение (≠ "0") означает активную ошибку.
+     *
+     * <p>Полный набор суффиксов из {@code scada___Unit0_eval.py}:
+     * <ul>
+     *   <li>Connection — нет связи с устройством</li>
+     *   <li>Fail — нет кодов маркировки</li>
+     *   <li>Dublicate — одинаковые коды маркировки</li>
+     *   <li>DiffEan — несовпадение EAN-13</li>
+     *   <li>Work — нет данных с устройства</li>
+     *   <li>Data — нет данных с устройства (доп.)</li>
+     *   <li>Batch — не совпадает идентификатор партии</li>
+     *   <li>Error — общая ошибка устройства</li>
+     * </ul>
      */
     private static final Set<String> ERROR_FLAG_SUFFIXES = Set.of(
-            "Fail", "Dublicate", "DiffEan", "Error"
+            "Connection", "Fail", "Dublicate", "DiffEan",
+            "Work", "Data", "Batch", "Error"
+    );
+
+    /**
+     * Человекочитаемые описания ошибок по суффиксу (из SCADA Monitor проекта).
+     */
+    private static final Map<String, String> ERROR_DESCRIPTIONS = Map.of(
+            "Connection", "Нет связи с устройством",
+            "Fail",       "Нет кодов маркировки",
+            "Dublicate",  "Одинаковые коды маркировки",
+            "DiffEan",    "Несовпадение EAN-13 в коде упаковки и идентификаторе партии",
+            "Work",       "Нет данных с устройства",
+            "Data",       "Нет данных с устройства",
+            "Batch",      "Не совпадает идентификатор партии",
+            "Error",      "Общая ошибка устройства"
     );
 
     private final PrintSrvProperties config;
@@ -212,7 +239,8 @@ public class UnitDetailService {
      *
      * <p>Извлекает из снапшота устройства {@code scada} все свойства,
      * имена которых заканчиваются на один из суффиксов ошибок:
-     * {@code Fail}, {@code Dublicate}, {@code DiffEan}, {@code Error}.
+     * {@code Connection}, {@code Fail}, {@code Dublicate}, {@code DiffEan},
+     * {@code Work}, {@code Data}, {@code Batch}, {@code Error}.
      * Суффикс разбирается эвристически — ищем совпадение в конце ключа.
      *
      * @param instanceId идентификатор аппарата
@@ -230,7 +258,8 @@ public class UnitDetailService {
                 .map(e -> new ErrorsMessageDTO.DeviceErrorFlag(
                         extractObjectName(e.getKey()),
                         e.getKey(),
-                        e.getValue()))
+                        e.getValue(),
+                        descriptionForKey(e.getKey())))
                 .toList();
 
         return ErrorsMessageDTO.of(
@@ -332,6 +361,18 @@ public class UnitDetailService {
         for (String suffix : ERROR_FLAG_SUFFIXES) {
             if (key.endsWith(suffix)) {
                 return key.substring(0, key.length() - suffix.length());
+            }
+        }
+        return key;
+    }
+
+    /**
+     * Возвращает описание ошибки по ключу scada: {@code Dev041Fail} → {@code "Нет кодов маркировки"}.
+     */
+    private static @NonNull String descriptionForKey(String key) {
+        for (String suffix : ERROR_FLAG_SUFFIXES) {
+            if (key.endsWith(suffix)) {
+                return ERROR_DESCRIPTIONS.getOrDefault(suffix, suffix);
             }
         }
         return key;

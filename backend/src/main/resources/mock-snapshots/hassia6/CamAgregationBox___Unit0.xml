@@ -1,4 +1,4 @@
-﻿<DeviceUnit
+<DeviceUnit
     xmlns="http://schemas.datacontract.org/2004/07/MarkPrintServer.Classes">
     <counterloginterval>1000</counterloginterval>
     <properties xmlns:d2p1="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
@@ -114,7 +114,7 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>enableErrors</d2p1:Key>
-            <d2p1:Value>0</d2p1:Value>
+            <d2p1:Value>1</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
     </properties>
 </DeviceUnit>

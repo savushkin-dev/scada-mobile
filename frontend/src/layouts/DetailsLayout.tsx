@@ -17,10 +17,12 @@ import { usePageHeader } from '../context/PageHeaderContext';
 import { fetchDevicesTopology, type TopologyFetchResult } from '../api/workshops';
 import { useAppContext } from '../context/AppContext';
 import { useAsyncFetch } from '../hooks/useAsyncFetch';
+import { usePageError } from '../hooks/usePageError';
 import { useHeaderErrorSlot } from '../hooks/useHeaderErrorSlot';
 import { useUnitWs } from '../hooks/useUnitWs';
 import type {
   DevicesStatusPayload,
+  DevicesStatusWsPayload,
   DevicesTopology,
   ErrorsPayload,
   LineStatusPayload,
@@ -28,6 +30,48 @@ import type {
   TabId,
   UnitWsMessage,
 } from '../types';
+
+/**
+ * Нормализует payload сообщения DEVICES_STATUS из wire-формата бекенда
+ * (группы с массивами, числовые поля — строки) в плоский словарь DevicesStatusPayload
+ * (ключ — имя устройства, значения — числа), используемый компонентами отображения.
+ *
+ * Преобразование строк в числа необходимо для сравнения с DOMAIN_FLAGS.active (= 1)
+ * в getDeviceStatusLevel.
+ */
+function normalizeDevicesStatus(raw: DevicesStatusWsPayload): DevicesStatusPayload {
+  const result: DevicesStatusPayload = {};
+
+  const toNum = (v: string | null | undefined): number | undefined => {
+    if (v == null || v === '') return undefined;
+    const n = Number(v);
+    return Number.isNaN(n) ? undefined : n;
+  };
+
+  for (const p of raw.printers ?? []) {
+    result[p.deviceName] = {
+      state: toNum(p.state),
+      error: toNum(p.error),
+      batch: p.batch ?? undefined,
+    };
+  }
+
+  const cams = [
+    ...(raw.aggregationCams ?? []),
+    ...(raw.aggregationBoxCams ?? []),
+    ...(raw.checkerCams ?? []),
+  ];
+  for (const c of cams) {
+    result[c.deviceName] = {
+      state: toNum(c.state),
+      error: toNum(c.error),
+      read: toNum(c.read),
+      unread: toNum(c.unread),
+    };
+  }
+
+  return result;
+}
 
 /**
  * Layout для экрана деталей аппарата.
@@ -76,7 +120,7 @@ export function DetailsLayout() {
         setLineData(msg.payload);
         break;
       case 'DEVICES_STATUS':
-        setDevicesData(msg.payload);
+        setDevicesData(normalizeDevicesStatus(msg.payload));
         break;
       case 'QUEUE':
         setQueueData(msg.payload);
@@ -107,6 +151,19 @@ export function DetailsLayout() {
       clearHeaderError('unit');
     };
   }, [setSignalState, clearHeaderError]);
+
+  // При переходе между аппаратами DetailsLayout не пересоздаётся React Router'ом —
+  // он остаётся примонтированным, меняется только unitId в params.
+  // Явно сбрасываем все данные предыдущего аппарата, иначе вкладки (в т.ч. «Журнал»)
+  // будут показывать чужие данные до прихода первого WS-сообщения нового аппарата.
+  useEffect(() => {
+    setLineData(null);
+    setDevicesData(null);
+    setQueueData(null);
+    setErrorsData(null);
+    setSignalState('unit', 'idle');
+    clearHeaderError('unit');
+  }, [unitId, setSignalState, clearHeaderError]);
 
   // ── Devices topology (REST) ───────────────────────────────────────────
   const hasDevicesTopology = unitId ? state.devicesTopologyByUnit[unitId] !== undefined : false;
@@ -155,7 +212,7 @@ export function DetailsLayout() {
 
   // ── Навигация по табам ────────────────────────────────────────────────
   const errorCount = (errorsData?.deviceErrors ?? []).filter(
-    (e) => e.value === DOMAIN_FLAGS.active
+    (e) => Number(e.value) !== DOMAIN_FLAGS.inactive
   ).length;
 
   const handleTabChange = useCallback(
@@ -167,16 +224,38 @@ export function DetailsLayout() {
   );
 
   // ── Context для вложенных табов ───────────────────────────────────────
+  const unitSignal = state.signalStates.unit;
+  const unitError = state.headerErrors.unit?.error ?? null;
+  // Агрегированная ошибка страницы: первый непустой слот из unit → topology.
+  // Вкладки проверяют именно это поле, а не timing каждого канала в отдельности —
+  // поэтому все секции синхронно переходят в ошибку как только ANY канал упал.
+  const pageError = usePageError(['unit', 'topology']);
+
   const detailsValue = useMemo(
     () => ({
       lineData,
       devicesData,
       devicesTopology,
       devicesLoading,
+      topologyError: devicesFetchState.error,
       queueData,
       errorsData,
+      unitSignal,
+      unitError,
+      pageError,
     }),
-    [lineData, devicesData, devicesTopology, devicesLoading, queueData, errorsData]
+    [
+      lineData,
+      devicesData,
+      devicesTopology,
+      devicesLoading,
+      devicesFetchState.error,
+      queueData,
+      errorsData,
+      unitSignal,
+      unitError,
+      pageError,
+    ]
   );
 
   return (

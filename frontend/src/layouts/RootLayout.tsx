@@ -4,6 +4,7 @@ import { AppProvider, useAppContext } from '../context/AppContext';
 import { PageHeaderProvider, usePageHeaderContext } from '../context/PageHeaderContext';
 import { PageHeader } from '../components/PageHeader';
 import { useLiveWs } from '../hooks/useLiveWs';
+import { useHardwareBackGuard } from '../hooks/useHardwareBackGuard';
 import type { AlertWsMessage, UnitsStatusMessage } from '../types';
 
 /**
@@ -45,6 +46,10 @@ function RootLayoutInner() {
     (msg: UnitsStatusMessage) => patchUnitsStatus(msg.workshopId, msg.payload),
     [patchUnitsStatus]
   );
+
+  // Перехватывает события popstate (кнопка «назад» на Android / в браузере)
+  // и гарантирует навигацию строго по иерархии экранов приложения.
+  useHardwareBackGuard();
 
   // Единственное WebSocket-соединение для всего приложения:
   // ALERT_SNAPSHOT при подключении, UNITS_STATUS для цеха, ALERT-дельты глобально.

@@ -8,6 +8,8 @@ import { useAppContext } from '../context/AppContext';
 import { usePageHeader } from '../context/PageHeaderContext';
 import { useAsyncFetch } from '../hooks/useAsyncFetch';
 import { useHeaderErrorSlot } from '../hooks/useHeaderErrorSlot';
+import { usePageError } from '../hooks/usePageError';
+import { getErrorBodyMessage } from '../errors/AppError';
 import type { UnitTopology } from '../types';
 
 export function WorkshopPage() {
@@ -25,7 +27,9 @@ export function WorkshopPage() {
     state.workshopTopology.find((w) => w.id === workshopId)?.name ??
     DOMAIN_DEFAULTS.workshopName;
 
-  const handleBack = useCallback(() => navigate(-1), [navigate]);
+  // Явная иерархическая навигация к корневой странице — независимо от
+  // состояния браузерной истории (прямые ссылки, обновление страницы).
+  const handleBack = useCallback(() => navigate('/'), [navigate]);
 
   // Шапка: имя цеха + кнопка «назад».
   usePageHeader(workshopName, UI_COPY.workshopSubtitle, undefined, handleBack);
@@ -47,7 +51,8 @@ export function WorkshopPage() {
 
   useHeaderErrorSlot('topology', fetchState.error, fetchState.refetch);
 
-  const isErrorState = liveSignal === 'error' || (fetchState.status === 'error' && !units.length);
+  const pageError = usePageError(['live', 'topology']);
+  const isErrorState = pageError !== null && (!units.length || liveSignal === 'error');
 
   useEffect(() => {
     if (!fetchState.data || !workshopId) return;
@@ -61,7 +66,7 @@ export function WorkshopPage() {
       <main className="px-4 space-y-4 pb-10 sm:px-6 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 lg:grid-cols-3 lg:px-8">
         {isErrorState ? (
           <p className="text-center text-[#74777F] py-10 text-[0.88rem] col-span-full">
-            {UI_COPY.wsConnectionError}
+            {getErrorBodyMessage(pageError)}
           </p>
         ) : liveSignal === 'reconnecting' ? (
           <UnitCardSkeleton count={Math.max(units.length, UI_BEHAVIOR.workshopSkeletonCount)} />

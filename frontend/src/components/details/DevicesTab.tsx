@@ -5,7 +5,8 @@ import {
   getDeviceStatusLevel,
 } from '../../constants/statusUtils';
 import { useDetailsContext } from '../../context/DetailsContext';
-import { SkeletonBlock } from '../skeleton/SkeletonBlock';
+import { TabContentState } from '../TabContentState';
+import { DevicesTabSkeleton } from '../skeleton/DevicesTabSkeleton';
 import type { DevicesStatusPayload, DevicesTopology } from '../../types';
 
 // ── Конфигурация групп ─────────────────────────────────────────────────────────
@@ -64,26 +65,6 @@ function val(v: string | number | undefined | null): string {
   return v === null || v === undefined ? DOMAIN_DEFAULTS.emptyValue : String(v);
 }
 
-// ── Скелетон (первая загрузка, topology ещё null) ─────────────────────────────
-function DevicesSkeleton() {
-  return (
-    <>
-      {Array.from({ length: 3 }, (_, i) => (
-        <div key={i} aria-hidden="true" className="card p-5 card-static mb-4">
-          <div style={CARD_TITLE_BETWEEN_STYLE}>
-            <SkeletonBlock height="18px" width="55%" borderRadius="6px" />
-            <SkeletonBlock height="22px" width="72px" borderRadius="12px" />
-          </div>
-          <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <SkeletonBlock height="14px" width="80%" borderRadius="4px" />
-            <SkeletonBlock height="14px" width="65%" borderRadius="4px" />
-          </div>
-        </div>
-      ))}
-    </>
-  );
-}
-
 // ── Одна карточка устройства ───────────────────────────────────────────────────
 function DeviceCard({
   name,
@@ -134,51 +115,52 @@ function DeviceCard({
 export function DevicesTab() {
   const {
     devicesTopology: topology,
-    devicesLoading: isLoading,
+    devicesLoading,
     devicesData: data,
+    pageError,
   } = useDetailsContext();
 
-  if (isLoading && topology === null) {
-    return <DevicesSkeleton />;
-  }
+  // Topology используется как основной источник контента для этой вкладки.
+  // WS-данные (devicesData) показывают статус устройств поверх topology.
+  const isLoading = devicesLoading && topology === null && pageError === null;
+  // topology===null и есть ошибка (REST или WS) → показать ошибку.
+  const topologyFailError = topology === null && pageError !== null ? pageError : null;
 
-  if (topology === null) {
-    return (
-      <div className="card p-5 card-static text-center text-secondary">
-        {UI_COPY.devicesNoTopology}
-      </div>
-    );
-  }
-
-  const allEmpty = DEVICE_GROUPS.every((g) => topology.devices[g.key].length === 0);
-  if (allEmpty) {
-    return (
-      <div className="card p-5 card-static text-center text-secondary">
-        {UI_COPY.devicesNoneConfigured}
-      </div>
-    );
-  }
+  const allEmpty =
+    topology !== null && DEVICE_GROUPS.every((g) => topology.devices[g.key].length === 0);
 
   return (
-    <>
-      {DEVICE_GROUPS.map(({ key, title, showBatch, showStats }) => {
-        const names = topology.devices[key];
-        if (names.length === 0) return null;
-        return (
-          <section key={key} className="mb-2">
-            <h2 className="section-header mb-2">{title}</h2>
-            {names.map((name) => (
-              <DeviceCard
-                key={name}
-                name={name}
-                wsData={data}
-                showBatch={showBatch}
-                showStats={showStats}
-              />
-            ))}
-          </section>
-        );
-      })}
-    </>
+    <TabContentState
+      isLoading={isLoading}
+      error={topologyFailError}
+      skeleton={<DevicesTabSkeleton />}
+    >
+      <>
+        {allEmpty ? (
+          <div className="card p-5 card-static text-center text-secondary">
+            {UI_COPY.devicesNoneConfigured}
+          </div>
+        ) : (
+          DEVICE_GROUPS.map(({ key, title, showBatch, showStats }) => {
+            const names = topology?.devices[key] ?? [];
+            if (names.length === 0) return null;
+            return (
+              <section key={key} className="mb-2">
+                <h2 className="section-header mb-2">{title}</h2>
+                {names.map((name) => (
+                  <DeviceCard
+                    key={name}
+                    name={name}
+                    wsData={data}
+                    showBatch={showBatch}
+                    showStats={showStats}
+                  />
+                ))}
+              </section>
+            );
+          })
+        )}
+      </>
+    </TabContentState>
   );
 }

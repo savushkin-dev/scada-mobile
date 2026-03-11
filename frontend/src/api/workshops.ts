@@ -1,3 +1,5 @@
+import { z } from 'zod';
+import { DevicesTopologySchema, UnitsTopologySchema, WorkshopsTopologySchema } from '../schemas';
 import type { DevicesTopology, UnitTopology, WorkshopTopology } from '../types';
 import { API_BASE } from '../config';
 import { HttpError } from '../errors/AppError';
@@ -22,9 +24,14 @@ export interface TopologyFetchResult<T> {
 /**
  * Shared helper: выполняет GET с опциональным If-None-Match,
  * обрабатывает 304 и извлекает ETag из ответа.
+ *
+ * @param schema Zod-схема для валидации тела ответа.
+ *               ZodError при несоответствии пробрасывается выше и
+ *               классифицируется как `validation_error` в classifyError.
  */
 async function fetchTopology<T>(
   url: string,
+  schema: z.ZodType<T>,
   signal?: AbortSignal,
   knownETag?: string | null
 ): Promise<TopologyFetchResult<T>> {
@@ -46,7 +53,10 @@ async function fetchTopology<T>(
   if (!resp.ok) throw new HttpError(resp.status);
 
   const etag = resp.headers.get('ETag');
-  const data = (await resp.json()) as T;
+  const raw = await resp.json();
+  // schema.parse() бросает ZodError при несоответствии контракту.
+  // classifyError обработает его как `validation_error`.
+  const data = schema.parse(raw);
   return { data, etag };
 }
 
@@ -59,8 +69,9 @@ export function fetchWorkshopsTopology(
   signal?: AbortSignal,
   knownETag?: string | null
 ): Promise<TopologyFetchResult<WorkshopTopology[]>> {
-  return fetchTopology<WorkshopTopology[]>(
+  return fetchTopology(
     `${API_BASE}/api/v1.0.0/workshops/topology`,
+    WorkshopsTopologySchema,
     signal,
     knownETag
   );
@@ -76,14 +87,13 @@ export function fetchUnitsTopology(
   signal?: AbortSignal,
   knownETag?: string | null
 ): Promise<TopologyFetchResult<UnitTopology[]>> {
-  return fetchTopology<UnitTopology[]>(
+  return fetchTopology(
     `${API_BASE}/api/v1.0.0/workshops/${workshopId}/units/topology`,
+    UnitsTopologySchema,
     signal,
     knownETag
   );
 }
-
-// ── Legacy (deprecated, только для обратной совместимости) ────────────
 
 /**
  * Загружает статическую топологию устройств аппарата (принтеры, камеры).
@@ -98,8 +108,9 @@ export function fetchDevicesTopology(
   signal?: AbortSignal,
   knownETag?: string | null
 ): Promise<TopologyFetchResult<DevicesTopology>> {
-  return fetchTopology<DevicesTopology>(
+  return fetchTopology(
     `${API_BASE}/api/v1.0.0/workshops/${workshopId}/units/${unitId}/devices/topology`,
+    DevicesTopologySchema,
     signal,
     knownETag
   );

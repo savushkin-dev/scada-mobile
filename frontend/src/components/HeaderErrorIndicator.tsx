@@ -16,7 +16,7 @@ export function HeaderErrorIndicator() {
         <span className="text-sm leading-none" aria-hidden="true">
           {UI_COPY.retryIcon}
         </span>
-        <span className="max-w-[24vw] truncate sm:max-w-[12rem]">{headerError.error.message}</span>
+        <span className="max-w-[24vw] truncate sm:max-w-[12rem]">{UI_COPY.headerErrorLabel}</span>
       </div>
     </div>
   );

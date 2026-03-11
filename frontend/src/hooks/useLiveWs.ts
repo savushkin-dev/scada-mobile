@@ -3,6 +3,7 @@ import { WS_BASE } from '../config';
 import { classifyError } from '../errors/classifyError';
 import type { AppError } from '../errors/AppError';
 import { createManagedWs, type ManagedWsConnection } from '../lib/createManagedWs';
+import { LiveWsIncomingMessageSchema } from '../schemas';
 import type { AlertWsMessage, UnitsStatusMessage } from '../types';
 
 /**
@@ -81,26 +82,37 @@ export function useLiveWs(subscribedWorkshopId: string | null, callbacks: LiveWs
       },
 
       onMessage: (e) => {
+        let raw: unknown;
         try {
-          const msg = JSON.parse(e.data as string) as { type: string };
-          const cb = callbacksRef.current;
-          cb.onRecovered?.();
-          switch (msg.type) {
-            case 'ALERT_SNAPSHOT':
-              cb.onAlertSnapshot((msg as { type: string; payload: AlertWsMessage[] }).payload);
-              break;
-            case 'UNITS_STATUS':
-              cb.onUnitsStatus(msg as UnitsStatusMessage);
-              break;
-            case 'ALERT':
-              cb.onAlert(msg as AlertWsMessage);
-              break;
-            default:
-              // Неизвестный тип — игнорируем (forward compat)
-              break;
-          }
+          raw = JSON.parse(e.data as string);
         } catch (error) {
           callbacksRef.current.onError?.(classifyError(error, 'ws/live'));
+          return;
+        }
+
+        const result = LiveWsIncomingMessageSchema.safeParse(raw);
+        if (!result.success) {
+          // forward compat: неизвестный type или структурная ошибка — молча пропускаем.
+          // В dev-режиме логируем для отладки.
+          if (import.meta.env.DEV) {
+            console.warn('[ws/live] неожиданное сообщение от сервера', result.error.issues);
+          }
+          return;
+        }
+
+        const msg = result.data;
+        const cb = callbacksRef.current;
+        cb.onRecovered?.();
+        switch (msg.type) {
+          case 'ALERT_SNAPSHOT':
+            cb.onAlertSnapshot(msg.payload);
+            break;
+          case 'UNITS_STATUS':
+            cb.onUnitsStatus(msg);
+            break;
+          case 'ALERT':
+            cb.onAlert(msg);
+            break;
         }
       },
     });

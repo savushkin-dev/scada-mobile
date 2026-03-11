@@ -36,11 +36,11 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Dev041Connection</d2p1:Key>
-            <d2p1:Value>1</d2p1:Value>
+            <d2p1:Value>0</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Dev041Fail</d2p1:Key>
-            <d2p1:Value>21</d2p1:Value>
+            <d2p1:Value>0</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Dev041Dublicate</d2p1:Key>
@@ -52,11 +52,15 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Dev041Work</d2p1:Key>
-            <d2p1:Value>1230</d2p1:Value>
+            <d2p1:Value>0</d2p1:Value>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>Dev041Data</d2p1:Key>
+            <d2p1:Value>0</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Dev041Batch</d2p1:Key>
-            <d2p1:Value>238</d2p1:Value>
+            <d2p1:Value>0</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Dev041Error</d2p1:Key>
@@ -72,11 +76,11 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Dev042Connection</d2p1:Key>
-            <d2p1:Value>1</d2p1:Value>
+            <d2p1:Value>0</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Dev042Fail</d2p1:Key>
-            <d2p1:Value>5</d2p1:Value>
+            <d2p1:Value>0</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Dev042Dublicate</d2p1:Key>
@@ -88,7 +92,15 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Dev042Work</d2p1:Key>
-            <d2p1:Value>1225</d2p1:Value>
+            <d2p1:Value>0</d2p1:Value>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>Dev042Data</d2p1:Key>
+            <d2p1:Value>0</d2p1:Value>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>Dev042Batch</d2p1:Key>
+            <d2p1:Value>0</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Dev042Error</d2p1:Key>
@@ -96,7 +108,7 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>LineDev011Connection</d2p1:Key>
-            <d2p1:Value>1</d2p1:Value>
+            <d2p1:Value>0</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>LineDev011Error</d2p1:Key>

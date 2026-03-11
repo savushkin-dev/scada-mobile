@@ -1,3 +1,16 @@
+import { EnvSchema } from '../schemas';
+
+// Валидируем переменные окружения один раз при загрузке модуля.
+// При некорректных значениях — console.error в dev, дальше работают дефолты.
+// Это не throws: прод не должен упасть из-за отсутствующей opcional-переменной.
+const _envResult = EnvSchema.safeParse(import.meta.env);
+if (!_envResult.success && import.meta.env.DEV) {
+  console.error(
+    '[config] Некорректные переменные окружения:\n' +
+      _envResult.error.issues.map((i) => `  ${String(i.path[0])}: ${i.message}`).join('\n')
+  );
+}
+
 export const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080';
 export const WS_BASE = import.meta.env.VITE_WS_BASE ?? 'ws://localhost:8080';
 

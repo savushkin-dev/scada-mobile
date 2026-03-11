@@ -59,6 +59,70 @@
             <d2p1:Value>Пусто</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>description</d2p1:Key>
+            <d2p1:Value>Творожок VIOLA 9% 100г</d2p1:Value>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>ean13</d2p1:Key>
+            <d2p1:Value>4810268030022</d2p1:Value>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>itf</d2p1:Key>
+            <d2p1:Value>24810268030022</d2p1:Value>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>batch</d2p1:Key>
+            <d2p1:Value>198</d2p1:Value>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>dateproduced</d2p1:Key>
+            <d2p1:Value>10.01.2026</d2p1:Value>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>datepack</d2p1:Key>
+            <d2p1:Value>10.01.2026</d2p1:Value>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>dateexpiration</d2p1:Key>
+            <d2p1:Value>24.01.2026</d2p1:Value>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>place</d2p1:Key>
+            <d2p1:Value/>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>printdm</d2p1:Key>
+            <d2p1:Value>0</d2p1:Value>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>kmc</d2p1:Key>
+            <d2p1:Value>0301090022</d2p1:Value>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>emk</d2p1:Key>
+            <d2p1:Value>30</d2p1:Value>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>kole</d2p1:Key>
+            <d2p1:Value>198</d2p1:Value>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>kolm</d2p1:Key>
+            <d2p1:Value>5940</d2p1:Value>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>frozen</d2p1:Key>
+            <d2p1:Value>0</d2p1:Value>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>region</d2p1:Key>
+            <d2p1:Value>201040000000</d2p1:Value>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
+            <d2p1:Key>designe</d2p1:Key>
+            <d2p1:Value>1</d2p1:Value>
+        </d2p1:KeyValueOfstringstring>
+        <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Item01Selected</d2p1:Key>
             <d2p1:Value>1</d2p1:Value>
         </d2p1:KeyValueOfstringstring>

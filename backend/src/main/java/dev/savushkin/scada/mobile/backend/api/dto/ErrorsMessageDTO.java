@@ -20,7 +20,8 @@ import java.util.List;
  *   "timestamp": "2026-03-01T10:23:45",
  *   "payload": {
  *     "deviceErrors": [
- *       { "objectName": "Dev041", "propertyDesc": "Dev041Dublicate", "value": "0" }
+ *       { "objectName": "Dev041", "propertyDesc": "Dev041Dublicate", "value": "0",
+ *         "description": "Одинаковые коды маркировки" }
  *     ],
  *     "logs": []
  *   }
@@ -59,6 +60,8 @@ public record ErrorsMessageDTO(
      * @param objectName   идентификатор устройства-источника (例 {@code "Dev041"})
      * @param propertyDesc ключ свойства из {@code scada} (例 {@code "Dev041Dublicate"})
      * @param value        значение флага ({@code "1"} — активна, {@code "0"} — нет)
+     * @param description  человекочитаемое описание ошибки (例 {@code "Одинаковые коды маркировки"})
      */
-    public record DeviceErrorFlag(String objectName, String propertyDesc, String value) {}
+    public record DeviceErrorFlag(String objectName, String propertyDesc, String value,
+                                  String description) {}
 }

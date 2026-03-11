@@ -24,6 +24,7 @@
  * Если нужно обработать новый тип ошибки — добавь ветку здесь.
  */
 
+import { ZodError } from 'zod';
 import { ERROR_MESSAGES, HTTP_STATUS } from '../config';
 import type { AppError, AppErrorCode, AppErrorSeverity, AppErrorSource } from './AppError';
 import { HttpError } from './AppError';
@@ -61,7 +62,17 @@ function resolveHandler(error: unknown): ErrorResolution {
   if (error instanceof HttpError) {
     return handleHttpError(error.status);
   }
-
+  // ── @ExceptionHandler(ZodError.class) ───────────────────────────────────────
+  // ZodError от schema.parse() — ответ сервера не соответствует ожидаемой схеме.
+  // Повторный запрос может исправить ситуацию, если была транзиентная аномалия.
+  if (error instanceof ZodError) {
+    return {
+      code: 'validation_error',
+      message: ERROR_MESSAGES.validationError,
+      severity: 'degraded',
+      retryable: true,
+    };
+  }
   if (!(error instanceof Error)) {
     // Пойман не-Error (строка, null, объект — крайне редко).
     return fallback();

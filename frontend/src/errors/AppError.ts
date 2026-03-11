@@ -54,6 +54,7 @@ export type AppErrorCode =
   | 'client_error' // другие 4xx
   | 'timeout' // AbortError не от нашего сигнала
   | 'parse_error' // SyntaxError при разборе JSON
+  | 'validation_error' // ZodError — ответ не соответствует ожидаемой схеме
   | 'render_crash' // React ErrorBoundary
   | 'unknown'; // Всё остальное
 
@@ -77,6 +78,39 @@ export interface AppError {
   retryable: boolean;
   /** Оригинальное техническое сообщение — только для console.error / логов. */
   raw: string;
+}
+
+// ── Краткие метки для отображения в теле страниц при ошибках ─────────
+
+/**
+ * Единый реестр коротких пользовательских сообщений, отображаемых
+ * в основной области страницы вместо скелетона / карточек.
+ *
+ * Принцип: пользователь узнаёт **факт** («Сервер недоступен»),
+ * без технических деталей — они идут в `AppError.raw` для логов.
+ *
+ * Это единственное место, где задаётся текст «тела» ошибки.
+ * Шапка (HeaderErrorIndicator) всегда показывает фиксированный ярлык.
+ */
+export const ERROR_BODY_LABELS = Object.freeze({
+  network_unavailable: 'Сервер недоступен',
+  server_error: 'Ошибка на сервере',
+  not_found: 'Данные не найдены',
+  client_error: 'Ошибка запроса',
+  timeout: 'Превышено время ожидания',
+  parse_error: 'Некорректный ответ сервера',
+  validation_error: 'Некорректный формат данных',
+  render_crash: 'Ошибка отображения',
+  unknown: 'Произошла ошибка',
+} as const satisfies Record<AppErrorCode, string>);
+
+/**
+ * Возвращает краткое пользовательское сообщение для тела страницы
+ * по коду ошибки. Если ошибки нет — возвращает пустую строку.
+ */
+export function getErrorBodyMessage(error: AppError | null | undefined): string {
+  if (!error) return '';
+  return ERROR_BODY_LABELS[error.code];
 }
 
 // ── Специализированные классы исключений ─────────────────────────────

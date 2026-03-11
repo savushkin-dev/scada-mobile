@@ -53,10 +53,10 @@ export const UI_COPY = Object.freeze({
   backIcon: '←',
   retryIcon: '⚠',
   /**
-   * Отображается вместо skeleton после исчерпания порога переподключений.
-   * Фоновые попытки продолжаются автоматически.
+   * Фиксированный ярлык индикатора ошибки в шапке приложения.
+   * Детальный текст ошибки отображается в теле страницы через getErrorBodyMessage().
    */
-  wsConnectionError: 'Нет связи с сервером. Выполняются попытки переподключения…',
+  headerErrorLabel: 'Ошибка',
   // Вкладка «Устройства» — заголовки групп устройств и статусы
   devicesGroupPrinters: '🖨️ Принтеры',
   devicesGroupAggrCams: '📷 Камеры агрегации',
@@ -137,7 +137,6 @@ export const BATCH_PRIMARY_FIELDS: ReadonlyArray<BatchFieldConfig> = [
 
 export const BATCH_ADDITIONAL_FIELDS: ReadonlyArray<BatchFieldConfig> = [
   { key: 'shortCode', label: 'Краткий код' },
-  { key: 'kms', label: 'КМС' },
   { key: 'datePacking', label: 'Дата фасовки' },
   { key: 'initialCounter', label: 'Начальный счётчик' },
   { key: 'site', label: 'Площадка' },
@@ -155,6 +154,7 @@ export const ERROR_MESSAGES = Object.freeze({
   timeout: 'Запрос был отменён',
   networkUnavailable: 'Нет связи с сервером',
   parseError: 'Получен некорректный ответ от сервера',
+  validationError: 'Получен неожиданный формат данных от сервера',
   renderCrash: 'Произошла ошибка отображения',
   accessDenied: 'Нет доступа к данным',
   notFound: 'Данные не найдены на сервере',
