@@ -6,8 +6,8 @@ import dev.savushkin.scada.mobile.backend.api.dto.LineStatusMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.QueueMessageDTO;
 import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepository;
 import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
-import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties.DeviceNamesProperties;
 import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties.InstanceProperties;
+import dev.savushkin.scada.mobile.backend.domain.model.DeviceComposition;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceError;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitSnapshot;
@@ -83,14 +83,17 @@ public class UnitDetailService {
     private final PrintSrvProperties config;
     private final InstanceSnapshotRepository snapshotRepo;
     private final UnitErrorStore unitErrorStore;
+    private final DeviceCompositionService deviceCompositionService;
     private final Map<String, InstanceProperties> instancesById;
 
     public UnitDetailService(PrintSrvProperties config,
                              InstanceSnapshotRepository snapshotRepo,
-                             UnitErrorStore unitErrorStore) {
+                             UnitErrorStore unitErrorStore,
+                             DeviceCompositionService deviceCompositionService) {
         this.config = config;
         this.snapshotRepo = snapshotRepo;
         this.unitErrorStore = unitErrorStore;
+        this.deviceCompositionService = deviceCompositionService;
         this.instancesById = config.getInstances().stream()
                 .collect(Collectors.toUnmodifiableMap(
                         InstanceProperties::getId,
@@ -112,96 +115,35 @@ public class UnitDetailService {
     }
 
     /**
-     * Строит сообщение {@code LINE_STATUS}.
-     *
-     * <p>Источники данных (в порядке приоритета):
-     * <ul>
-     *   <li>Состояние линии — устройство {@code Line}</li>
-     *   <li>Данные партии — первый принтер из конфига</li>
-     *   <li>Дополнительные поля — {@code BatchQueue}</li>
-     * </ul>
-     *
-     * @param instanceId идентификатор аппарата
-     * @return сообщение {@code LINE_STATUS}, или {@code null} если снапшоты ещё не получены
+     * Строит статус камеры, используя как device-поля, так и scada-ключ.
      */
-    public @Nullable LineStatusMessageDTO buildLineStatus(String instanceId) {
-        InstanceProperties inst = instancesById.get(instanceId);
-        if (inst == null) return null;
-
-        DeviceNamesProperties devices = inst.getDevices();
-
-        Map<String, String> lineRaw = firstUnitRawProperties(snapshotRepo.get(instanceId, devices.getLine()));
-        Map<String, String> printerRaw = firstUnitRawProperties(
-                snapshotRepo.get(instanceId, firstPrinterName(devices)));
-        Map<String, String> bqRaw = firstUnitRawProperties(
-                snapshotRepo.get(instanceId, devices.getBatchQueue()));
-
-        // Выбираем значение из принтера, при отсутствии — из BatchQueue
-        String lineState = getFirstUnit(snapshotRepo.get(instanceId, devices.getLine()))
-                .map(u -> u.properties().getSt().orElse(null))
-                .orElse(null);
-
-        LineStatusMessageDTO.Payload payload = new LineStatusMessageDTO.Payload(
-                inst.getDisplayName(),
-                lineState,
-                coalesce(printerRaw.get("kmc"), bqRaw.get("kmc")),
-                coalesce(printerRaw.get("descr"), bqRaw.get("description")),
-                coalesce(printerRaw.get("ean13"), bqRaw.get("ean13")),
-                coalesce(printerRaw.get("partynumber"), bqRaw.get("batch")),
-                coalesce(printerRaw.get("dateproduced"), bqRaw.get("dateproduced")),
-                coalesce(printerRaw.get("datepack"), bqRaw.get("datepack")),
-                coalesce(printerRaw.get("dateexpiration"), bqRaw.get("dateexpiration")),
-                // initialCounter: curitem из именованного поля принтера или rawProperties
-                firstUnitNamedProp(snapshotRepo.get(instanceId, firstPrinterName(devices)),
-                        u -> u.properties().getCurItem().orElse(null)),
-                coalesce(printerRaw.get("place"), bqRaw.get("place")),
-                coalesce(printerRaw.get("itf"), bqRaw.get("itf")),
-                coalesce(printerRaw.get("emk"), bqRaw.get("emk")),
-                coalesce(printerRaw.get("kole"), bqRaw.get("kole")),
-                coalesce(printerRaw.get("kolm"), bqRaw.get("kolm")),
-                bqRaw.get("frozen"),
-                bqRaw.get("region"),
-                coalesce(printerRaw.get("designe"), bqRaw.get("designe")),
-                coalesce(printerRaw.get("printdm"), bqRaw.get("printdm"))
-        );
-
-        return LineStatusMessageDTO.of(instanceId, nowUtc(), payload);
+    private static DevicesStatusMessageDTO.CameraStatus buildSingleCamStatus(
+            String camName,
+            Map<String, String> camRaw,
+            String devKey,
+            Map<String, String> scadaRaw
+    ) {
+        String read = coalesce(camRaw.get("Total"), scadaRaw.get(devKey + "CounterGeneral"));
+        String unread = coalesce(camRaw.get("Failed"), scadaRaw.get(devKey + "CounterMissing"));
+        String state = coalesce(camRaw.get("ST"), scadaRaw.get(devKey + "Work"));
+        String error = coalesce(camRaw.get("Error"), scadaRaw.get(devKey + "Error"));
+        return new DevicesStatusMessageDTO.CameraStatus(camName, read, unread, state, error);
     }
 
     /**
-     * Строит сообщение {@code DEVICES_STATUS}.
-     *
-     * <p>Для каждого устройства извлекается снапшот из store.
-     * Состояние камер берётся из собственного снапшота камеры (rawProperties)
-     * или из устройства {@code scada} по ключу {@code Dev0XX*} — в качестве fallback.
-     *
-     * @param instanceId идентификатор аппарата
-     * @return сообщение {@code DEVICES_STATUS}, или {@code null} если нет снапшотов
+     * Строит статус камеры только из прямых device-полей снапшота (без scada).
      */
-    public @Nullable DevicesStatusMessageDTO buildDevicesStatus(String instanceId) {
-        InstanceProperties inst = instancesById.get(instanceId);
-        if (inst == null) return null;
-
-        DeviceNamesProperties devices = inst.getDevices();
-        Map<String, String> scadaRaw = firstUnitRawProperties(
-                snapshotRepo.get(instanceId, devices.getScada()));
-
-        List<DevicesStatusMessageDTO.PrinterStatus> printers = buildPrinterStatuses(
-                instanceId, devices.getPrinters(), scadaRaw);
-
-        List<DevicesStatusMessageDTO.CameraStatus> aggregationCams = buildCameraStatuses(
-                instanceId, devices.getAggregationCams(), scadaRaw);
-
-        List<DevicesStatusMessageDTO.CameraStatus> aggregationBoxCams = buildCameraStatuses(
-                instanceId, devices.getAggregationBoxCams(), scadaRaw);
-
-        List<DevicesStatusMessageDTO.CameraStatus> checkerCams = buildCameraStatuses(
-                instanceId, devices.getCheckerCams(), scadaRaw);
-
-        DevicesStatusMessageDTO.Payload payload = new DevicesStatusMessageDTO.Payload(
-                printers, aggregationCams, aggregationBoxCams, checkerCams);
-
-        return DevicesStatusMessageDTO.of(instanceId, nowUtc(), payload);
+    private static DevicesStatusMessageDTO.CameraStatus buildSingleCamStatusDirect(
+            String camName,
+            Map<String, String> camRaw
+    ) {
+        return new DevicesStatusMessageDTO.CameraStatus(
+                camName,
+                camRaw.get("Total"),
+                camRaw.get("Failed"),
+                camRaw.get("ST"),
+                camRaw.get("Error")
+        );
     }
 
     /**
@@ -235,30 +177,60 @@ public class UnitDetailService {
     }
 
     /**
-     * Извлекает из снапшота устройства {@code scada} список <b>активных</b> ошибок.
+     * Строит сообщение {@code LINE_STATUS}.
      *
-     * <p>Активной считается ошибка, у которой значение флага отличается от {@code "0"}.
-     * Результат предназначен для записи в {@code UnitErrorStore} и впоследствии
-     * используется {@code buildErrorsStatus} и {@code AlertService} как единый источник правды.
+     * <p>Источники данных (в порядке приоритета):
+     * <ul>
+     *   <li>Состояние линии ({@code lineState}) — устройство {@code Line}, поле {@code ST}</li>
+     *   <li>Данные партии — <b>BatchQueue-first</b>; принтер используется как fallback</li>
+     *   <li>{@code initialCounter} — поле {@code curItem} первого принтера (семантика уточняется)</li>
+     * </ul>
      *
      * @param instanceId идентификатор аппарата
-     * @return неизменяемый список активных ошибок (пустой, если ошибок нет или нет снапшота)
+     * @return сообщение {@code LINE_STATUS}, или {@code null} если снапшоты ещё не получены
      */
-    public @NonNull List<DeviceError> extractActiveErrors(String instanceId) {
+    public @Nullable LineStatusMessageDTO buildLineStatus(String instanceId) {
         InstanceProperties inst = instancesById.get(instanceId);
-        if (inst == null) return List.of();
+        if (inst == null) return null;
 
-        Map<String, String> scadaRaw = firstUnitRawProperties(
-                snapshotRepo.get(instanceId, inst.getDevices().getScada()));
-        if (scadaRaw.isEmpty()) return List.of();
+        DeviceComposition composition = deviceCompositionService.getComposition(instanceId);
+        String firstPrinter = composition.printers().isEmpty() ? "Printer11" : composition.printers().getFirst();
 
-        return scadaRaw.entrySet().stream()
-                .filter(e -> isErrorFlag(e.getKey()) && !"0".equals(e.getValue()))
-                .map(e -> new DeviceError(
-                        extractObjectName(e.getKey()),
-                        e.getKey(),
-                        descriptionForKey(e.getKey())))
-                .toList();
+        Map<String, String> printerRaw = firstUnitRawProperties(snapshotRepo.get(instanceId, firstPrinter));
+        Map<String, String> bqRaw = firstUnitRawProperties(
+                snapshotRepo.get(instanceId, inst.getDevices().getBatchQueue()));
+
+        String lineState = getFirstUnit(snapshotRepo.get(instanceId, inst.getDevices().getLine()))
+                .map(u -> u.properties().getSt().orElse(null))
+                .orElse(null);
+
+        // BatchQueue-first: BQ является основным источником данных партии;
+        // принтер используется только как fallback когда BQ не содержит поля.
+        LineStatusMessageDTO.Payload payload = new LineStatusMessageDTO.Payload(
+                inst.getDisplayName(),
+                lineState,
+                coalesce(bqRaw.get("kmc"), printerRaw.get("kmc")),
+                coalesce(bqRaw.get("description"), printerRaw.get("descr")),
+                coalesce(bqRaw.get("ean13"), printerRaw.get("ean13")),
+                coalesce(bqRaw.get("batch"), printerRaw.get("partynumber")),
+                coalesce(bqRaw.get("dateproduced"), printerRaw.get("dateproduced")),
+                coalesce(bqRaw.get("datepack"), printerRaw.get("datepack")),
+                coalesce(bqRaw.get("dateexpiration"), printerRaw.get("dateexpiration")),
+                // initialCounter: curItem из первого принтера (семантика уточняется отдельно)
+                firstUnitNamedProp(snapshotRepo.get(instanceId, firstPrinter),
+                        u -> u.properties().getCurItem().orElse(null)),
+                coalesce(bqRaw.get("place"), printerRaw.get("place")),
+                coalesce(bqRaw.get("itf"), printerRaw.get("itf")),
+                coalesce(bqRaw.get("emk"), printerRaw.get("emk")),
+                coalesce(bqRaw.get("kole"), printerRaw.get("kole")),
+                coalesce(bqRaw.get("kolm"), printerRaw.get("kolm")),
+                bqRaw.get("frozen"),
+                bqRaw.get("region"),
+                coalesce(bqRaw.get("designe"), printerRaw.get("designe")),
+                coalesce(bqRaw.get("printdm"), printerRaw.get("printdm"))
+        );
+
+        return LineStatusMessageDTO.of(instanceId, nowUtc(), payload);
     }
 
     /**
@@ -292,14 +264,105 @@ public class UnitDetailService {
 
     // ─── Private helpers ──────────────────────────────────────────────────────
 
+    /**
+     * Строит сообщение {@code DEVICES_STATUS}.
+     *
+     * <p>Для каждого устройства извлекается снапшот из store.
+     * Состояние камер берётся из собственного снапшота камеры (rawProperties)
+     * или из устройства {@code scada} по ключу {@code Dev0XX*} — в качестве fallback.
+     *
+     * @param instanceId идентификатор аппарата
+     * @return сообщение {@code DEVICES_STATUS}, или {@code null} если нет снапшотов
+     */
+    public @Nullable DevicesStatusMessageDTO buildDevicesStatus(String instanceId) {
+        InstanceProperties inst = instancesById.get(instanceId);
+        if (inst == null) return null;
+
+        Map<String, String> scadaRaw = firstUnitRawProperties(
+                snapshotRepo.get(instanceId, inst.getDevices().getScada()));
+
+        DeviceComposition composition = deviceCompositionService.getComposition(instanceId);
+
+        List<DevicesStatusMessageDTO.PrinterStatus> printers = buildPrinterStatuses(
+                instanceId, composition.printers(), scadaRaw);
+
+        List<DevicesStatusMessageDTO.CameraStatus> aggregationCams = buildAggregationCamStatuses(
+                instanceId, composition.aggregationCams(), scadaRaw);
+
+        List<DevicesStatusMessageDTO.CameraStatus> aggregationBoxCams = buildAggregationBoxCamStatuses(
+                instanceId, composition.aggregationBoxCams(), scadaRaw);
+
+        List<DevicesStatusMessageDTO.CameraStatus> checkerCams = buildCheckerCamStatuses(
+                instanceId, composition.checkerCams(), scadaRaw);
+
+        DevicesStatusMessageDTO.Payload payload = new DevicesStatusMessageDTO.Payload(
+                printers, aggregationCams, aggregationBoxCams, checkerCams);
+
+        return DevicesStatusMessageDTO.of(instanceId, nowUtc(), payload);
+    }
+
+    /**
+     * Извлекает список <b>активных</b> ошибок со всех источников для данного инстанса.
+     *
+     * <p>Источники (в порядке добавления):
+     * <ol>
+     *   <li>{@code Line.Error} — общая ошибка линии; сообщение берётся из {@code Line.ErrorMessage}.</li>
+     *   <li>{@code scada.lineerr} — текстовая ошибка из scada-снапшота.</li>
+     *   <li>Флаги {@code DevXXXSuffix} в scada-снапшоте (ненулевые значения).</li>
+     * </ol>
+     *
+     * <p>Результат предназначен для записи в {@code UnitErrorStore}; используется
+     * {@code buildErrorsStatus} и {@code AlertService} как единый источник правды.
+     *
+     * @param instanceId идентификатор аппарата
+     * @return неизменяемый список активных ошибок (пустой, если ошибок нет)
+     */
+    public @NonNull List<DeviceError> extractActiveErrors(String instanceId) {
+        InstanceProperties inst = instancesById.get(instanceId);
+        if (inst == null) return List.of();
+
+        List<DeviceError> errors = new ArrayList<>();
+
+        // 1. Line.Error / Line.ErrorMessage
+        getFirstUnit(snapshotRepo.get(instanceId, inst.getDevices().getLine())).ifPresent(unit -> {
+            unit.properties().getError().ifPresent(err -> {
+                if (!err.isBlank() && !"0".equals(err)) {
+                    String desc = unit.properties().getErrorMessage()
+                            .filter(m -> !m.isBlank())
+                            .orElse("Ошибка линии");
+                    errors.add(new DeviceError("Line", "Line.Error", desc));
+                }
+            });
+        });
+
+        Map<String, String> scadaRaw = firstUnitRawProperties(
+                snapshotRepo.get(instanceId, inst.getDevices().getScada()));
+
+        // 2. scada.lineerr
+        String lineerr = scadaRaw.get("lineerr");
+        if (lineerr != null && !lineerr.isBlank() && !"0".equals(lineerr)) {
+            errors.add(new DeviceError("Line", "scada.lineerr", lineerr));
+        }
+
+        // 3. DevXXX flag errors
+        scadaRaw.entrySet().stream()
+                .filter(e -> isErrorFlag(e.getKey()) && !"0".equals(e.getValue()))
+                .map(e -> new DeviceError(
+                        extractObjectName(e.getKey()),
+                        e.getKey(),
+                        descriptionForKey(e.getKey())))
+                .forEach(errors::add);
+
+        return List.copyOf(errors);
+    }
+
     private @NonNull List<DevicesStatusMessageDTO.PrinterStatus> buildPrinterStatuses(
             String instanceId,
             List<String> printerNames,
             Map<String, String> scadaRaw
     ) {
         List<DevicesStatusMessageDTO.PrinterStatus> result = new ArrayList<>(printerNames.size());
-        for (int i = 0; i < printerNames.size(); i++) {
-            String printerName = printerNames.get(i);
+        for (String printerName : printerNames) {
             DeviceSnapshot snap = snapshotRepo.get(instanceId, printerName);
 
             String state = getFirstUnit(snap)
@@ -312,10 +375,13 @@ public class UnitDetailService {
                     .map(u -> u.properties().getCurItem().orElse(null))
                     .orElse(null);
 
-            // Fallback из scada: LineDev0{N}Error → ошибка принтера по индексу
-            if (state == null && !scadaRaw.isEmpty()) {
-                String devNum = "%03d".formatted(11 + i * 10); // 011, 021, …
-                state = scadaRaw.get("LineDev" + devNum + "Error");
+            // Fallback из scada: LineDev0{NN}Error → ошибка принтера по имени устройства
+            // Пример: Printer11 → LineDev011Error, Printer12 → LineDev012Error
+            if (error == null && !scadaRaw.isEmpty()) {
+                String scadaPrefix = ScadaKeyMapper.printerScadaPrefix(printerName);
+                if (scadaPrefix != null) {
+                    error = scadaRaw.get(scadaPrefix + "Error");
+                }
             }
 
             result.add(new DevicesStatusMessageDTO.PrinterStatus(printerName, state, error, batch));
@@ -323,7 +389,11 @@ public class UnitDetailService {
         return result;
     }
 
-    private @NonNull List<DevicesStatusMessageDTO.CameraStatus> buildCameraStatuses(
+    /**
+     * Строит статусы aggregation-камер.
+     * scada-ключ для группы aggregationCams[i]: Dev{41 + i*2} (041, 043, 045, …).
+     */
+    private @NonNull List<DevicesStatusMessageDTO.CameraStatus> buildAggregationCamStatuses(
             String instanceId,
             List<String> camNames,
             Map<String, String> scadaRaw
@@ -332,16 +402,60 @@ public class UnitDetailService {
         for (int i = 0; i < camNames.size(); i++) {
             String camName = camNames.get(i);
             Map<String, String> camRaw = firstUnitRawProperties(snapshotRepo.get(instanceId, camName));
+            String devKey = ScadaKeyMapper.aggregationCamScadaPrefix(i);
+            result.add(buildSingleCamStatus(camName, camRaw, devKey, scadaRaw));
+        }
+        return result;
+    }
 
-            // Порядковый номер камеры определяет ключ в scada: Dev041, Dev042, …
-            String devKey = "Dev%03d".formatted(41 + i);
+    /**
+     * Строит статусы aggregation-box-камер.
+     * scada-ключ для группы aggregationBoxCams[i]: Dev{42 + i*2} (042, 044, 046, …).
+     */
+    private @NonNull List<DevicesStatusMessageDTO.CameraStatus> buildAggregationBoxCamStatuses(
+            String instanceId,
+            List<String> camNames,
+            Map<String, String> scadaRaw
+    ) {
+        List<DevicesStatusMessageDTO.CameraStatus> result = new ArrayList<>(camNames.size());
+        for (int i = 0; i < camNames.size(); i++) {
+            String camName = camNames.get(i);
+            Map<String, String> camRaw = firstUnitRawProperties(snapshotRepo.get(instanceId, camName));
+            String devKey = ScadaKeyMapper.aggregationBoxCamScadaPrefix(i);
+            result.add(buildSingleCamStatus(camName, camRaw, devKey, scadaRaw));
+        }
+        return result;
+    }
 
-            String read  = coalesce(camRaw.get("Total"),  scadaRaw.get(devKey + "CounterGeneral"));
-            String unread = coalesce(camRaw.get("Failed"), scadaRaw.get(devKey + "CounterMissing"));
-            String state = coalesce(camRaw.get("ST"),     scadaRaw.get(devKey + "Work"));
-            String error = coalesce(camRaw.get("Error"),   scadaRaw.get(devKey + "Error"));
-
-            result.add(new DevicesStatusMessageDTO.CameraStatus(camName, read, unread, state, error));
+    /**
+     * Строит статусы checker-камер (обычные + EAN-чекеры).
+     * <ul>
+     *   <li>CamEanChecker{N} — читает через scada Dev{70+N} (071..074) с fallback на device-поля.</li>
+     *   <li>CamChecker*, CamBatch, CamPacker и прочие — читают напрямую из снапшота устройства.</li>
+     * </ul>
+     */
+    private @NonNull List<DevicesStatusMessageDTO.CameraStatus> buildCheckerCamStatuses(
+            String instanceId,
+            List<String> camNames,
+            Map<String, String> scadaRaw
+    ) {
+        List<DevicesStatusMessageDTO.CameraStatus> result = new ArrayList<>(camNames.size());
+        for (String camName : camNames) {
+            Map<String, String> camRaw = firstUnitRawProperties(snapshotRepo.get(instanceId, camName));
+            if (ScadaKeyMapper.isEanChecker(camName)) {
+                String devKey = ScadaKeyMapper.eanCheckerScadaPrefix(camName);
+                if (devKey != null) {
+                    result.add(buildSingleCamStatus(camName, camRaw, devKey, scadaRaw));
+                } else {
+                    // Не удалось распознать номер — читаем только device-поля
+                    result.add(buildSingleCamStatusDirect(camName, camRaw));
+                    log.warn("[{}] Cannot derive scada key for EAN checker: {}", instanceId, camName);
+                }
+            } else {
+                // Обычный checker (CamChecker, CamBatch, CamPacker, …)
+                // читает поля Total/Failed/ST/Error напрямую из снапшота устройства
+                result.add(buildSingleCamStatusDirect(camName, camRaw));
+            }
         }
         return result;
     }
@@ -430,13 +544,7 @@ public class UnitDetailService {
         return getFirstUnit(snapshot).map(extractor).orElse(null);
     }
 
-    /**
-     * Имя первого принтера в конфиге инстанса, или {@code "Printer11"} по умолчанию.
-     */
-    private static @NonNull String firstPrinterName(@NonNull DeviceNamesProperties devices) {
-        List<String> printers = devices.getPrinters();
-        return printers.isEmpty() ? "Printer11" : printers.getFirst();
-    }
+    // firstPrinterName заменён на использование DeviceCompositionService.getComposition()
 
     /** Возвращает первое ненулевое, непустое значение из аргументов. */
     @SafeVarargs

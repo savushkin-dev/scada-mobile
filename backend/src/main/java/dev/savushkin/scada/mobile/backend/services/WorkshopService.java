@@ -3,9 +3,11 @@ package dev.savushkin.scada.mobile.backend.services;
 import dev.savushkin.scada.mobile.backend.api.dto.*;
 import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepository;
 import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
+import dev.savushkin.scada.mobile.backend.domain.model.DeviceComposition;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitSnapshot;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,7 @@ public class WorkshopService {
 
     private final PrintSrvProperties config;
     private final InstanceSnapshotRepository snapshotRepo;
+    private final DeviceCompositionService deviceCompositionService;
 
     /** Быстрый lookup: workshopId → список инстансов. */
     private final Map<String, List<PrintSrvProperties.InstanceProperties>> instancesByWorkshop;
@@ -53,9 +56,12 @@ public class WorkshopService {
      */
     private final String configETag;
 
-    public WorkshopService(PrintSrvProperties config, InstanceSnapshotRepository snapshotRepo) {
+    public WorkshopService(PrintSrvProperties config,
+                           InstanceSnapshotRepository snapshotRepo,
+                           DeviceCompositionService deviceCompositionService) {
         this.config = config;
         this.snapshotRepo = snapshotRepo;
+        this.deviceCompositionService = deviceCompositionService;
         this.instancesByWorkshop = config.getInstances().stream()
                 .collect(Collectors.groupingBy(
                         PrintSrvProperties.InstanceProperties::getWorkshopId,
@@ -136,11 +142,14 @@ public class WorkshopService {
     }
 
     /**
-     * Возвращает статическую топологию устройств конкретного аппарата.
+     * Возвращает топологию устройств конкретного аппарата.
+     * <p>
+     * Источник данных: runtime-discovery из снапшота Line (если доступен),
+     * иначе — YAML-конфиг как fallback.
      * <p>
      * Дополнительно проверяет принадлежность аппарата указанному цеху:
      * если {@code instanceId} существует, но относится к другому цеху,
-     * метод возвращает {@link Optional#empty()}.
+     * метод возвращает в {@link Optional#empty()}.
      *
      * @param workshopId идентификатор цеха
      * @param instanceId идентификатор аппарата
@@ -151,16 +160,16 @@ public class WorkshopService {
         if (inst == null || !inst.getWorkshopId().equals(workshopId)) {
             return Optional.empty();
         }
-        PrintSrvProperties.DeviceNamesProperties d = inst.getDevices();
+        DeviceComposition composition = deviceCompositionService.getComposition(instanceId);
         return Optional.of(new UnitDeviceTopologyDTO(
                 inst.getId(),
                 inst.getWorkshopId(),
                 inst.getDisplayName(),
                 new DeviceGroupsDTO(
-                        List.copyOf(d.getPrinters()),
-                        List.copyOf(d.getAggregationCams()),
-                        List.copyOf(d.getAggregationBoxCams()),
-                        List.copyOf(d.getCheckerCams())
+                        composition.printers(),
+                        composition.aggregationCams(),
+                        composition.aggregationBoxCams(),
+                        composition.checkerCams()
                 )
         ));
     }
@@ -262,9 +271,16 @@ public class WorkshopService {
             Optional<String> error = unit.properties().getError();
             Optional<String> errorMsg = unit.properties().getErrorMessage();
 
+            // 1. Line.Error — основной флаг ошибки линии
             boolean hasError = error.isPresent() && !"0".equals(error.get()) && !error.get().isEmpty();
             if (hasError) {
                 return errorMsg.filter(m -> !m.isEmpty()).orElse("Ошибка");
+            }
+
+            // 2. scada.lineerr — дополнительный источник ошибки (из scada-снапшота)
+            String lineerr = getScadaLineerr(instanceId);
+            if (lineerr != null && !"0".equals(lineerr) && !lineerr.isBlank()) {
+                return lineerr;
             }
 
             boolean isRunning = st.isPresent() && "1".equals(st.get());
@@ -273,6 +289,21 @@ public class WorkshopService {
         return "Нет данных";
     }
 
+    /**
+     * Читает значение поля {@code lineerr} из scada-снапшота данного инстанса.
+     * Возвращает {@code null}, если снапшот недоступен или поле отсутствует.
+     */
+    private @Nullable String getScadaLineerr(@NonNull String instanceId) {
+        String scadaName = Optional.ofNullable(instancesById.get(instanceId))
+                .map(inst -> inst.getDevices().getScada())
+                .orElse("scada");
+        DeviceSnapshot scadaSnap = snapshotRepo.get(instanceId, scadaName);
+        if (scadaSnap == null || scadaSnap.units().isEmpty()) {
+            return null;
+        }
+        return scadaSnap.units().values().iterator().next()
+                .properties().getRawProperties().get("lineerr");
+    }
 
     private @NonNull String getLineDeviceName(@NonNull String instanceId) {
         return Optional.ofNullable(instancesById.get(instanceId))

@@ -64,7 +64,7 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Level1Printers</d2p1:Key>
-            <d2p1:Value>Printer11</d2p1:Value>
+            <d2p1:Value>Printer11,Printer12,Printer13,Printer14</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Level2Printers</d2p1:Key>
@@ -88,7 +88,9 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>LineDevices</d2p1:Key>
-            <d2p1:Value>CamChecker,CamAgregation,CamAgregationBox,Printer11</d2p1:Value>
+            <d2p1:Value>
+                CamChecker1,CamChecker2,CamEanChecker1,CamEanChecker2,CamEanChecker3,CamEanChecker4,CamAgregation1,CamAgregation2,CamAgregationBox1,CamAgregationBox2,Printer11,Printer12,Printer13,Printer14
+            </d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>LineID</d2p1:Key>
