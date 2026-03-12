@@ -52,12 +52,43 @@ public class MockPrintSrvProperties {
     private List<String> offlineInstances = new ArrayList<>();
 
     /**
-     * Вероятность переворачивания флага ошибки на КАЖДОМ тике ДЛЯ КАЖДОГО инстанса.
+     * Вероятность появления новой ошибки (0→1) на КАЖДОМ тике ДЛЯ КАЖДОГО флага.
      *
-     * <p>0.0 — ошибки никогда не генерируются (по умолчанию в тестах с фиксированным seed).<br>
-     * 1.0 — ошибка генерируется на каждом тике.
+     * <p>0.0 — ошибки никогда не появляются (по умолчанию в тестах с фиксированным seed).<br>
+     * 1.0 — новая ошибка гарантированно появляется на каждом тике.
+     * Применяется только если текущее число активных ошибок на аппарате
+     * строго меньше {@link #maxErrorsPerUnit}.
      */
     private double errorFlipProbability = 0.03;
+
+    /**
+     * Вероятность снятия уже активной ошибки (1→0) на КАЖДОМ тике ДЛЯ КАЖДОГО флага.
+     *
+     * <p>Должна быть заметно выше {@link #errorFlipProbability}, чтобы ошибки
+     * автоматически устранялись в разумное время. При значении 0.10 и тике 2 сек
+     * ожидаемое «время жизни» одной ошибки составляет ~20 секунд.
+     *
+     * <p>0.0 — ошибки не снимаются сами по себе.<br>
+     * 1.0 — ошибка снимается на следующем же тике.
+     */
+    private double errorClearProbability = 0.10;
+
+    /**
+     * Максимальное число одновременно активных ошибок (флагов равных «1»)
+     * на устройстве {@code scada} одного аппарата.
+     *
+     * <p>Новая ошибка не появится, пока текущее число активных ошибок
+     * не опустится ниже этого значения. Ошибки на {@code Line} (флаг {@code Error})
+     * учитываются отдельно и этим лимитом не ограничены.
+     *
+     * <p>Примеры:
+     * <ul>
+     *   <li>1 — строгий режим: не более одной ошибки на аппарат в любой момент</li>
+     *   <li>3 — умеренный (умолчание)</li>
+     *   <li>10+ — для стресс-тестирования UI</li>
+     * </ul>
+     */
+    private int maxErrorsPerUnit = 3;
 
     /**
      * Seed для внутреннего {@link java.util.Random}.
@@ -91,6 +122,22 @@ public class MockPrintSrvProperties {
     public double getErrorFlipProbability() { return errorFlipProbability; }
     public void setErrorFlipProbability(double errorFlipProbability) {
         this.errorFlipProbability = errorFlipProbability;
+    }
+
+    public double getErrorClearProbability() {
+        return errorClearProbability;
+    }
+
+    public void setErrorClearProbability(double errorClearProbability) {
+        this.errorClearProbability = errorClearProbability;
+    }
+
+    public int getMaxErrorsPerUnit() {
+        return maxErrorsPerUnit;
+    }
+
+    public void setMaxErrorsPerUnit(int maxErrorsPerUnit) {
+        this.maxErrorsPerUnit = maxErrorsPerUnit;
     }
 
     public long getRandomSeed() { return randomSeed; }

@@ -116,10 +116,10 @@ type Action =
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'HANDLE_ALERT': {
-      const { workshopId, unitId, severity, active, errors, timestamp } = action.msg;
+      const { workshopId, unitId, unitName, active, errors, timestamp } = action.msg;
       const uid = String(unitId);
       const next = new Map(state.alerts);
-      if (active) next.set(uid, { severity, errors, timestamp, workshopId });
+      if (active) next.set(uid, { unitName, errors, timestamp, workshopId });
       else next.delete(uid);
       return { ...state, alerts: next };
     }
@@ -188,7 +188,7 @@ function reducer(state: AppState, action: Action): AppState {
       for (const msg of action.alerts) {
         if (msg.active) {
           next.set(String(msg.unitId), {
-            severity: msg.severity,
+            unitName: msg.unitName,
             errors: msg.errors,
             timestamp: msg.timestamp,
             workshopId: msg.workshopId,
@@ -321,7 +321,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         workshopId: t.workshopId,
         unit: t.unit,
         event: statusMap[t.id]?.event ?? DOMAIN_DEFAULTS.noDataEvent,
-        timer: statusMap[t.id]?.timer ?? DOMAIN_DEFAULTS.zeroTimer,
         // statusReady = false пока UNITS_STATUS от WS ещё не пришёл для этого аппарата.
         // Позволяет UnitCard показывать серый цвет вместо жёлтого при старте.
         statusReady: t.id in statusMap,

@@ -18,9 +18,6 @@
     --clr-ok-bg: #f4fbf6;
     --clr-ok-glow: rgba(52, 168, 83, 0.2);
 
-    --clr-warn-border: #fbbc04;
-    --clr-warn-bg: #fffdf5;
-
     --clr-pending-border: #bdc1c6;
     --clr-pending-bg: #f8f9fa;
 
@@ -86,10 +83,6 @@
   .status-normal {
     border-color: var(--clr-ok-border);
     background-color: var(--clr-ok-bg);
-  }
-  .status-warning {
-    border-color: var(--clr-warn-border);
-    background-color: var(--clr-warn-bg);
   }
   .status-critical {
     border-color: var(--clr-crit-border);

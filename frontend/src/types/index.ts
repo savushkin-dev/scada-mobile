@@ -8,6 +8,9 @@
  * объявлены здесь явно.
  */
 
+// Импорт для использования внутри этого файла (AlertData.errors)
+import type { AlertError } from '../schemas';
+
 // ── Типы, выведенные из Zod-схем (единственный источник правды) ───────
 
 // topology (REST API)
@@ -15,7 +18,7 @@ export type { WorkshopTopology, UnitTopology, DevicesTopology } from '../schemas
 
 // live WebSocket (/ws/live)
 export type {
-  AlertSeverity,
+  AlertError,
   AlertWsMessage,
   AlertSnapshotMessage,
   UnitsStatusMessage,
@@ -37,9 +40,6 @@ export type {
   ErrorsPayload,
 } from '../schemas';
 
-// ── AlertSeverity нужен локально для AlertData ────────────────────────
-import type { AlertSeverity } from '../schemas';
-
 // ── Navigation ────────────────────────────────────────────────────────
 
 /** URL search-param «?tab=» для детальной страницы аппарата. */
@@ -48,8 +48,10 @@ export type TabId = 'tab-batch' | 'tab-devices' | 'tab-queue' | 'tab-logs';
 // ── Доменная модель (внутренняя, только UI) ───────────────────────────
 
 export interface AlertData {
-  severity: AlertSeverity;
-  errors: unknown[];
+  /** Читаемое название аппарата (из AlertMessageDTO.unitName). */
+  unitName: string;
+  /** Детализированные ошибки аппарата. */
+  errors: AlertError[];
   timestamp: string;
   workshopId: string;
 }
@@ -70,7 +72,6 @@ export interface Unit {
   workshopId: string;
   unit: string;
   event: string;
-  timer: string;
   /**
    * `true` — WS-статус для этого аппарата уже получен.
    * `false` — топология загружена, но первый UNITS_STATUS ещё не пришёл.

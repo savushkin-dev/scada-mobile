@@ -1,15 +1,10 @@
 package dev.savushkin.scada.mobile.backend.services;
 
-import dev.savushkin.scada.mobile.backend.api.dto.DeviceGroupsDTO;
-import dev.savushkin.scada.mobile.backend.api.dto.UnitDeviceTopologyDTO;
-import dev.savushkin.scada.mobile.backend.api.dto.UnitStatusDTO;
-import dev.savushkin.scada.mobile.backend.api.dto.UnitTopologyDTO;
-import dev.savushkin.scada.mobile.backend.api.dto.WorkshopTopologyDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.*;
 import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepository;
 import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitSnapshot;
-import dev.savushkin.scada.mobile.backend.infrastructure.store.DowntimeTracker;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,7 +37,6 @@ public class WorkshopService {
 
     private final PrintSrvProperties config;
     private final InstanceSnapshotRepository snapshotRepo;
-    private final DowntimeTracker downtimeTracker;
 
     /** Быстрый lookup: workshopId → список инстансов. */
     private final Map<String, List<PrintSrvProperties.InstanceProperties>> instancesByWorkshop;
@@ -59,11 +53,9 @@ public class WorkshopService {
      */
     private final String configETag;
 
-    public WorkshopService(PrintSrvProperties config, InstanceSnapshotRepository snapshotRepo,
-                           DowntimeTracker downtimeTracker) {
+    public WorkshopService(PrintSrvProperties config, InstanceSnapshotRepository snapshotRepo) {
         this.config = config;
         this.snapshotRepo = snapshotRepo;
-        this.downtimeTracker = downtimeTracker;
         this.instancesByWorkshop = config.getInstances().stream()
                 .collect(Collectors.groupingBy(
                         PrintSrvProperties.InstanceProperties::getWorkshopId,
@@ -174,7 +166,7 @@ public class WorkshopService {
     }
 
     /**
-     * Возвращает live-статус аппаратов цеха (событие, таймер).
+     * Возвращает live-статус аппаратов цеха (событие).
      *
      * @param workshopId идентификатор цеха
      */
@@ -184,8 +176,7 @@ public class WorkshopService {
                 .map(inst -> new UnitStatusDTO(
                         inst.getId(),
                         inst.getWorkshopId(),
-                        deriveEvent(inst.getId()),
-                        deriveTimer(inst.getId())
+                        deriveEvent(inst.getId())
                 ))
                 .toList();
     }
@@ -202,8 +193,7 @@ public class WorkshopService {
         return Optional.of(new UnitStatusDTO(
                 inst.getId(),
                 inst.getWorkshopId(),
-                deriveEvent(inst.getId()),
-                deriveTimer(inst.getId())
+                deriveEvent(inst.getId())
         ));
     }
 
@@ -283,21 +273,6 @@ public class WorkshopService {
         return "Нет данных";
     }
 
-    // ─── ETag groundwork ──────────────────────────────────────────────────────
-
-    /**
-     * Формирует таймер текущего состояния аппарата.
-     * <p>
-     * Если аппарат находится в простое (активен алёрт), возвращает время, прошедшее
-     * с момента начала простоя, в формате {@code HH:MM:SS}.
-     * Если аппарат в работе — возвращает {@code "00:00:00"}.
-     *
-     * @param instanceId идентификатор инстанса (аппарата)
-     * @return строка таймера в формате {@code HH:MM:SS}
-     */
-    private @NonNull String deriveTimer(String instanceId) {
-        return downtimeTracker.getElapsedFormatted(instanceId).orElse("00:00:00");
-    }
 
     private @NonNull String getLineDeviceName(@NonNull String instanceId) {
         return Optional.ofNullable(instancesById.get(instanceId))

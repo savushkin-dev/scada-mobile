@@ -1,5 +1,5 @@
-import { ALERT_SEVERITY, DOMAIN_FLAGS, NO_DATA_UNIT_EVENTS, NORMAL_UNIT_EVENTS } from '../config';
-import type { AlertData, DevicesStatusPayload, Unit } from '../types';
+import { DOMAIN_FLAGS, NO_DATA_UNIT_EVENTS, NORMAL_UNIT_EVENTS } from '../config';
+import type { AlertData, AlertError, DevicesStatusPayload, Unit } from '../types';
 
 // ── Уровни статуса ────────────────────────────────────────────────────────────
 /**
@@ -10,10 +10,9 @@ import type { AlertData, DevicesStatusPayload, Unit } from '../types';
  * - `'offline'`  — WS ответил, но устройство недоступно (нет данных от оборудования).
  *                  Карточка серая; переход на детали бессмысленен → не кликабельна.
  * - `'normal'`   — данные есть, аппарат работает штатно. Карточка зелёная.
- * - `'warning'`  — нештатное событие или Warning-алерт. Карточка жёлтая.
- * - `'critical'` — Critical-алерт. Карточка красная.
+ * - `'critical'` — есть алёрт или нештатное событие. Карточка красная.
  */
-export type UnitStatusLevel = 'pending' | 'offline' | 'critical' | 'warning' | 'normal';
+export type UnitStatusLevel = 'pending' | 'offline' | 'critical' | 'normal';
 
 /**
  * События, при которых аппарат считается работающим штатно.
@@ -29,51 +28,34 @@ export type UnitStatusLevel = 'pending' | 'offline' | 'critical' | 'warning' | '
  * Определяет уровень статуса аппарата.
  *
  * Порядок приоритетов:
- *  1. `pending`  — WS-данные ещё не пришли; алерты и event не проверяем.
- *  2. Critical-алерт из WS
- *  3. Warning-алерт из WS
- *  4. Нештатное событие из `unit.event` (любая строка вне `NORMAL_EVENTS`)
- *  5. Normal
+ *  1. `pending`  — WS-данные ещё не пришли.
+ *  2. `offline`  — данные есть, но устройство недоступно.
+ *  3. `critical` — есть алёрт или нештатное event.
+ *  4. `normal`   — аппарат в работе.
  */
 export function getUnitStatusLevel(unit: Unit, alerts: Map<string, AlertData>): UnitStatusLevel {
-  // Пока WS не прислал первый UNITS_STATUS — аппарат в состоянии ожидания.
-  // Нельзя считать его предупреждением из-за placeholder-значения 'Нет данных'.
   if (!unit.statusReady) return 'pending';
-
-  // Аппарат недоступен / бэкенд не получил данных — статус неизвестен.
-  // Визуально та же серая карточка, но семантически отличается от pending:
-  // данные получены, устройство офлайн → переход в детали бессмысленен.
   if (NO_DATA_UNIT_EVENTS.has(unit.event)) return 'offline';
-
-  const alert = alerts.get(String(unit.id));
-  if (alert?.severity === ALERT_SEVERITY.critical) return 'critical';
-  if (alert?.severity === ALERT_SEVERITY.warning) return 'warning';
-  if (!NORMAL_UNIT_EVENTS.has(unit.event)) return 'warning';
+  if (alerts.has(String(unit.id))) return 'critical';
+  if (!NORMAL_UNIT_EVENTS.has(unit.event)) return 'critical';
   return 'normal';
 }
 
 // ── Статус цеха (workshop) ────────────────────────────────────────────────────
 
-export type WorkshopStatusLevel = 'critical' | 'warning' | 'none';
+export type WorkshopStatusLevel = 'critical' | 'none';
 
 /**
  * Вычисляет уровень проблемности цеха по его алертам.
- * Critical хотя бы одного аппарата → critical; Warning → warning; иначе none.
+ * Есть хотя бы один алёрт в цехе → critical; иначе none.
  */
 export function getWorkshopStatusLevel(
   workshopId: string,
   alerts: Map<string, AlertData>
 ): WorkshopStatusLevel {
-  let hasCritical = false;
-  let hasWarning = false;
-  alerts.forEach((alert) => {
-    if (alert.workshopId === workshopId) {
-      if (alert.severity === ALERT_SEVERITY.critical) hasCritical = true;
-      else if (alert.severity === ALERT_SEVERITY.warning) hasWarning = true;
-    }
-  });
-  if (hasCritical) return 'critical';
-  if (hasWarning) return 'warning';
+  for (const alert of alerts.values()) {
+    if (alert.workshopId === workshopId) return 'critical';
+  }
   return 'none';
 }
 
@@ -84,14 +66,12 @@ export const UNIT_STATUS_CLASS: Record<UnitStatusLevel, string> = {
   pending: 'status-pending',
   offline: 'status-pending', // тот же серый цвет, но card-static добавляется в UnitCard
   critical: 'status-critical',
-  warning: 'status-warning',
   normal: 'status-normal',
 };
 
 /** CSS-класс карточки цеха по уровню статуса. */
 export const WORKSHOP_STATUS_CLASS: Record<WorkshopStatusLevel, string> = {
   critical: 'status-critical',
-  warning: 'status-warning',
   none: 'status-normal',
 };
 
@@ -132,3 +112,59 @@ export const DEVICE_STATUS_CLASS: Record<DeviceStatusLevel, string> = {
   working: 'status-normal', // зелёный — устройство работает
   stopped: '', // дефолтный белый — не активно, без ошибок
 };
+
+// ── Помощники для отображения ошибок в карточках ──────────────────────────────
+
+/**
+ * Одна ошибка устройства — источник и описание.
+ */
+export interface ErrorEntry {
+  /** Имя устройства-источника ("Line", "Printer11" и т.д.). */
+  device: string;
+  /** Текстовое описание ошибки. */
+  message: string;
+}
+
+/**
+ * Группа ошибок одного аппарата.
+ *
+ * - `unitName` — читаемое имя аппарата; **не задаётся** в контексте карточки
+ *   самого аппарата (заголовок уже есть в h3). В карточке цеха задан всегда.
+ * - `entries` — все активные ошибки данного аппарата.
+ */
+export interface ErrorGroup {
+  unitName?: string;
+  entries: ErrorEntry[];
+}
+
+/**
+ * Возвращает группы ошибок для «табло» одного аппарата.
+ * Единственная группа — без `unitName` (заголовок уже есть в карточке).
+ * Пустой массив — если алёртов нет.
+ */
+export function getUnitErrorGroups(unitId: string, alerts: Map<string, AlertData>): ErrorGroup[] {
+  const alert = alerts.get(unitId);
+  if (!alert || alert.errors.length === 0) return [];
+  return [
+    { entries: alert.errors.map((e: AlertError) => ({ device: e.device, message: e.message })) },
+  ];
+}
+
+/**
+ * Возвращает сгруппированные ошибки цеха — по одной группе на каждый
+ * проблемный аппарат. Порядок соответствует порядку вхождений в Map алёртов.
+ */
+export function getWorkshopErrorGroups(
+  workshopId: string,
+  alerts: Map<string, AlertData>
+): ErrorGroup[] {
+  const groups: ErrorGroup[] = [];
+  for (const alert of alerts.values()) {
+    if (alert.workshopId !== workshopId || alert.errors.length === 0) continue;
+    groups.push({
+      unitName: alert.unitName,
+      entries: alert.errors.map((e: AlertError) => ({ device: e.device, message: e.message })),
+    });
+  }
+  return groups;
+}

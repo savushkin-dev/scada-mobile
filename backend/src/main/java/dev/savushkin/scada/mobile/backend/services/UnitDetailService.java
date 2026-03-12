@@ -8,9 +8,10 @@ import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepo
 import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
 import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties.DeviceNamesProperties;
 import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties.InstanceProperties;
+import dev.savushkin.scada.mobile.backend.domain.model.DeviceError;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
-import dev.savushkin.scada.mobile.backend.domain.model.UnitProperties;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitSnapshot;
+import dev.savushkin.scada.mobile.backend.infrastructure.store.UnitErrorStore;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -20,12 +21,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -86,11 +82,15 @@ public class UnitDetailService {
 
     private final PrintSrvProperties config;
     private final InstanceSnapshotRepository snapshotRepo;
+    private final UnitErrorStore unitErrorStore;
     private final Map<String, InstanceProperties> instancesById;
 
-    public UnitDetailService(PrintSrvProperties config, InstanceSnapshotRepository snapshotRepo) {
+    public UnitDetailService(PrintSrvProperties config,
+                             InstanceSnapshotRepository snapshotRepo,
+                             UnitErrorStore unitErrorStore) {
         this.config = config;
         this.snapshotRepo = snapshotRepo;
+        this.unitErrorStore = unitErrorStore;
         this.instancesById = config.getInstances().stream()
                 .collect(Collectors.toUnmodifiableMap(
                         InstanceProperties::getId,
@@ -235,31 +235,52 @@ public class UnitDetailService {
     }
 
     /**
-     * Строит сообщение {@code ERRORS}.
+     * Извлекает из снапшота устройства {@code scada} список <b>активных</b> ошибок.
      *
-     * <p>Извлекает из снапшота устройства {@code scada} все свойства,
-     * имена которых заканчиваются на один из суффиксов ошибок:
-     * {@code Connection}, {@code Fail}, {@code Dublicate}, {@code DiffEan},
-     * {@code Work}, {@code Data}, {@code Batch}, {@code Error}.
-     * Суффикс разбирается эвристически — ищем совпадение в конце ключа.
+     * <p>Активной считается ошибка, у которой значение флага отличается от {@code "0"}.
+     * Результат предназначен для записи в {@code UnitErrorStore} и впоследствии
+     * используется {@code buildErrorsStatus} и {@code AlertService} как единый источник правды.
      *
      * @param instanceId идентификатор аппарата
-     * @return сообщение {@code ERRORS}, или {@code null} если нет снапшота scada
+     * @return неизменяемый список активных ошибок (пустой, если ошибок нет или нет снапшота)
      */
-    public @Nullable ErrorsMessageDTO buildErrorsStatus(String instanceId) {
+    public @NonNull List<DeviceError> extractActiveErrors(String instanceId) {
         InstanceProperties inst = instancesById.get(instanceId);
-        if (inst == null) return null;
+        if (inst == null) return List.of();
 
         Map<String, String> scadaRaw = firstUnitRawProperties(
                 snapshotRepo.get(instanceId, inst.getDevices().getScada()));
+        if (scadaRaw.isEmpty()) return List.of();
 
-        List<ErrorsMessageDTO.DeviceErrorFlag> deviceErrors = scadaRaw.entrySet().stream()
-                .filter(e -> isErrorFlag(e.getKey()))
-                .map(e -> new ErrorsMessageDTO.DeviceErrorFlag(
+        return scadaRaw.entrySet().stream()
+                .filter(e -> isErrorFlag(e.getKey()) && !"0".equals(e.getValue()))
+                .map(e -> new DeviceError(
                         extractObjectName(e.getKey()),
                         e.getKey(),
-                        e.getValue(),
                         descriptionForKey(e.getKey())))
+                .toList();
+    }
+
+    /**
+     * Строит сообщение {@code ERRORS}.
+     *
+     * <p>Читает активные ошибки из {@code UnitErrorStore} — единственного источника правды.
+     * Все записи store уже прошли фильтрацию активности при записи (поле {@code value="1"}).
+     * Если store для данного аппарата пуст — отправляется пустой список ошибок.
+     *
+     * @param instanceId идентификатор аппарата
+     * @return сообщение {@code ERRORS}, или {@code null} если аппарат неизвестен
+     */
+    public @Nullable ErrorsMessageDTO buildErrorsStatus(String instanceId) {
+        if (!instancesById.containsKey(instanceId)) return null;
+
+        List<ErrorsMessageDTO.DeviceErrorFlag> deviceErrors = unitErrorStore.getErrors(instanceId)
+                .stream()
+                .map(e -> new ErrorsMessageDTO.DeviceErrorFlag(
+                        e.objectName(),
+                        e.propertyDesc(),
+                        "1",
+                        e.description()))
                 .toList();
 
         return ErrorsMessageDTO.of(

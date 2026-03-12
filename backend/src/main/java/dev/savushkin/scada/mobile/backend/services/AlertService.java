@@ -2,10 +2,9 @@ package dev.savushkin.scada.mobile.backend.services;
 
 import dev.savushkin.scada.mobile.backend.api.dto.AlertErrorDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.AlertMessageDTO;
-import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepository;
 import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
-import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
-import dev.savushkin.scada.mobile.backend.domain.model.UnitSnapshot;
+import dev.savushkin.scada.mobile.backend.domain.model.DeviceError;
+import dev.savushkin.scada.mobile.backend.infrastructure.store.UnitErrorStore;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
 
@@ -19,31 +18,24 @@ import java.util.stream.Collectors;
  * Сервис определения активных алёртов по текущему снапшоту PrintSrv.
  * <p>
  * Является <b>stateless</b>-компонентом — каждый вызов {@link #computeCurrentAlerts()}
- * читает актуальный срез из {@code InstanceSnapshotRepository} и возвращает
- * карту всех юнитов, у которых зафиксирована проблема (ошибка или предупреждение).
- * <p>
- * Сравнение с предыдущим состоянием и определение дельты выполняется
- * в {@code ActiveAlertStore}, которое использует результат этого сервиса.
+ * читает актуальный срез из {@link UnitErrorStore} и возвращает
+ * карту всех юнитов, у которых зафиксирована проблема.
  *
  * <h3>Правила определения severity</h3>
- * Проверяется устройство {@code Line} для каждого инстанса:
+ * Использует {@link UnitErrorStore} как единственный источник правды:
  * <ul>
- *   <li><b>Critical</b> — {@code UnitProperties.getError()} непуст и не {@code "0"}.
- *       Текст ошибки берётся из {@code getErrorMessage()}, при отсутствии — {@code "Ошибка"}.</li>
- *   <li><b>Warning</b> — ошибки нет, но линия остановлена ({@code ST} ≠ {@code "1"}).
- *       Линия стоит без явной ошибки: ждёт материалов, плановая остановка и т.п.</li>
- *   <li><b>Нет алёрта</b> — ошибок нет и линия в работе ({@code ST} = {@code "1"}).</li>
+ *   <li><b>Critical</b> — {@code UnitErrorStore} содержит хотя бы одну активную ошибку
+ *       для данного аппарата. Текст ошибок берётся из записей store.</li>
+ *   <li><b>Нет алёрта</b> — store пуст для данного аппарата (ошибок нет).</li>
  * </ul>
- * Оба уровня учитываются в счётчике «Проблемных» на дашборде цехов.
  */
 @Service
 public class AlertService {
 
     private static final String SEVERITY_CRITICAL = "Critical";
-    private static final String SEVERITY_WARNING = "Warning";
 
     private final PrintSrvProperties config;
-    private final InstanceSnapshotRepository snapshotRepo;
+    private final UnitErrorStore unitErrorStore;
 
     /**
      * workshopId → инстансы цеха (однократно строится при старте)
@@ -52,9 +44,10 @@ public class AlertService {
     private final Map<String, PrintSrvProperties.InstanceProperties> instancesById;
     private final Map<String, PrintSrvProperties.WorkshopProperties> workshopsById;
 
-    public AlertService(PrintSrvProperties config, InstanceSnapshotRepository snapshotRepo) {
+    public AlertService(PrintSrvProperties config,
+                        UnitErrorStore unitErrorStore) {
         this.config = config;
-        this.snapshotRepo = snapshotRepo;
+        this.unitErrorStore = unitErrorStore;
         this.instancesByWorkshop = config.getInstances().stream()
                 .collect(Collectors.groupingBy(
                         PrintSrvProperties.InstanceProperties::getWorkshopId,
@@ -126,76 +119,34 @@ public class AlertService {
 
     // ─── Private ─────────────────────────────────────────────────────────────
 
+    /**
+     * Вычисляет алёрт для одного аппарата на основе данных из {@link UnitErrorStore}.
+     *
+     * <p>Critical — если store содержит хотя бы одну активную ошибку.
+     * Ошибки уже были извлечены из устройства {@code scada} и записаны в store
+     * перед вызовом этого метода (через {@code UnitDetailService.extractActiveErrors}).
+     */
     private Optional<AlertMessageDTO> computeAlertForUnit(
             PrintSrvProperties.WorkshopProperties workshop,
             PrintSrvProperties.@NonNull InstanceProperties inst,
             String timestamp
     ) {
-        String lineDevice = inst.getDevices().getLine();
-        DeviceSnapshot lineSnapshot = snapshotRepo.get(inst.getId(), lineDevice);
-        if (lineSnapshot == null) {
+        List<DeviceError> deviceErrors = unitErrorStore.getErrors(inst.getId());
+        if (deviceErrors.isEmpty()) {
             return Optional.empty();
         }
 
-        // Critical имеет приоритет: если есть ошибка — Warning не проверяем.
-        List<AlertErrorDTO> errors = collectErrors(lineSnapshot);
-        if (!errors.isEmpty()) {
-            return Optional.of(AlertMessageDTO.active(
-                    workshop.getId(),
-                    inst.getId(),
-                    inst.getDisplayName(),
-                    SEVERITY_CRITICAL,
-                    errors,
-                    timestamp
-            ));
-        }
+        List<AlertErrorDTO> alertErrors = deviceErrors.stream()
+                .map(e -> new AlertErrorDTO(e.objectName(), 0, e.description()))
+                .toList();
 
-        // Warning: линия остановлена, но без явной ошибки.
-        if (isLineStopped(lineSnapshot)) {
-            return Optional.of(AlertMessageDTO.active(
-                    workshop.getId(),
-                    inst.getId(),
-                    inst.getDisplayName(),
-                    SEVERITY_WARNING,
-                    List.of(new AlertErrorDTO(lineDevice, 0, "Линия остановлена")),
-                    timestamp
-            ));
-        }
-
-        return Optional.empty();
-    }
-
-    /**
-     * Собирает список ошибок из всех юнитов снапшота устройства {@code Line}.
-     * Возвращает непустой список только при {@code SEVERITY_CRITICAL}.
-     */
-    private @NonNull List<AlertErrorDTO> collectErrors(@NonNull DeviceSnapshot snapshot) {
-        List<AlertErrorDTO> errors = new ArrayList<>();
-        for (UnitSnapshot unit : snapshot.units().values()) {
-            Optional<String> error = unit.properties().getError();
-            if (error.isPresent() && !error.get().isEmpty() && !"0".equals(error.get())) {
-                String message = unit.properties().getErrorMessage()
-                        .filter(m -> !m.isEmpty())
-                        .orElse("Ошибка");
-                errors.add(new AlertErrorDTO(snapshot.deviceName(), 0, message));
-            }
-        }
-        return errors;
-    }
-
-    /**
-     * Возвращает {@code true}, если линия остановлена ({@code ST} ≠ {@code "1"})
-     * хотя бы в одном из юнитов снапшота.
-     * Используется для формирования {@code SEVERITY_WARNING}.
-     */
-    private boolean isLineStopped(@NonNull DeviceSnapshot snapshot) {
-        for (UnitSnapshot unit : snapshot.units().values()) {
-            Optional<String> st = unit.properties().getSt();
-            // ST отсутствует или не "1" — линия не в работе
-            if (st.isEmpty() || !"1".equals(st.get())) {
-                return true;
-            }
-        }
-        return false;
+        return Optional.of(AlertMessageDTO.active(
+                workshop.getId(),
+                inst.getId(),
+                inst.getDisplayName(),
+                SEVERITY_CRITICAL,
+                alertErrors,
+                timestamp
+        ));
     }
 }

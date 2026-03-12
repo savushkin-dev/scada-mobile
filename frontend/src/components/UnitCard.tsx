@@ -1,5 +1,9 @@
-import { DOMAIN_DEFAULTS } from '../config';
-import { getUnitStatusLevel, UNIT_STATUS_CLASS } from '../constants/statusUtils';
+import {
+  getUnitErrorGroups,
+  getUnitStatusLevel,
+  UNIT_STATUS_CLASS,
+} from '../constants/statusUtils';
+import { UnitErrorBoard } from './UnitErrorBoard';
 import type { AlertData, Unit } from '../types';
 
 interface Props {
@@ -13,11 +17,6 @@ export function UnitCard({ unit, alerts, onClick }: Props) {
   const isPending = statusLevel === 'pending';
   const isOffline = statusLevel === 'offline';
   const isCritical = statusLevel === 'critical';
-  // Блок простоя показываем только когда статус известен (не pending/offline):
-  // pending — WS ещё не ответил; offline — устройство недоступно.
-  const hasAlert = !isPending && !isOffline && statusLevel !== 'normal';
-  const timerNotZero =
-    !isPending && !isOffline && !!(unit.timer && unit.timer !== DOMAIN_DEFAULTS.zeroTimer);
 
   const statusClass = UNIT_STATUS_CLASS[statusLevel];
   // offline: карточка некликабельна; card-static отключает cursor:pointer и :active-scale.
@@ -25,26 +24,22 @@ export function UnitCard({ unit, alerts, onClick }: Props) {
     ? { 'aria-disabled': true as const }
     : { onClick, role: 'button' as const };
 
+  const errorGroups = isCritical ? getUnitErrorGroups(unit.id, alerts) : [];
+
   return (
     <div
       className={`card p-4 md:h-full ${statusClass}${isOffline ? ' card-static' : ''}`}
       {...interactiveProps}
     >
       <h3 className="font-bold text-lg mb-1">{unit.unit}</h3>
-      <p
-        className={`text-sm mb-3 italic ${isPending || isOffline ? 'text-gray-400' : 'text-gray-500'}`}
-      >
-        {unit.event}
-      </p>
-      {(hasAlert || timerNotZero) && (
-        <div
-          className={`flex justify-between items-center p-3 rounded-xl ${
-            isCritical ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'
-          }`}
+      {isCritical && errorGroups.length > 0 ? (
+        <UnitErrorBoard groups={errorGroups} />
+      ) : (
+        <p
+          className={`text-sm mb-3 italic ${isPending || isOffline ? 'text-gray-400' : 'text-gray-500'}`}
         >
-          <span className="text-xs font-semibold">ВРЕМЯ ПРОСТОЯ</span>
-          <span className="text-xl font-black tabular-nums">{unit.timer}</span>
-        </div>
+          {unit.event}
+        </p>
       )}
     </div>
   );

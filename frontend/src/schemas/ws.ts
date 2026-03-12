@@ -11,7 +11,20 @@ import { z } from 'zod';
 
 // ── Общие ─────────────────────────────────────────────────────────────
 
-export const AlertSeveritySchema = z.enum(['Critical', 'Warning']);
+export const AlertSeveritySchema = z.literal('Critical');
+
+/**
+ * Описание одной конкретной ошибки в составе алёрта.
+ * Соответствует бэкендовому AlertErrorDTO.
+ */
+export const AlertErrorSchema = z.object({
+  /** Имя устройства-источника: "Line", "Printer11", "CamAgregation" и т.п. */
+  device: z.string(),
+  /** Числовой код ошибки из протокола PrintSrv (0 если не применимо). */
+  code: z.number().int(),
+  /** Текстовое описание ошибки. */
+  message: z.string(),
+});
 
 // ── /ws/live — входящие сообщения ─────────────────────────────────────
 
@@ -19,9 +32,11 @@ export const AlertWsMessageSchema = z.object({
   type: z.literal('ALERT'),
   workshopId: z.string(),
   unitId: z.union([z.string(), z.number()]),
+  /** Читаемое название аппарата (для отображения в карточках). */
+  unitName: z.string(),
   severity: AlertSeveritySchema,
   active: z.boolean(),
-  errors: z.array(z.unknown()),
+  errors: z.array(AlertErrorSchema),
   timestamp: z.string(),
 });
 
@@ -30,7 +45,6 @@ export const UnitStatusSchema = z.object({
   unitId: z.string(),
   workshopId: z.string(),
   event: z.string(),
-  timer: z.string(),
 });
 
 export const UnitsStatusMessageSchema = z.object({
@@ -56,26 +70,29 @@ export const LiveWsIncomingMessageSchema = z.discriminatedUnion('type', [
 
 // ── /ws/unit/{unitId} — входящие сообщения ────────────────────────────
 
+// Бэкенд (PrintSrv → Spring) передаёт все поля payload как JSON-строки,
+// включая числовые и булевы флаги ("0"/"1"). Незаполненные поля приходят
+// как JSON null (Jackson без NON_NULL). nullish() = string | null | undefined.
 export const LineStatusPayloadSchema = z.object({
-  lineName: z.string().optional(),
-  lineState: z.number().optional(),
-  shortCode: z.string().optional(),
-  description: z.string().optional(),
-  ean13: z.string().optional(),
-  batchNumber: z.string().optional(),
-  dateProduced: z.string().optional(),
-  datePacking: z.string().optional(),
-  dateExpiration: z.string().optional(),
-  initialCounter: z.number().optional(),
-  site: z.string().optional(),
-  itf: z.string().optional(),
-  capacity: z.number().optional(),
-  boxCount: z.number().optional(),
-  packageCount: z.number().optional(),
-  freeze: z.number().optional(),
-  region: z.string().optional(),
-  design: z.number().optional(),
-  printDM: z.number().optional(),
+  lineName: z.string().nullish(),
+  lineState: z.string().nullish(),
+  shortCode: z.string().nullish(),
+  description: z.string().nullish(),
+  ean13: z.string().nullish(),
+  batchNumber: z.string().nullish(),
+  dateProduced: z.string().nullish(),
+  datePacking: z.string().nullish(),
+  dateExpiration: z.string().nullish(),
+  initialCounter: z.string().nullish(),
+  site: z.string().nullish(),
+  itf: z.string().nullish(),
+  capacity: z.string().nullish(),
+  boxCount: z.string().nullish(),
+  packageCount: z.string().nullish(),
+  freeze: z.string().nullish(),
+  region: z.string().nullish(),
+  design: z.string().nullish(),
+  printDM: z.string().nullish(),
 });
 
 export const DevicesStatusWsPrinterSchema = z.object({
@@ -143,6 +160,7 @@ export const UnitWsMessageSchema = z.discriminatedUnion('type', [
 // ── Выводимые типы ────────────────────────────────────────────────────
 
 export type AlertSeverity = z.infer<typeof AlertSeveritySchema>;
+export type AlertError = z.infer<typeof AlertErrorSchema>;
 export type AlertWsMessage = z.infer<typeof AlertWsMessageSchema>;
 export type UnitStatus = z.infer<typeof UnitStatusSchema>;
 export type UnitsStatusMessage = z.infer<typeof UnitsStatusMessageSchema>;

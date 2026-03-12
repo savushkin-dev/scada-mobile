@@ -1,5 +1,10 @@
-import { UI_BEHAVIOR, UI_COPY } from '../config';
-import { getWorkshopStatusLevel, WORKSHOP_STATUS_CLASS } from '../constants/statusUtils';
+import { UI_COPY } from '../config';
+import {
+  getWorkshopErrorGroups,
+  getWorkshopStatusLevel,
+  WORKSHOP_STATUS_CLASS,
+} from '../constants/statusUtils';
+import { UnitErrorBoard } from './UnitErrorBoard';
 import type { AlertData, Workshop } from '../types';
 
 interface Props {
@@ -11,31 +16,18 @@ interface Props {
 export function WorkshopCard({ workshop, alerts, onClick }: Props) {
   const status = getWorkshopStatusLevel(workshop.id, alerts);
   const statusClass = WORKSHOP_STATUS_CLASS[status];
+  const isCritical = status === 'critical';
 
-  const hasProblems = workshop.problemUnits > UI_BEHAVIOR.emptyCollectionSize;
+  const errorGroups = isCritical ? getWorkshopErrorGroups(workshop.id, alerts) : [];
 
   return (
     <div className={`card p-5 md:h-full ${statusClass}`} onClick={onClick}>
       <h2 className="text-xl font-bold mb-1">{workshop.name}</h2>
-      <div className="flex justify-between items-end">
-        <div className="space-y-1">
-          <p className="text-xs text-gray-500 font-medium">
-            {UI_COPY.workshopTotalUnitsLabel}:{' '}
-            <span className="text-gray-900">{workshop.totalUnits}</span>
-          </p>
-          <p className="text-xs text-gray-500 font-medium">
-            {UI_COPY.workshopProblemUnitsLabel}:{' '}
-            <span className={hasProblems ? 'text-amber-600 font-bold' : 'text-gray-900'}>
-              {workshop.problemUnits}
-            </span>
-          </p>
-        </div>
-        {hasProblems && (
-          <span className="text-[10px] font-bold uppercase tracking-tight px-2 py-1 rounded-md bg-amber-100 text-amber-700">
-            {UI_COPY.workshopProblemsBadge}
-          </span>
-        )}
-      </div>
+      <p className="text-xs text-gray-500 font-medium">
+        {UI_COPY.workshopTotalUnitsLabel}:{' '}
+        <span className="text-gray-900">{workshop.totalUnits}</span>
+      </p>
+      {isCritical && errorGroups.length > 0 && <UnitErrorBoard groups={errorGroups} />}
     </div>
   );
 }

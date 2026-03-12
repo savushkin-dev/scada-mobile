@@ -14,7 +14,12 @@ import { BottomNav } from '../components/BottomNav';
 import { Fab } from '../components/Fab';
 import { DetailsProvider } from '../context/DetailsContext';
 import { usePageHeader } from '../context/PageHeaderContext';
-import { fetchDevicesTopology, type TopologyFetchResult } from '../api/workshops';
+import {
+  fetchDevicesTopology,
+  fetchUnitsTopology,
+  fetchWorkshopsTopology,
+  type TopologyFetchResult,
+} from '../api/workshops';
 import { useAppContext } from '../context/AppContext';
 import { useAsyncFetch } from '../hooks/useAsyncFetch';
 import { usePageError } from '../hooks/usePageError';
@@ -28,7 +33,9 @@ import type {
   LineStatusPayload,
   QueuePayload,
   TabId,
+  UnitTopology,
   UnitWsMessage,
+  WorkshopTopology,
 } from '../types';
 
 /**
@@ -90,6 +97,8 @@ export function DetailsLayout() {
     setSignalState,
     setTopologyETag,
     setDevicesTopology,
+    setUnitTopology,
+    setWorkshopTopology,
   } = useAppContext();
   const { workshopId = '', unitId = '' } = useParams<{
     workshopId: string;
@@ -193,6 +202,44 @@ export function DetailsLayout() {
   const devicesTopology = unitId ? (state.devicesTopologyByUnit[unitId] ?? null) : null;
   const devicesLoading = devicesFetchState.status === 'loading' && devicesTopology === null;
 
+  // ── Units topology (REST, фоллбэк при прямом открытии URL / reload) ──────
+  // WorkshopPage грузит список аппаратов, но при прямом переходе на /units/...
+  // он не посещается. Загружаем самостоятельно, только если список ещё пуст.
+  const hasUnitsTopology = (state.unitTopologyByWorkshop[workshopId]?.length ?? 0) > 0;
+  const unitsFetchState = useAsyncFetch<TopologyFetchResult<UnitTopology[]>>(
+    unitId && workshopId && !hasUnitsTopology
+      ? (signal) => fetchUnitsTopology(workshopId, signal, state.topologyETag)
+      : null,
+    [workshopId, hasUnitsTopology],
+    { source: 'topology/units' }
+  );
+
+  useEffect(() => {
+    if (!unitsFetchState.data || !workshopId) return;
+    const { data, etag } = unitsFetchState.data;
+    if (etag) setTopologyETag(etag);
+    if (data) setUnitTopology(workshopId, data);
+  }, [unitsFetchState.data, workshopId, setUnitTopology, setTopologyETag]);
+
+  // ── Workshops topology (REST, фоллбэк при прямом открытии URL / reload) ──
+  // DashboardPage грузит цеха, но при прямом переходе он не посещается.
+  // Загружаем самостоятельно, только если список цехов ещё пуст.
+  const hasWorkshopsTopology = state.workshopTopology.length > 0;
+  const workshopsFetchState = useAsyncFetch<TopologyFetchResult<WorkshopTopology[]>>(
+    workshopId && !hasWorkshopsTopology
+      ? (signal) => fetchWorkshopsTopology(signal, state.topologyETag)
+      : null,
+    [workshopId, hasWorkshopsTopology],
+    { source: 'topology/workshops' }
+  );
+
+  useEffect(() => {
+    if (!workshopsFetchState.data) return;
+    const { data, etag } = workshopsFetchState.data;
+    if (etag) setTopologyETag(etag);
+    if (data) setWorkshopTopology(data);
+  }, [workshopsFetchState.data, setWorkshopTopology, setTopologyETag]);
+
   // ── Header ────────────────────────────────────────────────────────────
   const locationState = location.state as { workshopName?: string } | null;
   const workshopName =
@@ -202,7 +249,7 @@ export function DetailsLayout() {
 
   const units = unitsByWorkshop[workshopId] ?? [];
   const currentUnit = units.find((u) => u.id === unitId);
-  const unitName = currentUnit?.unit ?? unitId ?? DOMAIN_DEFAULTS.unitName;
+  const unitName = currentUnit?.unit ?? DOMAIN_DEFAULTS.unitName;
 
   const handleBack = useCallback(() => {
     navigate(`/workshops/${workshopId}`, { state: { workshopName } });

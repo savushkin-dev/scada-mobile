@@ -26,7 +26,6 @@ export const UI_COPY = Object.freeze({
   workshopSubtitle: 'Цех',
   workshopTotalUnitsLabel: 'Аппаратов/Линий',
   workshopProblemUnitsLabel: 'Проблемных',
-  workshopProblemsBadge: 'Есть проблемы',
   queueTitle: '📋 Очередь печати',
   queueEmpty: 'Очередь пуста',
   queueBatchPrefix: 'Партия',

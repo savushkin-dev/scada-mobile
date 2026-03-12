@@ -1,5 +1,3 @@
-import type { AlertSeverity } from '../types';
-
 export const DOMAIN_FLAGS = Object.freeze({
   inactive: 0,
   active: 1,
@@ -8,15 +6,9 @@ export const DOMAIN_FLAGS = Object.freeze({
 export const DOMAIN_DEFAULTS = Object.freeze({
   emptyValue: '-',
   zeroCount: 0,
-  zeroTimer: '00:00:00',
   noDataEvent: 'Нет данных',
   workshopName: 'Цех',
   unitName: 'Устройство',
-});
-
-export const ALERT_SEVERITY = Object.freeze({
-  critical: 'Critical' as AlertSeverity,
-  warning: 'Warning' as AlertSeverity,
 });
 
 export const UNIT_EVENT = Object.freeze({

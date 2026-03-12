@@ -4,12 +4,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import dev.savushkin.scada.mobile.backend.api.dto.AlertMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitStatusDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitsStatusMessageDTO;
+import dev.savushkin.scada.mobile.backend.domain.model.DeviceError;
 import dev.savushkin.scada.mobile.backend.infrastructure.polling.PrintSrvInstancePolledEvent;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveAlertStore;
-import dev.savushkin.scada.mobile.backend.infrastructure.store.DowntimeTracker;
+import dev.savushkin.scada.mobile.backend.infrastructure.store.UnitErrorStore;
 import dev.savushkin.scada.mobile.backend.services.AlertService;
-import dev.savushkin.scada.mobile.backend.services.WorkshopService;
 import dev.savushkin.scada.mobile.backend.services.UnitDetailService;
+import dev.savushkin.scada.mobile.backend.services.WorkshopService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
@@ -44,7 +45,8 @@ public class StatusBroadcaster {
     private final WorkshopService workshopService;
     private final AlertService alertService;
     private final ActiveAlertStore alertStore;
-    private final DowntimeTracker downtimeTracker;
+    private final UnitErrorStore unitErrorStore;
+    private final UnitDetailService unitDetailService;
     private final LiveWsHandler liveWsHandler;
     private final UnitWsHandler unitWsHandler;
 
@@ -52,14 +54,16 @@ public class StatusBroadcaster {
             WorkshopService workshopService,
             AlertService alertService,
             ActiveAlertStore alertStore,
-            DowntimeTracker downtimeTracker,
+            UnitErrorStore unitErrorStore,
+            UnitDetailService unitDetailService,
             LiveWsHandler liveWsHandler,
             UnitWsHandler unitWsHandler
     ) {
         this.workshopService = workshopService;
         this.alertService = alertService;
         this.alertStore = alertStore;
-        this.downtimeTracker = downtimeTracker;
+        this.unitErrorStore = unitErrorStore;
+        this.unitDetailService = unitDetailService;
         this.liveWsHandler = liveWsHandler;
         this.unitWsHandler = unitWsHandler;
     }
@@ -67,6 +71,10 @@ public class StatusBroadcaster {
     @EventListener
     public void onInstancePolled(PrintSrvInstancePolledEvent event) {
         broadcastUnitStatus(event.instanceId());
+        // Обновляем единый источник правды перед расчётом дельты алёртов,
+        // чтобы AlertService и buildErrorsStatus читали актуальные данные.
+        List<DeviceError> activeErrors = unitDetailService.extractActiveErrors(event.instanceId());
+        unitErrorStore.update(event.instanceId(), activeErrors);
         broadcastAlertDelta(event.instanceId());
         broadcastUnitDetails(event.instanceId());
     }
@@ -103,9 +111,6 @@ public class StatusBroadcaster {
 
         AlertMessageDTO currentAlert = alertService.computeAlertForInstance(instanceId).orElse(null);
         ActiveAlertStore.Delta delta = alertStore.updateAndDiff(instanceId, currentAlert);
-
-        delta.added().forEach(alert -> downtimeTracker.onAlertStarted(alert.unitId()));
-        delta.removed().forEach(alert -> downtimeTracker.onAlertResolved(alert.unitId()));
 
         if (delta.added().isEmpty() && delta.removed().isEmpty()) {
             return;

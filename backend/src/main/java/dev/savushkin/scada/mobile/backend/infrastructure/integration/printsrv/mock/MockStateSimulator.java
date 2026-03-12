@@ -23,11 +23,18 @@ import java.util.Random;
  *       и {@code Succeeded}; с вероятностью {@code errorFlipProbability} появляются
  *       {@code Failed} и {@code BatchFailed}.</li>
  *   <li><b>Line</b> — если {@code ST=1} (активна), счётчик в {@code CurItem} растёт;
- *       с той же вероятностью устанавливается / снимается флаг {@code Error=1}.</li>
+ *       флаг {@code Error} появляется с вероятностью {@code errorFlipProbability}
+ *       и снимается с вероятностью {@code errorClearProbability}.</li>
  *   <li><b>Принтеры</b> — если {@code ST=1}, инкрементируется {@code CurItem}.</li>
- *   <li><b>SCADA</b> — агрегированные булевые (0/1) флаги ошибок устройств
+ *   <li><b>SCADA</b> — булевые (0/1) флаги ошибок устройств
  *       ({@code Dev041Connection}, {@code Dev041Fail}, …, {@code LineDev011Error})
- *       на устройстве {@code scada}, по логике {@code scada___Unit0_eval.py}.</li>
+ *       управляются двумя независимыми вероятностями:
+ *       <ul>
+ *         <li>{@code errorFlipProbability} — вероятность появления новой ошибки (0→1);</li>
+ *         <li>{@code errorClearProbability} — вероятность снятия активной ошибки (1→0).</li>
+ *       </ul>
+ *       При этом новая ошибка добавляется только если текущее число активных ошибок
+ *       на данном аппарате строго меньше {@code maxErrorsPerUnit}.</li>
  * </ul>
  *
  * <h3>Детерминированность при тестировании</h3>
@@ -133,6 +140,21 @@ public class MockStateSimulator {
     // ─── CamAgregation / CamAgregationBox ──────────────────────────────────
 
     /**
+     * Проверяет, является ли ключ свойства scada булевым флагом ошибки устройства.
+     * Имена вида {@code DevXXXFail}, {@code DevXXXError}, {@code LineDev011Connection}, …
+     */
+    private static boolean isScadaErrorKey(String key) {
+        for (String suffix : CAM_ERROR_SUFFIXES) {
+            if (key.endsWith(suffix) && key.length() > suffix.length()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // ─── Line ──────────────────────────────────────────────────────────────
+
+    /**
      * Симулирует работу камеры агрегации.
      *
      * <p>За один тик камера «читает» от 1 до 5 пачек.
@@ -155,49 +177,12 @@ public class MockStateSimulator {
         state.incrementInt(device, "Succeeded", increment);
 
         // Брак с заданной вероятностью
-        if (flipProbability()) {
+        if (shouldErrorAppear()) {
             int failed = 1 + random.nextInt(2);
             state.incrementInt(device, "Failed", failed);
             state.incrementInt(device, "BatchFailed", 1);
             log.trace("[{}] {} — {} failed codes this tick", instanceId, device, failed);
         }
-    }
-
-    // ─── Line ──────────────────────────────────────────────────────────────
-
-    /**
-     * Симулирует активную линию маркировки.
-     *
-     * <p>Если {@code ST=1}: инкрементируется счётчик в {@code CurItem},
-     * обновляется {@code LastReadTime}.
-     * С вероятностью {@code errorFlipProbability} флаг {@code Error} инвертируется.
-     */
-    private void tickLine(MockInstanceState state, String device, String instanceId) {
-        Map<String, String> props = state.getPropertiesCopy(device);
-        if (props.isEmpty()) {
-            return;
-        }
-
-        // Ошибочный флаг инвертируем независимо от ST (ошибка может прийти когда угодно)
-        if (flipProbability()) {
-            String currentError = props.getOrDefault("Error", "0");
-            String newError = "1".equals(currentError) ? "0" : "1";
-            state.setProperty(device, "Error", newError);
-            log.debug("[{}] {} — Error flipped to {}", instanceId, device, newError);
-        }
-
-        String st = props.getOrDefault("ST", "0");
-        if (!"1".equals(st)) {
-            return;
-        }
-
-        // Инкрементируем первый числовой токен в CurItem
-        String curItem = props.getOrDefault("CurItem", "");
-        String updatedCurItem = incrementCurItemCounter(curItem);
-        state.setProperty(device, "CurItem", updatedCurItem);
-
-        // Обновляем время последнего чтения (HH:mm:ss)
-        state.setProperty(device, "LastReadTime", LocalTime.now().format(TIME_FMT));
     }
 
     // ─── Printers ──────────────────────────────────────────────────────────
@@ -239,14 +224,63 @@ public class MockStateSimulator {
     );
 
     /**
+     * Симулирует активную линию маркировки.
+     *
+     * <p>Если {@code ST=1}: инкрементируется счётчик в {@code CurItem},
+     * обновляется {@code LastReadTime}.
+     *
+     * <p>Флаг {@code Error} управляется раздельно:
+     * <ul>
+     *   <li>Если ошибка активна (1) — снимается с вероятностью {@code errorClearProbability}.</li>
+     *   <li>Если ошибки нет (0) — устанавливается с вероятностью {@code errorFlipProbability}.</li>
+     * </ul>
+     * Это независимо от состояния {@code ST}.
+     */
+    private void tickLine(MockInstanceState state, String device, String instanceId) {
+        Map<String, String> props = state.getPropertiesCopy(device);
+        if (props.isEmpty()) {
+            return;
+        }
+
+        // Флаг Error: раздельные вероятности появления и снятия
+        String currentError = props.getOrDefault("Error", "0");
+        if ("1".equals(currentError)) {
+            if (shouldErrorClear()) {
+                state.setProperty(device, "Error", "0");
+                log.debug("[{}] {} — Error cleared", instanceId, device);
+            }
+        } else {
+            if (shouldErrorAppear()) {
+                state.setProperty(device, "Error", "1");
+                log.debug("[{}] {} — Error set", instanceId, device);
+            }
+        }
+
+        String st = props.getOrDefault("ST", "0");
+        if (!"1".equals(st)) {
+            return;
+        }
+
+        // Инкрементируем первый числовой токен в CurItem
+        String curItem = props.getOrDefault("CurItem", "");
+        String updatedCurItem = incrementCurItemCounter(curItem);
+        state.setProperty(device, "CurItem", updatedCurItem);
+
+        // Обновляем время последнего чтения (HH:mm:ss)
+        state.setProperty(device, "LastReadTime", LocalTime.now().format(TIME_FMT));
+    }
+
+    /**
      * Симулирует обновление устройства {@code scada} —
      * булевые (0/1) флаги ошибок для камер и принтеров.
      *
-     * <p>Логика повторяет реальный {@code scada___Unit0_eval.py}:
-     * для каждого устройства из {@code devarr} (камеры, нумерация Dev041, Dev042, …)
-     * и {@code linedevarr} (принтеры, нумерация LineDev011, LineDev021, …)
-     * с вероятностью {@code errorFlipProbability} инвертируется каждый флаг,
-     * после чего {@code lineerr} вычисляется как OR всех {@code *Error} флагов.
+     * <p>Для каждого флага ошибки:
+     * <ul>
+     *   <li>Активная ошибка (1) снимается с вероятностью {@code errorClearProbability}.</li>
+     *   <li>Новая ошибка (0→1) появляется с вероятностью {@code errorFlipProbability},
+     *       но только если текущее число активных ошибок &lt; {@code maxErrorsPerUnit}.</li>
+     * </ul>
+     * После прохода {@code lineerr} вычисляется как OR всех {@code *Error} флагов.
      */
     private void tickScada(
             MockInstanceState state,
@@ -259,6 +293,10 @@ public class MockStateSimulator {
             return;
         }
 
+        // Считаем текущее количество активных ошибок до начала тика.
+        // Используем int[] для мутации внутри вспомогательных методов.
+        int[] activeErrorCount = {countActiveScadaErrors(scadaProps)};
+
         boolean lineErr = false;
 
         // Камеры агрегации → Dev041, Dev042, ...
@@ -268,7 +306,7 @@ public class MockStateSimulator {
         for (int i = 0; i < allCams.size(); i++) {
             String devPrefix = "Dev%03d".formatted(41 + i);
             lineErr |= tickScadaErrorFlags(state, scadaDevice, scadaProps, devPrefix,
-                    CAM_ERROR_SUFFIXES, instanceId);
+                    CAM_ERROR_SUFFIXES, instanceId, activeErrorCount);
         }
 
         // Принтеры → LineDev011, LineDev021, ...
@@ -276,18 +314,29 @@ public class MockStateSimulator {
         for (int i = 0; i < printers.size(); i++) {
             String devPrefix = "LineDev%03d".formatted(11 + i * 10);
             lineErr |= tickScadaErrorFlags(state, scadaDevice, scadaProps, devPrefix,
-                    LINE_DEV_ERROR_SUFFIXES, instanceId);
+                    LINE_DEV_ERROR_SUFFIXES, instanceId, activeErrorCount);
         }
 
         state.setProperty(scadaDevice, "lineerr", lineErr ? "1" : "0");
     }
 
+    // ─── Внутренние хелперы ─────────────────────────────────────────────────
+
     /**
      * Обрабатывает одну группу error-флагов ({@code devPrefix + suffix})
-     * на устройстве {@code scada}: с вероятностью {@code errorFlipProbability}
-     * инвертирует каждый булев флаг.
+     * на устройстве {@code scada}.
      *
-     * @return {@code true}, если хотя бы один {@code *Error} флаг сейчас равен "1"
+     * <p>Логика для каждого флага:
+     * <ul>
+     *   <li>Флаг активен (1) → с вероятностью {@code errorClearProbability} снимается (1→0),
+     *       счётчик {@code activeErrorCount} уменьшается.</li>
+     *   <li>Флаг неактивен (0) → с вероятностью {@code errorFlipProbability} устанавливается (0→1),
+     *       но только если {@code activeErrorCount < maxErrorsPerUnit}.</li>
+     * </ul>
+     *
+     * @param activeErrorCount мутируемый счётчик текущих активных ошибок на аппарате;
+     *                         обновляется при каждом появлении / снятии флага
+     * @return {@code true}, если хотя бы один {@code *Error} суффикс остался «1» после обработки
      */
     private boolean tickScadaErrorFlags(
             MockInstanceState state,
@@ -295,32 +344,77 @@ public class MockStateSimulator {
             Map<String, String> scadaProps,
             String devPrefix,
             List<String> suffixes,
-            String instanceId
+            String instanceId,
+            int[] activeErrorCount
     ) {
         boolean hasError = false;
         for (String suffix : suffixes) {
             String key = devPrefix + suffix;
             String current = scadaProps.getOrDefault(key, "0");
-            if (flipProbability()) {
-                String flipped = "1".equals(current) ? "0" : "1";
-                state.setProperty(scadaDevice, key, flipped);
-                log.trace("[{}] scada.{} flipped {} → {}", instanceId, key, current, flipped);
-                current = flipped;
+            boolean isActive = "1".equals(current);
+
+            if (isActive) {
+                // Пробуем снять ошибку
+                if (shouldErrorClear()) {
+                    state.setProperty(scadaDevice, key, "0");
+                    activeErrorCount[0]--;
+                    isActive = false;
+                    log.debug("[{}] scada.{} — error cleared (active now: {})",
+                            instanceId, key, activeErrorCount[0]);
+                }
+            } else {
+                // Пробуем добавить ошибку, только если не превышен лимит
+                if (activeErrorCount[0] < mockProperties.getMaxErrorsPerUnit() && shouldErrorAppear()) {
+                    state.setProperty(scadaDevice, key, "1");
+                    activeErrorCount[0]++;
+                    isActive = true;
+                    log.debug("[{}] scada.{} — error activated (active now: {})",
+                            instanceId, key, activeErrorCount[0]);
+                }
             }
+
             if ("Error".equals(suffix)) {
-                hasError = "1".equals(current);
+                hasError = isActive;
             }
         }
         return hasError;
     }
 
-    // ─── Внутренние хелперы ─────────────────────────────────────────────────
-
     /**
      * Возвращает {@code true} с вероятностью {@link MockPrintSrvProperties#getErrorFlipProbability()}.
+     * Используется для решения: появляется ли новая ошибка (0→1).
      */
-    private boolean flipProbability() {
+    private boolean shouldErrorAppear() {
         return random.nextDouble() < mockProperties.getErrorFlipProbability();
+    }
+
+    /**
+     * Возвращает {@code true} с вероятностью {@link MockPrintSrvProperties#getErrorClearProbability()}.
+     * Используется для решения: снимается ли активная ошибка (1→0).
+     */
+    private boolean shouldErrorClear() {
+        return random.nextDouble() < mockProperties.getErrorClearProbability();
+    }
+
+    /**
+     * Подсчитывает количество активных (значение «1») error-флагов
+     * в снапшоте устройства {@code scada}.
+     *
+     * <p>Считаются только ключи, оканчивающиеся на один из суффиксов
+     * из {@link #CAM_ERROR_SUFFIXES} (которые включают все суффиксы из
+     * {@link #LINE_DEV_ERROR_SUFFIXES}).
+     *
+     * @param scadaProps неизменяемая копия свойств scada-устройства
+     * @return число флагов, равных «1»
+     */
+    private int countActiveScadaErrors(Map<String, String> scadaProps) {
+        int count = 0;
+        for (Map.Entry<String, String> entry : scadaProps.entrySet()) {
+            if ("1".equals(entry.getValue()) && isScadaErrorKey(entry.getKey())) {
+                count++;
+            }
+        }
+        return count;
     }
 
     /**
