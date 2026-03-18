@@ -141,11 +141,6 @@ public class StatusBroadcaster {
             if (liveWsHandler.getTotalSessionCount() > 0) {
                 sendAlert(resolvedAlert);
             }
-            eventPublisher.publishEvent(
-                    AlertNotificationEvent.resolved(this,
-                            removed.workshopId(), removed.unitId(), removed.unitName(),
-                            removed.severity(), resolvedAt)
-            );
             log.info("Alert RESOLVED: unit='{}', workshop='{}'", removed.unitId(), removed.workshopId());
         }
     }

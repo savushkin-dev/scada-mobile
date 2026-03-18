@@ -2,7 +2,6 @@ package dev.savushkin.scada.mobile.backend.infrastructure.notification;
 
 import dev.savushkin.scada.mobile.backend.api.dto.AlertErrorDTO;
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEvent;
 
 import java.util.List;
@@ -15,20 +14,17 @@ import java.util.List;
  * доставки (Web Push, SMS, email и т.д.) без изменения основного pipeline.
  *
  * <h3>Состояния</h3>
- * <ul>
- *   <li>{@link State#ACTIVATED} — аппарат вошёл в аварийное состояние
- *       <em>или</em> состав ошибок внутри уже активной аварии изменился.</li>
- *   <li>{@link State#RESOLVED} — аварийное состояние устранено.</li>
- * </ul>
+ * Поддерживается только {@link State#ACTIVATED}, так как Web Push в проекте
+ * отправляется только при появлении/изменении активной аварии.
  *
  * <h3>alertId</h3>
- * Стабильный идентификатор уведомления вида {@code "workshopId:unitId:severity:occurredAt"}.
+ * Стабильный идентификатор уведомления вида {@code "unitId:firstSeenAt"}.
  * Используется для дедупликации повторных попыток доставки.
  *
  * <h3>errorSignature</h3>
  * Хэш состава ошибок, сгруппированных по устройству (см. {@link
  * dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveAlertStore#computeErrorSignature}).
- * Пустая строка для {@code RESOLVED}-события.
+ * Используется для дедупликации повторных уведомлений при изменении состава ошибок.
  *
  * <h3>route</h3>
  * Готовый маршрут для deep link при клике по системному уведомлению:
@@ -43,11 +39,7 @@ public class AlertNotificationEvent extends ApplicationEvent {
         /**
          * Аппарат вошёл в аварию или состав ошибок внутри активной аварии изменился.
          */
-        ACTIVATED,
-        /**
-         * Аварийное состояние устранено.
-         */
-        RESOLVED
+        ACTIVATED
     }
 
     private final State state;
@@ -59,6 +51,8 @@ public class AlertNotificationEvent extends ApplicationEvent {
     private final String occurredAt;
     private final String errorSignature;
     private final String route;
+    private final String groupKey;
+    private final String notificationTag;
     private final List<AlertErrorDTO> errors;
 
     /**
@@ -68,8 +62,8 @@ public class AlertNotificationEvent extends ApplicationEvent {
      * @param workshopId     идентификатор цеха
      * @param unitId         идентификатор аппарата
      * @param unitName       читаемое название аппарата
-     * @param severity       уровень критичности
-     * @param occurredAt     ISO-8601 метка времени (UTC)
+    * @param severity       уровень критичности
+    * @param firstSeenAt    ISO-8601 метка времени (UTC) первого появления аварии
      * @param errorSignature хэш состава ошибок (для дедупликации)
      * @param errors         список ошибок алёрта
      */
@@ -79,38 +73,17 @@ public class AlertNotificationEvent extends ApplicationEvent {
             @NonNull String unitId,
             @NonNull String unitName,
             @NonNull String severity,
-            @NonNull String occurredAt,
+            @NonNull String firstSeenAt,
             @NonNull String errorSignature,
             @NonNull List<AlertErrorDTO> errors
     ) {
-        String alertId = workshopId + ":" + unitId + ":" + severity + ":" + occurredAt;
+        String alertId = unitId + ":" + firstSeenAt;
         String route = "/workshops/" + workshopId + "/units/" + unitId + "/logs";
+        String groupKey = workshopId + ":" + unitId;
+        String notificationTag = "workshop:" + workshopId + ":unit:" + unitId;
         return new AlertNotificationEvent(source, State.ACTIVATED,
-                alertId, workshopId, unitId, unitName, severity, occurredAt, errorSignature, route, errors);
-    }
-
-    /**
-     * Создаёт событие разрешения алёрта.
-     *
-     * @param source     источник события (обычно {@code this})
-     * @param workshopId идентификатор цеха
-     * @param unitId     идентификатор аппарата
-     * @param unitName   читаемое название аппарата
-     * @param severity   уровень критичности исходного алёрта
-     * @param resolvedAt ISO-8601 метка времени (UTC)
-     */
-    public static @NonNull AlertNotificationEvent resolved(
-            @NonNull Object source,
-            @NonNull String workshopId,
-            @NonNull String unitId,
-            @NonNull String unitName,
-            @NonNull String severity,
-            @NonNull String resolvedAt
-    ) {
-        String alertId = workshopId + ":" + unitId + ":" + severity + ":" + resolvedAt;
-        String route = "/workshops/" + workshopId + "/units/" + unitId + "/logs";
-        return new AlertNotificationEvent(source, State.RESOLVED,
-                alertId, workshopId, unitId, unitName, severity, resolvedAt, "", route, List.of());
+                alertId, workshopId, unitId, unitName, severity, firstSeenAt,
+                errorSignature, route, groupKey, notificationTag, errors);
     }
 
     private AlertNotificationEvent(
@@ -124,6 +97,8 @@ public class AlertNotificationEvent extends ApplicationEvent {
             @NonNull String occurredAt,
             @NonNull String errorSignature,
             @NonNull String route,
+            @NonNull String groupKey,
+            @NonNull String notificationTag,
             @NonNull List<AlertErrorDTO> errors
     ) {
         super(source);
@@ -136,6 +111,8 @@ public class AlertNotificationEvent extends ApplicationEvent {
         this.occurredAt = occurredAt;
         this.errorSignature = errorSignature;
         this.route = route;
+        this.groupKey = groupKey;
+        this.notificationTag = notificationTag;
         this.errors = List.copyOf(errors);
     }
 
@@ -156,6 +133,10 @@ public class AlertNotificationEvent extends ApplicationEvent {
     public @NonNull String getErrorSignature() { return errorSignature; }
 
     public @NonNull String getRoute() { return route; }
+
+    public @NonNull String getGroupKey() { return groupKey; }
+
+    public @NonNull String getNotificationTag() { return notificationTag; }
 
     public @NonNull List<AlertErrorDTO> getErrors() { return errors; }
 

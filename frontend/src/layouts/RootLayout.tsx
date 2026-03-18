@@ -5,6 +5,7 @@ import { PageHeaderProvider, usePageHeaderContext } from '../context/PageHeaderC
 import { PageHeader } from '../components/PageHeader';
 import { useLiveWs } from '../hooks/useLiveWs';
 import { useHardwareBackGuard } from '../hooks/useHardwareBackGuard';
+import { useWebPush } from '../hooks/useWebPush';
 import type { AlertWsMessage, UnitsStatusMessage } from '../types';
 
 /**
@@ -50,6 +51,9 @@ function RootLayoutInner() {
   // Перехватывает события popstate (кнопка «назад» на Android / в браузере)
   // и гарантирует навигацию строго по иерархии экранов приложения.
   useHardwareBackGuard();
+
+  // Инициализация и синхронизация Web Push-подписки для PWA/TWA.
+  useWebPush();
 
   // Единственное WebSocket-соединение для всего приложения:
   // ALERT_SNAPSHOT при подключении, UNITS_STATUS для цеха, ALERT-дельты глобально.
