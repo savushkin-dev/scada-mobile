@@ -51,7 +51,9 @@ dependencies {
     implementation("org.apache.httpcomponents:httpcore:4.4.16")
     // jose4j — явно объявляем как compile-зависимость: web-push объявляет его runtime-скоупом,
     // но JoseException входит в throws-сигнатуру PushService.send() и нужен при компиляции.
-    implementation("org.bitbucket.b_c:jose4j:0.7.9")
+    // Версия 0.9.6: закрывает CVE (DoS через сжатый JWE-контент) и слабые алгоритмы (<0.9.3).
+    // Gradle выбирает эту версию вместо 0.7.9, транзитивно подтягиваемой через web-push.
+    implementation("org.bitbucket.b_c:jose4j:0.9.6")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-webmvc-test")
