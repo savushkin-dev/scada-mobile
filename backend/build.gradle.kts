@@ -40,6 +40,19 @@ dependencies {
     // springdoc 3.x — ветка для Spring Boot 4 / Spring Framework 7
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.1")
 
+    // Web Push Protocol (VAPID) — отправка push-уведомлений через браузерные push-сервисы.
+    // nl.martijndwars:web-push реализует RFC 8030 + RFC 8292 (VAPID) поверх Apache HttpClient.
+    implementation("nl.martijndwars:web-push:5.1.2")
+    // Bouncy Castle — криптопровайдер для ECDH/ECDSA операций внутри web-push.
+    implementation("org.bouncycastle:bcprov-jdk18on:1.80")
+    // Apache HttpCore — явно объявляем как compile-зависимость, так как web-push объявляет
+    // httpasyncclient (и httpcore транзитивно) с runtime-скоупом, из-за чего HttpResponse
+    // недоступен при компиляции нашего кода.
+    implementation("org.apache.httpcomponents:httpcore:4.4.16")
+    // jose4j — явно объявляем как compile-зависимость: web-push объявляет его runtime-скоупом,
+    // но JoseException входит в throws-сигнатуру PushService.send() и нужен при компиляции.
+    implementation("org.bitbucket.b_c:jose4j:0.7.9")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-webmvc-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
