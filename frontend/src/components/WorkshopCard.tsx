@@ -7,6 +7,14 @@ import {
 import { UnitErrorBoard } from './UnitErrorBoard';
 import type { AlertData, Workshop } from '../types';
 
+/**
+ * Карточка цеха на dashboard.
+ *
+ * Показывает агрегированный статус цеха и, при критике, табло ошибок
+ * проблемных аппаратов. Бизнес-вычисления статуса берутся из
+ * {@link ../constants/statusUtils.ts}.
+ */
+
 interface Props {
   workshop: Workshop;
   alerts: Map<string, AlertData>;

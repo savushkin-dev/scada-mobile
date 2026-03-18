@@ -14,6 +14,18 @@ import { getUnitStatusLevel } from '../constants/statusUtils';
 import { DETAIL_TABS, TAB_ROUTE_SEGMENT } from '../config/ui';
 import type { UnitTopology } from '../types';
 
+/**
+ * Экран цеха: список аппаратов и переход в детали аппарата.
+ *
+ * Роль страницы:
+ * - загружает topology аппаратов выбранного цеха;
+ * - отображает live-статусы аппаратов из AppContext;
+ * - выбирает стартовую вкладку деталей по статусу аппарата
+ *   (critical -> logs, иначе batch).
+ *
+ * Критерии статуса аппарата определены в {@link ../constants/statusUtils.ts}.
+ */
+
 export function WorkshopPage() {
   const { state, unitsByWorkshop, setUnitTopology, setTopologyETag } = useAppContext();
   const { workshopId = '' } = useParams<{ workshopId: string }>();

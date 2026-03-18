@@ -2,6 +2,15 @@ import type { CSSProperties } from 'react';
 import { UI_ANIMATION, UI_BEHAVIOR } from './runtime';
 import { UI_PALETTE } from './ui';
 
+/**
+ * Централизованные inline-style константы.
+ *
+ * Назначение файла — дать единый источник правды для style-объектов,
+ * используемых в TSX-компонентах, где utility-классов недостаточно.
+ *
+ * Общие дизайн-токены (цвета, копирайт, табы) находятся в {@link ./ui.ts}.
+ */
+
 export const PAGE_FADE_SECTION_STYLE: CSSProperties = {
   flex: 1,
   overflowY: 'auto',
@@ -112,9 +121,10 @@ export const FAB_ICON_STYLE: CSSProperties = {
 
 export const FAB_LABEL_STYLE: CSSProperties = {
   overflow: 'hidden',
-  maxWidth: '160px',
+  maxWidth: 'min(160px, calc(100vw - 140px))',
   opacity: 1,
   marginLeft: '8px',
+  textOverflow: 'ellipsis',
 };
 
 export const ERROR_FALLBACK_CONTAINER_STYLE: CSSProperties = {
@@ -219,9 +229,11 @@ export function getFabButtonStyle(collapsed: boolean, sent: boolean): CSSPropert
     position: 'fixed',
     bottom: 'calc(64px + env(safe-area-inset-bottom) + 16px)',
     right: '16px',
-    width: collapsed ? '52px' : 'calc(50% - 8px)',
-    maxWidth: collapsed ? '52px' : '210px',
-    minWidth: '52px',
+    // На узких экранах кнопка должна оставаться читаемой: ширина по контенту,
+    // но не больше безопасной области экрана и не уже удобного touch-size.
+    width: collapsed ? '52px' : 'max-content',
+    maxWidth: collapsed ? '52px' : 'min(210px, calc(100vw - 32px))',
+    minWidth: collapsed ? '52px' : '168px',
     height: '52px',
     padding: collapsed ? '0' : '0 18px',
     borderRadius: collapsed ? '50%' : '26px',

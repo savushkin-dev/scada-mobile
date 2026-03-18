@@ -76,8 +76,8 @@ export interface Unit {
    * `true` — WS-статус для этого аппарата уже получен.
    * `false` — топология загружена, но первый UNITS_STATUS ещё не пришёл.
    *
-   * Используется в {@link getUnitStatusLevel} для возврата `'pending'` вместо
-   * `'warning'`, чтобы карточка оставалась серой, а не жёлтой при старте.
+   * Используется в {@link getUnitStatusLevel} для возврата `'pending'`,
+   * чтобы карточка оставалась в нейтральном состоянии до первого live-статуса.
    */
   statusReady: boolean;
 }
@@ -107,17 +107,3 @@ export interface DevicesStatusPayload {
 export type LiveWsClientAction =
   | { action: 'SUBSCRIBE_WORKSHOP'; workshopId: string }
   | { action: 'UNSUBSCRIBE_WORKSHOP' };
-
-// ── Legacy (определены для совместимости, не валидируются активно) ─────
-
-/** Live-статус цеха (legacy, не входит в активный LiveWsIncomingMessage) */
-export interface WorkshopStatus {
-  workshopId: string;
-  problemUnits: number;
-}
-
-/** WS-конверт для статуса цехов (legacy) */
-export interface WorkshopsStatusMessage {
-  type: 'WORKSHOPS_STATUS';
-  payload: WorkshopStatus[];
-}

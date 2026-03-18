@@ -6,6 +6,14 @@ import {
 import { UnitErrorBoard } from './UnitErrorBoard';
 import type { AlertData, Unit } from '../types';
 
+/**
+ * Карточка аппарата на экране цеха.
+ *
+ * Единый источник правды по статусу и группировке ошибок:
+ * {@link ../constants/statusUtils.ts}. Компонент только отображает результат,
+ * не повторяет доменные правила.
+ */
+
 interface Props {
   unit: Unit;
   alerts: Map<string, AlertData>;

@@ -1,3 +1,14 @@
+/**
+ * main.tsx — входная точка web-клиента.
+ *
+ * Ответственность файла:
+ * - инициализировать React-приложение в DOM-узле `#root`;
+ * - подключить глобальный перехват рендер-ошибок через {@link ErrorBoundary};
+ * - зарегистрировать service worker (PWA/TWA канал).
+ *
+ * Архитектурный поток приложения описан в {@link ./router.tsx} и
+ * {@link ./layouts/RootLayout.tsx}.
+ */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
@@ -22,6 +33,7 @@ createRoot(rootElement).render(
 );
 
 if ('serviceWorker' in navigator) {
+  // SW регистрируем после полной загрузки страницы, чтобы не блокировать first paint.
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/service-worker.js').catch((err) => {
       console.error('[SW] Registration failed:', err);

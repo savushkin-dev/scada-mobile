@@ -13,6 +13,16 @@ import { useDetailsContext } from '../../context/DetailsContext';
 import { TabContentState } from '../TabContentState';
 import { LogsTabSkeleton } from '../skeleton/LogsTabSkeleton';
 
+/**
+ * Вкладка "Журнал".
+ *
+ * Содержит два независимых блока:
+ * - активные ошибки (срез текущего состояния);
+ * - журнал событий (исторические записи).
+ *
+ * Границы загрузки/ошибки унифицированы через {@link ../TabContentState.tsx}.
+ */
+
 export function LogsTab() {
   const { errorsData, unitSignal, pageError } = useDetailsContext();
   const activeErrors = (errorsData?.deviceErrors ?? []).filter(

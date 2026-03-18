@@ -1,6 +1,14 @@
 import { UI_COPY } from '../config';
 import { useAppContext } from '../context/AppContext';
 
+/**
+ * Компактный индикатор ошибки в шапке.
+ *
+ * Показывает только факт ошибки и не дублирует детали.
+ * Детальная расшифровка ошибки отображается на уровне страницы
+ * через getErrorBodyMessage(...) в page-компонентах.
+ */
+
 export function HeaderErrorIndicator() {
   const { headerError } = useAppContext();
 

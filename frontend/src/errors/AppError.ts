@@ -28,8 +28,6 @@ export type AppErrorSource =
   | 'topology/devices' // GET /workshops/{id}/units/{unitId}/devices/topology
   | 'ws/live' // WS  /ws/live (мультиплексный канал)
   | 'ws/unit' // WS  /ws/unit/{unitId}
-  | 'ws/workshops-status' // WS  /ws/workshops/status (legacy)
-  | 'ws/units-status' // WS  /ws/workshops/{id}/units/status (legacy)
   | 'ui/render' // Ошибка React-рендера (ErrorBoundary)
   | 'unknown'; // Источник не определён
 

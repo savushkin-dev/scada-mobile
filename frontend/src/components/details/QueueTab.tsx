@@ -3,6 +3,13 @@ import { useDetailsContext } from '../../context/DetailsContext';
 import { TabContentState } from '../TabContentState';
 import { QueueTabSkeleton } from '../skeleton/QueueTabSkeleton';
 
+/**
+ * Вкладка "Очередь печати".
+ *
+ * Отображает очередь как read-only список из DetailsContext.
+ * Формат текста/лейблов централизован в {@link ../../config/ui.ts}.
+ */
+
 export function QueueTab() {
   const { queueData, unitSignal, pageError } = useDetailsContext();
 

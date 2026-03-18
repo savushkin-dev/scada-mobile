@@ -99,11 +99,6 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
-// ── Удалён исторический isClientError() ──────────────────────────────────
-// Раньше он парсил '/HTTP (\d{3})/' строку, чтобы решить делать ли ретрай.
-// Теперь то же решение принимает classifyError: поле retryable
-// в AppError несёт точный ответ, и хук просто проверяет `!classified.retryable`.
-
 // ── Типы состояния ───────────────────────────────────────────────────
 export interface AsyncFetchState<T> {
   /** Удобный флаг для условий рендера: `true` пока status === 'loading'. */
@@ -203,8 +198,8 @@ export function useAsyncFetch<T>(
           } catch (e) {
             if ((e as Error).name === 'AbortError') return;
 
-            // Классифицируем через единый классификатор. retryable=false заменяет
-            // старый isClientError(): не нужно парсить строки — информация есть на уровне типа.
+            // Классифицируем через единый классификатор: retryable определяет,
+            // есть ли смысл продолжать ретраи для текущей ошибки.
             const classified = classifyError(e, cfg.source ?? 'unknown');
             lastError = classified;
 

@@ -69,8 +69,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error('[ErrorBoundary] Неперехваченная ошибка рендера:', error);
     console.error('[ErrorBoundary] Дерево компонентов:', info.componentStack);
-    // TODO: здесь можно добавить интеграцию с Sentry / аналогом:
-    // Sentry.captureException(error, { extra: { componentStack: info.componentStack } });
   }
 
   reset(): void {

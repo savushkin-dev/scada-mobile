@@ -12,6 +12,17 @@ import { usePageError } from '../hooks/usePageError';
 import { getErrorBodyMessage } from '../errors/AppError';
 import type { WorkshopTopology } from '../types';
 
+/**
+ * Корневой экран приложения: список цехов.
+ *
+ * Роль страницы:
+ * - orchestration topology-fetch для цехов;
+ * - отображение агрегированных live-статусов из AppContext;
+ * - маршрутизация в экран конкретного цеха.
+ *
+ * Правила агрегации статусов описаны в {@link ../constants/statusUtils.ts}.
+ */
+
 export function DashboardPage() {
   const { state, workshops, setWorkshopTopology, setTopologyETag } = useAppContext();
   const navigate = useNavigate();

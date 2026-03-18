@@ -1,3 +1,15 @@
+/*
+  index.css — глобальные стили приложения.
+
+  Слои ответственности:
+  1) base: дизайн-токены и базовая геометрия страницы;
+  2) components: повторно используемые utility-классы карточек/списков/nav;
+  3) media queries: responsive-переопределения.
+
+  Важно: бизнес-правила статусов не описываются здесь.
+  CSS только визуализирует уже вычисленные статусы через классы
+  (`status-normal`, `status-critical`, `status-pending`).
+*/
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -298,10 +310,6 @@
   .badge.success {
     background: #e6f4ea;
     color: #1b6b2f;
-  }
-  .badge.warning {
-    background: #fef9e7;
-    color: #7a5c00;
   }
   .badge.danger {
     background: #fceae9;

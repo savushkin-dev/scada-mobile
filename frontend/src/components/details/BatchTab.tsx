@@ -13,6 +13,14 @@ import { TabContentState } from '../TabContentState';
 import { BatchTabSkeleton } from '../skeleton/BatchTabSkeleton';
 import type { LineStatusPayload } from '../../types';
 
+/**
+ * Вкладка "Партия".
+ *
+ * Источник данных: lineData из DetailsContext.
+ * Наборы полей (порядок/ярлыки) определены централизованно в
+ * {@link ../../config/ui.ts} через BATCH_PRIMARY_FIELDS и BATCH_ADDITIONAL_FIELDS.
+ */
+
 function val(v: string | number | undefined | null): string {
   if (v === null || v === undefined) return DOMAIN_DEFAULTS.emptyValue;
   return String(v);

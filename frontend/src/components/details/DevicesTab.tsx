@@ -9,6 +9,17 @@ import { TabContentState } from '../TabContentState';
 import { DevicesTabSkeleton } from '../skeleton/DevicesTabSkeleton';
 import type { DevicesStatusPayload, DevicesTopology } from '../../types';
 
+/**
+ * Вкладка "Устройства".
+ *
+ * Модель данных двухслойная:
+ * - topology (какие устройства есть) приходит из REST;
+ * - live-статус (что с ними сейчас) приходит из unit WS.
+ *
+ * Доменная логика вычисления статуса устройства находится в
+ * {@link ../../constants/statusUtils.ts}; в этом файле только отображение.
+ */
+
 // ── Конфигурация групп ─────────────────────────────────────────────────────────
 // Статичная таблица соответствия: ключ topology.devices → заголовок + поведение.
 // Порядок задаёт порядок отрисовки карточек.

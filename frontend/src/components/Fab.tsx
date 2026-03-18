@@ -9,6 +9,16 @@ import {
   UI_COPY,
 } from '../config';
 
+/**
+ * FAB для action "последняя партия" на детальной странице аппарата.
+ *
+ * Источники правды:
+ * - визуальные константы и копирайт: {@link ../config/ui.ts}, {@link ../config/styles.ts};
+ * - runtime-порог сворачивания: {@link ../config/runtime.ts}.
+ *
+ * Компонент не хранит бизнес-стейт партии, только выполняет side-effect запроса.
+ */
+
 interface Props {
   visible: boolean;
   unitId: string | null;
@@ -28,6 +38,7 @@ export function Fab({ visible, unitId, scrollContainer }: Props) {
     function handleScroll() {
       const currentY = el.scrollTop;
       const delta = currentY - lastScrollY.current;
+      // Простой UX-алгоритм: вниз -> свернуть; вверх -> развернуть.
       if (delta > UI_BEHAVIOR.fabCollapseScrollDeltaPx) setCollapsed(true);
       else if (delta < -UI_BEHAVIOR.fabCollapseScrollDeltaPx) setCollapsed(false);
       lastScrollY.current = currentY;
