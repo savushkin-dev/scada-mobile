@@ -163,8 +163,8 @@ cors:
   policy:
     # Переопределяется в каждом профиле — здесь намеренно пусто (fail-closed).
     allowed-origins: [ ]
-    # GET — данные, POST — Web Push subscribe (/api/push/subscribe), OPTIONS — preflight.
-    allowed-methods: [ "GET", "POST", "OPTIONS" ]
+    # GET — данные, POST — Web Push subscribe (/api/push/subscribe), DELETE — отписка, OPTIONS — preflight.
+    allowed-methods: [ "GET", "POST", "DELETE", "OPTIONS" ]
     # Content-Type и Authorization — стандартные заголовки запроса.
     # If-None-Match и If-Match — заголовки условного запроса (RFC 7232);
     # необходимы для ETag-кэширования topology-эндпоинтов.
@@ -176,6 +176,32 @@ cors:
     allow-credentials: false
     # Preflight кэшируется браузером 1 час.
     max-age-seconds: 3600
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Web Push / VAPID — конфигурация ключей для отправки push-уведомлений.
+#
+# VAPID (Voluntary Application Server Identification) — стандарт идентификации
+# сервера перед push-сервисами браузеров (RFC 8292).
+#
+# Генерация ключевой пары (Node.js, web-push):
+#   npx web-push generate-vapid-keys
+#
+# В production ключи передаются через переменные окружения:
+#   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT
+#
+# Важно: private key НИКОГДА не должен попадать в Git и логи.
+# Здесь намеренно пустые заглушки (fail-safe: без ключей Web Push отключён).
+# ─────────────────────────────────────────────────────────────────────────────
+vapid:
+  # Публичный ключ VAPID (Base64url, ~88 символов).
+  # Передаётся клиенту для PushManager.subscribe({ applicationServerKey: ... }).
+  # Значение по умолчанию пустое — Web Push не работает без ключей.
+  public-key: ${VAPID_PUBLIC_KEY:}
+  # Приватный ключ VAPID (Base64url). Хранить только в секретах, не в коде!
+  private-key: ${VAPID_PRIVATE_KEY:}
+  # Subject — contact URI, отправляемый в Authorization push-сервису (RFC 8292 §2.1).
+  # Формат: mailto:your@email.com  или  https://your-domain.com
+  subject: ${VAPID_SUBJECT:mailto:scada@example.com}
 
 # Логирование — конфигурация в src/main/resources/logback-spring.xml
 # Уровни переопределяются по профилям (dev / prod) в logback-spring.xml

@@ -5,6 +5,7 @@ import dev.savushkin.scada.mobile.backend.api.dto.AlertMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitStatusDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitsStatusMessageDTO;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceError;
+import dev.savushkin.scada.mobile.backend.infrastructure.notification.AlertNotificationEvent;
 import dev.savushkin.scada.mobile.backend.infrastructure.polling.PrintSrvInstancePolledEvent;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveAlertStore;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.UnitErrorStore;
@@ -13,6 +14,7 @@ import dev.savushkin.scada.mobile.backend.services.UnitDetailService;
 import dev.savushkin.scada.mobile.backend.services.WorkshopService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -32,7 +34,9 @@ import java.util.List;
  *   <li>Этот компонент обрабатывает событие:
  *     <ul>
  *       <li>Рассылает обновление статуса конкретного аппарата</li>
- *       <li>Вычисляет дельту алёрта этого аппарата и при необходимости рассылает {@code ALERT}</li>
+ *       <li>Вычисляет дельту алёрта этого аппарата; при изменении дельты рассылает
+ *           {@code ALERT} через WebSocket <em>и</em> публикует
+ *           {@link AlertNotificationEvent} для delivery-адаптеров (Web Push и др.)</li>
  *     </ul>
  *   </li>
  * </ol>
@@ -49,6 +53,7 @@ public class StatusBroadcaster {
     private final UnitDetailService unitDetailService;
     private final LiveWsHandler liveWsHandler;
     private final UnitWsHandler unitWsHandler;
+    private final ApplicationEventPublisher eventPublisher;
 
     public StatusBroadcaster(
             WorkshopService workshopService,
@@ -57,7 +62,8 @@ public class StatusBroadcaster {
             UnitErrorStore unitErrorStore,
             UnitDetailService unitDetailService,
             LiveWsHandler liveWsHandler,
-            UnitWsHandler unitWsHandler
+            UnitWsHandler unitWsHandler,
+            ApplicationEventPublisher eventPublisher
     ) {
         this.workshopService = workshopService;
         this.alertService = alertService;
@@ -66,6 +72,7 @@ public class StatusBroadcaster {
         this.unitDetailService = unitDetailService;
         this.liveWsHandler = liveWsHandler;
         this.unitWsHandler = unitWsHandler;
+        this.eventPublisher = eventPublisher;
     }
 
     @EventListener
@@ -105,10 +112,6 @@ public class StatusBroadcaster {
     }
 
     private void broadcastAlertDelta(String instanceId) {
-        if (liveWsHandler.getTotalSessionCount() == 0) {
-            return;
-        }
-
         AlertMessageDTO currentAlert = alertService.computeAlertForInstance(instanceId).orElse(null);
         ActiveAlertStore.Delta delta = alertStore.updateAndDiff(instanceId, currentAlert);
 
@@ -119,14 +122,30 @@ public class StatusBroadcaster {
         String resolvedAt = LocalDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
 
         for (AlertMessageDTO added : delta.added()) {
-            sendAlert(added);
-            log.info("Alert ACTIVE: unit='{}', workshop='{}', severity='{}', msg='{}'",
-                    added.unitId(), added.workshopId(), added.severity(),
+            if (liveWsHandler.getTotalSessionCount() > 0) {
+                sendAlert(added);
+            }
+            String errorSignature = ActiveAlertStore.computeErrorSignature(added.errors());
+            eventPublisher.publishEvent(
+                    AlertNotificationEvent.activated(this,
+                            added.workshopId(), added.unitId(), added.unitName(),
+                            added.severity(), added.timestamp(), errorSignature, added.errors())
+            );
+            log.info("Alert ACTIVE: unit='{}', workshop='{}', severity='{}', signature='{}', msg='{}'",
+                    added.unitId(), added.workshopId(), added.severity(), errorSignature,
                     added.errors().isEmpty() ? "" : added.errors().getFirst().message());
         }
 
         for (AlertMessageDTO removed : delta.removed()) {
-            sendAlert(removed.resolved(resolvedAt));
+            AlertMessageDTO resolvedAlert = removed.resolved(resolvedAt);
+            if (liveWsHandler.getTotalSessionCount() > 0) {
+                sendAlert(resolvedAlert);
+            }
+            eventPublisher.publishEvent(
+                    AlertNotificationEvent.resolved(this,
+                            removed.workshopId(), removed.unitId(), removed.unitName(),
+                            removed.severity(), resolvedAt)
+            );
             log.info("Alert RESOLVED: unit='{}', workshop='{}'", removed.unitId(), removed.workshopId());
         }
     }
