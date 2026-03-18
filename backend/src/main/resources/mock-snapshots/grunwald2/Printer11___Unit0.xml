@@ -1,4 +1,4 @@
-<DeviceUnit
+﻿<DeviceUnit
     xmlns="http://schemas.datacontract.org/2004/07/MarkPrintServer.Classes">
     <counterloginterval>1000</counterloginterval>
     <properties xmlns:d2p1="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
@@ -24,11 +24,11 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>descr</d2p1:Key>
-            <d2p1:Value>Кефир 2.5% 500мл п/п</d2p1:Value>
+            <d2p1:Value>РљРµС„РёСЂ 2.5% 500РјР» Рї/Рї</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>ip</d2p1:Key>
-            <d2p1:Value>192.168.2.32</d2p1:Value>
+            <d2p1:Value>10.0.0.32</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>les</d2p1:Key>
@@ -124,3 +124,4 @@
         </d2p1:KeyValueOfstringstring>
     </properties>
 </DeviceUnit>
+

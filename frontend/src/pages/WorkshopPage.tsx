@@ -10,6 +10,8 @@ import { useAsyncFetch } from '../hooks/useAsyncFetch';
 import { useHeaderErrorSlot } from '../hooks/useHeaderErrorSlot';
 import { usePageError } from '../hooks/usePageError';
 import { getErrorBodyMessage } from '../errors/AppError';
+import { getUnitStatusLevel } from '../constants/statusUtils';
+import { DETAIL_TABS, TAB_ROUTE_SEGMENT } from '../config/ui';
 import type { UnitTopology } from '../types';
 
 export function WorkshopPage() {
@@ -80,11 +82,16 @@ export function WorkshopPage() {
               key={u.id}
               unit={u}
               alerts={state.alerts}
-              onClick={() =>
-                navigate(`/workshops/${workshopId}/units/${u.id}`, {
+              onClick={() => {
+                const targetTab =
+                  getUnitStatusLevel(u, state.alerts) === 'critical'
+                    ? DETAIL_TABS.logs
+                    : DETAIL_TABS.batch;
+
+                navigate(`/workshops/${workshopId}/units/${u.id}/${TAB_ROUTE_SEGMENT[targetTab]}`, {
                   state: { workshopName },
-                })
-              }
+                });
+              }}
             />
           ))
         )}
