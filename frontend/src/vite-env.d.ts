@@ -6,3 +6,5 @@
  * Схема и валидация env-переменных находятся в {@link ./schemas/env.ts}.
  */
 /// <reference types="vite/client" />
+
+declare const __BUILD_ID__: string;

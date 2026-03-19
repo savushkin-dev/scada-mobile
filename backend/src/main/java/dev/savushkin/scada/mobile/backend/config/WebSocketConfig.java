@@ -54,14 +54,20 @@ public class WebSocketConfig implements WebSocketConfigurer {
         String[] allowedOrigins = corsProperties.getPolicy()
                 .getAllowedOrigins()
                 .toArray(String[]::new);
+        String[] allowedOriginPatterns = corsProperties.getPolicy()
+                .getAllowedOriginPatterns()
+                .toArray(String[]::new);
 
         registry.addHandler(liveWsHandler, "/ws/live")
-                .setAllowedOrigins(allowedOrigins);
+                .setAllowedOrigins(allowedOrigins)
+                .setAllowedOriginPatterns(allowedOriginPatterns);
 
         registry.addHandler(unitWsHandler, "/ws/unit/*")
-                .setAllowedOrigins(allowedOrigins);
+                .setAllowedOrigins(allowedOrigins)
+                .setAllowedOriginPatterns(allowedOriginPatterns);
 
-        log.info("WebSocket endpoints registered: /ws/live, /ws/unit/* (allowedOrigins: {})",
-                corsProperties.getPolicy().getAllowedOrigins());
+        log.info("WebSocket endpoints registered: /ws/live, /ws/unit/* (allowedOrigins: {}, allowedOriginPatterns: {})",
+                corsProperties.getPolicy().getAllowedOrigins(),
+                corsProperties.getPolicy().getAllowedOriginPatterns());
     }
 }

@@ -1,8 +1,7 @@
-import { useCallback, useEffect } from 'react';
+import { lazy, Suspense, useCallback, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { DOMAIN_DEFAULTS, PAGE_FADE_SECTION_STYLE, UI_BEHAVIOR, UI_COPY } from '../config';
 import { fetchUnitsTopology, type TopologyFetchResult } from '../api/workshops';
-import { UnitCard } from '../components/UnitCard';
 import { UnitCardSkeleton } from '../components/skeleton/UnitCardSkeleton';
 import { useAppContext } from '../context/AppContext';
 import { usePageHeader } from '../context/PageHeaderContext';
@@ -13,6 +12,11 @@ import { getErrorBodyMessage } from '../errors/AppError';
 import { getUnitStatusLevel } from '../constants/statusUtils';
 import { DETAIL_TABS, TAB_ROUTE_SEGMENT } from '../config/ui';
 import type { UnitTopology } from '../types';
+
+const UnitCard = lazy(async () => {
+  const module = await import('../components/UnitCard');
+  return { default: module.UnitCard };
+});
 
 /**
  * Экран цеха: список аппаратов и переход в детали аппарата.
@@ -89,23 +93,32 @@ export function WorkshopPage() {
         ) : !units.length && fetchState.status === 'success' ? (
           <p className="text-center text-[#74777F] py-5 text-[0.88rem]">{UI_COPY.noData}</p>
         ) : !units.length ? null : (
-          units.map((u) => (
-            <UnitCard
-              key={u.id}
-              unit={u}
-              alerts={state.alerts}
-              onClick={() => {
-                const targetTab =
-                  getUnitStatusLevel(u, state.alerts) === 'critical'
-                    ? DETAIL_TABS.logs
-                    : DETAIL_TABS.batch;
+          <Suspense
+            fallback={
+              <UnitCardSkeleton count={Math.max(units.length, UI_BEHAVIOR.workshopSkeletonCount)} />
+            }
+          >
+            {units.map((u) => (
+              <UnitCard
+                key={u.id}
+                unit={u}
+                alerts={state.alerts}
+                onClick={() => {
+                  const targetTab =
+                    getUnitStatusLevel(u, state.alerts) === 'critical'
+                      ? DETAIL_TABS.logs
+                      : DETAIL_TABS.batch;
 
-                navigate(`/workshops/${workshopId}/units/${u.id}/${TAB_ROUTE_SEGMENT[targetTab]}`, {
-                  state: { workshopName },
-                });
-              }}
-            />
-          ))
+                  navigate(
+                    `/workshops/${workshopId}/units/${u.id}/${TAB_ROUTE_SEGMENT[targetTab]}`,
+                    {
+                      state: { workshopName },
+                    }
+                  );
+                }}
+              />
+            ))}
+          </Suspense>
         )}
       </main>
     </section>

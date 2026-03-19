@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Сервис runtime-discovery состава устройств аппарата.
@@ -47,12 +46,27 @@ public class DeviceCompositionService {
 
     public DeviceCompositionService(PrintSrvProperties config, InstanceSnapshotRepository snapshotRepo) {
         this.snapshotRepo = snapshotRepo;
-        this.instancesById = config.getInstances().stream()
-                .collect(Collectors.toUnmodifiableMap(
-                        InstanceProperties::getId,
-                        inst -> inst,
-                        (left, right) -> left
-                ));
+
+        List<InstanceProperties> rawInstances = config.getInstances() == null
+                ? List.of()
+                : config.getInstances();
+
+        Map<String, InstanceProperties> byId = new LinkedHashMap<>();
+        for (InstanceProperties inst : rawInstances) {
+            if (inst == null) {
+                continue;
+            }
+
+            String id = inst.getId();
+            if (id == null || id.isBlank()) {
+                log.warn("Skipping PrintSrv instance with empty id in configuration: {}", inst);
+                continue;
+            }
+
+            byId.putIfAbsent(id, inst);
+        }
+
+        this.instancesById = Map.copyOf(byId);
     }
 
     /**

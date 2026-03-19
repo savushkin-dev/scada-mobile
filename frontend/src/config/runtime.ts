@@ -81,7 +81,12 @@ export const UI_ANIMATION = Object.freeze({
 
 export const UI_BEHAVIOR = Object.freeze({
   emptyCollectionSize: 0,
-  fabCollapseScrollDeltaPx: 4,
+  // ~80px scroll to go from fully expanded to icon-only state.
+  fabCollapseDistancePx: 80,
+  // Ignore tiny scroll noise from inertial/bounce physics.
+  fabScrollNoiseThresholdPx: 0.75,
+  // Visual smoothing per animation frame (0..1).
+  fabCollapseSmoothing: 0.35,
   fabSentResetDelayMs: 2_000,
   detailsBottomPaddingPx: 80,
   dashboardSkeletonCount: 3,

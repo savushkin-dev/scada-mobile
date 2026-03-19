@@ -115,16 +115,20 @@ export const LOGS_DESCRIPTION_STYLE: CSSProperties = {
 
 export const FAB_ICON_STYLE: CSSProperties = {
   fontSize: '1.15rem',
+  width: '20px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
   flexShrink: 0,
   lineHeight: 1,
 };
 
 export const FAB_LABEL_STYLE: CSSProperties = {
   overflow: 'hidden',
-  maxWidth: 'min(160px, calc(100vw - 140px))',
-  opacity: 1,
-  marginLeft: '8px',
+  display: 'block',
+  whiteSpace: 'nowrap',
   textOverflow: 'ellipsis',
+  willChange: 'max-width, opacity, margin-left, transform',
 };
 
 export const ERROR_FALLBACK_CONTAINER_STYLE: CSSProperties = {
@@ -224,26 +228,51 @@ export const SKELETON_BLOCK_DEFAULTS = Object.freeze({
   animation: 'skeleton-shimmer 1.6s ease-in-out infinite',
 });
 
-export function getFabButtonStyle(collapsed: boolean, sent: boolean): CSSProperties {
+const FAB_COLLAPSED_SIZE_PX = 52;
+const FAB_EXPANDED_MIN_WIDTH_PX = 168;
+const FAB_EXPANDED_MAX_WIDTH_PX = 210;
+const FAB_HORIZONTAL_PADDING_PX = 18;
+const FAB_LABEL_GAP_PX = 8;
+const FAB_LABEL_MAX_WIDTH_PX = 160;
+const FAB_LABEL_VIEWPORT_OFFSET_PX = 140;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function getFabExpandedWidthPx(viewportWidth: number): number {
+  const availableWidth = Math.max(0, viewportWidth - 32);
+  return clamp(availableWidth, FAB_EXPANDED_MIN_WIDTH_PX, FAB_EXPANDED_MAX_WIDTH_PX);
+}
+
+export function getFabButtonStyle(
+  collapseProgress: number,
+  sent: boolean,
+  viewportWidth: number
+): CSSProperties {
+  const progress = clamp(collapseProgress, 0, 1);
+  const expandedWidthPx = getFabExpandedWidthPx(viewportWidth);
+  const widthPx =
+    FAB_COLLAPSED_SIZE_PX + (expandedWidthPx - FAB_COLLAPSED_SIZE_PX) * (1 - progress);
+  const horizontalPaddingPx = FAB_HORIZONTAL_PADDING_PX * (1 - progress);
+  const shadowBlurPx = 14 + (20 - 14) * (1 - progress);
+  const shadowOpacity = 0.4 + 0.1 * progress;
+
   return {
     position: 'fixed',
     bottom: 'calc(64px + var(--bottom-safe-offset, 0px) + 16px)',
     right: '16px',
-    // На узких экранах кнопка должна оставаться читаемой: ширина по контенту,
-    // но не больше безопасной области экрана и не уже удобного touch-size.
-    width: collapsed ? '52px' : 'max-content',
-    maxWidth: collapsed ? '52px' : 'min(210px, calc(100vw - 32px))',
-    minWidth: collapsed ? '52px' : '168px',
+    width: `${widthPx}px`,
+    maxWidth: `${widthPx}px`,
+    minWidth: `${widthPx}px`,
     height: '52px',
-    padding: collapsed ? '0' : '0 18px',
-    borderRadius: collapsed ? '50%' : '26px',
-    justifyContent: collapsed ? 'center' : 'flex-start',
+    padding: `0 ${horizontalPaddingPx}px`,
+    borderRadius: '26px',
+    justifyContent: 'center',
     background: sent ? UI_PALETTE.success : UI_PALETTE.fabIdle,
     boxShadow: sent
       ? '0 4px 20px rgba(52,168,83,0.4)'
-      : collapsed
-        ? '0 4px 14px rgba(249,115,22,0.5)'
-        : '0 4px 20px rgba(249,115,22,0.4)',
+      : `0 4px ${shadowBlurPx}px rgba(249,115,22,${shadowOpacity})`,
     zIndex: 9,
     display: 'flex',
     alignItems: 'center',
@@ -256,7 +285,26 @@ export function getFabButtonStyle(collapsed: boolean, sent: boolean): CSSPropert
     fontWeight: 700,
     letterSpacing: '0.01em',
     color: UI_PALETTE.white,
-    transition:
-      'width 0.3s ease, max-width 0.3s ease, padding 0.3s ease, border-radius 0.3s ease, opacity 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease',
+    transform: 'translateZ(0)',
+    willChange: 'width, padding, box-shadow',
+    transition: 'background-color 0.2s ease, box-shadow 0.2s ease',
+  };
+}
+
+export function getFabLabelStyle(collapseProgress: number, viewportWidth: number): CSSProperties {
+  const progress = clamp(collapseProgress, 0, 1);
+  const revealProgress = 1 - progress;
+  const fullLabelWidthPx = clamp(
+    viewportWidth - FAB_LABEL_VIEWPORT_OFFSET_PX,
+    0,
+    FAB_LABEL_MAX_WIDTH_PX
+  );
+
+  return {
+    ...FAB_LABEL_STYLE,
+    maxWidth: `${fullLabelWidthPx * revealProgress}px`,
+    opacity: revealProgress,
+    marginLeft: `${FAB_LABEL_GAP_PX * revealProgress}px`,
+    transform: `translateX(${6 * progress}px)`,
   };
 }

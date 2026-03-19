@@ -58,16 +58,22 @@ printsrv:
     # Быстрый выключатель симуляции без пересборки.
     simulation-enabled: true
 
-# CORS: dev — только allowed-origins переопределяем здесь.
+# CORS: dev — переопределяем origins/patterns только для локальной разработки.
 # Остальные поля (allowed-methods, allowed-headers, allow-credentials, max-age-seconds)
 # наследуются из application.yaml — не дублируем.
 cors:
   policy:
+    # Локальные фронты: localhost и 127.0.0.1 на любом порту.
+    allowed-origin-patterns:
+      - "http://localhost:[*]"
+      - "http://127.0.0.1:[*]"
+      - "https://localhost:[*]"
+      - "https://127.0.0.1:[*]"
+      - "https://*.ngrok-free.dev"
+      - "https://*.ngrok-free.app"
+
+    # Нелокальные dev-origin'ы оставляем явным allowlist.
     allowed-origins:
-      - "http://127.0.0.1:5500"   # VS Code Live Server
-      - "http://localhost:5500"   # Live Server (альтернативный хост)
-      - "http://localhost:5173"   # Vite dev server (npm run dev)
-      - "http://127.0.0.1:5173"  # Vite dev server (альтернативный хост)
       - "https://conchita-semidefined-cuckoldly.ngrok-free.dev"
 
 # OpenAPI/Swagger UI: включено для разработки

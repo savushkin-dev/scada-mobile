@@ -30,6 +30,12 @@ public class CorsProperties {
         private List<String> allowedOrigins = List.of();
 
         /**
+         * Разрешённые origin-patterns (например, localhost на любом порту).
+         * Примеры: {@code http://localhost:[*]}, {@code http://127.0.0.1:[*]}.
+         */
+        private List<String> allowedOriginPatterns = List.of();
+
+        /**
          * Разрешённые методы (минимизируем список).
          */
         private List<String> allowedMethods = List.of("GET", "POST", "OPTIONS");
@@ -62,6 +68,14 @@ public class CorsProperties {
 
         public void setAllowedOrigins(List<String> allowedOrigins) {
             this.allowedOrigins = allowedOrigins;
+        }
+
+        public List<String> getAllowedOriginPatterns() {
+            return allowedOriginPatterns;
+        }
+
+        public void setAllowedOriginPatterns(List<String> allowedOriginPatterns) {
+            this.allowedOriginPatterns = allowedOriginPatterns;
         }
 
         public List<String> getAllowedMethods() {

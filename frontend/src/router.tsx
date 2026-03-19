@@ -18,15 +18,54 @@
  *   - Данные для вкладок доступны через DetailsContext (WS + REST).
  */
 
+import { lazy, Suspense, type ReactElement } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { RootLayout } from './layouts/RootLayout';
-import { DetailsLayout } from './layouts/DetailsLayout';
-import { DashboardPage } from './pages/DashboardPage';
-import { WorkshopPage } from './pages/WorkshopPage';
-import { BatchTab } from './components/details/BatchTab';
-import { DevicesTab } from './components/details/DevicesTab';
-import { QueueTab } from './components/details/QueueTab';
-import { LogsTab } from './components/details/LogsTab';
+
+const DetailsLayout = lazy(async () => {
+  const module = await import('./layouts/DetailsLayout');
+  return { default: module.DetailsLayout };
+});
+
+const DashboardPage = lazy(async () => {
+  const module = await import('./pages/DashboardPage');
+  return { default: module.DashboardPage };
+});
+
+const WorkshopPage = lazy(async () => {
+  const module = await import('./pages/WorkshopPage');
+  return { default: module.WorkshopPage };
+});
+
+const BatchTab = lazy(async () => {
+  const module = await import('./components/details/BatchTab');
+  return { default: module.BatchTab };
+});
+
+const DevicesTab = lazy(async () => {
+  const module = await import('./components/details/DevicesTab');
+  return { default: module.DevicesTab };
+});
+
+const QueueTab = lazy(async () => {
+  const module = await import('./components/details/QueueTab');
+  return { default: module.QueueTab };
+});
+
+const LogsTab = lazy(async () => {
+  const module = await import('./components/details/LogsTab');
+  return { default: module.LogsTab };
+});
+
+const routeFallback = (
+  <section className="px-4 py-6 text-center text-[#74777F] text-sm sm:px-6 lg:px-8">
+    Loading...
+  </section>
+);
+
+function withSuspense(element: ReactElement): ReactElement {
+  return <Suspense fallback={routeFallback}>{element}</Suspense>;
+}
 
 export const router = createBrowserRouter([
   {
@@ -35,15 +74,15 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <DashboardPage />,
+        element: withSuspense(<DashboardPage />),
       },
       {
         path: 'workshops/:workshopId',
-        element: <WorkshopPage />,
+        element: withSuspense(<WorkshopPage />),
       },
       {
         path: 'workshops/:workshopId/units/:unitId',
-        element: <DetailsLayout />,
+        element: withSuspense(<DetailsLayout />),
         children: [
           {
             index: true,
@@ -51,19 +90,19 @@ export const router = createBrowserRouter([
           },
           {
             path: 'batch',
-            element: <BatchTab />,
+            element: withSuspense(<BatchTab />),
           },
           {
             path: 'devices',
-            element: <DevicesTab />,
+            element: withSuspense(<DevicesTab />),
           },
           {
             path: 'queue',
-            element: <QueueTab />,
+            element: withSuspense(<QueueTab />),
           },
           {
             path: 'logs',
-            element: <LogsTab />,
+            element: withSuspense(<LogsTab />),
           },
         ],
       },

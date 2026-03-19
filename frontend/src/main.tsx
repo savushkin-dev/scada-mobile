@@ -1,13 +1,5 @@
 /**
- * main.tsx — входная точка web-клиента.
- *
- * Ответственность файла:
- * - инициализировать React-приложение в DOM-узле `#root`;
- * - подключить глобальный перехват рендер-ошибок через {@link ErrorBoundary};
- * - зарегистрировать service worker (PWA/TWA канал).
- *
- * Архитектурный поток приложения описан в {@link ./router.tsx} и
- * {@link ./layouts/RootLayout.tsx}.
+ * main.tsx - web client entrypoint.
  */
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -37,18 +29,45 @@ createRoot(rootElement).render(
 
 if ('serviceWorker' in navigator) {
   if (import.meta.env.DEV) {
-    // В dev отключаем SW, чтобы не держать старый кэш/бандл при отладке через ngrok.
     void navigator.serviceWorker.getRegistrations().then((registrations) => {
       registrations.forEach((registration) => {
         void registration.unregister();
       });
     });
   } else {
-    // SW регистрируем после полной загрузки страницы, чтобы не блокировать first paint.
+    const SW_URL = `/service-worker.js?v=${encodeURIComponent(__BUILD_ID__)}`;
+
+    const activateWaitingWorker = (registration: ServiceWorkerRegistration) => {
+      registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
+    };
+
+    let hasReloadedForSwUpdate = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hasReloadedForSwUpdate) return;
+      hasReloadedForSwUpdate = true;
+      window.location.reload();
+    });
+
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/service-worker.js').catch((err) => {
-        console.error('[SW] Registration failed:', err);
-      });
+      navigator.serviceWorker
+        .register(SW_URL)
+        .then((registration) => {
+          activateWaitingWorker(registration);
+
+          registration.addEventListener('updatefound', () => {
+            const worker = registration.installing;
+            if (!worker) return;
+
+            worker.addEventListener('statechange', () => {
+              if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+                activateWaitingWorker(registration);
+              }
+            });
+          });
+        })
+        .catch((err) => {
+          console.error('[SW] Registration failed:', err);
+        });
     });
   }
 }

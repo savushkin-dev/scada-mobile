@@ -1,0 +1,16 @@
+.git
+.github
+.vscode
+.idea
+
+build
+.gradle
+logs
+bin
+
+**/*.log
+**/*.pid
+
+Dockerfile*
+README.md
+*.md

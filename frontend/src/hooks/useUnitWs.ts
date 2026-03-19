@@ -66,7 +66,6 @@ export function useUnitWs(
     });
 
     return () => {
-      callbacksRef.current?.onRecovered?.();
       conn.destroy();
     };
   }, [unitId]);

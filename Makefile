@@ -11,6 +11,12 @@ GRADLEW := ./gradlew
 endif
 
 .PHONY: help back-run back-run-prod front-install front-dev front-build bwa-init bwa-build-apk
+.PHONY: docker-dev-up docker-dev-down docker-prod-up docker-prod-down docker-ps
+
+DOCKER_BASE_FILES := -f docker-compose.yml
+DOCKER_DEV_FILES := -f docker-compose.dev.yml
+DOCKER_PROD_FILES := -f docker-compose.prod.yml
+PROD_ENV_FILE ?= .env.prod.local
 
 help:
 	@echo "SCADA Mobile shortcuts"
@@ -18,6 +24,13 @@ help:
 	@echo "Backend:"
 	@echo "  make back-run       - запустить backend [профиль dev, Swagger включён]"
 	@echo "  make back-run-prod  - запустить backend [профиль prod, Swagger выключен]"
+	@echo ""
+	@echo "Docker:"
+	@echo "  make docker-dev-up    - поднять docker-стек в dev режиме"
+	@echo "  make docker-dev-down  - остановить docker-стек dev"
+	@echo "  make docker-prod-up   - поднять docker-стек в prod режиме (env: PROD_ENV_FILE=.env.prod.local)"
+	@echo "  make docker-prod-down - остановить docker-стек prod"
+	@echo "  make docker-ps        - статус контейнеров текущего стека"
 	@echo ""
 	@echo "Frontend (placeholders):"
 	@echo "  make front-install - placeholder: install frontend deps"
@@ -61,3 +74,23 @@ bwa-init:
 bwa-build-apk:
 	@echo "[placeholder] Add bubblewrap APK build command here."
 	@echo "Example: cd android && npx @bubblewrap/cli build"
+
+docker-dev-up:
+	docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) up --build -d
+
+docker-dev-down:
+	docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) down
+
+docker-prod-up:
+	@if [ ! -f "$(PROD_ENV_FILE)" ]; then \
+		echo "Missing $(PROD_ENV_FILE). Copy .env.prod.example -> $(PROD_ENV_FILE) and fill values."; \
+		exit 1; \
+	fi
+	docker compose --env-file $(PROD_ENV_FILE) $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) up --build -d
+
+docker-prod-down:
+	docker compose $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) down
+
+docker-ps:
+	docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) ps || true
+	docker compose $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) ps || true

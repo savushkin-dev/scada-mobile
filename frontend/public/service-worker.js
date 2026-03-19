@@ -8,7 +8,9 @@
  * данные SCADA должны быть всегда актуальными.
  */
 
-const CACHE_NAME = 'scada-mobile';
+const CACHE_PREFIX = 'scada-mobile-';
+const SW_VERSION = new URL(self.location.href).searchParams.get('v') ?? 'dev';
+const CACHE_NAME = `${CACHE_PREFIX}${SW_VERSION}`;
 
 /** Статические ресурсы оболочки (app shell).
  *  Vite генерирует JS/CSS с хешами в именах — они кешируются динамически
@@ -43,7 +45,11 @@ self.addEventListener('activate', (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+        Promise.all(
+          keys
+            .filter((k) => k.startsWith(CACHE_PREFIX) && k !== CACHE_NAME)
+            .map((k) => caches.delete(k))
+        )
       )
       .then(() => self.clients.claim())
   );

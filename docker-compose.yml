@@ -1,0 +1,21 @@
+name: scada-mobile
+
+services:
+  backend:
+    image: scada-mobile/backend:0.1.0
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      JAVA_OPTS: ${JAVA_OPTS:-}
+    restart: unless-stopped
+
+  frontend:
+    image: scada-mobile/frontend:0.1.0
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped

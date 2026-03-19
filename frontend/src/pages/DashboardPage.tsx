@@ -1,8 +1,7 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { APP_BRAND, PAGE_FADE_SECTION_STYLE, UI_BEHAVIOR, UI_COPY } from '../config';
 import { fetchWorkshopsTopology, type TopologyFetchResult } from '../api/workshops';
-import { WorkshopCard } from '../components/WorkshopCard';
 import { WorkshopCardSkeleton } from '../components/skeleton/WorkshopCardSkeleton';
 import { useAppContext } from '../context/AppContext';
 import { usePageHeader } from '../context/PageHeaderContext';
@@ -11,6 +10,11 @@ import { useHeaderErrorSlot } from '../hooks/useHeaderErrorSlot';
 import { usePageError } from '../hooks/usePageError';
 import { getErrorBodyMessage } from '../errors/AppError';
 import type { WorkshopTopology } from '../types';
+
+const WorkshopCard = lazy(async () => {
+  const module = await import('../components/WorkshopCard');
+  return { default: module.WorkshopCard };
+});
 
 /**
  * Корневой экран приложения: список цехов.
@@ -80,14 +84,24 @@ export function DashboardPage() {
         ) : !workshops.length && fetchState.status === 'success' ? (
           <p className="text-center text-[#74777F] py-5 text-[0.88rem]">{UI_COPY.noData}</p>
         ) : !workshops.length ? null : (
-          workshops.map((ws) => (
-            <WorkshopCard
-              key={ws.id}
-              workshop={ws}
-              alerts={state.alerts}
-              onClick={() => navigate(`/workshops/${ws.id}`, { state: { workshopName: ws.name } })}
-            />
-          ))
+          <Suspense
+            fallback={
+              <WorkshopCardSkeleton
+                count={Math.max(workshops.length, UI_BEHAVIOR.dashboardSkeletonCount)}
+              />
+            }
+          >
+            {workshops.map((ws) => (
+              <WorkshopCard
+                key={ws.id}
+                workshop={ws}
+                alerts={state.alerts}
+                onClick={() =>
+                  navigate(`/workshops/${ws.id}`, { state: { workshopName: ws.name } })
+                }
+              />
+            ))}
+          </Suspense>
         )}
       </main>
     </section>
