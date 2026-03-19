@@ -68,6 +68,7 @@ cors:
       - "http://localhost:5500"   # Live Server (альтернативный хост)
       - "http://localhost:5173"   # Vite dev server (npm run dev)
       - "http://127.0.0.1:5173"  # Vite dev server (альтернативный хост)
+      - "https://conchita-semidefined-cuckoldly.ngrok-free.dev"
 
 # OpenAPI/Swagger UI: включено для разработки
 springdoc:

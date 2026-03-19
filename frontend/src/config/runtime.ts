@@ -11,8 +11,15 @@ if (!_envResult.success && import.meta.env.DEV) {
   );
 }
 
-export const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8080';
-export const WS_BASE = import.meta.env.VITE_WS_BASE ?? 'ws://localhost:8080';
+const runtimeOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+const runtimeWsOrigin =
+  typeof window !== 'undefined'
+    ? `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`
+    : '';
+
+// Дефолт через current-origin: это убирает зависимость от localhost на телефоне/ngrok.
+export const API_BASE = import.meta.env.VITE_API_BASE ?? runtimeOrigin;
+export const WS_BASE = import.meta.env.VITE_WS_BASE ?? runtimeWsOrigin;
 
 export const WS_RECONNECT_BASE_DELAY_MS = 2_000;
 export const WS_RECONNECT_MAX_DELAY_MS = 30_000;

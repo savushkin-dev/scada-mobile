@@ -33,10 +33,19 @@ createRoot(rootElement).render(
 );
 
 if ('serviceWorker' in navigator) {
-  // SW регистрируем после полной загрузки страницы, чтобы не блокировать first paint.
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js').catch((err) => {
-      console.error('[SW] Registration failed:', err);
+  if (import.meta.env.DEV) {
+    // В dev отключаем SW, чтобы не держать старый кэш/бандл при отладке через ngrok.
+    void navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((registration) => {
+        void registration.unregister();
+      });
     });
-  });
+  } else {
+    // SW регистрируем после полной загрузки страницы, чтобы не блокировать first paint.
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js').catch((err) => {
+        console.error('[SW] Registration failed:', err);
+      });
+    });
+  }
 }
