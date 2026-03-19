@@ -1,11 +1,45 @@
-import { useCallback, useEffect } from 'react';
-import { Outlet, useMatch } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { Outlet, useLocation, useMatch } from 'react-router-dom';
+import { ALERT_VIBRATION_COOLDOWN_MS, ALERT_VIBRATION_PATTERN } from '../config';
 import { AppProvider, useAppContext } from '../context/AppContext';
 import { PageHeaderProvider, usePageHeaderContext } from '../context/PageHeaderContext';
 import { PageHeader } from '../components/PageHeader';
 import { useLiveWs } from '../hooks/useLiveWs';
 import { useHardwareBackGuard } from '../hooks/useHardwareBackGuard';
 import type { AlertWsMessage, UnitsStatusMessage } from '../types';
+
+type AlertRouteScope =
+  | { kind: 'dashboard' }
+  | { kind: 'workshop'; workshopId: string }
+  | { kind: 'unit'; unitId: string }
+  | { kind: 'other' };
+
+function resolveAlertRouteScope(pathname: string): AlertRouteScope {
+  const segments = pathname.split('/').filter(Boolean);
+  if (segments.length === 0) return { kind: 'dashboard' };
+  if (segments[0] !== 'workshops') return { kind: 'other' };
+  if (segments.length === 2) return { kind: 'workshop', workshopId: segments[1] };
+  if (segments.length >= 4 && segments[2] === 'units') {
+    return { kind: 'unit', unitId: segments[3] };
+  }
+  return { kind: 'other' };
+}
+
+function shouldVibrateAlert(msg: AlertWsMessage, scope: AlertRouteScope): boolean {
+  // Вибрация только на появление активной ошибки.
+  if (!msg.active || msg.errors.length === 0) return false;
+
+  switch (scope.kind) {
+    case 'unit':
+      return scope.unitId === String(msg.unitId);
+    case 'workshop':
+      return scope.workshopId === msg.workshopId;
+    case 'dashboard':
+      return true;
+    default:
+      return false;
+  }
+}
 
 /**
  * Внутренний компонент, имеющий доступ к AppContext и PageHeaderContext.
@@ -30,6 +64,12 @@ function RootLayoutInner() {
   } = useAppContext();
 
   const { config } = usePageHeaderContext();
+  const location = useLocation();
+  const alertRouteScope = useMemo(
+    () => resolveAlertRouteScope(location.pathname),
+    [location.pathname]
+  );
+  const lastAlertVibrationAtRef = useRef(0);
 
   // Подписываемся на UNITS_STATUS только когда открыт экран цеха (/workshops/:workshopId).
   // На странице деталей аппарата (/units/:unitId) используется отдельный useUnitWs.
@@ -47,6 +87,23 @@ function RootLayoutInner() {
     [patchUnitsStatus]
   );
 
+  const handleLiveAlert = useCallback(
+    (msg: AlertWsMessage) => {
+      handleAlert(msg);
+
+      if (document.visibilityState !== 'visible') return;
+      if (!shouldVibrateAlert(msg, alertRouteScope)) return;
+      if (typeof navigator.vibrate !== 'function') return;
+
+      const now = Date.now();
+      if (now - lastAlertVibrationAtRef.current < ALERT_VIBRATION_COOLDOWN_MS) return;
+
+      lastAlertVibrationAtRef.current = now;
+      navigator.vibrate(ALERT_VIBRATION_PATTERN);
+    },
+    [handleAlert, alertRouteScope]
+  );
+
   // Перехватывает события popstate (кнопка «назад» на Android / в браузере)
   // и гарантирует навигацию строго по иерархии экранов приложения.
   useHardwareBackGuard();
@@ -57,7 +114,7 @@ function RootLayoutInner() {
   useLiveWs(subscribedWorkshopId, {
     onAlertSnapshot: handleAlertSnapshot,
     onUnitsStatus: handleUnitsStatus,
-    onAlert: handleAlert,
+    onAlert: handleLiveAlert,
     onReconnecting: () => {
       setSignalState('live', 'reconnecting');
     },

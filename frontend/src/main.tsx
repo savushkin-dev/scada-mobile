@@ -14,9 +14,12 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App';
 import { ErrorBoundary } from './errors/ErrorBoundary';
+import { bindViewportCssVars } from './lib/viewport';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('Root element not found');
+
+bindViewportCssVars();
 
 createRoot(rootElement).render(
   <StrictMode>

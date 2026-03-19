@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useReducer } from 'react';
 import type { ReactNode } from 'react';
-import { ALERT_VIBRATION_PATTERN, DOMAIN_DEFAULTS } from '../config';
+import { DOMAIN_DEFAULTS } from '../config';
 import type { AppError } from '../errors/AppError';
 import type {
   AlertData,
@@ -252,9 +252,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // ── Actions ─────────────────────────────────────────────────────────
   const handleAlert = useCallback((msg: AlertWsMessage) => {
     dispatch({ type: 'HANDLE_ALERT', msg });
-    if (document.visibilityState === 'visible' && navigator.vibrate) {
-      navigator.vibrate(ALERT_VIBRATION_PATTERN);
-    }
   }, []);
   const setSignalState = useCallback(
     (slot: SignalSlot, signalState: SignalState) =>

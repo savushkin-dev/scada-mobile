@@ -55,7 +55,16 @@ export const ASYNC_FETCH_JITTER_CONFIG = Object.freeze({
   rangeMultiplier: 0.25,
 });
 
-export const ALERT_VIBRATION_PATTERN = [200, 100, 200] as const;
+/**
+ * Паттерн вибрации для критичного ALERT:
+ *  - двойной заметный импульс;
+ *  - завершающий длинный импульс для усиленного акцента.
+ */
+export const ALERT_VIBRATION_PATTERN = [350, 120, 350, 120, 550] as const;
+/**
+ * Минимальный интервал между вибрациями (антиспам при burst из ALERT-событий).
+ */
+export const ALERT_VIBRATION_COOLDOWN_MS = 2_500;
 
 export const HTTP_STATUS = Object.freeze({
   unauthorized: 401,

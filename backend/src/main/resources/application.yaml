@@ -141,7 +141,7 @@ printsrv:
         checkerCams: [ "CamChecker1", "CamChecker2", "CamEanChecker1", "CamEanChecker2", "CamEanChecker3", "CamEanChecker4" ]
 
   polling:
-    fixed-delay-ms: 5000              # Задержка между polling-проходами каждого instance worker
+    fixed-delay-ms: 5000            # Задержка между polling-проходами каждого instance worker
   # Таймауты для Socket операций
   socket:
     connect-timeout-ms: 5000

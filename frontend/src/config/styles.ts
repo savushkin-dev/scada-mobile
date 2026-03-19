@@ -44,7 +44,7 @@ export const DETAILS_SCROLL_SECTION_STYLE: CSSProperties = {
   flex: 1,
   overflowY: 'auto',
   padding: '0 16px',
-  paddingBottom: `${UI_BEHAVIOR.detailsBottomPaddingPx ?? 80}px`,
+  paddingBottom: `calc(${UI_BEHAVIOR.detailsBottomPaddingPx ?? 80}px + var(--bottom-safe-offset, 0px))`,
 };
 
 export const CARD_TITLE_BETWEEN_STYLE: CSSProperties = {
@@ -227,7 +227,7 @@ export const SKELETON_BLOCK_DEFAULTS = Object.freeze({
 export function getFabButtonStyle(collapsed: boolean, sent: boolean): CSSProperties {
   return {
     position: 'fixed',
-    bottom: 'calc(64px + env(safe-area-inset-bottom) + 16px)',
+    bottom: 'calc(64px + var(--bottom-safe-offset, 0px) + 16px)',
     right: '16px',
     // На узких экранах кнопка должна оставаться читаемой: ширина по контенту,
     // но не больше безопасной области экрана и не уже удобного touch-size.
