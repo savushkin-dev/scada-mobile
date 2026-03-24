@@ -3,6 +3,8 @@ SHELL := /bin/sh
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
 JAVA_OPTS := -Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8
+DEV_BACKEND_PORT ?= 8080
+DEV_FRONTEND_PORT ?= 5500
 
 ifeq ($(OS),Windows_NT)
 GRADLEW := gradlew.bat
@@ -10,7 +12,8 @@ else
 GRADLEW := ./gradlew
 endif
 
-.PHONY: help back-run back-run-prod front-install front-dev front-build bwa-init bwa-build-apk
+.PHONY: help back-run back-run-prod front-install front-dev front-build
+.PHONY: bwa-init bwa-build-apk
 .PHONY: docker-dev-up docker-dev-down docker-prod-up docker-prod-down docker-ps
 
 DOCKER_BASE_FILES := -f docker-compose.yml
@@ -18,12 +21,13 @@ DOCKER_DEV_FILES := -f docker-compose.dev.yml
 DOCKER_PROD_FILES := -f docker-compose.prod.yml
 PROD_ENV_FILE ?= .env.prod.local
 
+ifeq ($(OS),Windows_NT)
 help:
 	@echo "SCADA Mobile shortcuts"
 	@echo ""
 	@echo "Backend:"
-	@echo "  make back-run       - запустить backend [профиль dev, Swagger включён]"
-	@echo "  make back-run-prod  - запустить backend [профиль prod, Swagger выключен]"
+	@echo "  make back-run       - запустить backend [профиль dev, порт $(DEV_BACKEND_PORT), Swagger включён]"
+	@echo "  make back-run-prod  - запустить backend [профиль prod, порт из BACKEND_PORT, Swagger выключен]"
 	@echo ""
 	@echo "Docker:"
 	@echo "  make docker-dev-up    - поднять docker-стек в dev режиме"
@@ -32,48 +36,88 @@ help:
 	@echo "  make docker-prod-down - остановить docker-стек prod"
 	@echo "  make docker-ps        - статус контейнеров текущего стека"
 	@echo ""
-	@echo "Frontend (placeholders):"
-	@echo "  make front-install - placeholder: install frontend deps"
-	@echo "  make front-dev     - placeholder: run frontend dev server"
-	@echo "  make front-build   - placeholder: build frontend"
+	@echo "Frontend:"
+	@echo "  make front-install - установить зависимости фронтенда"
+	@echo "  make front-dev     - запустить dev-сервер фронтенда (порт $(DEV_FRONTEND_PORT), strict)"
+	@echo "  make front-build   - собрать фронтенд для production"
 	@echo ""
-	@echo "Bubblewrap (placeholders):"
-	@echo "  make bwa-init      - placeholder: bubblewrap init"
-	@echo "  make bwa-build-apk - placeholder: bubblewrap build apk"
+	@echo "Bubblewrap (Android):"
+	@echo "  make bwa-init      - создать/переинициализировать TWA-проект в папке android"
+	@echo "  make bwa-build-apk - собрать APK через bubblewrap"
+else
+help:
+	@echo "SCADA Mobile shortcuts"
+	@echo ""
+	@echo "Backend:"
+	@echo "  make back-run       - запустить backend [профиль dev, порт $(DEV_BACKEND_PORT), Swagger включён]"
+	@echo "  make back-run-prod  - запустить backend [профиль prod, порт из BACKEND_PORT, Swagger выключен]"
+	@echo ""
+	@echo "Docker:"
+	@echo "  make docker-dev-up    - поднять docker-стек в dev режиме"
+	@echo "  make docker-dev-down  - остановить docker-стек dev"
+	@echo "  make docker-prod-up   - поднять docker-стек в prod режиме (env: PROD_ENV_FILE=.env.prod.local)"
+	@echo "  make docker-prod-down - остановить docker-стек prod"
+	@echo "  make docker-ps        - статус контейнеров текущего стека"
+	@echo ""
+	@echo "Frontend:"
+	@echo "  make front-install - установить зависимости фронтенда"
+	@echo "  make front-dev     - запустить dev-сервер фронтенда (порт $(DEV_FRONTEND_PORT), strict)"
+	@echo "  make front-build   - собрать фронтенд для production"
+	@echo ""
+	@echo "Bubblewrap (Android):"
+	@echo "  make bwa-init      - создать/переинициализировать TWA-проект в папке android"
+	@echo "  make bwa-build-apk - собрать APK через bubblewrap"
+endif
 
 ifeq ($(OS),Windows_NT)
 back-run:
-	cmd /C "chcp 65001 >NUL & cd $(BACKEND_DIR) & set JAVA_TOOL_OPTIONS=$(JAVA_OPTS) & set SPRING_PROFILES_ACTIVE=dev & $(GRADLEW) bootRun"
+	cmd /C "chcp 65001 >NUL & cd $(BACKEND_DIR) & set JAVA_TOOL_OPTIONS=$(JAVA_OPTS) & set SPRING_PROFILES_ACTIVE=dev & set SERVER_PORT=$(DEV_BACKEND_PORT) & $(GRADLEW) bootRun"
 
 back-run-prod:
-	cmd /C "chcp 65001 >NUL & cd $(BACKEND_DIR) & set JAVA_TOOL_OPTIONS=$(JAVA_OPTS) & set SPRING_PROFILES_ACTIVE=prod & $(GRADLEW) bootRun"
+	cmd /C "chcp 65001 >NUL & if ""=="$(BACKEND_PORT)"" (echo Missing BACKEND_PORT. Set BACKEND_PORT before make back-run-prod. & exit /b 1) & cd $(BACKEND_DIR) & set JAVA_TOOL_OPTIONS=$(JAVA_OPTS) & set SPRING_PROFILES_ACTIVE=prod & set SERVER_PORT=$(BACKEND_PORT) & $(GRADLEW) bootRun"
 else
 back-run:
-	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=dev $(GRADLEW) bootRun
+	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=dev SERVER_PORT='$(DEV_BACKEND_PORT)' $(GRADLEW) bootRun
 
 back-run-prod:
-	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=prod $(GRADLEW) bootRun
+	@if [ -z "$(BACKEND_PORT)" ]; then \
+		echo "Missing BACKEND_PORT. Set BACKEND_PORT before make back-run-prod."; \
+		exit 1; \
+	fi
+	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=prod SERVER_PORT='$(BACKEND_PORT)' $(GRADLEW) bootRun
 endif
 
+ifeq ($(OS),Windows_NT)
 front-install:
-	@echo "[placeholder] Add your frontend install command here."
-	@echo "Example: cd $(FRONTEND_DIR) && npm install"
+	cmd /C "cd $(FRONTEND_DIR) && npm install"
 
 front-dev:
-	@echo "[placeholder] Add your frontend dev command here."
-	@echo "Example: cd $(FRONTEND_DIR) && npm run dev"
+	cmd /C "cd $(FRONTEND_DIR) && npm run dev -- --port $(DEV_FRONTEND_PORT) --strictPort"
 
 front-build:
-	@echo "[placeholder] Add your frontend build command here."
-	@echo "Example: cd $(FRONTEND_DIR) && npm run build"
+	cmd /C "cd $(FRONTEND_DIR) && npm run build"
 
 bwa-init:
-	@echo "[placeholder] Add bubblewrap init command here."
-	@echo "Example: cd $(FRONTEND_DIR) && npx @bubblewrap/cli init --manifest https://your-domain/manifest.webmanifest"
+	cmd /C "cd android && npx @bubblewrap/cli init --manifest https://scada-savushkin-dev.netlify.app/manifest.webmanifest"
 
 bwa-build-apk:
-	@echo "[placeholder] Add bubblewrap APK build command here."
-	@echo "Example: cd android && npx @bubblewrap/cli build"
+	cmd /C "cd android && npx @bubblewrap/cli build"
+else
+front-install:
+	cd $(FRONTEND_DIR) && npm install
+
+front-dev:
+	cd $(FRONTEND_DIR) && npm run dev -- --port $(DEV_FRONTEND_PORT) --strictPort
+
+front-build:
+	cd $(FRONTEND_DIR) && npm run build
+
+bwa-init:
+	cd android && npx @bubblewrap/cli init --manifest https://scada-savushkin-dev.netlify.app/manifest.webmanifest
+
+bwa-build-apk:
+	cd android && npx @bubblewrap/cli build
+endif
 
 docker-dev-up:
 	docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) up --build -d
