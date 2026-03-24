@@ -19,7 +19,7 @@ make docker-ps
 Открыть:
 
 - Frontend: http://localhost:5500
-- Backend health: http://localhost:18080/api/v1.0.0/health/live
+- Backend health: http://localhost:8080/api/v1.0.0/health/live
 
 Остановка:
 
@@ -53,7 +53,8 @@ cp .env.prod.example .env.prod.local
 
 2. Проверьте, что минимум настроены:
 
-- SPRING_PROFILES_ACTIVE=prod
+- BACKEND_PORT=нужный_порт_бекенда
+- FRONTEND_PORT=нужный_порт_фронтенда
 - CORS_POLICY_ALLOWED_ORIGINS=https://ваш-домен-фронта
 - PRINTSRV_HOST_0 / PRINTSRV_PORT_0 ... PRINTSRV_HOST_13 / PRINTSRV_PORT_13
 
@@ -63,7 +64,8 @@ cp .env.prod.example .env.prod.local
 make docker-prod-up
 ~~~
 
-Важно: в prod-профиле хосты и порты PrintSrv обязательны; без них backend не сможет корректно инициализировать все инстансы.
+Важно: в prod-режиме порты BACKEND_PORT и FRONTEND_PORT обязательны. Если их нет в env, docker compose завершится с ошибкой (fail-fast).
+Также в prod-профиле хосты и порты PrintSrv обязательны; без них backend не сможет корректно инициализировать все инстансы.
 
 Остановка:
 

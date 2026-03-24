@@ -32,8 +32,8 @@ services:
       PRINTSRV_HOST_13: ${PRINTSRV_HOST_13}
       PRINTSRV_PORT_13: ${PRINTSRV_PORT_13}
     ports:
-      - "${BACKEND_PORT:-18080}:8080"
+      - "${BACKEND_PORT:?BACKEND_PORT is required in prod env}:8080"
 
   frontend:
     ports:
-      - "${FRONTEND_PORT:-5500}:8080"
+      - "${FRONTEND_PORT:?FRONTEND_PORT is required in prod env}:8080"
