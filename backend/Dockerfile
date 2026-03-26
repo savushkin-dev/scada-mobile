@@ -1,17 +1,18 @@
 # syntax=docker/dockerfile:1.7
 
-FROM eclipse-temurin:21.0.8_9-jdk-alpine AS builder
+FROM gradle:8.14.3-jdk21-alpine AS builder
 WORKDIR /workspace
 
 # Сначала копируем только build-метаданные для оптимального кэша зависимостей.
-COPY gradlew gradlew
 COPY gradle gradle
 COPY settings.gradle.kts build.gradle.kts ./
 
-RUN chmod +x ./gradlew && ./gradlew --no-daemon help
+RUN --mount=type=cache,target=/home/gradle/.gradle \
+  gradle --no-daemon help
 
 COPY src src
-RUN ./gradlew --no-daemon clean bootJar -x test
+RUN --mount=type=cache,target=/home/gradle/.gradle \
+  gradle --no-daemon clean bootJar -x test
 
 FROM eclipse-temurin:21.0.8_9-jre-alpine AS runtime
 
@@ -25,11 +26,11 @@ RUN mkdir -p /app/logs && chown -R app:app /app
 USER app
 
 ENV SPRING_PROFILES_ACTIVE=dev
-ENV JAVA_OPTS=""
+ENV JAVA_TOOL_OPTIONS=""
 
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=5 \
   CMD wget -q -O- http://127.0.0.1:8080/api/v1.0.0/health/live | grep -q '"status":"UP"' || exit 1
 
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

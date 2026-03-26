@@ -13,9 +13,9 @@ scada:
 #
 # workshops / instances — топологические данные, не меняются между окружениями.
 # host/port — значения по умолчанию для локальной разработки (localhost-туннель
-# или моки). В prod они переопределяются через переменные окружения:
-#   PRINTSRV_INSTANCES_0_HOST, PRINTSRV_INSTANCES_0_PORT
-#   PRINTSRV_INSTANCES_1_HOST, PRINTSRV_INSTANCES_1_PORT  … и т.д.
+# или моки). В prod они переопределяются через переменные окружения,
+# привязанные к id аппарата (см. application-prod.yaml), например:
+#   PRINTSRV_HASSIA4_HOST, PRINTSRV_HASSIA4_PORT
 # devices — topology конкретного инстанса PrintSrv. Если блок не задан,
 # используются безопасные дефолты для одно-принтерной линии:
 #   line=Line, scada=scada, batchQueue=BatchQueue,

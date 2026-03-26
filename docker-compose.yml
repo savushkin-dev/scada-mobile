@@ -7,7 +7,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      JAVA_OPTS: ${JAVA_OPTS:-}
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:-}
     restart: unless-stopped
 
   frontend:

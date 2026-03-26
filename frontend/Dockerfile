@@ -12,8 +12,12 @@ RUN npm run build
 
 FROM nginxinc/nginx-unprivileged:1.27.5-alpine AS runtime
 
+WORKDIR /usr/share/nginx/html
+
 COPY deploy/nginx.docker.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
+
+USER 101:101
 
 EXPOSE 8080
 

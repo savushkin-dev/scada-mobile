@@ -13,11 +13,11 @@ logging:
 #   Топология (id, displayName, workshopId) и справочник workshops берутся
 #   из application.yaml — не дублируем.
 #   Здесь переопределяем ТОЛЬКО host и port для каждого инстанса через
-#   переменные окружения. Индексы соответствуют порядку списка в application.yaml.
+#   переменные окружения с именами по аппаратам.
 #
 #   Установить перед запуском (пример для systemd EnvironmentFile или docker-compose):
-#     PRINTSRV_HOST_0=192.168.1.10   PRINTSRV_PORT_0=10101
-#     PRINTSRV_HOST_1=192.168.1.10   PRINTSRV_PORT_1=10102
+#     PRINTSRV_TREPKO1_HOST=192.168.1.10   PRINTSRV_TREPKO1_PORT=10101
+#     PRINTSRV_TREPKO2_HOST=192.168.1.10   PRINTSRV_TREPKO2_PORT=10102
 #     ... и т.д. для всех 14 инстансов
 #
 #   Если переменная не задана — инстанс будет недоступен при старте
@@ -27,61 +27,61 @@ printsrv:
   instances:
     # Цех десертов (BR1_Marking_Dess.mpr)
     - id: "trepko1"
-      host: "${PRINTSRV_HOST_0}"
-      port: "${PRINTSRV_PORT_0}"
+      host: "${PRINTSRV_TREPKO1_HOST}"
+      port: "${PRINTSRV_TREPKO1_PORT}"
       workshopId: "dess"
     - id: "trepko2"
-      host: "${PRINTSRV_HOST_1}"
-      port: "${PRINTSRV_PORT_1}"
+      host: "${PRINTSRV_TREPKO2_HOST}"
+      port: "${PRINTSRV_TREPKO2_PORT}"
       workshopId: "dess"
     - id: "hassia1"
-      host: "${PRINTSRV_HOST_2}"
-      port: "${PRINTSRV_PORT_2}"
+      host: "${PRINTSRV_HASSIA1_HOST}"
+      port: "${PRINTSRV_HASSIA1_PORT}"
       workshopId: "dess"
     - id: "hassia2"
-      host: "${PRINTSRV_HOST_3}"
-      port: "${PRINTSRV_PORT_3}"
+      host: "${PRINTSRV_HASSIA2_HOST}"
+      port: "${PRINTSRV_HASSIA2_PORT}"
       workshopId: "dess"
     - id: "hassia4"
-      host: "${PRINTSRV_HOST_4}"
-      port: "${PRINTSRV_PORT_4}"
+      host: "${PRINTSRV_HASSIA4_HOST}"
+      port: "${PRINTSRV_HASSIA4_PORT}"
       workshopId: "dess"
     - id: "hassia5"
-      host: "${PRINTSRV_HOST_5}"
-      port: "${PRINTSRV_PORT_5}"
+      host: "${PRINTSRV_HASSIA5_HOST}"
+      port: "${PRINTSRV_HASSIA5_PORT}"
       workshopId: "dess"
     - id: "hassia6"
-      host: "${PRINTSRV_HOST_6}"
-      port: "${PRINTSRV_PORT_6}"
+      host: "${PRINTSRV_HASSIA6_HOST}"
+      port: "${PRINTSRV_HASSIA6_PORT}"
       workshopId: "dess"
     # Цех десертов и розлива (BR1_Marking_Dess_Pouring.mpr)
     - id: "grunwald1"
-      host: "${PRINTSRV_HOST_7}"
-      port: "${PRINTSRV_PORT_7}"
+      host: "${PRINTSRV_GRUNWALD1_HOST}"
+      port: "${PRINTSRV_GRUNWALD1_PORT}"
       workshopId: "dess_pouring"
     - id: "grunwald2"
-      host: "${PRINTSRV_HOST_8}"
-      port: "${PRINTSRV_PORT_8}"
+      host: "${PRINTSRV_GRUNWALD2_HOST}"
+      port: "${PRINTSRV_GRUNWALD2_PORT}"
       workshopId: "dess_pouring"
     - id: "hassia3"
-      host: "${PRINTSRV_HOST_9}"
-      port: "${PRINTSRV_PORT_9}"
+      host: "${PRINTSRV_HASSIA3_HOST}"
+      port: "${PRINTSRV_HASSIA3_PORT}"
       workshopId: "dess_pouring"
     - id: "bosch"
-      host: "${PRINTSRV_HOST_10}"
-      port: "${PRINTSRV_PORT_10}"
+      host: "${PRINTSRV_BOSCH_HOST}"
+      port: "${PRINTSRV_BOSCH_PORT}"
       workshopId: "dess_pouring"
     - id: "grunwald5"
-      host: "${PRINTSRV_HOST_11}"
-      port: "${PRINTSRV_PORT_11}"
+      host: "${PRINTSRV_GRUNWALD5_HOST}"
+      port: "${PRINTSRV_GRUNWALD5_PORT}"
       workshopId: "dess_pouring"
     - id: "grunwald8"
-      host: "${PRINTSRV_HOST_12}"
-      port: "${PRINTSRV_PORT_12}"
+      host: "${PRINTSRV_GRUNWALD8_HOST}"
+      port: "${PRINTSRV_GRUNWALD8_PORT}"
       workshopId: "dess_pouring"
     - id: "grunwald11"
-      host: "${PRINTSRV_HOST_13}"
-      port: "${PRINTSRV_PORT_13}"
+      host: "${PRINTSRV_GRUNWALD11_HOST}"
+      port: "${PRINTSRV_GRUNWALD11_PORT}"
       workshopId: "dess_pouring"
 
   polling:

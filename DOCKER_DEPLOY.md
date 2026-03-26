@@ -56,7 +56,7 @@ cp .env.prod.example .env.prod.local
 - BACKEND_PORT=нужный_порт_бекенда
 - FRONTEND_PORT=нужный_порт_фронтенда
 - CORS_POLICY_ALLOWED_ORIGINS=https://ваш-домен-фронта
-- PRINTSRV_HOST_0 / PRINTSRV_PORT_0 ... PRINTSRV_HOST_13 / PRINTSRV_PORT_13
+- PRINTSRV_<ID>_HOST / PRINTSRV_<ID>_PORT (например, PRINTSRV_HASSIA4_HOST / PRINTSRV_HASSIA4_PORT)
 
 3. Поднимите prod-режим:
 
