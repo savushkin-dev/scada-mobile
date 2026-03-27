@@ -100,6 +100,8 @@ PRINTSRV_HASSIA4_PORT=5565
 docker compose --env-file .env.prod.local -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 ~~~
 
+После запуска фронт будет доступен по ссылке: `http://localhost:5500` (или по порту, который вы указали в `FRONTEND_PORT`).
+
 Проверка статуса контейнеров:
 
 ~~~bash
@@ -137,7 +139,7 @@ docker compose --env-file .env.prod.local -f docker-compose.yml -f docker-compos
 ## 5) Остановка PROD-стека
 
 ~~~bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+docker compose down
 ~~~
 
 ## 6) Если что-то не стартовало

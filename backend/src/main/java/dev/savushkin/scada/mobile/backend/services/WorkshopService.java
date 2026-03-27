@@ -137,7 +137,7 @@ public class WorkshopService {
     public List<UnitTopologyDTO> getUnitsTopology(String workshopId) {
         return instancesByWorkshop.getOrDefault(workshopId, Collections.emptyList())
                 .stream()
-                .map(inst -> new UnitTopologyDTO(inst.getId(), inst.getWorkshopId(), inst.getDisplayName()))
+                .map(inst -> new UnitTopologyDTO(inst.getId(), inst.getWorkshopId(), resolveUnitName(inst)))
                 .toList();
     }
 
@@ -164,7 +164,7 @@ public class WorkshopService {
         return Optional.of(new UnitDeviceTopologyDTO(
                 inst.getId(),
                 inst.getWorkshopId(),
-                inst.getDisplayName(),
+            resolveUnitName(inst),
                 new DeviceGroupsDTO(
                         composition.printers(),
                         composition.aggregationCams(),
@@ -309,5 +309,17 @@ public class WorkshopService {
         return Optional.ofNullable(instancesById.get(instanceId))
                 .map(inst -> inst.getDevices().getLine())
                 .orElse("Line");
+    }
+
+    /**
+     * Защитный fallback для API-контракта topology:
+     * если displayName не задан в конфиге, отдаем id, а не null.
+     */
+    private @NonNull String resolveUnitName(PrintSrvProperties.InstanceProperties inst) {
+        String displayName = inst.getDisplayName();
+        if (displayName == null || displayName.isBlank()) {
+            return inst.getId();
+        }
+        return displayName;
     }
 }
