@@ -75,8 +75,8 @@ public class PrintSrvPollingRuntime implements SmartLifecycle {
 
         while (running.get() && !Thread.currentThread().isInterrupted()) {
             try {
-                boolean updated = poller.poll();
-                if (updated) {
+                PrintSrvInstancePoller.PollResult pollResult = poller.poll();
+                if (pollResult.shouldPublishLiveUpdate()) {
                     eventPublisher.publishEvent(new PrintSrvInstancePolledEvent(instanceId));
                 }
             } catch (Exception ex) {

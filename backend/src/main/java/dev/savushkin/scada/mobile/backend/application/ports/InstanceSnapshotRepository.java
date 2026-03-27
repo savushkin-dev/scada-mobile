@@ -43,6 +43,17 @@ public interface InstanceSnapshotRepository {
     Map<String, DeviceSnapshot> getAllForInstance(String instanceId);
 
     /**
+     * Полностью очищает все snapshot-ы указанного инстанса.
+     *
+     * <p>Используется при переходе инстанса в состояние unreachable,
+     * чтобы API/WS немедленно отдавали "Нет данных", а не устаревшее
+     * последнее состояние.
+     *
+     * @param instanceId идентификатор инстанса
+     */
+    void clearInstance(String instanceId);
+
+    /**
      * Проверяет, получен ли хотя бы один snapshot (любого инстанса, любого устройства).
      *
      * @return {@code true}, если хранилище не пустое

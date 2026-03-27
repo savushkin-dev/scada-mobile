@@ -46,6 +46,11 @@ public final class PrintSrvInstancePoller {
     private final PrintSrvMapper mapper;
     private final InstanceSnapshotRepository snapshotRepo;
     private final List<String> devices;
+    /**
+     * Последнее известное состояние доступности инстанса.
+     * Нужен для детекции перехода reachable -> unreachable.
+     */
+    private boolean wasReachable;
 
     /**
      * Package-private: создаётся только через {@link PrintSrvPollerFactory}.
@@ -78,7 +83,7 @@ public final class PrintSrvInstancePoller {
      * сохраняются в репозиторий. Ошибки отдельных устройств логируются на уровне
      * {@code TRACE} и не прерывают опрос остальных.
      */
-    public boolean poll() {
+    public PollResult poll() {
         boolean anySuccess = false;
 
         for (String device : devices) {
@@ -92,16 +97,48 @@ public final class PrintSrvInstancePoller {
             }
         }
 
+        boolean availabilityChanged = anySuccess != wasReachable;
+
         if (anySuccess) {
+            if (availabilityChanged) {
+                log.info("[{}] PrintSrv connection restored", client.getInstanceId());
+            }
+            wasReachable = true;
             log.trace("[{}] poll ok", client.getInstanceId());
-        } else {
-            log.warn("[{}] PrintSrv unreachable for all configured devices", client.getInstanceId());
+            return new PollResult(true, availabilityChanged);
         }
 
-        return anySuccess;
+        // Недоступно: при первом переходе в unreachable очищаем stale-снапшоты,
+        // чтобы API/WS сразу начали отдавать "Нет данных".
+        if (availabilityChanged) {
+            snapshotRepo.clearInstance(client.getInstanceId());
+            wasReachable = false;
+            log.warn("[{}] PrintSrv unreachable for all configured devices", client.getInstanceId());
+            return new PollResult(false, true);
+        }
+
+        log.trace("[{}] still unreachable", client.getInstanceId());
+        return new PollResult(false, false);
     }
 
     public int getConfiguredDeviceCount() {
         return devices.size();
+    }
+
+    /**
+     * Результат одного poll-цикла инстанса.
+     *
+     * @param reachable            true, если хотя бы одно устройство ответило
+     * @param availabilityChanged  true, если доступность изменилась относительно предыдущего цикла
+     */
+    public record PollResult(boolean reachable, boolean availabilityChanged) {
+        /**
+         * Когда нужно публиковать live-обновление в WS:
+         * - всегда при reachable=true (новые данные);
+         * - при смене доступности (reachable -> unreachable), чтобы мгновенно деградировать UI.
+         */
+        public boolean shouldPublishLiveUpdate() {
+            return reachable || availabilityChanged;
+        }
     }
 }

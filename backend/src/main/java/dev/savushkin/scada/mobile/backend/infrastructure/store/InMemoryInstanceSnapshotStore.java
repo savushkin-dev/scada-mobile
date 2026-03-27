@@ -65,6 +65,14 @@ public class InMemoryInstanceSnapshotStore implements InstanceSnapshotRepository
     }
 
     @Override
+    public void clearInstance(String instanceId) {
+        ConcurrentHashMap<String, DeviceSnapshot> removed = store.remove(instanceId);
+        if (removed != null) {
+            log.info("Snapshot store cleared for instance='{}', removedDevices={}", instanceId, removed.size());
+        }
+    }
+
+    @Override
     public boolean hasAnySnapshot() {
         return !store.isEmpty();
     }
