@@ -235,7 +235,7 @@ public class WorkshopService {
      * Проверяет флаг Error на устройстве Line.
      */
     private boolean hasActiveError(String instanceId) {
-        DeviceSnapshot lineSnapshot = snapshotRepo.get(instanceId, getLineDeviceName(instanceId));
+        DeviceSnapshot lineSnapshot = findSnapshotByDeviceName(instanceId, getLineDeviceName(instanceId));
         if (lineSnapshot == null) {
             return false;
         }
@@ -262,30 +262,38 @@ public class WorkshopService {
      * Формирует текстовое описание текущего события для аппарата.
      */
     private @NonNull String deriveEvent(String instanceId) {
-        DeviceSnapshot lineSnapshot = snapshotRepo.get(instanceId, getLineDeviceName(instanceId));
-        if (lineSnapshot == null) {
-            return "Нет данных";
-        }
-        for (UnitSnapshot unit : lineSnapshot.units().values()) {
-            Optional<String> st = unit.properties().getSt();
-            Optional<String> error = unit.properties().getError();
-            Optional<String> errorMsg = unit.properties().getErrorMessage();
+        DeviceSnapshot lineSnapshot = findSnapshotByDeviceName(instanceId, getLineDeviceName(instanceId));
 
-            // 1. Line.Error — основной флаг ошибки линии
-            boolean hasError = error.isPresent() && !"0".equals(error.get()) && !error.get().isEmpty();
-            if (hasError) {
-                return errorMsg.filter(m -> !m.isEmpty()).orElse("Ошибка");
+        if (lineSnapshot != null) {
+            for (UnitSnapshot unit : lineSnapshot.units().values()) {
+                Optional<String> st = unit.properties().getSt();
+                Optional<String> error = unit.properties().getError();
+                Optional<String> errorMsg = unit.properties().getErrorMessage();
+
+                // 1. Line.Error — основной флаг ошибки линии
+                boolean hasError = error.isPresent() && !"0".equals(error.get()) && !error.get().isEmpty();
+                if (hasError) {
+                    return errorMsg.filter(m -> !m.isEmpty()).orElse("Ошибка");
+                }
+
+                // 2. scada.lineerr — дополнительный источник ошибки (из scada-снапшота)
+                String lineerr = getScadaLineerr(instanceId);
+                if (lineerr != null && !"0".equals(lineerr) && !lineerr.isBlank()) {
+                    return lineerr;
+                }
+
+                boolean isRunning = st.isPresent() && "1".equals(st.get());
+                return isRunning ? "В работе" : "Остановлена";
             }
-
-            // 2. scada.lineerr — дополнительный источник ошибки (из scada-снапшота)
-            String lineerr = getScadaLineerr(instanceId);
-            if (lineerr != null && !"0".equals(lineerr) && !lineerr.isBlank()) {
-                return lineerr;
-            }
-
-            boolean isRunning = st.isPresent() && "1".equals(st.get());
-            return isRunning ? "В работе" : "Остановлена";
         }
+
+        // Если Line-снапшот отсутствует/пустой, но scada уже сигнализирует об ошибке,
+        // отдаём эту причину вместо "Нет данных".
+        String lineerr = getScadaLineerr(instanceId);
+        if (lineerr != null && !"0".equals(lineerr) && !lineerr.isBlank()) {
+            return lineerr;
+        }
+
         return "Нет данных";
     }
 
@@ -297,7 +305,7 @@ public class WorkshopService {
         String scadaName = Optional.ofNullable(instancesById.get(instanceId))
                 .map(inst -> inst.getDevices().getScada())
                 .orElse("scada");
-        DeviceSnapshot scadaSnap = snapshotRepo.get(instanceId, scadaName);
+        DeviceSnapshot scadaSnap = findSnapshotByDeviceName(instanceId, scadaName);
         if (scadaSnap == null || scadaSnap.units().isEmpty()) {
             return null;
         }
@@ -309,6 +317,24 @@ public class WorkshopService {
         return Optional.ofNullable(instancesById.get(instanceId))
                 .map(inst -> inst.getDevices().getLine())
                 .orElse("Line");
+    }
+
+    /**
+     * Ищет snapshot устройства сначала по точному имени, затем case-insensitive.
+     * Это защищает API-слой от вариаций регистра имён устройств у разных PrintSrv.
+     */
+    private @Nullable DeviceSnapshot findSnapshotByDeviceName(@NonNull String instanceId, @NonNull String deviceName) {
+        DeviceSnapshot exact = snapshotRepo.get(instanceId, deviceName);
+        if (exact != null) {
+            return exact;
+        }
+
+        for (Map.Entry<String, DeviceSnapshot> entry : snapshotRepo.getAllForInstance(instanceId).entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(deviceName)) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     /**

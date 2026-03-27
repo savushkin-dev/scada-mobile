@@ -29,14 +29,14 @@ export type UnitStatusLevel = 'pending' | 'offline' | 'critical' | 'normal';
  *
  * Порядок приоритетов:
  *  1. `pending`  — WS-данные ещё не пришли.
- *  2. `offline`  — данные есть, но устройство недоступно.
- *  3. `critical` — есть алёрт или нештатное event.
+ *  2. `critical` — есть активный алёрт (единый источник правды по ошибкам).
+ *  3. `offline`  — данных по событию нет и алёртов нет.
  *  4. `normal`   — аппарат в работе.
  */
 export function getUnitStatusLevel(unit: Unit, alerts: Map<string, AlertData>): UnitStatusLevel {
   if (!unit.statusReady) return 'pending';
-  if (NO_DATA_UNIT_EVENTS.has(unit.event)) return 'offline';
   if (alerts.has(String(unit.id))) return 'critical';
+  if (NO_DATA_UNIT_EVENTS.has(unit.event)) return 'offline';
   if (!NORMAL_UNIT_EVENTS.has(unit.event)) return 'critical';
   return 'normal';
 }
