@@ -1,523 +1,123 @@
-# 📋 Логирование в продакшн-системе (SCADA Mobile Backend)
+# Логирование backend (SCADA Mobile)
 
-> Документ описывает **всю стратегию логирования** от теории до конкретных настроек этого проекта.
-> Рассчитан на сервер с 10–20 одновременными клиентами, работающий 24/7.
+Актуальность: 30.03.2026.
 
----
+## Зачем этот документ
 
-## 📋 Содержание
+Файл описывает только практические правила логирования в текущем backend:
 
-1. [Зачем логирование и что в нём главное](#1-зачем-логирование-и-что-в-нём-главное)
-2. [Уровни логов: что и когда писать](#2-уровни-логов-что-и-когда-писать)
-3. [Что НЕЛЬЗЯ писать в логи](#3-что-нельзя-писать-в-логи)
-4. [Logback: настройка для этого проекта](#4-logback-настройка-для-этого-проекта)
-5. [Ротация файлов и хранение](#5-ротация-файлов-и-хранение)
-6. [Структурированные логи (JSON) — почему и как](#6-структурированные-логи-json--почему-и-как)
-7. [MDC: привязка контекста к потоку](#7-mdc-привязка-контекста-к-потоку)
-8. [Что логирует этот проект и как это устроено](#8-что-логирует-этот-проект-и-как-это-устроено)
-9. [Конфигурация по профилям (dev / prod)](#9-конфигурация-по-профилям-dev--prod)
-10. [Быстрый чеклист перед деплоем](#10-быстрый-чеклист-перед-деплоем)
+- куда пишутся логи;
+- чем отличаются dev и prod;
+- какие уровни использовать;
+- как быстро включать дополнительную детализацию при инциденте.
 
----
+Технические детали интеграции с PrintSrv смотрите отдельно: [PRINTSERV_API.md](PRINTSERV_API.md).
 
-## 1. Зачем логирование и что в нём главное
+## Источник истины по настройкам
 
-В продакшн-системе логи — это **единственный способ понять, что произошло** при сбое.  
-При 10–20 одновременных клиентах за одну минуту может прийти несколько сотен запросов.  
-Без грамотного логирования разобраться в проблеме будет невозможно.
+Главный файл конфигурации:
 
-**Три главные цели логов:**
+- `backend/src/main/resources/logback-spring.xml`
 
-| Цель            | Пример                                                              |
-|-----------------|---------------------------------------------------------------------|
-| **Диагностика** | «PrintSrv упал в 03:14, reconnect занял 40 сек, данные не терялись» |
-| **Аудит**       | «Unit 3 был изменён в 11:40:05, команда пришла с IP 10.0.0.5»       |
-| **Мониторинг**  | «Буфер заполнен 3 раза за последний час — нужно расследование»      |
+Профили, которые влияют на поведение логов:
 
-**Главные правила:**
+- `backend/src/main/resources/application-dev.yaml`
+- `backend/src/main/resources/application-prod.yaml`
 
-- Логи должны быть **читаемы человеком** при расследовании инцидента.
-- Логи не должны **раздувать диск** — это приводит к падению сервера.
-- Логи не должны **тормозить** основную работу приложения (I/O-bound операции).
-- Логи не должны **утекать** персональные данные или секреты.
+## Куда пишутся логи
 
----
+Путь по умолчанию:
 
-## 2. Уровни логов: что и когда писать
+- `backend/logs/`
 
-Spring Boot + SLF4J + Logback дают 5 уровней. Понимание — основа всего.
+Можно переопределить через переменную окружения:
 
-| Уровень | Когда использовать                                                                                                       | Примеры из этого проекта                                                |
-|---------|--------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------|
-| `ERROR` | **Что-то сломалось и требует внимания**. Операция провалилась, данные потеряны, система в аномальном состоянии.          | WRITE в PrintSrv упал, команды потеряны; reconnect исчерпал все попытки |
-| `WARN`  | **Ненормальная ситуация, но система продолжает работу**. Потенциальная проблема, которую стоит проверить.                | Потеряны команды для units; стale snapshot (PrintSrv давно недоступен)  |
-| `INFO`  | **Важные бизнес-события в штатном режиме**. Запуск/остановка, смена состояния, значимые операции.                        | Первый snapshot получен; PrintSrv reconnected; старт/стоп приложения    |
-| `DEBUG` | **Подробности для разработки и отладки**. В проде — только при расследовании конкретного инцидента (включается на лету). | Содержимое команды; количество units в snapshot; размер буфера          |
-| `TRACE` | **Максимальные детали**. Каждый байт/шаг. В проде почти никогда не нужен.                                                | Переиспользование сокета; шаги scan cycle; байты фрейма                 |
+- `LOG_PATH`
 
-### Правило большого пальца для этого проекта
+Имена файлов:
 
-```
-PROD:  root=WARN, backend=INFO
-DEV:   root=INFO, backend=DEBUG, polling=TRACE
-```
+- `scada.mobile.backend.log` — текстовый файл (dev);
+- `scada.mobile.backend.json` — JSON-логи (prod);
+- `backend/logs/archived/` — архивы ротации.
 
-При проблеме в проде можно **временно** переключить `backend=DEBUG` через `application-prod.yaml`  
-или через Spring Boot Actuator `/actuator/loggers/{name}` (без перезапуска).
+## Dev и prod: что отличается
 
-### Антипаттерны уровней
+## Dev профиль
 
-```java
-// ❌ ПЛОХО — INFO на каждый запрос (при 20 клиентах = тысячи строк/мин)
-log.info("Received GET /queryAll request");
-log.
+- вывод в консоль + текстовый файл;
+- подробные уровни для кода проекта;
+- удобно для разработки и локальной диагностики.
 
-info("Returning QueryAll response");
+## Prod профиль
 
-// ✅ ХОРОШО — DEBUG для частых операций, INFO — только для значимых событий
-log.
+- запись в JSON-файл через `AsyncAppender`;
+- меньше шума в логах;
+- приоритет — стабильность и разбор инцидентов без перегрузки диска.
 
-debug("Processing queryAll request");
-log.
+## Ротация и хранение
 
-info("Snapshot first loaded: {} units",snapshot.getUnitCount()); // один раз при старте
-```
+Текущая политика в `logback-spring.xml`:
 
----
+- ротация по дате и размеру;
+- размер файла: до 50 MB;
+- хранение архивов: до 30 дней;
+- общий лимит архивов: до 500 MB.
 
-## 3. Что НЕЛЬЗЯ писать в логи
+## Уровни логов: практическое правило
 
-### 3.1. Полные данные снапшота на уровне INFO
+- `ERROR`: операция не выполнена, нужна реакция.
+- `WARN`: есть отклонение, но сервис продолжает работать.
+- `INFO`: важные события жизненного цикла и состояния.
+- `DEBUG`: технические детали для расследования.
+- `TRACE`: максимально подробный уровень для точечной отладки.
 
-```java
-// ❌ ЗАПРЕЩЕНО — гигантский объект в логах на каждый цикл
-log.info("Snapshot received: {}",snapshot.toString());
+Рекомендуемый режим:
 
-// ✅ ПРАВИЛЬНО — только метрики
-    log.
+- dev: `backend=DEBUG`, инфраструктурные части можно поднимать до `TRACE`.
+- prod: `root=WARN`, `backend=INFO`.
 
-debug("Snapshot updated: {} units, ts={}",snapshot.getUnitCount(),snapshot.
+## MDC и трассировка запроса
 
-getTimestamp());
-```
+В проекте используется `MdcFilter`.
 
-### 3.2. Секреты и персональные данные
+Он добавляет в лог-контекст ключевые поля запроса:
 
-```java
-// ❌ ЗАПРЕЩЕНО
-log.info("Connecting with credentials: user={}, password={}",user, pass);
+- `requestId`
+- `method`
+- `uri`
 
-// ✅ ПРАВИЛЬНО — в этом проекте секретов нет, но правило универсальное
-log.
+Это помогает быстро собрать цепочку событий одного HTTP-запроса даже при параллельной нагрузке.
 
-info("Connecting to PrintSrv: {}:{}",ip, port);
-```
+## Как временно усилить детализацию в prod
 
-### 3.3. Stack trace на уровне WARN/INFO
+Через Actuator можно поменять уровень логирования без перезапуска.
 
-```java
-// ❌ ПЛОХО — stack trace создаёт огромные блоки
-log.warn("Connection lost",exception);
-
-// ✅ ПРАВИЛЬНО — WARN без stack trace, ERROR — с ним
-log.
-
-warn("Connection lost: {}",exception.getMessage());
-    log.
-
-error("Unexpected error in scan cycle",exception); // здесь stack trace нужен
-```
-
-### 3.4. Логирование в цикле без rate limiting
-
-```java
-// ❌ ОПАСНО — scan cycle каждые N мс, этот лог будет писаться постоянно
-@Scheduled(fixedDelayString = "...")
-public void scanCycle() {
-    log.info("Scan cycle executing..."); // ← спам
-}
-
-// ✅ ПРАВИЛЬНО — TRACE или DEBUG; значимые события на INFO
-log.
-
-trace("Scan cycle start");
-if(pendingWrites.
-
-isEmpty()){
-    log.
-
-debug("No pending writes in this cycle");
-}
-```
-
----
-
-## 4. Logback: настройка для этого проекта
-
-Spring Boot использует **Logback** по умолчанию. Базовой конфигурации через YAML  
-достаточно для простых случаев, но для продакшн нужен `logback-spring.xml`.
-
-### Почему `logback-spring.xml`, а не просто YAML?
-
-| Функция                            | YAML | logback-spring.xml  |
-|------------------------------------|------|---------------------|
-| Уровни логов по пакетам            | ✅    | ✅                   |
-| Ротация файлов по размеру и дате   | ❌    | ✅                   |
-| Лимит на общий размер архивов      | ❌    | ✅                   |
-| JSON-формат для машинной обработки | ❌    | ✅                   |
-| Разные appender для dev/prod       | ❌    | ✅                   |
-| Условная логика по Spring-профилю  | ❌    | ✅ (`springProfile`) |
-| Асинхронная запись (AsyncAppender) | ❌    | ✅                   |
-
-### Структура файла
-
-```
-src/main/resources/logback-spring.xml
-```
-
-Файл разбит на части:
-
-1. **`CONSOLE` appender** — цветной вывод в консоль (только dev)
-2. **`FILE_JSON` appender** — JSON-файл для prod (машиночитаемый)
-3. **`FILE_PLAIN` appender** — plain text файл (dev/дополнительно)
-4. **`ASYNC_FILE` appender** — обёртка над FILE для асинхронной записи
-5. **`springProfile dev`** — правила для dev-профиля
-6. **`springProfile prod`** — правила для prod-профиля
-
-> **Файл `logback-spring.xml` уже создан** в `src/main/resources/` как часть этого проекта.
-
----
-
-## 5. Ротация файлов и хранение
-
-Без ротации логи за неделю работы займут гигабайты и убьют диск.
-
-### Стратегия этого проекта
-
-```
-logs/
-  backend.log              ← текущий plain text файл (dev профиль)
-  backend.json             ← текущий JSON файл (prod профиль)
-  archived/
-    backend.2026-02-19.0.log.gz    ← архив dev
-    backend.2026-02-19.0.json.gz   ← архив prod
-    ...
-```
-
-Политика:
-
-- Ротация **ежедневно** + при превышении **50 МБ** (что наступит раньше)
-- Хранение **архивов не более 30 дней**
-- Общий лимит на все архивы: **500 МБ**
-
-Если диск закончится — старые архивы удалятся автоматически.
-
-### Где хранить логи
-
-- **Локально**: `./logs/` (задаётся через `LOG_PATH` или в `logback-spring.xml`)
-- **Продакшн**: рекомендуется `/var/log/scada-backend/` с правильными правами
-- **Никогда** не пишите логи в `src/` или рядом с JAR-файлом приложения
-
----
-
-## 6. Структурированные логи (JSON) — почему и как
-
-В продакшн-системах plain text логи неудобно анализировать при инцидентах.  
-JSON позволяет **фильтровать, искать, агрегировать** — особенно если настроить сбор.
-
-### Plain text (dev)
-
-```
-2026-02-20 14:53:12.345 INFO  [scan-1] PrintSrvPollingScheduler - Scan cycle completed: 12 units updated
-```
-
-Читается человеком, но grep-нуть конкретное поле сложно.
-
-### JSON (prod)
-
-```json
-{
-    "timestamp": "2026-02-20T14:53:12.345+03:00",
-    "level": "INFO",
-    "thread": "scheduling-1",
-    "logger": "PrintSrvPollingScheduler",
-    "message": "Scan cycle completed: 12 units updated",
-    "application": "scada.mobile.backend",
-    "profile": "prod"
-}
-```
-
-Теперь можно: `grep '"level":"ERROR"' backend.log | jq .message`
-
-### Зачем это при 10–20 клиентах?
-
-При инциденте нужно найти все ошибки за последние 10 минут по конкретному unit.  
-С JSON это `jq`, с plain text — сложный `awk/grep`. JSON-логи — стандарт индустрии.
-
----
-
-## 7. MDC: привязка контекста к потоку
-
-MDC (Mapped Diagnostic Context) — механизм SLF4J, который позволяет  
-**добавить поля к каждой строке лога в контексте текущего запроса**.
-
-### Зачем в этом проекте
-
-При 10–20 одновременных клиентах в логах перемешаны строки от разных потоков.  
-MDC позволяет добавить `requestId` и потом найти весь путь одного запроса:
-
-```
-2026-02-20 14:53:12 INFO  [http-5] [a1b2c3d4] CommandsController     : Received POST /setUnitVars
-2026-02-20 14:53:12 DEBUG [http-5] [a1b2c3d4] CommandsService         : Processing setUnitVars: unit=3
-2026-02-20 14:53:12 DEBUG [http-5] [a1b2c3d4] ScadaApplicationService : Command added to buffer
-```
-
-Без MDC эти строки смешаются с логами от других 19 клиентов.
-
-### Реализация в этом проекте
-
-MDC реализован через два класса в пакете `config`:
-
-| Класс       | Роль                                                                                    |
-|-------------|-----------------------------------------------------------------------------------------|
-| `MdcFilter` | `OncePerRequestFilter` — устанавливает и **гарантированно чистит** MDC на каждый запрос |
-| `MdcConfig` | Регистрирует фильтр с `Ordered.HIGHEST_PRECEDENCE` — раньше CORS и Spring Security      |
-
-### MDC-поля
-
-| Ключ        | Пример значения           | Описание                                         |
-|-------------|---------------------------|--------------------------------------------------|
-| `requestId` | `a1b2c3d4`                | 8-символьный hex UUID (или внешний X-Request-ID) |
-| `method`    | `POST`                    | HTTP-метод запроса                               |
-| `uri`       | `/api/v1/.../setUnitVars` | URI запроса (без query string)                   |
-
-> Для scan cycle, shutdown-потоков и фоновых задач MDC-поля **пусты** — это нормально,  
-> так как они не являются HTTP-запросами.
-
-### X-Request-ID: корреляция с клиентом и reverse proxy
-
-Фильтр умеет принимать `X-Request-ID` из входящего заголовка (например, от nginx):
-
-```
-# nginx пробрасывает свой request ID:
-proxy_set_header X-Request-ID $request_id;
-```
-
-Тот же `requestId` возвращается в заголовке ответа — клиент может логировать его  
-на своей стороне и сопоставить с серверными логами при расследовании проблемы.
-
-**Валидация входящего ID** (защита от инъекций в логи):
-
-- Только символы `[a-zA-Z0-9\-_]`
-- Длина не более 64 символов
-- Если невалидный — генерируется свой
-
-### Как добавить MDC в Spring Boot
-
-Создаётся `Filter` или `HandlerInterceptor`, который при каждом запросе:
-
-1. Генерирует уникальный `requestId` (UUID или короткий hash)
-2. Кладёт его в `MDC.put("requestId", id)`
-3. После обработки запроса — `MDC.clear()`
-
-```java
-// Пример — уже реализовано в MdcFilter:
-try {
-    MDC.put("requestId", resolveRequestId(request));
-    MDC.put("method", request.getMethod());
-    MDC.put("uri", request.getRequestURI());
-    filterChain.doFilter(request, response);
-} finally {
-    MDC.remove("requestId");   // ← ОБЯЗАТЕЛЬНО в finally
-    MDC.remove("method");
-    MDC.remove("uri");
-}
-```
-
-### Использование в паттерне logback
-
-В `logback-spring.xml` добавлено `%X{requestId:-        }` в паттерн:
-
-```
-# Plain text (dev):
-2026-02-20 15:00:01.123 INFO  [http-1] [a1b2c3d4] CommandsController : SetUnitVars accepted
-
-# JSON (prod) — JsonEncoder автоматически включает все MDC-поля:
-{"requestId":"a1b2c3d4","method":"POST","uri":"/api/v1/commands/setUnitVars","level":"INFO",...}
-```
-
-Для строк **вне HTTP-запросов** (scan cycle, фоновые задачи) `requestId` — пустая строка,  
-что визуально отличает их от клиентских запросов.
-
----
-
-## 8. Что логирует этот проект и как это устроено
-
-### Карта событий по компонентам
-
-| Компонент                   | ERROR                                     | WARN                                 | INFO                                          | DEBUG/TRACE                           |
-|-----------------------------|-------------------------------------------|--------------------------------------|-----------------------------------------------|---------------------------------------|
-| `CommandsController`        | —                                         | —                                    | —                                             | Входящие запросы queryAll/setUnitVars |
-| `CommandsService`           | —                                         | —                                    | Старт компонента                              | Обработка запросов                    |
-| `ScadaApplicationService`   | —                                         | Snapshot недоступен                  | Старт компонента                              | Чтение snapshot, постановка в буфер   |
-| `PrintSrvPollingScheduler`  | Провал WRITE (потеря команд)              | —                                    | Старт, интервал цикла                         | Нет pending writes                    |
-| `PrintSrvConnectionManager` | Исчерпаны retry, нет reconnect            | Переход в recovery mode              | Успешный reconnect                            | Попытки retry, backoff delays         |
-| `SocketManager`             | Не удалось создать соединение             | —                                    | Соединение установлено / закрыто при shutdown | Переиспользование сокета              |
-| `PrintSrvSnapshotStore`     | —                                         | —                                    | Первый snapshot сохранён                      | Обновление snapshot                   |
-| `PendingCommandsBuffer`     | —                                         | Буфер переполнен (перед исключением) | —                                             | Добавление/извлечение команд          |
-| `GlobalExceptionHandler`    | Необработанные 5xx ошибки (со stacktrace) | —                                    | —                                             | 4xx клиентские ошибки                 |
-
-### Проблемы в текущем коде, которые нужно исправить
-
-#### ❌ `log.info` на каждый входящий запрос (CommandsController)
-
-```java
-// Текущий код — плохо для prod при 10–20 клиентах:
-log.info("Received GET /queryAll request");      // ← при 500 мс цикле = тысячи строк/мин
-log.
-
-info("Returning QueryAll response");
-
-// Нужно заменить на DEBUG:
-log.
-
-debug("Processing queryAll request");
-```
-
-#### ❌ `log.info` при инициализации каждого bean-а
-
-```java
-// Текущий код во многих классах:
-log.info("CommandsService initialized with clean architecture design");
-log.
-
-info("QueryAllCommand initialized");
-log.
-
-info("SetUnitVars command initialized");
-
-// В prod это просто шум. Нужно DEBUG или убрать совсем
-// Оставить INFO только для по-настоящему важных событий старта
-```
-
-#### ✅ Правильные события на INFO
-
-```java
-log.info("PrintSrvPollingScheduler initialized - scan cycle interval: {}ms",pollingFixedDelayMs);
-log.
-
-info("First snapshot saved with {} units",snapshot.getUnitCount());
-    log.
-
-info("✅ Socket connection established successfully to {}:{}",IP, PORT);
-```
-
----
-
-## 9. Конфигурация по профилям (dev / prod)
-
-### `logback-spring.xml` — главный файл конфигурации
-
-Файл находится в `src/main/resources/logback-spring.xml`.  
-Использует `<springProfile>` для разных поведений:
-
-**Dev профиль:**
-
-- Вывод в **консоль** с цветами
-- Вывод в **plain text файл** для удобного чтения
-- Уровень `DEBUG` для кода проекта
-
-**Prod профиль:**
-
-- **Нет вывода в консоль** (сохраняет CPU при перенаправлении systemd/docker)
-- Вывод в **JSON файл** с ротацией
-- **AsyncAppender** — запись в отдельном потоке (не блокирует основные потоки)
-- Уровень `INFO` для кода проекта, `WARN` для всего остального
-
-### Переменные среды для prod
+Пример:
 
 ```bash
-# Переопределить путь к логам (например, /var/log/scada)
-LOG_PATH=/var/log/scada-backend
-
-# Переопределить уровень без перезапуска (через Actuator)
-# POST /actuator/loggers/dev.savushkin.scada.mobile.backend
-# {"configuredLevel": "DEBUG"}
+curl -X POST http://localhost:8080/actuator/loggers/dev.savushkin.scada.mobile.backend \
+  -H "Content-Type: application/json" \
+  -d '{"configuredLevel":"DEBUG"}'
 ```
 
-### `application-prod.yaml` — уровни логов
-
-```yaml
-logging:
-    level:
-        root: WARN
-        dev.savushkin.scada.mobile.backend: INFO
-        # Временно для отладки в проде (потом убрать):
-        # dev.savushkin.scada.mobile.backend.infrastructure.polling: DEBUG
-```
-
----
-
-## 10. Быстрый чеклист перед деплоем
-
-### Логирование
-
-- [ ] `logback-spring.xml` присутствует в `src/main/resources/`
-- [ ] Prod-профиль использует **JSON appender** с ротацией
-- [ ] Prod-профиль **не пишет в консоль** (только файл)
-- [ ] `AsyncAppender` включён в prod для производительности
-- [ ] Путь к логам существует и доступен для записи (`LOG_PATH`)
-- [ ] Ротация: максимальный размер файла, максимум дней хранения, лимит на общий размер
-
-### Уровни
-
-- [ ] Prod: `root=WARN`, `backend=INFO`
-- [ ] Частые операции (queryAll, scan cycle) — `DEBUG`, не `INFO`
-- [ ] Ошибки PrintSrv — `ERROR` со stacktrace
-- [ ] Recovery mode / skipped cycles — `TRACE`, не `ERROR` (не спам)
-- [ ] Нет `log.info` с полным содержимым snapshot
-
-### Безопасность
-
-- [ ] Нет секретов/паролей в логах
-- [ ] Нет IP клиентов в логах без необходимости
-- [ ] Файлы логов не доступны по HTTP (Swagger отключен в prod)
-
----
-
-## Дополнительно: Spring Boot Actuator для управления логами в рантайме
-
-Spring Boot Actuator (уже есть в зависимостях) позволяет менять уровень логов **без перезапуска**:
+Вернуть обычный режим:
 
 ```bash
-# Посмотреть текущий уровень пакета
-GET /actuator/loggers/dev.savushkin.scada.mobile.backend
-
-# Включить DEBUG для расследования инцидента
-POST /actuator/loggers/dev.savushkin.scada.mobile.backend
-Content-Type: application/json
-{"configuredLevel": "DEBUG"}
-
-# Вернуть обратно
-POST /actuator/loggers/dev.savushkin.scada.mobile.backend
-Content-Type: application/json
-{"configuredLevel": "INFO"}
+curl -X POST http://localhost:8080/actuator/loggers/dev.savushkin.scada.mobile.backend \
+  -H "Content-Type: application/json" \
+  -d '{"configuredLevel":"INFO"}'
 ```
 
-> ⚠️ В prod **Actuator endpoints должны быть закрыты** от внешней сети или защищены.  
-> Добавьте в `application-prod.yaml`:
-> ```yaml
-> management:
->   endpoints:
->     web:
->       exposure:
->         include: "health,loggers"
->   server:
->     port: 8081   # Отдельный порт, закрытый файрволлом
-> ```
+## Что нельзя писать в логи
 
----
+- пароли, токены и другие секреты;
+- сырые большие payload-объекты на `INFO`;
+- однотипные сообщения в горячих циклах на `INFO` (это быстро создает шум).
 
-*Последнее обновление: 2026-02-20*
+## Мини-чеклист перед релизом
 
-
+- [ ] Проверен путь `LOG_PATH` и права на запись.
+- [ ] Подтверждена ротация архивов.
+- [ ] Уровни prod соответствуют `WARN/INFO` политике.
+- [ ] На инцидент есть инструкция по временному повышению уровня через Actuator.
+- [ ] В логах нет чувствительных данных.

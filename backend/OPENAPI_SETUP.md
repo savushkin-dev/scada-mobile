@@ -1,145 +1,98 @@
-# OpenAPI и профили Spring Boot - Инструкция по завершению настройки
+# OpenAPI и профили Spring Boot (Backend)
 
-## Что было сделано
+Актуальность: 30.03.2026.
 
-### 1. Созданы профили dev и prod
+## Что уже настроено
 
-- `src/main/resources/application-dev.yaml` - профиль для разработки
-- `src/main/resources/application-prod.yaml` - профиль для продакшена
-- `src/main/resources/application.yaml` - базовая конфигурация (общие параметры)
+## 1. Профили окружения
 
-### 2. Добавлена зависимость springdoc-openapi
+В backend используются три YAML-файла:
 
-В `build.gradle.kts` добавлено:
+- `src/main/resources/application.yaml` — общие настройки;
+- `src/main/resources/application-dev.yaml` — dev-профиль;
+- `src/main/resources/application-prod.yaml` — prod-профиль.
+
+## 2. OpenAPI / Swagger
+
+В `build.gradle.kts` подключен springdoc для ветки Spring Boot 4:
 
 ```kotlin
-implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
+implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.1")
 ```
 
-### Комментарий для OpenAPI
+## 3. Базовый API путь
 
-- **Контроллер**: `Controller.java` - @Operation, @ApiResponses, @Parameter
+В `application.yaml` задано:
 
-### 4. Настройки профилей
-
-#### Dev (разработка)
-
-- Логирование: DEBUG/TRACE для пакета backend
-- Polling: 5000 ms (5 секунд) - медленный цикл
-- OpenAPI: **включено**
-    - `/v3/api-docs` - JSON спецификация
-    - `/swagger-ui.html` - интерактивный UI
-
-#### Prod (продакшен)
-
-- Логирование: WARN/INFO - минимальное
-- Polling: 500 ms (0.5 секунды) - быстрый цикл
-- Retry: больше попыток (10 вместо 5)
-- OpenAPI: **отключено** (безопасность)
-
-## Как запустить
-
-### 1. Пересоберите проект
-
-```powershell
-.\gradlew clean build -x test
+```yaml
+scada:
+  api:
+    version: v1.0.0
+    base-path: /api/${scada.api.version}
 ```
 
-Если возникнут ошибки компиляции из-за springdoc:
+Итоговый префикс REST API: `/api/v1.0.0`.
 
-1. Закройте IntelliJ IDEA
-2. Удалите `.gradle` папку и папку `build`
-3. Откройте проект заново - IntelliJ автоматически скачает зависимости
+## Как это работает по профилям
 
-### 2. Запуск с профилем dev (по умолчанию)
+## Dev
 
-```powershell
-# Через Gradle
-.\gradlew bootRun
+- OpenAPI и Swagger включены;
+- `springdoc.api-docs.path = /v3/api-docs`;
+- `springdoc.swagger-ui.path = /swagger-ui.html`;
+- можно использовать для разработки и ручной проверки контракта.
 
-# Или через jar
-java -jar build/libs/scada.mobile.backend-0.0.1-SNAPSHOT.jar
+## Prod
+
+- OpenAPI и Swagger отключены;
+- публичная поверхность API минимальна;
+- документация не должна быть доступна извне.
+
+## Быстрый запуск
+
+Из корня репозитория:
+
+```bash
+make back-run
 ```
 
-### 3. Запуск с профилем prod
+Это запускает backend в `dev` профиле на порту `8080`.
 
-```powershell
-# Через переменную окружения
-$env:SPRING_PROFILES_ACTIVE="prod"
-.\gradlew bootRun
+Запуск в `prod` профиле:
 
-# Или через аргумент
-.\gradlew bootRun --args="--spring.profiles.active=prod"
-
-# Или через jar
-java -jar build/libs/scada.mobile.backend-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
+```bash
+make back-run-prod BACKEND_PORT=8080
 ```
 
-### 4. Проверка OpenAPI (в dev)
+## Где проверять
 
-После запуска с профилем dev:
+После старта в `dev`:
 
-- **Swagger UI**: http://localhost:8080/swagger-ui.html
-- **OpenAPI JSON**: http://localhost:8080/v3/api-docs
+- Swagger UI: `http://localhost:8080/swagger-ui.html`
+- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+- Health liveness: `http://localhost:8080/api/v1.0.0/health/live`
+- Health readiness: `http://localhost:8080/api/v1.0.0/health/ready`
 
-## Архитектурные гарантии
+## Важные замечания
 
-Все изменения соблюдают инварианты:
-✅ GET читает только snapshot (не ходит в PrintSrv)
-✅ POST быстрый (< 50ms), команды в буфер
-✅ Scan cycle остался последовательным (READ → LOGIC → WRITE → UPDATE)
-✅ Буфер thread-safe с Last-Write-Wins
-✅ OpenAPI документация только на HTTP слое (не влияет на domain/application)
-
-## Что документировано
-
-Актуальное описание всех эндпоинтов, полей запроса и ответа, транспортных каналов (REST и WebSocket) — в [`api_mapping.md`](../api_mapping.md).
-
-## Безопасность в prod
-
-В продакшене:
-
-- Swagger UI **отключен**
-- `/v3/api-docs` **отключен**
-- Логирование минимальное (не спамит файлы)
-- Polling быстрый (0.5 сек)
+- В `prod` отсутствие Swagger — ожидаемое и правильное поведение.
+- Если URL API меняется, корректировки делаются через `scada.api.version` и `scada.api.base-path` в `application.yaml`.
+- Для frontend-контракта источником истины служат [../FRONTEND_API.md](../FRONTEND_API.md) и [../api_mapping.md](../api_mapping.md).
 
 ## Troubleshooting
 
-### Ошибка "Cannot resolve symbol 'swagger'"
+## Swagger не открывается
 
-**Решение**: Обновите зависимости Gradle
+Проверьте:
 
-```powershell
-.\gradlew --refresh-dependencies clean build
-```
+1. backend запущен именно в `dev` профиле;
+2. приложение стартовало без ошибок;
+3. используется URL `http://localhost:8080/swagger-ui.html`.
 
-### IntelliJ не видит классы springdoc
+## Не открывается `/v3/api-docs`
 
-**Решение**: Reimport Gradle project
+Проверьте:
 
-- File → Invalidate Caches and Restart
-- Или: View → Tool Windows → Gradle → Reload All Gradle Projects
-
-### Swagger UI не открывается
-
-**Проверьте**:
-
-1. Запущен профиль `dev` (не `prod`)
-2. Приложение стартовало без ошибок
-3. URL правильный: http://localhost:8080/swagger-ui.html (не swagger-ui/)
-
-### Polling слишком быстрый/медленный
-
-**Изменить**: В application-dev.yaml или application-prod.yaml
-
-```yaml
-printsrv:
-  polling:
-    fixed-delay-ms: 5000  # миллисекунды
-```
-
----
-**Автор**: GitHub Copilot  
-**Дата**: 2026-02-18
-
+1. не запущен ли `prod` профиль;
+2. нет ли конфликтов порта;
+3. что сборка прошла с актуальными зависимостями Gradle.

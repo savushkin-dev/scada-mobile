@@ -2,13 +2,13 @@
 
 ## Что это за документ
 
-Документ фиксирует, откуда именно backend может брать данные для контракта из [FRONTEND_API.md](FRONTEND_API.md), если ориентироваться на подтвержденные источники PrintSrv и на карту соответствий из [../Br1_Mark/GRUNW11_SCADA_OBJECT_MAPPING.md](../Br1_Mark/GRUNW11_SCADA_OBJECT_MAPPING.md).
+Документ фиксирует, откуда именно backend может брать данные для контракта из [FRONTEND_API.md](FRONTEND_API.md), если ориентироваться на подтвержденные источники PrintSrv и на карту соответствий из внешнего артефакта `GRUNW11_SCADA_OBJECT_MAPPING.md` (файл не хранится в этом репозитории).
 
 Текущая база анализа:
 
 - аппарат `Grunw11`
 - frontend-контракт из [FRONTEND_API.md](FRONTEND_API.md)
-- карта SCADA/PrintSrv-источников из [../Br1_Mark/GRUNW11_SCADA_OBJECT_MAPPING.md](../Br1_Mark/GRUNW11_SCADA_OBJECT_MAPPING.md)
+- карта SCADA/PrintSrv-источников из внешнего артефакта `GRUNW11_SCADA_OBJECT_MAPPING.md` (вне текущего репозитория)
 
 Документ отвечает на вопрос: какие поля фронта можно брать напрямую, какие нужно агрегировать, а какие пока не подтверждены по данным Grunw11 и требуют отдельного решения в backend.
 
