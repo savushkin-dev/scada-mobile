@@ -1,101 +1,100 @@
 # SCADA Mobile
 
-Проект дипломной работы: мобильное SCADA-приложение для мониторинга и управления, ориентированное на Android. Концепция — PWA (веб‑приложение) + TWA (Android‑оболочка), а серверная часть будет добавлена отдельно.
+SCADA Mobile — это система оповещений для производства.
+Когда линия или оборудование останавливается, система быстро показывает сотрудникам, что произошло, где это произошло и что с этим сейчас.
 
-## Быстрый запуск локально
+Проще говоря:
 
-### Требования
+- backend получает сигналы от источников данных и формирует понятные события;
+- frontend показывает состояние цехов и оборудования в удобном интерфейсе;
+- Android-приложение запускает тот же веб-интерфейс в формате TWA.
+
+## Состояние проекта (март 2026)
+
+Проект в активной разработке, но базовые части уже работают:
+
+- [backend](backend) — Spring Boot сервис с REST/WebSocket API, health-check и интеграцией с PrintSrv;
+- [frontend](frontend) — React + TypeScript + Vite PWA-клиент;
+- [android](android) — TWA-оболочка для запуска веб-клиента на Android;
+- Docker-сценарии для dev/prod запуска уже в репозитории.
+
+## Быстрый локальный запуск
+
+### Что нужно установить
 
 - Java 21+
-- Gradle (обёртка `gradlew` уже в репозитории)
-- Любой статический HTTP-сервер для фронта (Live Server, python http.server и т.д.)
+- Node.js 20+ и npm
+- Docker Desktop (только если хотите запуск через контейнеры)
 
-### 1. Запуск бекенда
+### Вариант 1. Запуск по частям (удобно для разработки)
 
-```bash
-make back-run-bg
-```
-
-Бекенд запустится в фоне с dev-профилем на `http://localhost:8080`.
-
-Проверить статус: `make back-status`  
-Остановить: `make back-stop`  
-Логи: `backend/logs/backend.log`
-
-### 2. Открыть фронтенд
-
-Откройте `frontend/index.html` через Live Server (порт 5500) или любым другим способом:
+1. Запустите backend:
 
 ```bash
-cd frontend
-python -m http.server 5500
+make back-run
 ```
 
-Затем открыть: [http://localhost:5500](http://localhost:5500)
+2. В другом терминале установите зависимости frontend (один раз):
 
-Фронтенд автоматически направит API-запросы на `localhost:8080`.
+```bash
+make front-install
+```
 
-> **Примечание:** используйте порт 5500 — он включён в CORS-allowlist dev-профиля бекенда. При использовании Live Server в VS Code порт 5500 устанавливается автоматически.
+3. Запустите frontend:
 
-### После запуска:
+```bash
+make front-dev
+```
 
-- Frontend: [http://localhost:5500](http://localhost:5500)
-- Backend API: [http://localhost:8080/api/v1/commands/queryAll](http://localhost:8080/api/v1/commands/queryAll)
-- Backend Health: [http://localhost:8080/api/v1/commands/health/live](http://localhost:8080/api/v1/commands/health/live)
-- Swagger UI (только dev): [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+4. Откройте в браузере:
 
-## Статус
+- Frontend: http://localhost:5500
+- Backend health: http://localhost:8080/api/v1.0.0/health/live
+- Swagger UI (dev): http://localhost:8080/swagger-ui.html
 
-⚠️ Проект находится в активной разработке.
+### Вариант 2. Запуск в Docker
 
-- Сервер в [backend/](backend/) реализован на Spring Boot и предоставляет REST API для чтения и отправки команд.
-- Веб‑часть в [frontend/](frontend/) — рабочий минимальный PWA-клиент (HTML/CSS/JS) для ручного чтения/установки значений.
-- Android‑оболочка в [android/](android/) — TWA‑контейнер, который запускает веб‑приложение.
+```bash
+make docker-dev-up
+```
 
-**Основные документы проекта:**
+Остановить:
 
-- [STRUCTURE.md](STRUCTURE.md) — целевая архитектура и правила разработки
-- [PROJECT_DIAGRAM.md](PROJECT_DIAGRAM.md) — визуальные диаграммы архитектуры и структуры репозитория (Mermaid)
+```bash
+make docker-dev-down
+```
 
-## Что уже есть в репозитории
+Подробно про Docker, dev/prod профили и env-файлы: [DOCKER_DEPLOY.md](DOCKER_DEPLOY.md).
 
-- [frontend/](frontend/) — статический PWA (HTML/CSS/JS) + Service Worker + Web Manifest. *Текущее состояние — заглушка; целевая архитектура (React/TS) описана в [STRUCTURE.md](STRUCTURE.md).*
-- [android/](android/) — TWA‑проект (Gradle) для упаковки PWA в Android‑приложение.
-- [backend/](backend/) — Spring Boot сервер (REST API, health endpoints, интеграция с PrintSrv).
+### Полезная команда
 
-Подробности по текущим папкам см. в:
+Полный список шорткатов:
 
-- [frontend/README.md](frontend/README.md)
-- [android/README.md](android/README.md)
+```bash
+make help
+```
 
-## Целевая архитектура
+## Куда смотреть за подробностями
 
-Полная версия — [STRUCTURE.md](STRUCTURE.md). Визуальные диаграммы — [PROJECT_DIAGRAM.md](PROJECT_DIAGRAM.md).
+Чтобы не дублировать информацию, вся детализация разнесена по отдельным файлам:
 
-## Безопасность
-
-Политика безопасности проекта — в [SECURITY.md](SECURITY.md).
-
-## План работ
-
-Детальный план разработки по фазам — [PLAN.md](PLAN.md). Бизнес-цели — [PLAN_BUSINESS.md](PLAN_BUSINESS.md).
-
----
-
-## Тестирование Приложения
-
-Инструкции по загрузке, установке и тестированию APK — в [android/README.md](android/README.md).
-
----
+- [STRUCTURE.md](STRUCTURE.md) — архитектура проекта и технологический стек;
+- [PROJECT_DIAGRAM.md](PROJECT_DIAGRAM.md) — визуальные схемы системы;
+- [FRONTEND_API.md](FRONTEND_API.md) — контракт API и WebSocket для фронтенда;
+- [FRONTEND_DATA_SOURCES.md](FRONTEND_DATA_SOURCES.md) — откуда backend берет данные для фронтенда;
+- [NOTIFICATIONS_ARCHITECTURE.md](NOTIFICATIONS_ARCHITECTURE.md) — логика уведомлений;
+- [api_mapping.md](api_mapping.md) — маппинг сущностей и API-полей;
+- [frontend/README.md](frontend/README.md) — детали веб-клиента и фронтенд-команд;
+- [android/README.md](android/README.md) — сборка и запуск Android TWA;
+- [SECURITY.md](SECURITY.md) — правила безопасности и секретов;
+- [PLAN.md](PLAN.md) и [PLAN_BUSINESS.md](PLAN_BUSINESS.md) — технический и бизнес-план.
 
 ## Скриншоты
 
-Приложение в работе на мобильном устройстве:
+Приложение на мобильном устройстве:
 
-<img src="frontend/assets/screenshots/screenshot-mobile.png" alt="SCADA Mobile App Screenshot" width="50%" />
+<img src="frontend/public/assets/screenshots/screenshot-mobile.png" alt="SCADA Mobile App Screenshot" width="50%" />
 
-Приложение в работе на десктопе:
+Приложение на десктопе:
 
-![SCADA Desktop App Screenshot](frontend/assets/screenshots/screenshot-desktop.png)
-
----
+![SCADA Desktop App Screenshot](frontend/public/assets/screenshots/screenshot-desktop.png)
