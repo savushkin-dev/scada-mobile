@@ -58,6 +58,13 @@ cp .env.prod.example .env.prod.local
 - CORS_POLICY_ALLOWED_ORIGINS=https://ваш-домен-фронта
 - PRINTSRV_<ID>_HOST / PRINTSRV_<ID>_PORT (например, PRINTSRV_HASSIA4_HOST / PRINTSRV_HASSIA4_PORT)
 
+Важно по CORS/WebSocket:
+
+- `CORS_POLICY_ALLOWED_ORIGINS` должен содержать точный origin фронта, под которым его реально открывают в браузере.
+- Если UI открывают как `http://999.9.9.9:9999`, значение должно включать именно `http://999.9.9.9:9999`, а не только `http://localhost:5500`.
+- Это значение используется не только для REST CORS, но и для WebSocket handshake на `/ws/live` и `/ws/unit/*`.
+- Если нужны и локальный запуск, и доступ по IP/домену, перечислите несколько origin через запятую без пробелов. Пример: `CORS_POLICY_ALLOWED_ORIGINS=http://localhost:5500,http://999.9.9.9:9999`
+
 3. Поднимите prod-режим:
 
 ~~~bash

@@ -3,8 +3,8 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: dev
     ports:
-      - "8080:8080"
+      - "${DEV_BACKEND_PORT:-8080}:8080"
 
   frontend:
     ports:
-      - "5500:8080"
+      - "${DEV_FRONTEND_PORT:-5500}:8080"

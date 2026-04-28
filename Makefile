@@ -20,6 +20,8 @@ DOCKER_BASE_FILES := -f docker-compose.yml
 DOCKER_DEV_FILES := -f docker-compose.dev.yml
 DOCKER_PROD_FILES := -f docker-compose.prod.yml
 PROD_ENV_FILE ?= .env.prod.local
+PROD_ENV_FALLBACK := .env.prod.example
+PROD_ENV_ACTIVE_FILE = $(if $(wildcard $(PROD_ENV_FILE)),$(PROD_ENV_FILE),$(PROD_ENV_FALLBACK))
 
 ifeq ($(OS),Windows_NT)
 help:
@@ -71,20 +73,23 @@ endif
 
 ifeq ($(OS),Windows_NT)
 back-run:
-	cmd /C "chcp 65001 >NUL & cd $(BACKEND_DIR) & set JAVA_TOOL_OPTIONS=$(JAVA_OPTS) & set SPRING_PROFILES_ACTIVE=dev & set SERVER_PORT=$(DEV_BACKEND_PORT) & $(GRADLEW) bootRun"
+	cmd /C "chcp 65001 >NUL & cd $(BACKEND_DIR) & set "JAVA_TOOL_OPTIONS=$(JAVA_OPTS)" & set "SPRING_PROFILES_ACTIVE=dev" & set "SERVER_PORT=$(DEV_BACKEND_PORT)" & $(GRADLEW) bootRun"
 
 back-run-prod:
-	cmd /C "chcp 65001 >NUL & if ""=="$(BACKEND_PORT)"" (echo Missing BACKEND_PORT. Set BACKEND_PORT before make back-run-prod. & exit /b 1) & cd $(BACKEND_DIR) & set JAVA_TOOL_OPTIONS=$(JAVA_OPTS) & set SPRING_PROFILES_ACTIVE=prod & set SERVER_PORT=$(BACKEND_PORT) & $(GRADLEW) bootRun"
+	cmd /V:ON /C "chcp 65001 >NUL & setlocal EnableDelayedExpansion & set "ENV_FILE=$(PROD_ENV_ACTIVE_FILE)" & (for /f "usebackq eol=# tokens=1,* delims==" %%A in ("!ENV_FILE!") do (if not "%%A"=="" set "%%A=%%B")) & if "!BACKEND_PORT!"=="" (echo Missing BACKEND_PORT in !ENV_FILE!. & exit /b 1) & cd $(BACKEND_DIR) & set "JAVA_TOOL_OPTIONS=$(JAVA_OPTS)" & set "SPRING_PROFILES_ACTIVE=prod" & set "SERVER_PORT=!BACKEND_PORT!" & $(GRADLEW) bootRun"
 else
 back-run:
 	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=dev SERVER_PORT='$(DEV_BACKEND_PORT)' $(GRADLEW) bootRun
 
 back-run-prod:
-	@if [ -z "$(BACKEND_PORT)" ]; then \
-		echo "Missing BACKEND_PORT. Set BACKEND_PORT before make back-run-prod."; \
+	@set -a; \
+	. "$(PROD_ENV_ACTIVE_FILE)"; \
+	set +a; \
+	if [ -z "$$BACKEND_PORT" ]; then \
+		echo "Missing BACKEND_PORT in $(PROD_ENV_ACTIVE_FILE)."; \
 		exit 1; \
-	fi
-	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=prod SERVER_PORT='$(BACKEND_PORT)' $(GRADLEW) bootRun
+	fi; \
+	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=prod SERVER_PORT="$$BACKEND_PORT" $(GRADLEW) bootRun
 endif
 
 ifeq ($(OS),Windows_NT)
@@ -104,7 +109,7 @@ bwa-build-apk:
 	cmd /C "cd android && npx @bubblewrap/cli build"
 else
 front-install:
-	cd $(FRONTEND_DIR) && npm install
+	cd $(FRONTEND_DIR) && if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 front-dev:
 	cd $(FRONTEND_DIR) && npm run dev -- --port $(DEV_FRONTEND_PORT) --strictPort
@@ -119,22 +124,40 @@ bwa-build-apk:
 	cd android && npx @bubblewrap/cli build
 endif
 
+ifeq ($(OS),Windows_NT)
 docker-dev-up:
-	docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) up --build -d
+	cmd /C "set "DEV_BACKEND_PORT=$(DEV_BACKEND_PORT)" & set "DEV_FRONTEND_PORT=$(DEV_FRONTEND_PORT)" & docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) up --build -d"
 
 docker-dev-down:
-	docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) down
+	cmd /C "set "DEV_BACKEND_PORT=$(DEV_BACKEND_PORT)" & set "DEV_FRONTEND_PORT=$(DEV_FRONTEND_PORT)" & docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) down"
+
+docker-prod-up:
+	cmd /C "if not exist $(PROD_ENV_FILE) (echo Missing $(PROD_ENV_FILE). Copy .env.prod.example -^> $(PROD_ENV_FILE) and fill values. & exit /b 1) else (docker compose --env-file $(PROD_ENV_FILE) $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) up --build -d)"
+
+docker-prod-down:
+	cmd /C "docker compose --env-file $(PROD_ENV_ACTIVE_FILE) $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) down"
+
+docker-ps:
+	-docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) ps
+	-cmd /C "docker compose --env-file $(PROD_ENV_ACTIVE_FILE) $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) ps"
+else
+docker-dev-up:
+	DEV_BACKEND_PORT='$(DEV_BACKEND_PORT)' DEV_FRONTEND_PORT='$(DEV_FRONTEND_PORT)' docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) up --build -d
+
+docker-dev-down:
+	DEV_BACKEND_PORT='$(DEV_BACKEND_PORT)' DEV_FRONTEND_PORT='$(DEV_FRONTEND_PORT)' docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) down
 
 docker-prod-up:
 	@if [ ! -f "$(PROD_ENV_FILE)" ]; then \
 		echo "Missing $(PROD_ENV_FILE). Copy .env.prod.example -> $(PROD_ENV_FILE) and fill values."; \
 		exit 1; \
 	fi
-	docker compose --env-file $(PROD_ENV_FILE) $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) up --build -d
+	docker compose --env-file "$(PROD_ENV_FILE)" $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) up --build -d
 
 docker-prod-down:
-	docker compose $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) down
+	docker compose --env-file "$(PROD_ENV_ACTIVE_FILE)" $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) down
 
 docker-ps:
-	docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) ps || true
-	docker compose $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) ps || true
+	-docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) ps
+	-docker compose --env-file "$(PROD_ENV_ACTIVE_FILE)" $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) ps
+endif

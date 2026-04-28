@@ -4,18 +4,14 @@
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PrintSrv instances в dev:
-#   host/port берутся из application.yaml (127.0.0.1 + порты 556x/557x).
-#   Варианты запуска:
-#     1) Реальный PrintSrv на той же машине — ничего не менять.
-#     2) PrintSrv на удалённой машине — пробросить SSH-туннель:
-#          ssh -L 5561:localhost:5561 ... -L 5577:localhost:5577 user@prod-host
-#        Тогда localhost-порты из application.yaml сработают без изменений.
-#     3) Для тестирования без PrintSrv — используйте мок-клиенты и offline-instances.
+#   host/port в application.yaml намеренно заменены плейсхолдерами (999.9.9.9:9999).
+#   Реальные адреса и порты аппаратов не хранятся в git.
+#   Для тестирования без PrintSrv используйте мок-клиенты и offline-instances.
 # ─────────────────────────────────────────────────────────────────────────────
 
 printsrv:
   polling:
-    fixed-delay-ms: 500  # Dev: задержка между проходами каждого instance worker
+    fixed-delay-ms: 1000  # Dev: задержка между проходами каждого instance worker (1 секунда)
 
   # ─────────────────────────────────────────────────────────────────────────
   # MockPrintSrv — используется ТОЛЬКО в профиле dev.
@@ -85,4 +81,3 @@ springdoc:
     enabled: true
     path: /swagger-ui.html
   show-actuator: true
-
