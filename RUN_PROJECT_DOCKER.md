@@ -36,15 +36,14 @@ cp .env.prod.example .env.prod.local
 
 1. `CORS_POLICY_ALLOWED_ORIGINS` должен совпадать с точным origin фронта в адресной строке браузера.
 2. Если фронт открывают по IP/домену сервера, нельзя оставлять только `http://localhost:5500`.
-3. Это значение проверяется и при WebSocket handshake. Неверный origin даёт типичный симптом: backend health = `UP`, `GET /api/.../topology` = `200`, но `/ws/live` получает отказ и фронт уходит в ошибку после нескольких reconnect-попыток.
-4. Для нескольких вариантов доступа перечисляйте origin через запятую без пробелов. Пример: `http://localhost:5500,http://999.9.9.9:9999`
+3. Для нескольких вариантов доступа перечисляйте origin через запятую без пробелов. Пример: `http://localhost:5500,http://999.9.9.9:9999`
 
 Пример:
 
 ~~~env
-BACKEND_PORT=8080
-FRONTEND_PORT=5500
-CORS_POLICY_ALLOWED_ORIGINS=http://localhost:5500,http://999.9.9.9:9999
+BACKEND_PORT=9999
+FRONTEND_PORT=9998
+CORS_POLICY_ALLOWED_ORIGINS=http://999.9.9.9:9998
 
 PRINTSRV_TREPKO1_HOST=999.9.9.9
 PRINTSRV_TREPKO1_PORT=9999
@@ -84,9 +83,9 @@ PRINTSRV_GRUNWALD11_PORT=9999
 Пример минимального `.env.prod.local`:
 
 ~~~env
-BACKEND_PORT=8080
-FRONTEND_PORT=5500
-CORS_POLICY_ALLOWED_ORIGINS=http://999.9.9.9:9999
+BACKEND_PORT=9999
+FRONTEND_PORT=9998
+CORS_POLICY_ALLOWED_ORIGINS=http://999.9.9.9:9998
 
 # Единственный аппарат для проверки
 PRINTSRV_HASSIA4_HOST=999.9.9.9
@@ -98,27 +97,21 @@ PRINTSRV_HASSIA4_PORT=9999
 1. `999.9.9.9` — плейсхолдер IP машины Hassia 4; в `.env.prod.local` указывается фактическое значение.
 2. `9999` — плейсхолдер TCP-порта PrintSrv; в `.env.prod.local` указывается фактическое значение.
 
-Если PrintSrv запущен на той же машине, где работает Docker (локальный пилот),
-для backend-контейнера используйте `PRINTSRV_HASSIA4_HOST=host.docker.internal`,
-а не `localhost`.
-
-Важно: loopback backend-контейнера — это `127.0.0.1`; для доступа к Docker-host используйте `host.docker.internal`, а адреса аппаратов храните только в `.env.prod.local`.
-
 Остальные аппараты можно временно не заполнять: backend запустится,
 а не подключенные аппараты будут отображаться как «Нет данных».
 
 ## 3) Запуск PROD-стека
 
 ~~~bash
-docker compose --env-file .env.prod.local -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+make docker-prod-up
 ~~~
 
-После запуска фронт будет доступен по ссылке: `http://localhost:5500` (или по порту, который вы указали в `FRONTEND_PORT`).
+После запуска фронт будет доступен по ссылке: `http://999.9.9.9:9998` (или по порту, который вы указали в `FRONTEND_PORT`).
 
 Проверка статуса контейнеров:
 
 ~~~bash
-docker compose --env-file .env.prod.local -f docker-compose.yml -f docker-compose.prod.yml ps
+make docker-ps
 ~~~
 
 Проверка здоровья backend:
@@ -169,7 +162,7 @@ curl -i \
 ## 5) Остановка PROD-стека
 
 ~~~bash
-docker compose down
+make docker-prod-down
 ~~~
 
 ## 6) Если что-то не стартовало
