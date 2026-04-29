@@ -260,41 +260,43 @@ public class WorkshopService {
 
     /**
      * Формирует текстовое описание текущего события для аппарата.
+     * <p>
+     * Собирает тексты активных ошибок со всех устройств инстанса (Line, принтеры, камеры и т.д.),
+     * а также проверяет {@code scada.lineerr}.
+     * Если активных ошибок нет — возвращает "Нет данных".
      */
     private @NonNull String deriveEvent(String instanceId) {
-        DeviceSnapshot lineSnapshot = findSnapshotByDeviceName(instanceId, getLineDeviceName(instanceId));
+        PrintSrvProperties.InstanceProperties inst = instancesById.get(instanceId);
+        List<String> deviceNames = inst != null
+                ? inst.getAllDeviceNames()
+                : List.of(getLineDeviceName(instanceId));
 
-        if (lineSnapshot != null) {
-            for (UnitSnapshot unit : lineSnapshot.units().values()) {
-                Optional<String> st = unit.properties().getSt();
+        List<String> errors = new ArrayList<>();
+
+        for (String deviceName : deviceNames) {
+            DeviceSnapshot snapshot = findSnapshotByDeviceName(instanceId, deviceName);
+            if (snapshot == null) continue;
+            for (UnitSnapshot unit : snapshot.units().values()) {
                 Optional<String> error = unit.properties().getError();
-                Optional<String> errorMsg = unit.properties().getErrorMessage();
-
-                // 1. Line.Error — основной флаг ошибки линии
                 boolean hasError = error.isPresent() && !"0".equals(error.get()) && !error.get().isEmpty();
                 if (hasError) {
-                    return errorMsg.filter(m -> !m.isEmpty()).orElse("Ошибка");
+                    Optional<String> errorMsg = unit.properties().getErrorMessage();
+                    errors.add(errorMsg.filter(m -> !m.isEmpty()).orElse("Ошибка"));
                 }
-
-                // 2. scada.lineerr — дополнительный источник ошибки (из scada-снапшота)
-                String lineerr = getScadaLineerr(instanceId);
-                if (lineerr != null && !"0".equals(lineerr) && !lineerr.isBlank()) {
-                    return lineerr;
-                }
-
-                boolean isRunning = st.isPresent() && "1".equals(st.get());
-                return isRunning ? "В работе" : "Остановлена";
             }
         }
 
-        // Если Line-снапшот отсутствует/пустой, но scada уже сигнализирует об ошибке,
-        // отдаём эту причину вместо "Нет данных".
+        // Дополнительно проверяем scada.lineerr
         String lineerr = getScadaLineerr(instanceId);
         if (lineerr != null && !"0".equals(lineerr) && !lineerr.isBlank()) {
-            return lineerr;
+            errors.add(lineerr);
         }
 
-        return "Нет данных";
+        if (errors.isEmpty()) {
+            return "Нет данных";
+        }
+
+        return String.join("; ", errors);
     }
 
     /**
