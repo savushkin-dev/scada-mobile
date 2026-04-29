@@ -7,7 +7,7 @@ package dev.savushkin.scada.mobile.backend.api.dto;
  *
  * @param unitId     идентификатор аппарата (ссылка на {@link UnitTopologyDTO#id()})
  * @param workshopId идентификатор цеха-владельца
- * @param event      текущее событие ({@code "В работе"}, {@code "Остановлена"}, {@code "Ошибка…"})
+ * @param event      текущее событие (curItem без ошибок или список ошибок устройств)
  */
 public record UnitStatusDTO(
         String unitId,

@@ -22,12 +22,6 @@ export const DOMAIN_DEFAULTS = Object.freeze({
   unitName: 'Устройство',
 });
 
-export const UNIT_EVENT = Object.freeze({
-  empty: '',
-  working: 'В работе',
-  noData: DOMAIN_DEFAULTS.noDataEvent,
-});
-
 export const BOOLEAN_LABEL = Object.freeze({
   yes: 'Да',
   no: 'Нет',
@@ -37,6 +31,3 @@ export const HTTP_REQUEST = Object.freeze({
   post: 'POST',
   jsonContentType: 'application/json',
 });
-
-export const NORMAL_UNIT_EVENTS = new Set<string>([UNIT_EVENT.empty, UNIT_EVENT.working]);
-export const NO_DATA_UNIT_EVENTS = new Set<string>([UNIT_EVENT.noData]);

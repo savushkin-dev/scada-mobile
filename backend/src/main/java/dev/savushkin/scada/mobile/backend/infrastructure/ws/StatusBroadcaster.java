@@ -70,11 +70,11 @@ public class StatusBroadcaster {
 
     @EventListener
     public void onInstancePolled(PrintSrvInstancePolledEvent event) {
-        broadcastUnitStatus(event.instanceId());
         // Обновляем единый источник правды перед расчётом дельты алёртов,
         // чтобы AlertService и buildErrorsStatus читали актуальные данные.
         List<DeviceError> activeErrors = unitDetailService.extractActiveErrors(event.instanceId());
         unitErrorStore.update(event.instanceId(), activeErrors);
+        broadcastUnitStatus(event.instanceId());
         broadcastAlertDelta(event.instanceId());
         broadcastUnitDetails(event.instanceId());
     }

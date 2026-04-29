@@ -1,5 +1,6 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -179,8 +180,10 @@ public final class PropertiesDTO {
         @JsonProperty("ST")
         public Builder st(String st)                                                    { this.st = st; return this; }
         @JsonProperty("batchId")
+        @JsonAlias("batchid")
         public Builder batchId(String batchId)                                          { this.batchId = batchId; return this; }
         @JsonProperty("CurItem")
+        @JsonAlias("curitem")
         public Builder curItem(String curItem)                                          { this.curItem = curItem; return this; }
         @JsonProperty("batchIdCodesQueue")
         public Builder batchIdCodesQueue(String batchIdCodesQueue)                      { this.batchIdCodesQueue = batchIdCodesQueue; return this; }

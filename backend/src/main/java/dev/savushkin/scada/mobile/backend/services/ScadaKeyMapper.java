@@ -1,6 +1,10 @@
 package dev.savushkin.scada.mobile.backend.services;
 
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+
+import java.util.LinkedHashSet;
+import java.util.List;
 
 /**
  * Вычисляет ключи (префиксы) scada-снапшота по имени устройства и его позиции в группе.
@@ -35,20 +39,36 @@ public final class ScadaKeyMapper {
     /**
      * Возвращает prefix ключа scada для принтера.
      * Например: {@code "Printer11"} → {@code "LineDev011"}.
+     * Поддерживает варианты нулевого заполнения (например, LineDev02 и LineDev002).
      *
      * @param printerName имя устройства (например, "Printer11")
      * @return "LineDev0NN" или {@code null}, если имя не соответствует паттерну
      */
     public static @Nullable String printerScadaPrefix(String printerName) {
+        List<String> prefixes = printerScadaPrefixes(printerName);
+        return prefixes.isEmpty() ? null : prefixes.getFirst();
+    }
+
+    /**
+     * Возвращает все возможные prefix ключей scada для принтера.
+     * Например: {@code "Printer2"} → {@code ["LineDev002", "LineDev02"]}.
+     *
+     * @param printerName имя устройства (например, "Printer11")
+     * @return список prefix (может быть пустым, если имя не соответствует паттерну)
+     */
+    public static @NonNull List<String> printerScadaPrefixes(String printerName) {
         if (printerName == null || !printerName.startsWith("Printer")) {
-            return null;
+            return List.of();
         }
         String suffix = printerName.substring("Printer".length());
         try {
             int num = Integer.parseInt(suffix);
-            return "LineDev%03d".formatted(num);
+            LinkedHashSet<String> prefixes = new LinkedHashSet<>();
+            prefixes.add("LineDev%03d".formatted(num));
+            prefixes.add("LineDev%02d".formatted(num));
+            return List.copyOf(prefixes);
         } catch (NumberFormatException e) {
-            return null;
+            return List.of();
         }
     }
 

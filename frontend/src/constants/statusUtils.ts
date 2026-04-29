@@ -1,4 +1,4 @@
-import { DOMAIN_FLAGS, NO_DATA_UNIT_EVENTS, NORMAL_UNIT_EVENTS } from '../config';
+import { DOMAIN_DEFAULTS, DOMAIN_FLAGS } from '../config';
 import type { AlertData, AlertError, DevicesStatusPayload, Unit } from '../types';
 
 // ── Уровни статуса ────────────────────────────────────────────────────────────
@@ -14,14 +14,6 @@ import type { AlertData, AlertError, DevicesStatusPayload, Unit } from '../types
  */
 export type UnitStatusLevel = 'pending' | 'offline' | 'critical' | 'normal';
 
-/**
- * События, при которых аппарат считается работающим штатно.
- * Всё остальное (включая "Ошибка", "Остановлена", специфические сообщения) —
- * как минимум предупреждение.
- *
- * Пустая строка — статус ещё не получен; отображаем как normal
- * (карточка зеленеет сразу как придут данные о нормальной работе).
- */
 // ── Статус аппарата (unit) ───────────────────────────────────────────────────
 
 /**
@@ -30,14 +22,13 @@ export type UnitStatusLevel = 'pending' | 'offline' | 'critical' | 'normal';
  * Порядок приоритетов:
  *  1. `pending`  — WS-данные ещё не пришли.
  *  2. `critical` — есть активный алёрт (единый источник правды по ошибкам).
- *  3. `offline`  — данных по событию нет и алёртов нет.
- *  4. `normal`   — аппарат в работе.
+ *  3. `offline`  — данные получены, но событие = "Нет данных".
+ *  4. `normal`   — нет алёртов, данные получены.
  */
 export function getUnitStatusLevel(unit: Unit, alerts: Map<string, AlertData>): UnitStatusLevel {
   if (!unit.statusReady) return 'pending';
   if (alerts.has(String(unit.id))) return 'critical';
-  if (NO_DATA_UNIT_EVENTS.has(unit.event)) return 'offline';
-  if (!NORMAL_UNIT_EVENTS.has(unit.event)) return 'critical';
+  if (unit.event === DOMAIN_DEFAULTS.noDataEvent) return 'offline';
   return 'normal';
 }
 

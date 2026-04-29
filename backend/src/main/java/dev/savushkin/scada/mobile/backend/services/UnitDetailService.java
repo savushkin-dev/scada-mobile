@@ -302,14 +302,11 @@ public class UnitDetailService {
     }
 
     /**
-     * Извлекает список <b>активных</b> ошибок со всех источников для данного инстанса.
+     * Извлекает список <b>активных</b> ошибок устройств данного инстанса.
      *
-     * <p>Источники (в порядке добавления):
-     * <ol>
-     *   <li>{@code Line.Error} — общая ошибка линии; сообщение берётся из {@code Line.ErrorMessage}.</li>
-     *   <li>{@code scada.lineerr} — текстовая ошибка из scada-снапшота.</li>
-     *   <li>Флаги {@code DevXXXSuffix} в scada-снапшоте (ненулевые значения).</li>
-     * </ol>
+     * <p>Источник — только scada-флаги {@code DevXXXSuffix} / {@code LineDevXXXSuffix}.
+     * Ошибки фильтруются по фактическому составу устройств аппарата
+     * (printers + cams из {@link DeviceCompositionService}).
      *
      * <p>Результат предназначен для записи в {@code UnitErrorStore}; используется
      * {@code buildErrorsStatus} и {@code AlertService} как единый источник правды.
@@ -321,38 +318,38 @@ public class UnitDetailService {
         InstanceProperties inst = instancesById.get(instanceId);
         if (inst == null) return List.of();
 
-        List<DeviceError> errors = new ArrayList<>();
+        DeviceComposition composition = deviceCompositionService.getComposition(instanceId);
+        List<String> allowedPrefixes = buildErrorDevicePrefixes(composition);
+        if (allowedPrefixes.isEmpty()) {
+            return List.of();
+        }
 
-        // 1. Line.Error / Line.ErrorMessage
-        getFirstUnit(snapshotRepo.get(instanceId, inst.getDevices().getLine())).ifPresent(unit -> {
-            unit.properties().getError().ifPresent(err -> {
-                if (!err.isBlank() && !"0".equals(err)) {
-                    String desc = unit.properties().getErrorMessage()
-                            .filter(m -> !m.isBlank())
-                            .orElse("Ошибка линии");
-                    errors.add(new DeviceError("Line", "Line.Error", desc));
-                }
-            });
-        });
+        Map<String, List<DeviceError>> errorsByDevice = new LinkedHashMap<>();
+        for (String prefix : allowedPrefixes) {
+            errorsByDevice.put(prefix, new ArrayList<>());
+        }
 
         Map<String, String> scadaRaw = firstUnitRawProperties(
                 snapshotRepo.get(instanceId, inst.getDevices().getScada()));
 
-        // 2. scada.lineerr
-        String lineerr = scadaRaw.get("lineerr");
-        if (lineerr != null && !lineerr.isBlank() && !"0".equals(lineerr)) {
-            errors.add(new DeviceError("Line", "scada.lineerr", lineerr));
+        for (Map.Entry<String, String> entry : scadaRaw.entrySet()) {
+            String key = entry.getKey();
+            String value = entry.getValue();
+            if (!isErrorFlag(key) || !isActiveErrorValue(value)) {
+                continue;
+            }
+            String objectName = extractObjectName(key);
+            List<DeviceError> bucket = errorsByDevice.get(objectName);
+            if (bucket == null) {
+                continue; // ignore errors for devices outside composition
+            }
+            bucket.add(new DeviceError(objectName, key, descriptionForKey(key)));
         }
 
-        // 3. DevXXX flag errors
-        scadaRaw.entrySet().stream()
-                .filter(e -> isErrorFlag(e.getKey()) && !"0".equals(e.getValue()))
-                .map(e -> new DeviceError(
-                        extractObjectName(e.getKey()),
-                        e.getKey(),
-                        descriptionForKey(e.getKey())))
-                .forEach(errors::add);
-
+        List<DeviceError> errors = new ArrayList<>();
+        for (List<DeviceError> bucket : errorsByDevice.values()) {
+            errors.addAll(bucket);
+        }
         return List.copyOf(errors);
     }
 
@@ -378,9 +375,11 @@ public class UnitDetailService {
             // Fallback из scada: LineDev0{NN}Error → ошибка принтера по имени устройства
             // Пример: Printer11 → LineDev011Error, Printer12 → LineDev012Error
             if (error == null && !scadaRaw.isEmpty()) {
-                String scadaPrefix = ScadaKeyMapper.printerScadaPrefix(printerName);
-                if (scadaPrefix != null) {
+                for (String scadaPrefix : ScadaKeyMapper.printerScadaPrefixes(printerName)) {
                     error = scadaRaw.get(scadaPrefix + "Error");
+                    if (error != null) {
+                        break;
+                    }
                 }
             }
 
@@ -511,6 +510,46 @@ public class UnitDetailService {
             }
         }
         return key;
+    }
+
+    private static boolean isActiveErrorValue(@Nullable String value) {
+        return value != null && !value.isBlank() && !"0".equals(value);
+    }
+
+    private static @NonNull List<String> buildErrorDevicePrefixes(DeviceComposition composition) {
+        LinkedHashSet<String> prefixes = new LinkedHashSet<>();
+
+        for (String printer : composition.printers()) {
+            List<String> printerPrefixes = ScadaKeyMapper.printerScadaPrefixes(printer);
+            if (printerPrefixes.isEmpty()) {
+                prefixes.add(printer);
+            } else {
+                prefixes.addAll(printerPrefixes);
+            }
+        }
+
+        for (int i = 0; i < composition.aggregationCams().size(); i++) {
+            prefixes.add(ScadaKeyMapper.aggregationCamScadaPrefix(i));
+        }
+
+        for (int i = 0; i < composition.aggregationBoxCams().size(); i++) {
+            prefixes.add(ScadaKeyMapper.aggregationBoxCamScadaPrefix(i));
+        }
+
+        for (String camName : composition.checkerCams()) {
+            if (ScadaKeyMapper.isEanChecker(camName)) {
+                String devKey = ScadaKeyMapper.eanCheckerScadaPrefix(camName);
+                if (devKey != null) {
+                    prefixes.add(devKey);
+                } else {
+                    prefixes.add(camName);
+                }
+            } else {
+                prefixes.add(camName);
+            }
+        }
+
+        return List.copyOf(prefixes);
     }
 
     /**

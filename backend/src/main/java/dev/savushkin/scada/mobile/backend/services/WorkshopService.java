@@ -4,8 +4,10 @@ import dev.savushkin.scada.mobile.backend.api.dto.*;
 import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepository;
 import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceComposition;
+import dev.savushkin.scada.mobile.backend.domain.model.DeviceError;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitSnapshot;
+import dev.savushkin.scada.mobile.backend.infrastructure.store.UnitErrorStore;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -40,6 +42,7 @@ public class WorkshopService {
     private final PrintSrvProperties config;
     private final InstanceSnapshotRepository snapshotRepo;
     private final DeviceCompositionService deviceCompositionService;
+    private final UnitErrorStore unitErrorStore;
 
     /** Быстрый lookup: workshopId → список инстансов. */
     private final Map<String, List<PrintSrvProperties.InstanceProperties>> instancesByWorkshop;
@@ -58,10 +61,12 @@ public class WorkshopService {
 
     public WorkshopService(PrintSrvProperties config,
                            InstanceSnapshotRepository snapshotRepo,
-                           DeviceCompositionService deviceCompositionService) {
+                           DeviceCompositionService deviceCompositionService,
+                           UnitErrorStore unitErrorStore) {
         this.config = config;
         this.snapshotRepo = snapshotRepo;
         this.deviceCompositionService = deviceCompositionService;
+        this.unitErrorStore = unitErrorStore;
         this.instancesByWorkshop = config.getInstances().stream()
                 .collect(Collectors.groupingBy(
                         PrintSrvProperties.InstanceProperties::getWorkshopId,
@@ -232,20 +237,10 @@ public class WorkshopService {
 
     /**
      * Определяет, есть ли активная ошибка на инстансе.
-     * Проверяет флаг Error на устройстве Line.
+        * Проверяет наличие ошибок в {@link UnitErrorStore}.
      */
     private boolean hasActiveError(String instanceId) {
-        DeviceSnapshot lineSnapshot = findSnapshotByDeviceName(instanceId, getLineDeviceName(instanceId));
-        if (lineSnapshot == null) {
-            return false;
-        }
-        for (UnitSnapshot unit : lineSnapshot.units().values()) {
-            Optional<String> error = unit.properties().getError();
-            if (error.isPresent() && !"0".equals(error.get()) && !error.get().isEmpty()) {
-                return true;
-            }
-        }
-        return false;
+        return unitErrorStore.hasErrors(instanceId);
     }
 
     private int countProblemUnits(@NonNull List<PrintSrvProperties.InstanceProperties> instances) {
@@ -259,58 +254,69 @@ public class WorkshopService {
     }
 
     /**
-     * Формирует текстовое описание текущего события для аппарата.
+        * Формирует текстовое описание текущего события для аппарата.
+        * При наличии ошибок возвращает список "DEVICE: message".
+        * При отсутствии ошибок возвращает curItem.
      */
     private @NonNull String deriveEvent(String instanceId) {
+        List<DeviceError> errors = unitErrorStore.getErrors(instanceId);
+        if (!errors.isEmpty()) {
+            return formatErrorEvent(errors);
+        }
+
+        String curItem = resolveCurItem(instanceId);
+        return curItem != null ? curItem : "Нет данных";
+    }
+
+    private @Nullable String resolveCurItem(@NonNull String instanceId) {
         DeviceSnapshot lineSnapshot = findSnapshotByDeviceName(instanceId, getLineDeviceName(instanceId));
+        String lineCurItem = extractCurItem(lineSnapshot);
+        if (lineCurItem != null) {
+            return lineCurItem;
+        }
 
-        if (lineSnapshot != null) {
-            for (UnitSnapshot unit : lineSnapshot.units().values()) {
-                Optional<String> st = unit.properties().getSt();
-                Optional<String> error = unit.properties().getError();
-                Optional<String> errorMsg = unit.properties().getErrorMessage();
-
-                // 1. Line.Error — основной флаг ошибки линии
-                boolean hasError = error.isPresent() && !"0".equals(error.get()) && !error.get().isEmpty();
-                if (hasError) {
-                    return errorMsg.filter(m -> !m.isEmpty()).orElse("Ошибка");
-                }
-
-                // 2. scada.lineerr — дополнительный источник ошибки (из scada-снапшота)
-                String lineerr = getScadaLineerr(instanceId);
-                if (lineerr != null && !"0".equals(lineerr) && !lineerr.isBlank()) {
-                    return lineerr;
-                }
-
-                boolean isRunning = st.isPresent() && "1".equals(st.get());
-                return isRunning ? "В работе" : "Остановлена";
+        DeviceComposition composition = deviceCompositionService.getComposition(instanceId);
+        if (!composition.printers().isEmpty()) {
+            String firstPrinter = composition.printers().getFirst();
+            DeviceSnapshot printerSnapshot = findSnapshotByDeviceName(instanceId, firstPrinter);
+            String printerCurItem = extractCurItem(printerSnapshot);
+            if (printerCurItem != null) {
+                return printerCurItem;
             }
         }
 
-        // Если Line-снапшот отсутствует/пустой, но scada уже сигнализирует об ошибке,
-        // отдаём эту причину вместо "Нет данных".
-        String lineerr = getScadaLineerr(instanceId);
-        if (lineerr != null && !"0".equals(lineerr) && !lineerr.isBlank()) {
-            return lineerr;
-        }
-
-        return "Нет данных";
+        return null;
     }
 
-    /**
-     * Читает значение поля {@code lineerr} из scada-снапшота данного инстанса.
-     * Возвращает {@code null}, если снапшот недоступен или поле отсутствует.
-     */
-    private @Nullable String getScadaLineerr(@NonNull String instanceId) {
-        String scadaName = Optional.ofNullable(instancesById.get(instanceId))
-                .map(inst -> inst.getDevices().getScada())
-                .orElse("scada");
-        DeviceSnapshot scadaSnap = findSnapshotByDeviceName(instanceId, scadaName);
-        if (scadaSnap == null || scadaSnap.units().isEmpty()) {
+    private static @Nullable String extractCurItem(@Nullable DeviceSnapshot snapshot) {
+        if (snapshot == null || snapshot.units().isEmpty()) {
             return null;
         }
-        return scadaSnap.units().values().iterator().next()
-                .properties().getRawProperties().get("lineerr");
+        UnitSnapshot unit = snapshot.units().values().iterator().next();
+        return nullIfBlank(unit.properties().getCurItem().orElse(null));
+    }
+
+    private static @NonNull String formatErrorEvent(@NonNull List<DeviceError> errors) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < errors.size(); i++) {
+            DeviceError error = errors.get(i);
+            if (i > 0) {
+                sb.append('\n');
+            }
+            String message = nullIfBlank(error.description());
+            if (message == null) {
+                message = nullIfBlank(error.propertyDesc());
+            }
+            sb.append(error.objectName()).append(": ").append(message == null ? "" : message);
+        }
+        return sb.toString();
+    }
+
+    private static @Nullable String nullIfBlank(@Nullable String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value;
     }
 
     private @NonNull String getLineDeviceName(@NonNull String instanceId) {
