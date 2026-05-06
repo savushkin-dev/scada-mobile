@@ -1,0 +1,11 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "node ./.github/hooks/scripts/frontend-checks.js",
+        "timeout": 600
+      }
+    ]
+  }
+}

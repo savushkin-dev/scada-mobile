@@ -1,37 +1,29 @@
 # Политика безопасности
 
-## Секреты и ключи
+## Purpose
+Краткие правила хранения секретов и доступа к backend-эндпоинтам на основе текущей структуры репозитория.
 
-- **Не коммитьте** в репозиторий токены, пароли, приватные ключи, файлы keystore (`*.jks`, `*.keystore`) и любые credentials.
-- В Android-части ключи подписи хранятся **вне репозитория** — локально у разработчика или в защищённом хранилище CI (GitHub Secrets).
-- Все production-значения (URL, SHA-256 отпечатки сертификатов, ключи API) настраиваются через переменные окружения или CI-секреты — никаких хардкодов.
-- Файлы с секретами (`.env`, `local.properties`, keystore) должны быть добавлены в `.gitignore`.
+## Table of contents
+- [Purpose](#purpose)
+- [Secrets and keys](#secrets-and-keys)
+- [Android keystore](#android-keystore)
+- [Backend exposure](#backend-exposure)
+- [CI/CD status](#cicd-status)
 
-## Android Keystore
+## Secrets and keys
+- Не коммитьте токены, пароли, приватные ключи, keystore (`*.jks`, `*.keystore`) и любые credentials.
+- Production значения (URL, отпечатки сертификатов, API-ключи) должны задаваться через env/CI-секреты, без хардкода.
+- Файлы с секретами (`.env`, `local.properties`, keystore) должны быть исключены в [/.gitignore](.gitignore).
 
-- Keystore создаётся один раз и хранится в безопасном месте (не в Git).
-- SHA-256 отпечаток публичного ключа размещается в `frontend/well-known/assetlinks.json` — это не секрет, это публичная информация.
-- При утере keystore пересборка и подписание новым ключом потребуют обновления `assetlinks.json` и перевыпуска APK.
+## Android keystore
+- Keystore создается один раз и хранится вне репозитория.
+- SHA-256 отпечаток публичного ключа публикуется в [frontend/public/well-known/assetlinks.json](frontend/public/well-known/assetlinks.json).
+- При смене ключа требуется обновить `assetlinks.json` и перевыпустить APK (см. [android/README.md](android/README.md)).
 
-> Инструкции по сборке и подписанию APK — в [`android/README.md`](android/README.md).
+## Backend exposure
+- В dev-профиле Swagger UI и `/v3/api-docs` включены только для разработки (см. [backend/OPENAPI_SETUP.md](backend/OPENAPI_SETUP.md)).
+- В prod-профиле OpenAPI и Swagger UI отключены (см. [backend/OPENAPI_SETUP.md](backend/OPENAPI_SETUP.md)).
+- Actuator endpoints в prod должны быть закрыты от внешней сети (подробнее в [backend/LOGGING.md](backend/LOGGING.md)).
 
-## Backend
-
-- В dev-профиле Swagger UI (`/swagger-ui.html`) и `/v3/api-docs` **включены** — только для разработки.
-- В prod-профиле Swagger UI и OpenAPI-документация **отключены**.
-- Spring Boot Actuator endpoints в prod должны быть закрыты от внешней сети или защищены (отдельный порт, файрволл).
-
-> Конфигурация профилей — в [`backend/OPENAPI_SETUP.md`](backend/OPENAPI_SETUP.md). Настройка Actuator — в [`backend/LOGGING.md`](backend/LOGGING.md).
-
-## CI/CD (GitHub Actions)
-
-Инструменты безопасности, встроенные в пайплайны:
-
-| Инструмент | Назначение |
-|---|---|
-| **TruffleHog** | Сканирование коммитов на наличие секретов |
-| **Dependabot** | Автообновление зависимостей с известными уязвимостями |
-| **CodeQL** | Статический анализ кода на уязвимости |
-| **OWASP Dependency Check** | Проверка зависимостей по базе CVE |
-
-> Описание CI/CD пайплайнов — в [`STRUCTURE.md`](STRUCTURE.md).
+## CI/CD status
+В репозитории нет настроенных CI/CD пайплайнов или GitHub Actions. Если пайплайны будут добавляться, обеспечить секрет-сканирование и контроль уязвимостей на уровне CI.

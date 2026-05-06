@@ -1,123 +1,42 @@
 # Логирование backend (SCADA Mobile)
 
-Актуальность: 30.03.2026.
+## Purpose
+Фактические правила логирования на основе текущей конфигурации logback и профилей backend.
 
-## Зачем этот документ
+## Table of contents
+- [Purpose](#purpose)
+- [Source of truth](#source-of-truth)
+- [Log destinations](#log-destinations)
+- [Dev vs prod](#dev-vs-prod)
+- [Rotation policy](#rotation-policy)
+- [Request context (MDC)](#request-context-mdc)
+- [Runtime level changes](#runtime-level-changes)
+- [Do not log](#do-not-log)
 
-Файл описывает только практические правила логирования в текущем backend:
+## Source of truth
+- Конфигурация logback: [backend/src/main/resources/logback-spring.xml](backend/src/main/resources/logback-spring.xml).
+- Профили dev/prod: [backend/src/main/resources/application-dev.yaml](backend/src/main/resources/application-dev.yaml), [backend/src/main/resources/application-prod.yaml](backend/src/main/resources/application-prod.yaml).
+- Имя приложения (используется в имени файлов): [backend/src/main/resources/application.yaml](backend/src/main/resources/application.yaml).
 
-- куда пишутся логи;
-- чем отличаются dev и prod;
-- какие уровни использовать;
-- как быстро включать дополнительную детализацию при инциденте.
+## Log destinations
+- Базовый путь задается переменной `LOG_PATH` (дефолт `./logs`) в [backend/src/main/resources/logback-spring.xml](backend/src/main/resources/logback-spring.xml).
+- Имена файлов основаны на `spring.application.name` из [backend/src/main/resources/application.yaml](backend/src/main/resources/application.yaml).
+- Архивы ротации пишутся в подкаталог `archived` (см. [backend/src/main/resources/logback-spring.xml](backend/src/main/resources/logback-spring.xml)).
 
-Технические детали интеграции с PrintSrv смотрите отдельно: [PRINTSERV_API.md](PRINTSERV_API.md).
+## Dev vs prod
+- Dev: консоль + plain text файл, повышенные уровни для кода проекта (см. [backend/src/main/resources/logback-spring.xml](backend/src/main/resources/logback-spring.xml)).
+- Prod: JSON-логи через AsyncAppender, root=WARN и backend=INFO (см. [backend/src/main/resources/logback-spring.xml](backend/src/main/resources/logback-spring.xml)).
 
-## Источник истины по настройкам
+## Rotation policy
+Политика ротации (size+time, 50MB, 30 дней, 500MB total) задана в [backend/src/main/resources/logback-spring.xml](backend/src/main/resources/logback-spring.xml).
 
-Главный файл конфигурации:
+## Request context (MDC)
+MDC-контекст добавляется фильтром `MdcFilter`, который проставляет `requestId`, `method`, `uri` и регистрируется с наивысшим приоритетом (см. [backend/src/main/java/dev/savushkin/scada/mobile/backend/config/MdcFilter.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/config/MdcFilter.java), [backend/src/main/java/dev/savushkin/scada/mobile/backend/config/MdcConfig.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/config/MdcConfig.java)).
 
-- `backend/src/main/resources/logback-spring.xml`
+## Runtime level changes
+Уровни логов можно менять через Actuator endpoint `POST /actuator/loggers/{loggerName}`. Доступность loggers включена в prod-профиле (см. [backend/src/main/resources/application-prod.yaml](backend/src/main/resources/application-prod.yaml)).
 
-Профили, которые влияют на поведение логов:
-
-- `backend/src/main/resources/application-dev.yaml`
-- `backend/src/main/resources/application-prod.yaml`
-
-## Куда пишутся логи
-
-Путь по умолчанию:
-
-- `backend/logs/`
-
-Можно переопределить через переменную окружения:
-
-- `LOG_PATH`
-
-Имена файлов:
-
-- `scada.mobile.backend.log` — текстовый файл (dev);
-- `scada.mobile.backend.json` — JSON-логи (prod);
-- `backend/logs/archived/` — архивы ротации.
-
-## Dev и prod: что отличается
-
-## Dev профиль
-
-- вывод в консоль + текстовый файл;
-- подробные уровни для кода проекта;
-- удобно для разработки и локальной диагностики.
-
-## Prod профиль
-
-- запись в JSON-файл через `AsyncAppender`;
-- меньше шума в логах;
-- приоритет — стабильность и разбор инцидентов без перегрузки диска.
-
-## Ротация и хранение
-
-Текущая политика в `logback-spring.xml`:
-
-- ротация по дате и размеру;
-- размер файла: до 50 MB;
-- хранение архивов: до 30 дней;
-- общий лимит архивов: до 500 MB.
-
-## Уровни логов: практическое правило
-
-- `ERROR`: операция не выполнена, нужна реакция.
-- `WARN`: есть отклонение, но сервис продолжает работать.
-- `INFO`: важные события жизненного цикла и состояния.
-- `DEBUG`: технические детали для расследования.
-- `TRACE`: максимально подробный уровень для точечной отладки.
-
-Рекомендуемый режим:
-
-- dev: `backend=DEBUG`, инфраструктурные части можно поднимать до `TRACE`.
-- prod: `root=WARN`, `backend=INFO`.
-
-## MDC и трассировка запроса
-
-В проекте используется `MdcFilter`.
-
-Он добавляет в лог-контекст ключевые поля запроса:
-
-- `requestId`
-- `method`
-- `uri`
-
-Это помогает быстро собрать цепочку событий одного HTTP-запроса даже при параллельной нагрузке.
-
-## Как временно усилить детализацию в prod
-
-Через Actuator можно поменять уровень логирования без перезапуска.
-
-Пример:
-
-```bash
-curl -X POST http://localhost:8080/actuator/loggers/dev.savushkin.scada.mobile.backend \
-  -H "Content-Type: application/json" \
-  -d '{"configuredLevel":"DEBUG"}'
-```
-
-Вернуть обычный режим:
-
-```bash
-curl -X POST http://localhost:8080/actuator/loggers/dev.savushkin.scada.mobile.backend \
-  -H "Content-Type: application/json" \
-  -d '{"configuredLevel":"INFO"}'
-```
-
-## Что нельзя писать в логи
-
-- пароли, токены и другие секреты;
-- сырые большие payload-объекты на `INFO`;
-- однотипные сообщения в горячих циклах на `INFO` (это быстро создает шум).
-
-## Мини-чеклист перед релизом
-
-- [ ] Проверен путь `LOG_PATH` и права на запись.
-- [ ] Подтверждена ротация архивов.
-- [ ] Уровни prod соответствуют `WARN/INFO` политике.
-- [ ] На инцидент есть инструкция по временному повышению уровня через Actuator.
-- [ ] В логах нет чувствительных данных.
+## Do not log
+- Пароли, токены, ключи и любые секреты.
+- Большие payload-объекты на `INFO`.
+- Однотипные сообщения в горячих циклах на `INFO`.

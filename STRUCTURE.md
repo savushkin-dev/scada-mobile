@@ -2,6 +2,19 @@
 
 Актуальность: 30.03.2026.
 
+## Purpose
+Краткая архитектурная карта проекта и ссылки на базовые документы.
+
+## Table of contents
+- [Purpose](#purpose)
+- [Что это за проект](#что-это-за-проект)
+- [Из каких частей состоит система](#из-каких-частей-состоит-система)
+- [Как проходит поток данных](#как-проходит-поток-данных)
+- [Фактическая структура репозитория](#фактическая-структура-репозитория)
+- [Принципы разработки](#принципы-разработки)
+- [Что является источником истины](#что-является-источником-истины)
+- [Карта документации](#карта-документации)
+
 ## Что это за проект
 
 SCADA Mobile помогает сотрудникам быстро понимать, что происходит на производственной линии:
@@ -18,7 +31,7 @@ SCADA Mobile помогает сотрудникам быстро понимат
 
 - Назначение: принять данные из PrintSrv, собрать их в понятную доменную модель и отдать клиентам.
 - Технологии: Java 21, Spring Boot 4, WebSocket, REST API, OpenAPI.
-- Где смотреть детали: [backend/PRINTSERV_API.md](backend/PRINTSERV_API.md), [FRONTEND_API.md](FRONTEND_API.md), [api_mapping.md](api_mapping.md).
+- Где смотреть детали: [backend/PRINTSERV_API.md](backend/PRINTSERV_API.md), [API_REFERENCE.md](API_REFERENCE.md), [FRONTEND_API.md](FRONTEND_API.md), [api_mapping.md](api_mapping.md).
 
 ### Frontend
 
@@ -70,9 +83,11 @@ scada-mobile/
 ├── Makefile
 ├── README.md
 ├── PROJECT_DIAGRAM.md
+├── API_REFERENCE.md
 ├── FRONTEND_API.md
 ├── FRONTEND_DATA_SOURCES.md
-├── DOCKER_DEPLOY.md
+├── BACKEND_ARCHITECTURE.md
+├── MAKEFILE.md
 ├── RUN_PROJECT_DOCKER.md
 └── SECURITY.md
 ```
@@ -87,10 +102,11 @@ scada-mobile/
 
 ## Что является источником истины
 
-- По запуску и командам: [Makefile](Makefile).
-- По API и событиям: [FRONTEND_API.md](FRONTEND_API.md) и [api_mapping.md](api_mapping.md).
+- По запуску и командам: [Makefile](Makefile) и [MAKEFILE.md](MAKEFILE.md).
+- По API и событиям: [API_REFERENCE.md](API_REFERENCE.md), [FRONTEND_API.md](FRONTEND_API.md) и [api_mapping.md](api_mapping.md).
 - По источникам данных backend: [FRONTEND_DATA_SOURCES.md](FRONTEND_DATA_SOURCES.md) и [backend/PRINTSERV_API.md](backend/PRINTSERV_API.md).
-- По Docker: [DOCKER_DEPLOY.md](DOCKER_DEPLOY.md) и [RUN_PROJECT_DOCKER.md](RUN_PROJECT_DOCKER.md).
+- По архитектуре backend: [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md).
+- По Docker: [RUN_PROJECT_DOCKER.md](RUN_PROJECT_DOCKER.md).
 - По безопасности: [SECURITY.md](SECURITY.md).
 
 ## Карта документации
