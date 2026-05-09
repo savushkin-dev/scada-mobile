@@ -41,12 +41,15 @@ public class WebSocketConfig implements WebSocketConfigurer {
     private final LiveWsHandler liveWsHandler;
     private final UnitWsHandler unitWsHandler;
     private final CorsProperties corsProperties;
+    private final WebSocketUserIdInterceptor userIdInterceptor;
 
     public WebSocketConfig(LiveWsHandler liveWsHandler, UnitWsHandler unitWsHandler,
-                           CorsProperties corsProperties) {
+                           CorsProperties corsProperties,
+                           WebSocketUserIdInterceptor userIdInterceptor) {
         this.liveWsHandler = liveWsHandler;
         this.unitWsHandler = unitWsHandler;
         this.corsProperties = corsProperties;
+        this.userIdInterceptor = userIdInterceptor;
     }
 
     @Override
@@ -59,10 +62,12 @@ public class WebSocketConfig implements WebSocketConfigurer {
                 .toArray(String[]::new);
 
         registry.addHandler(liveWsHandler, "/ws/live")
+                .addInterceptors(userIdInterceptor)
                 .setAllowedOrigins(allowedOrigins)
                 .setAllowedOriginPatterns(allowedOriginPatterns);
 
         registry.addHandler(unitWsHandler, "/ws/unit/*")
+                .addInterceptors(userIdInterceptor)
                 .setAllowedOrigins(allowedOrigins)
                 .setAllowedOriginPatterns(allowedOriginPatterns);
 

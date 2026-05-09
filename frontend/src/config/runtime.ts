@@ -21,6 +21,14 @@ const runtimeWsOrigin =
 export const API_BASE = import.meta.env.VITE_API_BASE ?? runtimeOrigin;
 export const WS_BASE = import.meta.env.VITE_WS_BASE ?? runtimeWsOrigin;
 
+/**
+ * Идентификатор текущего пользователя (строковый логин).
+ * Временное решение для идентификации без аутентификации.
+ * Передаётся в REST-заголовке X-User-Id и WS query-параметре ?userId=.
+ * В дальнейшем будет заменён на JWT.
+ */
+export const USER_ID: string | undefined = import.meta.env.VITE_USER_ID || undefined;
+
 export const WS_RECONNECT_BASE_DELAY_MS = 2_000;
 export const WS_RECONNECT_MAX_DELAY_MS = 30_000;
 export const WS_RECONNECT_JITTER = 0.25;

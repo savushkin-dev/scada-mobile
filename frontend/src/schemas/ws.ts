@@ -58,14 +58,40 @@ export const AlertSnapshotMessageSchema = z.object({
   payload: z.array(AlertWsMessageSchema),
 });
 
+// ── /ws/live — Notifications (производственные уведомления) ───────────
+
+/**
+ * Дельта-сообщение NOTIFICATION — появление или снятие пользовательского
+ * производственного уведомления.
+ * <p>
+ * В отличие от ALERT (автоматический, на основе scada-данных),
+ * NOTIFICATION создаётся работником явным нажатием FAB.
+ */
+export const NotificationWsMessageSchema = z.object({
+  type: z.literal('NOTIFICATION'),
+  unitId: z.string(),
+  unitName: z.string(),
+  creatorId: z.string().nullable(),
+  active: z.boolean(),
+  timestamp: z.string().nullable(),
+});
+
+/** NOTIFICATION_SNAPSHOT — начальный срез при WS-коннекте */
+export const NotificationSnapshotMessageSchema = z.object({
+  type: z.literal('NOTIFICATION_SNAPSHOT'),
+  payload: z.array(NotificationWsMessageSchema),
+});
+
 /**
  * Discriminated union всех входящих сообщений /ws/live.
  * Неизвестный type отбрасывается через safeParse (форвард-совместимость).
  */
 export const LiveWsIncomingMessageSchema = z.discriminatedUnion('type', [
   AlertSnapshotMessageSchema,
+  NotificationSnapshotMessageSchema,
   UnitsStatusMessageSchema,
   AlertWsMessageSchema,
+  NotificationWsMessageSchema,
 ]);
 
 // ── /ws/unit/{unitId} — входящие сообщения ────────────────────────────
@@ -165,6 +191,8 @@ export type AlertWsMessage = z.infer<typeof AlertWsMessageSchema>;
 export type UnitStatus = z.infer<typeof UnitStatusSchema>;
 export type UnitsStatusMessage = z.infer<typeof UnitsStatusMessageSchema>;
 export type AlertSnapshotMessage = z.infer<typeof AlertSnapshotMessageSchema>;
+export type NotificationWsMessage = z.infer<typeof NotificationWsMessageSchema>;
+export type NotificationSnapshotMessage = z.infer<typeof NotificationSnapshotMessageSchema>;
 export type LiveWsIncomingMessage = z.infer<typeof LiveWsIncomingMessageSchema>;
 export type LineStatusPayload = z.infer<typeof LineStatusPayloadSchema>;
 export type DevicesStatusWsPrinter = z.infer<typeof DevicesStatusWsPrinterSchema>;

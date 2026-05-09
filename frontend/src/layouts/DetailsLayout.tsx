@@ -4,7 +4,6 @@ import {
   DEFAULT_DETAIL_TAB,
   DETAILS_PAGE_STYLE,
   DETAILS_SCROLL_SECTION_STYLE,
-  DETAIL_TABS,
   DOMAIN_DEFAULTS,
   DOMAIN_FLAGS,
   TAB_ROUTE_SEGMENT,
@@ -322,9 +321,10 @@ export function DetailsLayout() {
         </section>
 
         <Fab
-          visible={activeTab === DETAIL_TABS.batch}
+          visible={true}
           unitId={unitId || null}
           scrollContainer={scrollRef.current}
+          notification={state.notifications.get(unitId ?? '') ?? null}
         />
       </div>
 

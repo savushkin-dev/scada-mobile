@@ -17,6 +17,13 @@ export const EnvSchema = z.object({
     .string()
     .regex(/^wss?:\/\//, 'VITE_WS_BASE должен начинаться с ws:// или wss://')
     .optional(),
+  /**
+   * Идентификатор текущего пользователя (строковый логин, например "ivanov").
+   * Временное решение для идентификации без аутентификации.
+   * Передаётся в REST-заголовке X-User-Id и WS query-параметре ?userId=.
+   * В дальнейшем будет заменён на JWT.
+   */
+  VITE_USER_ID: z.string().min(1, 'VITE_USER_ID не может быть пустым').optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

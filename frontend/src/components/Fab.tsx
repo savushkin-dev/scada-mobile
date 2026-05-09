@@ -7,22 +7,27 @@ import {
   HTTP_REQUEST,
   UI_BEHAVIOR,
   UI_COPY,
+  USER_ID,
 } from '../config';
+import type { NotificationData } from '../types';
 
 /**
- * FAB для action "последняя партия" на детальной странице аппарата.
+ * FAB для action "последняя партия" / toggle notification на детальной странице аппарата.
  *
  * Источники правды:
  * - визуальные константы и копирайт: {@link ../config/ui.ts}, {@link ../config/styles.ts};
  * - runtime-порог сворачивания: {@link ../config/runtime.ts}.
  *
- * Компонент не хранит бизнес-стейт партии, только выполняет side-effect запроса.
+ * POST /api/line/{unitId}/last-batch → toggle notification (activate / deactivate).
+ * Заголовок X-User-Id передаётся для идентификации работника.
  */
 
 interface Props {
   visible: boolean;
   unitId: string | null;
   scrollContainer: HTMLElement | null;
+  /** Активное уведомление для данного аппарата (из AppContext), или null. */
+  notification: NotificationData | null;
 }
 
 function clamp01(value: number): number {
@@ -35,11 +40,14 @@ function getViewportWidth(): number {
   return Math.max(window.innerWidth, visualViewportWidth, document.documentElement.clientWidth);
 }
 
-export function Fab({ visible, unitId, scrollContainer }: Props) {
+export function Fab({ visible, unitId, scrollContainer, notification }: Props) {
   const [collapseProgress, setCollapseProgress] = useState(0);
   const [viewportWidth, setViewportWidth] = useState(() => getViewportWidth());
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [toggleResult, setToggleResult] = useState<
+    'idle' | 'activated' | 'deactivated' | 'already_active'
+  >('idle');
   const lastScrollY = useRef(0);
   const targetCollapseProgressRef = useRef(0);
   const animatedCollapseProgressRef = useRef(0);
@@ -139,20 +147,58 @@ export function Fab({ visible, unitId, scrollContainer }: Props) {
     if (!unitId || sending) return;
     setSending(true);
     try {
+      const headers: Record<string, string> = {
+        'Content-Type': HTTP_REQUEST.jsonContentType,
+      };
+      if (USER_ID) headers['X-User-Id'] = USER_ID;
       const resp = await fetch(`${API_BASE}/api/line/${unitId}/last-batch`, {
         method: HTTP_REQUEST.post,
-        headers: { 'Content-Type': HTTP_REQUEST.jsonContentType },
+        headers,
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const body = await resp.json();
+      setToggleResult(body.status ?? 'idle');
     } catch (e) {
       console.warn('[FAB] last-batch fallback:', (e as Error).message);
+      setToggleResult('idle');
     }
     setSent(true);
     setSending(false);
-    setTimeout(() => setSent(false), UI_BEHAVIOR.fabSentResetDelayMs);
+    setTimeout(() => {
+      setSent(false);
+      setToggleResult('idle');
+    }, UI_BEHAVIOR.fabSentResetDelayMs);
   }
 
   if (!visible) return null;
+
+  const isActiveByMe = notification != null && notification.creatorId === USER_ID;
+  const isActiveByOther = notification != null && notification.creatorId !== USER_ID;
+
+  // Визуальное состояние кнопки после toggle
+  const showToggleFeedback = sent && toggleResult !== 'idle';
+
+  // Определяем label и icon
+  let icon: string;
+  let label: string;
+  if (showToggleFeedback) {
+    icon = toggleResult === 'activated' ? '🔔' : toggleResult === 'deactivated' ? '🔕' : '⏳';
+    label =
+      toggleResult === 'activated'
+        ? 'Уведомление создано!'
+        : toggleResult === 'deactivated'
+          ? 'Уведомление снято!'
+          : `Активно от ${notification?.creatorId ?? '?'}`;
+  } else if (isActiveByOther) {
+    icon = '⏳';
+    label = `Уведомление от ${notification!.creatorId}`;
+  } else if (isActiveByMe) {
+    icon = '🔕';
+    label = 'Снять уведомление';
+  } else {
+    icon = UI_COPY.fabDefaultIcon;
+    label = UI_COPY.fabActionLabel;
+  }
 
   const buttonStyle = getFabButtonStyle(collapseProgress, sent, viewportWidth);
   const labelStyle = getFabLabelStyle(collapseProgress, viewportWidth);
@@ -160,12 +206,16 @@ export function Fab({ visible, unitId, scrollContainer }: Props) {
   return (
     <button
       aria-label={UI_COPY.fabAriaLabel}
-      disabled={sending}
+      disabled={sending || isActiveByOther}
       onClick={handleClick}
       style={buttonStyle}
     >
-      <span style={FAB_ICON_STYLE}>{sent ? UI_COPY.fabSentIcon : UI_COPY.fabDefaultIcon}</span>
-      <span style={labelStyle}>{sent ? UI_COPY.fabSentLabel : UI_COPY.fabActionLabel}</span>
+      <span style={FAB_ICON_STYLE}>
+        {sent ? (showToggleFeedback ? icon : UI_COPY.fabSentIcon) : icon}
+      </span>
+      <span style={labelStyle}>
+        {sent ? (showToggleFeedback ? label : UI_COPY.fabSentLabel) : label}
+      </span>
     </button>
   );
 }

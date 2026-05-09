@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { DevicesTopologySchema, UnitsTopologySchema, WorkshopsTopologySchema } from '../schemas';
 import type { DevicesTopology, UnitTopology, WorkshopTopology } from '../types';
-import { API_BASE } from '../config';
+import { API_BASE, USER_ID } from '../config';
 import { HttpError } from '../errors/AppError';
 
 // ── Topology (статика, загружается один раз) ──────────────────────────
@@ -35,7 +35,8 @@ async function fetchTopology<T>(
   signal?: AbortSignal,
   knownETag?: string | null
 ): Promise<TopologyFetchResult<T>> {
-  const headers: HeadersInit = knownETag ? { 'If-None-Match': knownETag } : {};
+  const headers: Record<string, string> = knownETag ? { 'If-None-Match': knownETag } : {};
+  if (USER_ID) headers['X-User-Id'] = USER_ID;
   // cache: 'no-store' — браузерный HTTP-кеш полностью обходится.
   // ETag-логикой управляет приложение само через If-None-Match / 304.
   // Без этого браузер может отдать max-age-ответ из HTTP-кеша прежде,

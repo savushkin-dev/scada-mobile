@@ -1,6 +1,7 @@
 package dev.savushkin.scada.mobile.backend.exception;
 
 import dev.savushkin.scada.mobile.backend.api.dto.ErrorResponseDTO;
+import dev.savushkin.scada.mobile.backend.services.NotificationService.NotificationAccessDeniedException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.jspecify.annotations.NonNull;
@@ -372,6 +373,25 @@ public class GlobalExceptionHandler {
         String path = v.getPropertyPath() != null ? v.getPropertyPath().toString() : "unknown";
         String msg = v.getMessage() != null ? v.getMessage() : "invalid";
         return path + " " + msg;
+    }
+
+    /**
+     * Обрабатывает ошибку отсутствия доступа работника к аппарату для уведомлений.
+     * <p>
+     * Возвращает HTTP 403 (Forbidden), так как работник не закреплён
+     * за данным аппаратом в конфигурации привязок.
+     *
+     * @param e       исключение NotificationAccessDeniedException
+     * @param request объект запроса WebRequest
+     * @return ResponseEntity с ErrorResponseDTO и статусом 403
+     */
+    @ExceptionHandler(NotificationAccessDeniedException.class)
+    public ResponseEntity<ErrorResponseDTO> handleNotificationAccessDenied(
+            @NonNull NotificationAccessDeniedException e,
+            @NonNull WebRequest request
+    ) {
+        log.warn("Notification access denied: {}", e.getMessage());
+        return buildErrorResponse(HttpStatus.FORBIDDEN, "Доступ запрещён: " + e.getMessage(), request);
     }
 
     /**

@@ -58,6 +58,8 @@ function RootLayoutInner() {
     handleAlert,
     patchUnitsStatus,
     setAlertSnapshot,
+    handleNotification,
+    setNotificationSnapshot,
     setHeaderError,
     clearHeaderError,
     setSignalState,
@@ -109,12 +111,14 @@ function RootLayoutInner() {
   useHardwareBackGuard();
 
   // Единственное WebSocket-соединение для всего приложения:
-  // ALERT_SNAPSHOT при подключении, UNITS_STATUS для цеха, ALERT-дельты глобально.
+  // ALERT_SNAPSHOT при подключении, NOTIFICATION_SNAPSHOT, UNITS_STATUS для цеха, ALERT и NOTIFICATION-дельты.
   // Соединение живёт всю сессию и не обрывается при смене страниц.
   useLiveWs(subscribedWorkshopId, {
     onAlertSnapshot: handleAlertSnapshot,
+    onNotificationSnapshot: setNotificationSnapshot,
     onUnitsStatus: handleUnitsStatus,
     onAlert: handleLiveAlert,
+    onNotification: handleNotification,
     onReconnecting: () => {
       setSignalState('live', 'reconnecting');
     },

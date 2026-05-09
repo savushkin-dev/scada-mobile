@@ -170,13 +170,34 @@ cors:
     # If-None-Match и If-Match — заголовки условного запроса (RFC 7232);
     # необходимы для ETag-кэширования topology-эндпоинтов.
     # Без явного разрешения браузер отклоняет preflight с этими заголовками.
-    allowed-headers: [ "Content-Type", "Authorization", "If-None-Match", "If-Match" ]
+    allowed-headers: [ "Content-Type", "Authorization", "If-None-Match", "If-Match", "X-User-Id" ]
     # ETag добавляется автоматически в CorsConfig.mergeWithETag() — не дублируем здесь.
     exposed-headers: [ ]
     # Включать только при cookie-based auth; с wildcard origins несовместимо.
     allow-credentials: false
     # Preflight кэшируется браузером 1 час.
     max-age-seconds: 3600
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Notifications — производственные уведомления (工人触发).
+#
+# defaultAccess: true — любой пользователь имеет доступ ко всем аппаратам
+#                        (режим разработки/тестирования).
+# defaultAccess: false — используется assignments для явных привязок.
+#
+# assignments — список привязок: userId → unitIds[].
+# Поля unitIds содержат PrintSrv instance ids (те же, что в printsrv.instances[].id).
+#
+# В будущем: admin UI будет управлять assignments через REST API,
+# а данные будут храниться в PostgreSQL.
+# ─────────────────────────────────────────────────────────────────────────────
+notifications:
+  defaultAccess: true
+  assignments: []
+  #  - userId: "ivanov"
+  #    unitIds: ["trepko1", "trepko2", "hassia1"]
+  #  - userId: "petrov"
+  #    unitIds: ["hassia2", "hassia3"]
 
 # Логирование — конфигурация в src/main/resources/logback-spring.xml
 # Уровни переопределяются по профилям (dev / prod) в logback-spring.xml

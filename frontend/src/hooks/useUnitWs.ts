@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { WS_BASE } from '../config';
+import { USER_ID, WS_BASE } from '../config';
 import { classifyError } from '../errors/classifyError';
 import type { AppError } from '../errors/AppError';
 import { createManagedWs } from '../lib/createManagedWs';
@@ -37,7 +37,7 @@ export function useUnitWs(
     if (!unitId) return;
 
     const conn = createManagedWs({
-      url: `${WS_BASE}/ws/unit/${unitId}`,
+      url: `${WS_BASE}/ws/unit/${unitId}${USER_ID ? `?userId=${encodeURIComponent(USER_ID)}` : ''}`,
       source: 'ws/unit',
       onReconnecting: () => callbacksRef.current?.onReconnecting?.(),
       onError: (error) => callbacksRef.current?.onError?.(error),

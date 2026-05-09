@@ -2,13 +2,17 @@ package dev.savushkin.scada.mobile.backend.infrastructure.ws;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import dev.savushkin.scada.mobile.backend.api.dto.AlertMessageDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.NotificationMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitStatusDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitsStatusMessageDTO;
+import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceError;
 import dev.savushkin.scada.mobile.backend.infrastructure.polling.PrintSrvInstancePolledEvent;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveAlertStore;
+import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveNotificationStore;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.UnitErrorStore;
 import dev.savushkin.scada.mobile.backend.services.AlertService;
+import dev.savushkin.scada.mobile.backend.services.NotificationStateChangedEvent;
 import dev.savushkin.scada.mobile.backend.services.UnitDetailService;
 import dev.savushkin.scada.mobile.backend.services.WorkshopService;
 import org.slf4j.Logger;
@@ -45,27 +49,33 @@ public class StatusBroadcaster {
     private final WorkshopService workshopService;
     private final AlertService alertService;
     private final ActiveAlertStore alertStore;
+    private final ActiveNotificationStore notificationStore;
     private final UnitErrorStore unitErrorStore;
     private final UnitDetailService unitDetailService;
     private final LiveWsHandler liveWsHandler;
     private final UnitWsHandler unitWsHandler;
+    private final PrintSrvProperties printSrvProperties;
 
     public StatusBroadcaster(
             WorkshopService workshopService,
             AlertService alertService,
             ActiveAlertStore alertStore,
+            ActiveNotificationStore notificationStore,
             UnitErrorStore unitErrorStore,
             UnitDetailService unitDetailService,
             LiveWsHandler liveWsHandler,
-            UnitWsHandler unitWsHandler
+            UnitWsHandler unitWsHandler,
+            PrintSrvProperties printSrvProperties
     ) {
         this.workshopService = workshopService;
         this.alertService = alertService;
         this.alertStore = alertStore;
+        this.notificationStore = notificationStore;
         this.unitErrorStore = unitErrorStore;
         this.unitDetailService = unitDetailService;
         this.liveWsHandler = liveWsHandler;
         this.unitWsHandler = unitWsHandler;
+        this.printSrvProperties = printSrvProperties;
     }
 
     @EventListener
@@ -150,5 +160,67 @@ public class StatusBroadcaster {
             return;
         }
         unitWsHandler.broadcastToUnit(instanceId);
+    }
+
+    // ─── Notification events ─────────────────────────────────────────────────
+
+    /**
+     * Обрабатывает событие изменения состояния производственного уведомления.
+     * <p>
+     * Вызывается {@link dev.savushkin.scada.mobile.backend.services.NotificationService}
+     * при toggle (activate / deactivate). Мгновенно рассылает {@code NOTIFICATION}
+     * всем подключённым клиентам через канал {@code /ws/live}.
+     *
+     * @param event Событие изменения состояния.
+     */
+    @EventListener
+    public void onNotificationChanged(NotificationStateChangedEvent event) {
+        if (liveWsHandler.getTotalSessionCount() == 0) {
+            return;
+        }
+
+        String unitName = printSrvProperties.getInstances().stream()
+                .filter(i -> i.getId().equals(event.unitId()))
+                .map(PrintSrvProperties.InstanceProperties::getDisplayName)
+                .findFirst()
+                .orElse(event.unitId());
+
+        String timestamp = java.time.Instant.now()
+                .atOffset(ZoneOffset.UTC)
+                .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+
+        NotificationMessageDTO dto;
+        if (event.type() == NotificationStateChangedEvent.EventType.ACTIVATED) {
+            dto = NotificationMessageDTO.activated(
+                    event.unitId(), unitName, event.notification().creatorId(), timestamp);
+        } else {
+            dto = NotificationMessageDTO.deactivated(
+                    event.unitId(), unitName, event.notification().creatorId(), timestamp);
+        }
+
+        ActiveNotificationStore.Delta delta = notificationStore.updateAndDiff(event.unitId(), dto);
+
+        if (delta.added().isEmpty() && delta.removed().isEmpty()) {
+            return;
+        }
+
+        for (NotificationMessageDTO added : delta.added()) {
+            sendNotification(added);
+            log.info("Notification ACTIVE: unit='{}', creator='{}'", added.unitId(), added.creatorId());
+        }
+
+        for (NotificationMessageDTO removed : delta.removed()) {
+            sendNotification(removed);
+            log.info("Notification DEACTIVATED: unit='{}', creator='{}'", removed.unitId(), removed.creatorId());
+        }
+    }
+
+    private void sendNotification(NotificationMessageDTO notification) {
+        try {
+            liveWsHandler.broadcastNotification(liveWsHandler.toJson(notification));
+        } catch (JsonProcessingException e) {
+            log.error("StatusBroadcaster: failed to serialize NOTIFICATION for unit '{}'",
+                    notification.unitId(), e);
+        }
     }
 }

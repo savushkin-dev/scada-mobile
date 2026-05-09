@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { WS_BASE } from '../config';
+import { USER_ID, WS_BASE } from '../config';
 import { classifyError } from '../errors/classifyError';
 import type { AppError } from '../errors/AppError';
 import { createManagedWs, type ManagedWsConnection } from '../lib/createManagedWs';
 import { LiveWsIncomingMessageSchema } from '../schemas';
-import type { AlertWsMessage, UnitsStatusMessage } from '../types';
+import type { AlertWsMessage, NotificationWsMessage, UnitsStatusMessage } from '../types';
 
 /**
  * Коллбэки, вызываемые хуком при получении сообщений от сервера.
@@ -13,10 +13,14 @@ import type { AlertWsMessage, UnitsStatusMessage } from '../types';
 export interface LiveWsCallbacks {
   /** ALERT_SNAPSHOT — начальный срез активных алёртов при подключении */
   onAlertSnapshot: (alerts: AlertWsMessage[]) => void;
+  /** NOTIFICATION_SNAPSHOT — начальный срез активных уведомлений при подключении */
+  onNotificationSnapshot: (notifications: NotificationWsMessage[]) => void;
   /** UNITS_STATUS — live-статус аппаратов подписанного цеха */
   onUnitsStatus: (msg: UnitsStatusMessage) => void;
   /** ALERT — дельта изменения ошибки (active true/false) */
   onAlert: (msg: AlertWsMessage) => void;
+  /** NOTIFICATION — дельта изменения уведомления (active true/false) */
+  onNotification: (msg: NotificationWsMessage) => void;
   /**
    * Первый разрыв соединения — начало тихого переподключения.
    * UI должен показывать skeleton, но не ошибку в шапке.
@@ -66,7 +70,7 @@ export function useLiveWs(subscribedWorkshopId: string | null, callbacks: LiveWs
   // Effect 1: открываем соединение один раз при монтировании
   useEffect(() => {
     const conn = createManagedWs({
-      url: `${WS_BASE}/ws/live`,
+      url: `${WS_BASE}/ws/live${USER_ID ? `?userId=${encodeURIComponent(USER_ID)}` : ''}`,
       source: 'ws/live',
       onReconnecting: () => callbacksRef.current.onReconnecting?.(),
       onError: (error) => callbacksRef.current.onError?.(error),
@@ -107,11 +111,17 @@ export function useLiveWs(subscribedWorkshopId: string | null, callbacks: LiveWs
           case 'ALERT_SNAPSHOT':
             cb.onAlertSnapshot(msg.payload);
             break;
+          case 'NOTIFICATION_SNAPSHOT':
+            cb.onNotificationSnapshot(msg.payload);
+            break;
           case 'UNITS_STATUS':
             cb.onUnitsStatus(msg);
             break;
           case 'ALERT':
             cb.onAlert(msg);
+            break;
+          case 'NOTIFICATION':
+            cb.onNotification(msg);
             break;
         }
       },

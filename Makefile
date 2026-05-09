@@ -14,7 +14,7 @@ endif
 
 .PHONY: help back-run back-run-prod front-install front-dev front-build
 .PHONY: bwa-init bwa-build-apk
-.PHONY: docker-dev-up docker-dev-down docker-prod-up docker-prod-down docker-ps
+.PHONY: docker-dev-up docker-dev-up-nocache docker-dev-down docker-prod-up docker-prod-down docker-ps
 
 DOCKER_BASE_FILES := -f docker-compose.yml
 DOCKER_DEV_FILES := -f docker-compose.dev.yml
@@ -33,6 +33,7 @@ help:
 	@echo ""
 	@echo "Docker:"
 	@echo "  make docker-dev-up    - start docker stack (dev mode)"
+	@echo "  make docker-dev-up-nocache - rebuild docker stack (dev mode, no cache)"
 	@echo "  make docker-dev-down  - stop docker stack (dev mode)"
 	@echo "  make docker-prod-up   - start docker stack (prod mode) (env: PROD_ENV_FILE=.env.prod.local)"
 	@echo "  make docker-prod-down - stop docker stack (prod mode)"
@@ -56,6 +57,7 @@ help:
 	@echo ""
 	@echo "Docker:"
 	@echo "  make docker-dev-up    - start docker stack (dev mode)"
+	@echo "  make docker-dev-up-nocache - rebuild docker stack (dev mode, no cache)"
 	@echo "  make docker-dev-down  - stop docker stack (dev mode)"
 	@echo "  make docker-prod-up   - start docker stack (prod mode) (env: PROD_ENV_FILE=.env.prod.local)"
 	@echo "  make docker-prod-down - stop docker stack (prod mode)"
@@ -128,6 +130,9 @@ ifeq ($(OS),Windows_NT)
 docker-dev-up:
 	cmd /C "set "DEV_BACKEND_PORT=$(DEV_BACKEND_PORT)" & set "DEV_FRONTEND_PORT=$(DEV_FRONTEND_PORT)" & docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) up --build -d"
 
+docker-dev-up-nocache:
+	cmd /C "set "DEV_BACKEND_PORT=$(DEV_BACKEND_PORT)" & set "DEV_FRONTEND_PORT=$(DEV_FRONTEND_PORT)" & docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) build --no-cache & docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) up -d"
+
 docker-dev-down:
 	cmd /C "set "DEV_BACKEND_PORT=$(DEV_BACKEND_PORT)" & set "DEV_FRONTEND_PORT=$(DEV_FRONTEND_PORT)" & docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) down"
 
@@ -143,6 +148,10 @@ docker-ps:
 else
 docker-dev-up:
 	DEV_BACKEND_PORT='$(DEV_BACKEND_PORT)' DEV_FRONTEND_PORT='$(DEV_FRONTEND_PORT)' docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) up --build -d
+
+docker-dev-up-nocache:
+	DEV_BACKEND_PORT='$(DEV_BACKEND_PORT)' DEV_FRONTEND_PORT='$(DEV_FRONTEND_PORT)' docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) build --no-cache
+	DEV_BACKEND_PORT='$(DEV_BACKEND_PORT)' DEV_FRONTEND_PORT='$(DEV_FRONTEND_PORT)' docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) up -d
 
 docker-dev-down:
 	DEV_BACKEND_PORT='$(DEV_BACKEND_PORT)' DEV_FRONTEND_PORT='$(DEV_FRONTEND_PORT)' docker compose $(DOCKER_BASE_FILES) $(DOCKER_DEV_FILES) down

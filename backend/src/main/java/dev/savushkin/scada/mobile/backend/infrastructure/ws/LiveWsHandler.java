@@ -4,8 +4,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.savushkin.scada.mobile.backend.api.dto.AlertSnapshotMessageDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.NotificationSnapshotMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitsStatusMessageDTO;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveAlertStore;
+import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveNotificationStore;
 import dev.savushkin.scada.mobile.backend.services.WorkshopService;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
@@ -66,6 +68,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
     private static final String ATTR_SUBSCRIBED_WORKSHOP = "subscribedWorkshop";
 
     private final ActiveAlertStore alertStore;
+    private final ActiveNotificationStore notificationStore;
     private final WorkshopService workshopService;
     private final ObjectMapper objectMapper;
 
@@ -81,10 +84,12 @@ public class LiveWsHandler extends TextWebSocketHandler {
 
     public LiveWsHandler(
             ActiveAlertStore alertStore,
+            ActiveNotificationStore notificationStore,
             WorkshopService workshopService,
             ObjectMapper objectMapper
     ) {
         this.alertStore = alertStore;
+        this.notificationStore = notificationStore;
         this.workshopService = workshopService;
         this.objectMapper = objectMapper;
     }
@@ -95,6 +100,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
     public void afterConnectionEstablished(@NonNull WebSocketSession session) {
         allSessions.add(session);
         sendAlertSnapshot(session);
+        sendNotificationSnapshot(session);
         log.debug("WS /live: connected, id={}, total={}", session.getId(), allSessions.size());
     }
 
@@ -191,6 +197,19 @@ public class LiveWsHandler extends TextWebSocketHandler {
         sendToSessions(allSessions, json);
     }
 
+    /**
+     * Рассылает {@code NOTIFICATION} всем подключённым клиентам.
+     * <p>
+     * Аналог {@link #broadcastAlert(String)} — используется {@code StatusBroadcaster}
+     * для немедленной рассылки при toggle-событии.
+     *
+     * @param json сериализованный {@link dev.savushkin.scada.mobile.backend.api.dto.NotificationMessageDTO}
+     */
+    public void broadcastNotification(String json) {
+        if (allSessions.isEmpty()) return;
+        sendToSessions(allSessions, json);
+    }
+
     // ─── Diagnostics ─────────────────────────────────────────────────────────
 
     /**
@@ -244,6 +263,22 @@ public class LiveWsHandler extends TextWebSocketHandler {
         } catch (Exception e) {
             log.warn("WS /live: failed to send initial UNITS_STATUS, workshop={}, id={}: {}",
                     workshopId, session.getId(), e.getMessage());
+        }
+    }
+
+    /**
+     * Отправляет снимок всех активных производственных уведомлений новому клиенту.
+     * Вызывается сразу после {@code ALERT_SNAPSHOT} при установке соединения.
+     */
+    private void sendNotificationSnapshot(WebSocketSession session) {
+        try {
+            var snapshotMsg = NotificationSnapshotMessageDTO.of(notificationStore.getAll());
+            sendMessageSafely(session, objectMapper.writeValueAsString(snapshotMsg));
+            log.debug("WS /live: sent NOTIFICATION_SNAPSHOT, notifications={}, id={}",
+                    snapshotMsg.payload().size(), session.getId());
+        } catch (Exception e) {
+            log.warn("WS /live: failed to send NOTIFICATION_SNAPSHOT, id={}: {}",
+                    session.getId(), e.getMessage());
         }
     }
 

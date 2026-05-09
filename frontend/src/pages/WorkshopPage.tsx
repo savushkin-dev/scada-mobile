@@ -103,6 +103,7 @@ export function WorkshopPage() {
                 key={u.id}
                 unit={u}
                 alerts={state.alerts}
+                notifications={state.notifications}
                 onClick={() => {
                   const targetTab =
                     getUnitStatusLevel(u, state.alerts) === 'critical'

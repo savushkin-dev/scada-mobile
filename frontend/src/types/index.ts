@@ -21,6 +21,8 @@ export type {
   AlertError,
   AlertWsMessage,
   AlertSnapshotMessage,
+  NotificationWsMessage,
+  NotificationSnapshotMessage,
   UnitsStatusMessage,
   UnitStatus,
   LiveWsIncomingMessage,
@@ -54,6 +56,19 @@ export interface AlertData {
   errors: AlertError[];
   timestamp: string;
   workshopId: string;
+}
+
+/**
+ * Данные активного производственного уведомления для UI.
+ * Хранится в AppContext как Map<unitId, NotificationData>.
+ */
+export interface NotificationData {
+  /** Читаемое название аппарата. */
+  unitName: string;
+  /** Идентификатор работника, создавшего уведомление. */
+  creatorId: string | null;
+  /** Время создания уведомления. */
+  timestamp: string | null;
 }
 
 // ── Merged view types (topology + status, используются компонентами) ──

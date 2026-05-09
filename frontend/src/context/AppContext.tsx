@@ -6,6 +6,8 @@ import type {
   AlertData,
   AlertWsMessage,
   DevicesTopology,
+  NotificationData,
+  NotificationWsMessage,
   Unit,
   UnitStatus,
   UnitTopology,
@@ -52,6 +54,9 @@ export interface AppState {
   // Alerts
   alerts: Map<string, AlertData>;
 
+  // Production notifications (user-triggered)
+  notifications: Map<string, NotificationData>;
+
   // UI-ошибки, отображаемые единообразно в шапке.
   headerErrors: Partial<Record<HeaderErrorSlot, HeaderErrorEntry>>;
 
@@ -81,6 +86,7 @@ export interface AppState {
 
 const initialState: AppState = {
   alerts: new Map(),
+  notifications: new Map(),
   headerErrors: {},
   signalStates: {
     live: 'idle',
@@ -96,6 +102,8 @@ const initialState: AppState = {
 // ── Actions ────────────────────────────────────────────────────────────
 type Action =
   | { type: 'HANDLE_ALERT'; msg: AlertWsMessage }
+  | { type: 'HANDLE_NOTIFICATION'; msg: NotificationWsMessage }
+  | { type: 'SET_NOTIFICATION_SNAPSHOT'; notifications: NotificationWsMessage[] }
   | {
       type: 'SET_HEADER_ERROR';
       slot: HeaderErrorSlot;
@@ -122,6 +130,30 @@ function reducer(state: AppState, action: Action): AppState {
       if (active) next.set(uid, { unitName, errors, timestamp, workshopId });
       else next.delete(uid);
       return { ...state, alerts: next };
+    }
+    case 'HANDLE_NOTIFICATION': {
+      const { unitId, unitName, creatorId, active, timestamp } = action.msg;
+      const uid = String(unitId);
+      const next = new Map(state.notifications);
+      if (active) {
+        next.set(uid, { unitName, creatorId, timestamp });
+      } else {
+        next.delete(uid);
+      }
+      return { ...state, notifications: next };
+    }
+    case 'SET_NOTIFICATION_SNAPSHOT': {
+      const next = new Map<string, NotificationData>();
+      for (const msg of action.notifications) {
+        if (msg.active) {
+          next.set(String(msg.unitId), {
+            unitName: msg.unitName,
+            creatorId: msg.creatorId,
+            timestamp: msg.timestamp,
+          });
+        }
+      }
+      return { ...state, notifications: next };
     }
     case 'SET_HEADER_ERROR': {
       return {
@@ -242,6 +274,9 @@ interface AppContextValue {
   /** Применяет начальный снапшот алёртов, полученный при подключении к /ws/live */
   setAlertSnapshot: (alerts: AlertWsMessage[]) => void;
   patchUnitsStatus: (workshopId: string, statuses: UnitStatus[]) => void;
+  // Notifications (user-triggered production notifications)
+  handleNotification: (msg: NotificationWsMessage) => void;
+  setNotificationSnapshot: (notifications: NotificationWsMessage[]) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -292,6 +327,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const patchUnitsStatus = useCallback(
     (workshopId: string, statuses: UnitStatus[]) =>
       dispatch({ type: 'PATCH_UNITS_STATUS', workshopId, statuses }),
+    []
+  );
+  const handleNotification = useCallback((msg: NotificationWsMessage) => {
+    dispatch({ type: 'HANDLE_NOTIFICATION', msg });
+  }, []);
+  const setNotificationSnapshot = useCallback(
+    (notifications: NotificationWsMessage[]) =>
+      dispatch({ type: 'SET_NOTIFICATION_SNAPSHOT', notifications }),
     []
   );
 
@@ -348,6 +391,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setTopologyETag,
         setAlertSnapshot,
         patchUnitsStatus,
+        handleNotification,
+        setNotificationSnapshot,
       }}
     >
       {children}
