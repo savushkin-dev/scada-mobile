@@ -24,33 +24,33 @@ REST базовый путь задается в [backend/src/main/resources/app
 | --- | --- | --- |
 | `id` | string | Идентификатор цеха |
 | `name` | string | Отображаемое имя |
-| `totalUnits` | int | Количество аппаратов в цехе |
+| `totalUnits` | int | Количество автоматов в цехе |
 
 HTTP ответы: `200`, `304`.
 
 ### GET /api/v1.0.0/workshops/{workshopId}/units/topology
-Назначение: статическая топология аппаратов цеха. Проверка существования цеха выполняется в контроллере ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/controller/Controller.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/controller/Controller.java#L184-L212)).
+Назначение: статическая топология автоматов цеха. Проверка существования цеха выполняется в контроллере ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/controller/Controller.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/controller/Controller.java#L184-L212)).
 
 Схема ответа: `UnitTopologyDTO` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/UnitTopologyDTO.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/UnitTopologyDTO.java#L13-L17)).
 
 | Поле | Тип | Описание |
 | --- | --- | --- |
-| `id` | string | Идентификатор аппарата |
+| `id` | string | Идентификатор автомата |
 | `workshopId` | string | Идентификатор цеха |
-| `unit` | string | Отображаемое имя аппарата |
+| `unit` | string | Отображаемое имя автомата |
 
 HTTP ответы: `200`, `304`, `404`.
 
 ### GET /api/v1.0.0/workshops/{workshopId}/units/{unitId}/devices/topology
-Назначение: статический список устройств PrintSrv аппарата. Принадлежность аппарата проверяется в контроллере ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/controller/Controller.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/controller/Controller.java#L146-L179)).
+Назначение: статический список устройств PrintSrv автомата. Принадлежность автомата проверяется в контроллере ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/controller/Controller.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/controller/Controller.java#L146-L179)).
 
 Схема ответа: `UnitDeviceTopologyDTO` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/UnitDeviceTopologyDTO.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/UnitDeviceTopologyDTO.java#L17-L21)) с группами устройств `DeviceGroupsDTO` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/DeviceGroupsDTO.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/DeviceGroupsDTO.java#L21-L26)).
 
 | Поле | Тип | Описание |
 | --- | --- | --- |
-| `unitId` | string | Идентификатор аппарата |
+| `unitId` | string | Идентификатор автомата |
 | `workshopId` | string | Идентификатор цеха |
-| `unit` | string | Отображаемое имя аппарата |
+| `unit` | string | Отображаемое имя автомата |
 | `devices.printers` | string[] | Принтеры маркировки |
 | `devices.aggregationCams` | string[] | Камеры агрегации |
 | `devices.aggregationBoxCams` | string[] | Камеры агрегации короба |
@@ -87,7 +87,7 @@ HTTP ответы: `200`, `503`.
 
 | Action | Поля | Назначение |
 | --- | --- | --- |
-| `SUBSCRIBE_WORKSHOP` | `workshopId` | Подписка на live-статусы аппаратов выбранного цеха |
+| `SUBSCRIBE_WORKSHOP` | `workshopId` | Подписка на live-статусы автоматов выбранного цеха |
 | `UNSUBSCRIBE_WORKSHOP` | отсутствуют | Снятие подписки |
 
 ### Серверные сообщения
@@ -96,7 +96,7 @@ HTTP ответы: `200`, `503`.
 | --- | --- | --- |
 | `ALERT_SNAPSHOT` | при подключении | `AlertSnapshotMessageDTO` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/AlertSnapshotMessageDTO.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/AlertSnapshotMessageDTO.java#L34-L44)) |
 | `ALERT` | при дельте алерта | `AlertMessageDTO` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/AlertMessageDTO.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/AlertMessageDTO.java#L39-L47)) |
-| `UNITS_STATUS` | при изменении статуса аппаратов подписанного цеха | `UnitsStatusMessageDTO` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/UnitsStatusMessageDTO.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/UnitsStatusMessageDTO.java#L23-L34)) |
+| `UNITS_STATUS` | при изменении статуса автоматов подписанного цеха | `UnitsStatusMessageDTO` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/UnitsStatusMessageDTO.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/UnitsStatusMessageDTO.java#L23-L34)) |
 
 #### ALERT_SNAPSHOT
 | Поле | Тип | Описание |
@@ -111,8 +111,8 @@ HTTP ответы: `200`, `503`.
 | --- | --- | --- |
 | `type` | string | Всегда `ALERT` |
 | `workshopId` | string | Идентификатор цеха |
-| `unitId` | string | Идентификатор аппарата |
-| `unitName` | string | Отображаемое имя аппарата |
+| `unitId` | string | Идентификатор автомата |
+| `unitName` | string | Отображаемое имя автомата |
 | `severity` | string | Текущая реализация использует только `Critical`, см. `AlertService` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/services/AlertService.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/services/AlertService.java#L35-L137)) |
 | `active` | boolean | `true` для появления, `false` для снятия |
 | `errors` | AlertError[] | Детали ошибок |
@@ -125,18 +125,18 @@ HTTP ответы: `200`, `503`.
 | --- | --- | --- |
 | `type` | string | Всегда `UNITS_STATUS` |
 | `workshopId` | string | Идентификатор цеха |
-| `payload` | UnitStatus[] | Список статусов аппаратов |
+| `payload` | UnitStatus[] | Список статусов автоматов |
 
 Схема элемента массива: `UnitStatusDTO` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/UnitStatusDTO.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/UnitStatusDTO.java#L12-L15)).
 
 | Поле | Тип | Описание |
 | --- | --- | --- |
-| `unitId` | string | Идентификатор аппарата |
+| `unitId` | string | Идентификатор автомата |
 | `workshopId` | string | Идентификатор цеха |
 | `event` | string | Текущее событие/состояние |
 
 ## WebSocket /ws/unit/{unitId}
-Канал детальной страницы аппарата. Обработчик и протокол описаны в `UnitWsHandler` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/ws/UnitWsHandler.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/ws/UnitWsHandler.java#L27-L199)). Канал push-only, входящие сообщения игнорируются.
+Канал детальной страницы автомата. Обработчик и протокол описаны в `UnitWsHandler` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/ws/UnitWsHandler.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/ws/UnitWsHandler.java#L27-L199)). Канал push-only, входящие сообщения игнорируются.
 
 При подключении отправляется начальный пакет из четырех сообщений (`LINE_STATUS`, `DEVICES_STATUS`, `QUEUE`, `ERRORS`), см. `sendInitialSnapshot` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/ws/UnitWsHandler.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/ws/UnitWsHandler.java#L172-L187)).
 
@@ -146,7 +146,7 @@ HTTP ответы: `200`, `503`.
 | Поле | Тип | Описание |
 | --- | --- | --- |
 | `type` | string | Всегда `LINE_STATUS` |
-| `unitId` | string | Идентификатор аппарата |
+| `unitId` | string | Идентификатор автомата |
 | `timestamp` | string | ISO-8601 метка времени |
 | `payload.lineName` | string | Название линии |
 | `payload.lineState` | string | Состояние линии (`1` или `0`) |
@@ -174,7 +174,7 @@ HTTP ответы: `200`, `503`.
 | Поле | Тип | Описание |
 | --- | --- | --- |
 | `type` | string | Всегда `DEVICES_STATUS` |
-| `unitId` | string | Идентификатор аппарата |
+| `unitId` | string | Идентификатор автомата |
 | `timestamp` | string | ISO-8601 метка времени |
 | `payload.printers` | PrinterStatus[] | Статусы принтеров |
 | `payload.aggregationCams` | CameraStatus[] | Статусы камер агрегации |
@@ -206,7 +206,7 @@ CameraStatus: `DevicesStatusMessageDTO.CameraStatus` ([backend/src/main/java/dev
 | Поле | Тип | Описание |
 | --- | --- | --- |
 | `type` | string | Всегда `QUEUE` |
-| `unitId` | string | Идентификатор аппарата |
+| `unitId` | string | Идентификатор автомата |
 | `timestamp` | string | ISO-8601 метка времени |
 | `payload.items` | QueueItem[] | Очередь партий |
 
@@ -225,7 +225,7 @@ QueueItem: `QueueMessageDTO.Item` ([backend/src/main/java/dev/savushkin/scada/mo
 | Поле | Тип | Описание |
 | --- | --- | --- |
 | `type` | string | Всегда `ERRORS` |
-| `unitId` | string | Идентификатор аппарата |
+| `unitId` | string | Идентификатор автомата |
 | `timestamp` | string | ISO-8601 метка времени |
 | `payload.deviceErrors` | DeviceErrorFlag[] | Активные ошибки устройств |
 | `payload.logs` | object[] | Журнал событий (массив объектов) |

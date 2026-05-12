@@ -10,9 +10,9 @@
 - [Implementation references](#implementation-references)
 
 ## Transport overview
-- Статическая топология цехов и аппаратов загружается через REST (см. [API_REFERENCE.md](API_REFERENCE.md#rest-endpoints)).
+- Статическая топология цехов и автоматов загружается через REST (см. [API_REFERENCE.md](API_REFERENCE.md#rest-endpoints)).
 - Live-алерты и статус цеха приходят через единый канал `/ws/live` (см. [API_REFERENCE.md](API_REFERENCE.md#websocket-wslive)).
-- Детальные данные аппарата приходят через `/ws/unit/{unitId}` (см. [API_REFERENCE.md](API_REFERENCE.md#websocket-wsunitunitid)).
+- Детальные данные автомата приходят через `/ws/unit/{unitId}` (см. [API_REFERENCE.md](API_REFERENCE.md#websocket-wsunitunitid)).
 
 ## Client configuration
 Базовые URL задаются через `VITE_API_BASE` и `VITE_WS_BASE`, дефолты вычисляются из origin ([frontend/src/config/runtime.ts](frontend/src/config/runtime.ts#L14-L22), [frontend/src/schemas/env.ts](frontend/src/schemas/env.ts#L9-L19)).

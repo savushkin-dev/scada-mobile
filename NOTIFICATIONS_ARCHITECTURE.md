@@ -12,7 +12,7 @@
 - [Current limitations](#current-limitations)
 
 ## Backend pipeline
-1. `UnitDetailService.extractActiveErrors` извлекает активные ошибки по scada-флагам и составу устройств аппарата ([backend/src/main/java/dev/savushkin/scada/mobile/backend/services/UnitDetailService.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/services/UnitDetailService.java#L304-L354)).
+1. `UnitDetailService.extractActiveErrors` извлекает активные ошибки по scada-флагам и составу устройств автомата ([backend/src/main/java/dev/savushkin/scada/mobile/backend/services/UnitDetailService.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/services/UnitDetailService.java#L304-L354)).
 2. `UnitErrorStore` хранит активные ошибки как единый источник правды для алертов и вкладки Журнал ([backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/store/UnitErrorStore.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/store/UnitErrorStore.java#L11-L71)).
 3. `AlertService` формирует `AlertMessageDTO` на основе `UnitErrorStore` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/services/AlertService.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/services/AlertService.java#L18-L141)).
 4. `ActiveAlertStore` вычисляет дельту появления/исчезновения алертов для рассылки ([backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/store/ActiveAlertStore.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/store/ActiveAlertStore.java#L11-L69)).
@@ -20,7 +20,7 @@
 
 ## WebSocket delivery
 - Канал `/ws/live` обслуживается `LiveWsHandler` и рассылает `ALERT_SNAPSHOT`, `ALERT`, `UNITS_STATUS` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/ws/LiveWsHandler.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/ws/LiveWsHandler.java#L92-L239)).
-- Канал `/ws/unit/{unitId}` обслуживается `UnitWsHandler`, отправляет четыре типа сообщений деталей аппарата ([backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/ws/UnitWsHandler.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/ws/UnitWsHandler.java#L83-L199)).
+- Канал `/ws/unit/{unitId}` обслуживается `UnitWsHandler`, отправляет четыре типа сообщений деталей автомата ([backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/ws/UnitWsHandler.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/ws/UnitWsHandler.java#L83-L199)).
 
 ## Frontend handling
 - `useLiveWs` открывает единый канал `/ws/live` и маршрутизирует `ALERT_SNAPSHOT`, `ALERT`, `UNITS_STATUS` ([frontend/src/hooks/useLiveWs.ts](frontend/src/hooks/useLiveWs.ts#L31-L141)).

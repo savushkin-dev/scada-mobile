@@ -44,10 +44,10 @@
 - REST API
     - `api/controller/Controller` — endpoints:
         - `GET /api/workshops` — список цехов.
-        - `GET /api/workshops/{id}/units` — список аппаратов цеха.
+        - `GET /api/workshops/{id}/units` — список автоматов цеха.
         - health endpoints: `/health/live`, `/health/ready`.
     - WebSocket endpoints:
-        - `ws://backend/ws/unit/{unitId}` — поток данных аппарата (LINE_STATUS, DEVICES_STATUS, QUEUE, ERRORS).
+        - `ws://backend/ws/unit/{unitId}` — поток данных автомата (LINE_STATUS, DEVICES_STATUS, QUEUE, ERRORS).
         - `ws://backend/ws/alerts` — глобальный поток алёртов (ALERT).
     - `services/CommandsService` — адаптер API → application.
     - `api/ApiMapper` — преобразование domain → API DTO.
