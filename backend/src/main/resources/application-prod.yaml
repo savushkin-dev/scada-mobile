@@ -129,6 +129,13 @@ springdoc:
   swagger-ui:
     enabled: false
 
+# Настройки подключения к реальной БД
+spring:
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+
 # Actuator: только нужные endpoints, закрытые от внешней сети
 # health — для liveness/readiness probe (если нет /api/v1/commands/health/*)
 # loggers — для изменения уровней логов без перезапуска при инциденте

@@ -81,3 +81,10 @@ springdoc:
     enabled: true
     path: /swagger-ui.html
   show-actuator: true
+
+# Настройки подключения к БД
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/scada_mobile}
+    username: ${SPRING_DATASOURCE_USERNAME:scada_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:scada_password}

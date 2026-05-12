@@ -44,11 +44,9 @@
 
 | Цель | Назначение | Реализация |
 | --- | --- | --- |
-| `docker-dev-up` | Старт dev-стека | [Makefile](Makefile#L127-L146) |
-| `docker-dev-down` | Остановка dev-стека | [Makefile](Makefile#L131-L148) |
-| `docker-prod-up` | Старт prod-стека | [Makefile](Makefile#L134-L155) |
-| `docker-prod-down` | Остановка prod-стека | [Makefile](Makefile#L137-L158) |
-| `docker-ps` | Статус контейнеров | [Makefile](Makefile#L140-L162) |
+| `docker-prod-up` | Старт prod-стека | [Makefile](Makefile#L125-L132) |
+| `docker-prod-down` | Остановка prod-стека | [Makefile](Makefile#L134-L135) |
+| `docker-ps` | Статус контейнеров | [Makefile](Makefile#L137-L141) |
 
 ## Android targets
 
