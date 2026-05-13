@@ -4,6 +4,7 @@ import dev.savushkin.scada.mobile.backend.api.dto.NotificationToggleResponseDTO;
 import dev.savushkin.scada.mobile.backend.config.UserIdFilter;
 import dev.savushkin.scada.mobile.backend.services.NotificationService;
 import dev.savushkin.scada.mobile.backend.services.NotificationService.ToggleResult;
+import dev.savushkin.scada.mobile.backend.services.UnitMappingService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
@@ -43,9 +44,12 @@ public class NotificationController {
     private static final Logger log = LoggerFactory.getLogger(NotificationController.class);
 
     private final NotificationService notificationService;
+    private final UnitMappingService unitMappingService;
 
-    public NotificationController(NotificationService notificationService) {
+    public NotificationController(NotificationService notificationService,
+                                  UnitMappingService unitMappingService) {
         this.notificationService = notificationService;
+        this.unitMappingService = unitMappingService;
     }
 
     /**
@@ -60,33 +64,65 @@ public class NotificationController {
             @PathVariable @NonNull String unitId,
             @NonNull HttpServletRequest request
     ) {
-        String userId = UserIdFilter.resolveUserId(request);
-        if (userId == null || userId.isBlank()) {
+        String userIdRaw = UserIdFilter.resolveUserId(request);
+        if (userIdRaw == null || userIdRaw.isBlank()) {
             return ResponseEntity.badRequest().body(
                     new NotificationToggleResponseDTO("error", unitId, null, null));
         }
 
-        ToggleResult result = notificationService.toggleNotification(unitId, userId);
+        Long userId = parseLong(userIdRaw);
+        if (userId == null) {
+            return ResponseEntity.badRequest().body(
+                    new NotificationToggleResponseDTO("error", unitId, null, null));
+        }
+
+        Long numericUnitId = parseLong(unitId);
+        if (numericUnitId == null) {
+            return ResponseEntity.badRequest().body(
+                    new NotificationToggleResponseDTO("error", unitId, null, null));
+        }
+
+        String printsrvUnitId = unitMappingService.findPrintSrvInstanceId(numericUnitId)
+                .orElse(null);
+        if (printsrvUnitId == null || printsrvUnitId.isBlank()) {
+            return ResponseEntity.status(404).body(
+                    new NotificationToggleResponseDTO("error", unitId, null, null));
+        }
+
+        String unitIdValue = Long.toString(numericUnitId);
+        String userIdValue = Long.toString(userId);
+
+        ToggleResult result = notificationService.toggleNotification(printsrvUnitId, userId);
 
         return switch (result) {
             case ToggleResult.Activated activated -> {
                 String timestamp = Instant.now().atOffset(ZoneOffset.UTC)
                         .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-                log.info("Notification toggle: ACTIVATED unitId='{}' userId='{}'", unitId, userId);
+                log.info("Notification toggle: ACTIVATED unitId='{}' printsrv='{}' userId='{}'",
+                        unitIdValue, printsrvUnitId, userIdValue);
                 yield ResponseEntity.ok(
-                        NotificationToggleResponseDTO.activated(unitId, userId, timestamp));
+                        NotificationToggleResponseDTO.activated(unitIdValue, userIdValue, timestamp));
             }
             case ToggleResult.Deactivated deactivated -> {
-                log.info("Notification toggle: DEACTIVATED unitId='{}' userId='{}'", unitId, userId);
+                log.info("Notification toggle: DEACTIVATED unitId='{}' printsrv='{}' userId='{}'",
+                        unitIdValue, printsrvUnitId, userIdValue);
                 yield ResponseEntity.ok(
-                        NotificationToggleResponseDTO.deactivated(unitId));
+                        NotificationToggleResponseDTO.deactivated(unitIdValue));
             }
             case ToggleResult.AlreadyActiveByOther alreadyActive -> {
-                log.info("Notification toggle: ALREADY_ACTIVE unitId='{}' by='{}', requester='{}'",
-                        unitId, alreadyActive.existingCreatorId(), userId);
+                log.info("Notification toggle: ALREADY_ACTIVE unitId='{}' printsrv='{}' by='{}', requester='{}'",
+                        unitIdValue, printsrvUnitId, alreadyActive.existingCreatorId(), userIdValue);
                 yield ResponseEntity.status(409).body(
-                        NotificationToggleResponseDTO.alreadyActive(unitId, alreadyActive.existingCreatorId()));
+                        NotificationToggleResponseDTO.alreadyActive(unitIdValue, alreadyActive.existingCreatorId()));
             }
         };
+    }
+
+    private Long parseLong(String raw) {
+        try {
+            return Long.parseLong(raw.trim());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 }

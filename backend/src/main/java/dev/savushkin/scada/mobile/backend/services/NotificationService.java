@@ -69,12 +69,13 @@ public class NotificationService {
      * @throws NotificationAccessDeniedException если работник не имеет права отправлять
      *         уведомления от данного аппарата.
      */
-    public ToggleResult toggleNotification(@NonNull String unitId, @NonNull String userId) {
+    public ToggleResult toggleNotification(@NonNull String unitId, long userId) {
+        String userIdValue = Long.toString(userId);
         // 1. Проверка прав
         if (!userAssignmentRepository.canSendNotification(userId, unitId)) {
             log.warn("Notification access denied: userId='{}' has no access to unitId='{}'",
-                    userId, unitId);
-            throw new NotificationAccessDeniedException(userId, unitId);
+                    userIdValue, unitId);
+            throw new NotificationAccessDeniedException(userIdValue, unitId);
         }
 
         // 2. Проверка текущего состояния
@@ -82,31 +83,31 @@ public class NotificationService {
                 .orElse(null);
 
         if (existing != null) {
-            if (existing.creatorId().equals(userId)) {
+            if (existing.creatorId().equals(userIdValue)) {
                 // Тот же создатель → deactivate
                 ProductionNotification deactivated = existing.deactivate();
                 notificationRepository.save(deactivated);
                 eventPublisher.publishEvent(
                         new NotificationStateChangedEvent(unitId, deactivated,
                                 NotificationStateChangedEvent.EventType.DEACTIVATED));
-                log.info("Notification deactivated: unitId='{}' by userId='{}'", unitId, userId);
+                log.info("Notification deactivated: unitId='{}' by userId='{}'", unitId, userIdValue);
                 return new ToggleResult.Deactivated(unitId);
             } else {
                 // Другой создатель → нельзя деактивировать
                 log.warn("Notification already active by other: unitId='{}', creator='{}', requester='{}'",
-                        unitId, existing.creatorId(), userId);
+                        unitId, existing.creatorId(), userIdValue);
                 return new ToggleResult.AlreadyActiveByOther(unitId, existing.creatorId());
             }
         }
 
         // 3. Активация
-        ProductionNotification activated = ProductionNotification.activate(unitId, userId);
+        ProductionNotification activated = ProductionNotification.activate(unitId, userIdValue);
         notificationRepository.save(activated);
         eventPublisher.publishEvent(
                 new NotificationStateChangedEvent(unitId, activated,
                         NotificationStateChangedEvent.EventType.ACTIVATED));
-        log.info("Notification activated: unitId='{}' by userId='{}'", unitId, userId);
-        return new ToggleResult.Activated(unitId, userId);
+        log.info("Notification activated: unitId='{}' by userId='{}'", unitId, userIdValue);
+        return new ToggleResult.Activated(unitId, userIdValue);
     }
 
     /**
@@ -121,7 +122,7 @@ public class NotificationService {
      * Возвращает множество аппаратов, на которые подписан конкретный работник.
      * Используется для фильтрации snapshot.
      */
-    public Set<String> getSubscribedUnitIds(@NonNull String userId) {
+    public Set<String> getSubscribedUnitIds(long userId) {
         return userAssignmentRepository.getSubscribedUnitIds(userId);
     }
 

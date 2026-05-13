@@ -12,7 +12,7 @@ else
 GRADLEW := ./gradlew
 endif
 
-.PHONY: help back-run back-run-prod front-install front-dev front-build
+.PHONY: help back-run back-stop back-run-prod front-install front-dev front-build
 .PHONY: bwa-init bwa-build-apk
 .PHONY: docker-prod-up docker-prod-down docker-ps
 
@@ -27,7 +27,8 @@ help:
 	@echo "SCADA Mobile shortcuts"
 	@echo ""
 	@echo "Backend:"
-	@echo "  make back-run       - run backend [dev profile, port $(DEV_BACKEND_PORT), Swagger enabled]"
+	@echo "  make back-run       - run backend in background [dev profile, port $(DEV_BACKEND_PORT), Swagger enabled]"
+	@echo "  make back-stop      - stop backend started by back-run"
 	@echo "  make back-run-prod  - run backend [prod profile, port from BACKEND_PORT, Swagger disabled]"
 	@echo ""
 	@echo "Docker:"
@@ -48,7 +49,8 @@ help:
 	@echo "SCADA Mobile shortcuts"
 	@echo ""
 	@echo "Backend:"
-	@echo "  make back-run       - run backend [dev profile, port $(DEV_BACKEND_PORT), Swagger enabled]"
+	@echo "  make back-run       - run backend in background [dev profile, port $(DEV_BACKEND_PORT), Swagger enabled]"
+	@echo "  make back-stop      - stop backend started by back-run"
 	@echo "  make back-run-prod  - run backend [prod profile, port from BACKEND_PORT, Swagger disabled]"
 	@echo ""
 	@echo "Docker:"
@@ -68,13 +70,23 @@ endif
 
 ifeq ($(OS),Windows_NT)
 back-run:
-	cmd /C "chcp 65001 >NUL & cd $(BACKEND_DIR) & set "JAVA_TOOL_OPTIONS=$(JAVA_OPTS)" & set "SPRING_PROFILES_ACTIVE=dev" & set "SERVER_PORT=$(DEV_BACKEND_PORT)" & $(GRADLEW) bootRun"
+	powershell -NoProfile -Command "$$env:JAVA_TOOL_OPTIONS='$(JAVA_OPTS)'; $$env:SPRING_PROFILES_ACTIVE='dev'; $$env:SERVER_PORT='$(DEV_BACKEND_PORT)'; $$p = Start-Process -FilePath '.\\gradlew.bat' -ArgumentList 'bootRun' -WorkingDirectory '$(BACKEND_DIR)' -PassThru; $$p.Id | Set-Content '$(BACKEND_DIR)\\.backend.pid'"
+
+back-stop:
+	powershell -NoProfile -Command "if (Test-Path '$(BACKEND_DIR)\\.backend.pid') { $$backendPid = Get-Content '$(BACKEND_DIR)\\.backend.pid'; Stop-Process -Id $$backendPid -Force; Remove-Item '$(BACKEND_DIR)\\.backend.pid' } else { Write-Host 'No backend PID file found.' }"
 
 back-run-prod:
 	cmd /V:ON /C "chcp 65001 >NUL & setlocal EnableDelayedExpansion & set "ENV_FILE=$(PROD_ENV_ACTIVE_FILE)" & (for /f "usebackq eol=# tokens=1,* delims==" %%A in ("!ENV_FILE!") do (if not "%%A"=="" set "%%A=%%B")) & if "!BACKEND_PORT!"=="" (echo Missing BACKEND_PORT in !ENV_FILE!. & exit /b 1) & cd $(BACKEND_DIR) & set "JAVA_TOOL_OPTIONS=$(JAVA_OPTS)" & set "SPRING_PROFILES_ACTIVE=prod" & set "SERVER_PORT=!BACKEND_PORT!" & $(GRADLEW) bootRun"
 else
 back-run:
-	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=dev SERVER_PORT='$(DEV_BACKEND_PORT)' $(GRADLEW) bootRun
+	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=dev SERVER_PORT='$(DEV_BACKEND_PORT)' nohup $(GRADLEW) bootRun > .backend.log 2>&1 & echo $$! > .backend.pid
+
+back-stop:
+	@if [ -f "$(BACKEND_DIR)/.backend.pid" ]; then \
+		kill $$(cat "$(BACKEND_DIR)/.backend.pid") && rm "$(BACKEND_DIR)/.backend.pid"; \
+	else \
+		echo "No backend PID file found."; \
+	fi
 
 back-run-prod:
 	@set -a; \

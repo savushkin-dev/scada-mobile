@@ -4,10 +4,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.savushkin.scada.mobile.backend.api.dto.AlertSnapshotMessageDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.NotificationMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.NotificationSnapshotMessageDTO;
+import dev.savushkin.scada.mobile.backend.config.WebSocketUserIdInterceptor;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitsStatusMessageDTO;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveAlertStore;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveNotificationStore;
+import dev.savushkin.scada.mobile.backend.services.NotificationService;
+import dev.savushkin.scada.mobile.backend.services.NotificationSettingsService;
 import dev.savushkin.scada.mobile.backend.services.WorkshopService;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
@@ -19,7 +23,10 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -70,6 +77,8 @@ public class LiveWsHandler extends TextWebSocketHandler {
     private final ActiveAlertStore alertStore;
     private final ActiveNotificationStore notificationStore;
     private final WorkshopService workshopService;
+    private final NotificationService notificationService;
+    private final NotificationSettingsService notificationSettingsService;
     private final ObjectMapper objectMapper;
 
     /**
@@ -86,11 +95,15 @@ public class LiveWsHandler extends TextWebSocketHandler {
             ActiveAlertStore alertStore,
             ActiveNotificationStore notificationStore,
             WorkshopService workshopService,
+            NotificationService notificationService,
+            NotificationSettingsService notificationSettingsService,
             ObjectMapper objectMapper
     ) {
         this.alertStore = alertStore;
         this.notificationStore = notificationStore;
         this.workshopService = workshopService;
+        this.notificationService = notificationService;
+        this.notificationSettingsService = notificationSettingsService;
         this.objectMapper = objectMapper;
     }
 
@@ -272,7 +285,14 @@ public class LiveWsHandler extends TextWebSocketHandler {
      */
     private void sendNotificationSnapshot(WebSocketSession session) {
         try {
-            var snapshotMsg = NotificationSnapshotMessageDTO.of(notificationStore.getAll());
+            Set<String> allowedUnitIds = resolveAllowedNotificationUnits(session);
+            List<NotificationMessageDTO> allNotifications = notificationStore.getAll();
+            List<NotificationMessageDTO> filtered = allowedUnitIds.isEmpty()
+                    ? List.of()
+                    : allNotifications.stream()
+                        .filter(n -> allowedUnitIds.contains(n.unitId()))
+                        .toList();
+            var snapshotMsg = NotificationSnapshotMessageDTO.of(filtered);
             sendMessageSafely(session, objectMapper.writeValueAsString(snapshotMsg));
             log.debug("WS /live: sent NOTIFICATION_SNAPSHOT, notifications={}, id={}",
                     snapshotMsg.payload().size(), session.getId());
@@ -280,6 +300,44 @@ public class LiveWsHandler extends TextWebSocketHandler {
             log.warn("WS /live: failed to send NOTIFICATION_SNAPSHOT, id={}: {}",
                     session.getId(), e.getMessage());
         }
+    }
+
+    private Set<String> resolveAllowedNotificationUnits(WebSocketSession session) {
+        OptionalLong userId = resolveUserId(session);
+        if (userId.isEmpty()) {
+            log.debug("WS /live: missing userId for NOTIFICATION_SNAPSHOT, id={}", session.getId());
+            return Set.of();
+        }
+
+        long numericUserId = userId.getAsLong();
+        Set<String> assigned = notificationService.getSubscribedUnitIds(numericUserId);
+        if (assigned.isEmpty()) {
+            return Set.of();
+        }
+
+        Set<String> enabled = notificationSettingsService.getActivePrintSrvUnitIds(numericUserId);
+        if (enabled.isEmpty()) {
+            return Set.of();
+        }
+
+        Set<String> allowed = new HashSet<>(assigned);
+        allowed.retainAll(enabled);
+        return allowed;
+    }
+
+    private OptionalLong resolveUserId(WebSocketSession session) {
+        Object raw = session.getAttributes().get(WebSocketUserIdInterceptor.ATTR_USER_ID);
+        if (raw instanceof Number number) {
+            return OptionalLong.of(number.longValue());
+        }
+        if (raw instanceof String text && !text.isBlank()) {
+            try {
+                return OptionalLong.of(Long.parseLong(text.trim()));
+            } catch (NumberFormatException ex) {
+                log.debug("WS /live: invalid userId '{}', id={}", text, session.getId());
+            }
+        }
+        return OptionalLong.empty();
     }
 
     /**

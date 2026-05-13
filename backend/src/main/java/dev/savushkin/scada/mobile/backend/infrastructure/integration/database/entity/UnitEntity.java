@@ -23,6 +23,9 @@ public class UnitEntity {
     @Column(name = "name", nullable = false)
     private String name;
 
+    @Column(name = "printsrv_instance_id")
+    private String printsrvInstanceId;
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 

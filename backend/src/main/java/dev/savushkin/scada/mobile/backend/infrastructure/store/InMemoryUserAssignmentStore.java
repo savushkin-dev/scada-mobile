@@ -41,7 +41,7 @@ public class InMemoryUserAssignmentStore implements UserAssignmentRepository {
     /**
      * userId → unitIds (закрепление и подписка совпадают).
      */
-    private Map<String, Set<String>> assignmentsByUser = Map.of();
+    private Map<Long, Set<String>> assignmentsByUser = Map.of();
 
     /** Все instanceIds из конфигурации PrintSrv (для defaultAccess). */
     private Set<String> allInstanceIds = Set.of();
@@ -58,14 +58,17 @@ public class InMemoryUserAssignmentStore implements UserAssignmentRepository {
                 .map(PrintSrvProperties.InstanceProperties::getId)
                 .collect(Collectors.toUnmodifiableSet());
 
-        assignmentsByUser = notificationProps.getAssignments().stream()
+        Map<Long, Set<String>> parsedAssignments = new LinkedHashMap<>();
+        notificationProps.getAssignments().stream()
                 .filter(a -> a.getUserId() != null && !a.getUserId().isBlank())
-                .collect(Collectors.toMap(
-                        NotificationProperties.AssignmentProperties::getUserId,
-                        a -> Set.copyOf(a.getUnitIds()),
-                        (left, right) -> left,
-                        LinkedHashMap::new
-                ));
+                .forEach(a -> {
+                    Long userId = parseUserId(a.getUserId());
+                    if (userId == null) {
+                        return;
+                    }
+                    parsedAssignments.putIfAbsent(userId, Set.copyOf(a.getUnitIds()));
+                });
+        assignmentsByUser = Map.copyOf(parsedAssignments);
 
         if (notificationProps.isDefaultAccess()) {
             log.info("Notifications: defaultAccess=ALL — all users can send/receive for all {} units",
@@ -77,7 +80,7 @@ public class InMemoryUserAssignmentStore implements UserAssignmentRepository {
     }
 
     @Override
-    public boolean canSendNotification(@NonNull String userId, @NonNull String unitId) {
+    public boolean canSendNotification(long userId, @NonNull String unitId) {
         if (notificationProps.isDefaultAccess()) {
             return true;
         }
@@ -86,7 +89,7 @@ public class InMemoryUserAssignmentStore implements UserAssignmentRepository {
     }
 
     @Override
-    public @NonNull Set<String> getSubscribedUnitIds(@NonNull String userId) {
+    public @NonNull Set<String> getSubscribedUnitIds(long userId) {
         if (notificationProps.isDefaultAccess()) {
             return allInstanceIds;
         }
@@ -94,10 +97,19 @@ public class InMemoryUserAssignmentStore implements UserAssignmentRepository {
     }
 
     @Override
-    public @NonNull Set<String> getAssignedUnitIds(@NonNull String userId) {
+    public @NonNull Set<String> getAssignedUnitIds(long userId) {
         if (notificationProps.isDefaultAccess()) {
             return allInstanceIds;
         }
         return assignmentsByUser.getOrDefault(userId, Set.of());
+    }
+
+    private Long parseUserId(String raw) {
+        try {
+            return Long.parseLong(raw.trim());
+        } catch (NumberFormatException ex) {
+            log.warn("Notifications: invalid userId '{}' in assignments, skipping", raw);
+            return null;
+        }
     }
 }

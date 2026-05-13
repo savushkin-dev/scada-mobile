@@ -53,8 +53,13 @@ public class WebSocketUserIdInterceptor implements HandshakeInterceptor {
 
         if (userId != null && !userId.isBlank()) {
             userId = userId.trim();
-            attributes.put(ATTR_USER_ID, userId);
-            log.debug("WS handshake: userId='{}' from URI='{}'", userId, request.getURI());
+            Long numericUserId = parseUserId(userId);
+            if (numericUserId != null) {
+                attributes.put(ATTR_USER_ID, numericUserId);
+                log.debug("WS handshake: userId='{}' from URI='{}'", numericUserId, request.getURI());
+            } else {
+                log.debug("WS handshake: invalid userId='{}' from URI='{}'", userId, request.getURI());
+            }
         } else {
             log.debug("WS handshake: no userId in query, URI='{}'", request.getURI());
         }
@@ -71,5 +76,13 @@ public class WebSocketUserIdInterceptor implements HandshakeInterceptor {
             Exception exception
     ) {
         // Ничего не делаем после handshake
+    }
+
+    private Long parseUserId(String raw) {
+        try {
+            return Long.parseLong(raw);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 }

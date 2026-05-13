@@ -33,7 +33,7 @@ public interface UserAssignmentRepository {
      * @param unitId Идентификатор аппарата.
      * @return {@code true} — работник имеет право; {@code false} — нет.
      */
-    boolean canSendNotification(@NonNull String userId, @NonNull String unitId);
+    boolean canSendNotification(long userId, @NonNull String unitId);
 
     /**
      * Возвращает множество аппаратов, на уведомления от которых подписан работник.
@@ -44,7 +44,7 @@ public interface UserAssignmentRepository {
      * @param userId Идентификатор работника.
      * @return Неизменяемое множество идентификаторов аппаратов.
      */
-    @NonNull Set<String> getSubscribedUnitIds(@NonNull String userId);
+    @NonNull Set<String> getSubscribedUnitIds(long userId);
 
     /**
      * Возвращает множество аппаратов, за которыми закреплён работник.
@@ -55,5 +55,5 @@ public interface UserAssignmentRepository {
      * @param userId Идентификатор работника.
      * @return Неизменяемое множество идентификаторов аппаратов.
      */
-    @NonNull Set<String> getAssignedUnitIds(@NonNull String userId);
+    @NonNull Set<String> getAssignedUnitIds(long userId);
 }
