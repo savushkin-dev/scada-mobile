@@ -20,6 +20,9 @@ public class UserEntity {
     @JoinColumn(name = "role_id", nullable = false)
     private RoleEntity role;
 
+    @Column(name = "code", nullable = false, unique = true, length = 10)
+    private String code;
+
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
