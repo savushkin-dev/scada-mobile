@@ -5,6 +5,11 @@ FRONTEND_DIR := frontend
 JAVA_OPTS := -Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8
 DEV_BACKEND_PORT ?= 8080
 DEV_FRONTEND_PORT ?= 5500
+SEED_DB_CONTAINER ?= postgres
+SEED_DB_NAME ?= scada_mobile
+SEED_DB_USER ?= scada_user
+SEED_DB_PASSWORD ?= scada_password
+SEED_SQL ?= scripts/seed_notifications.sql
 
 ifeq ($(OS),Windows_NT)
 GRADLEW := gradlew.bat
@@ -12,7 +17,7 @@ else
 GRADLEW := ./gradlew
 endif
 
-.PHONY: help back-run back-stop back-run-prod front-install front-dev front-build
+.PHONY: help back-run back-stop back-run-prod front-install front-dev front-build db-seed
 .PHONY: bwa-init bwa-build-apk
 .PHONY: docker-prod-up docker-prod-down docker-ps
 
@@ -35,6 +40,7 @@ help:
 	@echo "  make docker-prod-up   - start docker stack (prod mode) (env: PROD_ENV_FILE=.env.prod.local)"
 	@echo "  make docker-prod-down - stop docker stack (prod mode)"
 	@echo "  make docker-ps        - show container status for the active stack"
+	@echo "  make db-seed          - seed database via docker exec (env: SEED_DB_CONTAINER, SEED_DB_NAME, SEED_DB_USER, SEED_DB_PASSWORD)"
 	@echo ""
 	@echo "Frontend:"
 	@echo "  make front-install - install frontend dependencies"
@@ -57,6 +63,7 @@ help:
 	@echo "  make docker-prod-up   - start docker stack (prod mode) (env: PROD_ENV_FILE=.env.prod.local)"
 	@echo "  make docker-prod-down - stop docker stack (prod mode)"
 	@echo "  make docker-ps        - show container status for the active stack"
+	@echo "  make db-seed          - seed database via docker exec (env: SEED_DB_CONTAINER, SEED_DB_NAME, SEED_DB_USER, SEED_DB_PASSWORD)"
 	@echo ""
 	@echo "Frontend:"
 	@echo "  make front-install - install frontend dependencies"
@@ -77,6 +84,9 @@ back-stop:
 
 back-run-prod:
 	cmd /V:ON /C "chcp 65001 >NUL & setlocal EnableDelayedExpansion & set "ENV_FILE=$(PROD_ENV_ACTIVE_FILE)" & (for /f "usebackq eol=# tokens=1,* delims==" %%A in ("!ENV_FILE!") do (if not "%%A"=="" set "%%A=%%B")) & if "!BACKEND_PORT!"=="" (echo Missing BACKEND_PORT in !ENV_FILE!. & exit /b 1) & cd $(BACKEND_DIR) & set "JAVA_TOOL_OPTIONS=$(JAVA_OPTS)" & set "SPRING_PROFILES_ACTIVE=prod" & set "SERVER_PORT=!BACKEND_PORT!" & $(GRADLEW) bootRun"
+
+db-seed:
+	cmd /V:ON /C "set \"SEED_DB_PASSWORD=$(SEED_DB_PASSWORD)\" & if not exist $(SEED_SQL) (echo Missing $(SEED_SQL). & exit /b 1) else if \"!SEED_DB_PASSWORD!\"==\"\" (echo Missing SEED_DB_PASSWORD. & exit /b 1) else (docker exec -i -e PGPASSWORD=!SEED_DB_PASSWORD! $(SEED_DB_CONTAINER) psql -U $(SEED_DB_USER) -d $(SEED_DB_NAME) -v ON_ERROR_STOP=1 -f - < $(SEED_SQL))"
 else
 back-run:
 	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=dev SERVER_PORT='$(DEV_BACKEND_PORT)' nohup $(GRADLEW) bootRun > .backend.log 2>&1 & echo $$! > .backend.pid
@@ -97,6 +107,18 @@ back-run-prod:
 		exit 1; \
 	fi; \
 	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=prod SERVER_PORT="$$BACKEND_PORT" $(GRADLEW) bootRun
+
+db-seed:
+	@if [ ! -f "$(SEED_SQL)" ]; then \
+		echo "Missing $(SEED_SQL)."; \
+		exit 1; \
+	fi
+	@if [ -z "$(SEED_DB_PASSWORD)" ]; then \
+		echo "Missing SEED_DB_PASSWORD."; \
+		exit 1; \
+	fi
+	@docker exec -i -e PGPASSWORD="$(SEED_DB_PASSWORD)" "$(SEED_DB_CONTAINER)" \
+		psql -U "$(SEED_DB_USER)" -d "$(SEED_DB_NAME)" -v ON_ERROR_STOP=1 -f - < "$(SEED_SQL)"
 endif
 
 ifeq ($(OS),Windows_NT)

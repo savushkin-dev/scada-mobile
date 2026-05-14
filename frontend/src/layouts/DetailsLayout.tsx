@@ -20,6 +20,7 @@ import {
   type TopologyFetchResult,
 } from '../api/workshops';
 import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { useAsyncFetch } from '../hooks/useAsyncFetch';
 import { usePageError } from '../hooks/usePageError';
 import { useHeaderErrorSlot } from '../hooks/useHeaderErrorSlot';
@@ -99,6 +100,7 @@ export function DetailsLayout() {
     setUnitTopology,
     setWorkshopTopology,
   } = useAppContext();
+  const { userId } = useAuth();
   const { workshopId = '', unitId = '' } = useParams<{
     workshopId: string;
     unitId: string;
@@ -139,7 +141,7 @@ export function DetailsLayout() {
     }
   }, []);
 
-  useUnitWs(unitId || null, handleMessage, {
+  useUnitWs(unitId || null, userId, handleMessage, {
     onReconnecting: () => {
       setSignalState('unit', 'reconnecting');
     },

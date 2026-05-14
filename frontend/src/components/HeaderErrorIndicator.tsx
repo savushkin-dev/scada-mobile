@@ -15,7 +15,7 @@ export function HeaderErrorIndicator() {
   if (!headerError) return null;
 
   return (
-    <div className="ml-auto flex max-w-[48vw] items-center justify-end sm:max-w-[20rem]">
+    <div className="flex max-w-[48vw] items-center justify-end sm:max-w-[20rem]">
       <div
         role="status"
         aria-live="polite"

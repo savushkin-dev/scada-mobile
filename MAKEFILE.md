@@ -19,6 +19,11 @@
 | --- | --- | --- |
 | `DEV_BACKEND_PORT` | 8080 | Порт backend в dev |
 | `DEV_FRONTEND_PORT` | 5500 | Порт frontend в dev |
+| `SEED_DB_CONTAINER` | postgres | Имя контейнера Postgres для `db-seed` |
+| `SEED_DB_NAME` | scada_mobile | Имя БД для `db-seed` |
+| `SEED_DB_USER` | scada_user | Пользователь БД для `db-seed` |
+| `SEED_DB_PASSWORD` |  | Пароль БД для `db-seed` (обязателен) |
+| `SEED_SQL` | scripts/seed_notifications.sql | Путь к seed-скрипту |
 
 Файл окружения prod задается через `PROD_ENV_FILE` ([Makefile](Makefile#L22-L24)).
 
@@ -47,6 +52,12 @@
 | `docker-prod-up` | Старт prod-стека | [Makefile](Makefile#L125-L132) |
 | `docker-prod-down` | Остановка prod-стека | [Makefile](Makefile#L134-L135) |
 | `docker-ps` | Статус контейнеров | [Makefile](Makefile#L137-L141) |
+
+## Database targets
+
+| Цель | Назначение | Реализация |
+| --- | --- | --- |
+| `db-seed` | Заполнение БД seed-данными через docker exec | [Makefile](Makefile#L95-L114) |
 
 ## Android targets
 

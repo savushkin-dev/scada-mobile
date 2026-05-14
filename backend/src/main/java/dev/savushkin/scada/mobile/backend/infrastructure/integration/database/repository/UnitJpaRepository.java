@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -26,6 +27,20 @@ public interface UnitJpaRepository extends JpaRepository<UnitEntity, Long> {
             where u.id = :unitId
             """)
     @NonNull Optional<String> findPrintsrvInstanceIdById(@Param("unitId") Long unitId);
+
+    @Query("""
+            select u
+            from UnitEntity u
+            where u.active = true
+            """)
+    @NonNull List<UnitEntity> findAllActiveUnits();
+
+    @Query("""
+            select u
+            from UnitEntity u
+            where u.active = true and u.id = :unitId
+            """)
+    @NonNull Optional<UnitEntity> findActiveUnitById(@Param("unitId") Long unitId);
 
     @Query("""
             select u.id

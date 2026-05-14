@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Outlet, useLocation, useMatch } from 'react-router-dom';
 import { ALERT_VIBRATION_COOLDOWN_MS, ALERT_VIBRATION_PATTERN } from '../config';
 import { AppProvider, useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { PageHeaderProvider, usePageHeaderContext } from '../context/PageHeaderContext';
 import { PageHeader } from '../components/PageHeader';
 import { useLiveWs } from '../hooks/useLiveWs';
@@ -64,6 +65,7 @@ function RootLayoutInner() {
     clearHeaderError,
     setSignalState,
   } = useAppContext();
+  const { userId } = useAuth();
 
   const { config } = usePageHeaderContext();
   const location = useLocation();
@@ -113,7 +115,7 @@ function RootLayoutInner() {
   // Единственное WebSocket-соединение для всего приложения:
   // ALERT_SNAPSHOT при подключении, NOTIFICATION_SNAPSHOT, UNITS_STATUS для цеха, ALERT и NOTIFICATION-дельты.
   // Соединение живёт всю сессию и не обрывается при смене страниц.
-  useLiveWs(subscribedWorkshopId, {
+  useLiveWs(subscribedWorkshopId, userId, {
     onAlertSnapshot: handleAlertSnapshot,
     onNotificationSnapshot: setNotificationSnapshot,
     onUnitsStatus: handleUnitsStatus,

@@ -21,6 +21,7 @@
 import { lazy, Suspense, type ReactElement } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { RootLayout } from './layouts/RootLayout';
+import { RequireAuth } from './auth/RequireAuth';
 
 const DetailsLayout = lazy(async () => {
   const module = await import('./layouts/DetailsLayout');
@@ -32,9 +33,19 @@ const DashboardPage = lazy(async () => {
   return { default: module.DashboardPage };
 });
 
+const LoginPage = lazy(async () => {
+  const module = await import('./pages/LoginPage');
+  return { default: module.LoginPage };
+});
+
 const WorkshopPage = lazy(async () => {
   const module = await import('./pages/WorkshopPage');
   return { default: module.WorkshopPage };
+});
+
+const ProfilePage = lazy(async () => {
+  const module = await import('./pages/ProfilePage');
+  return { default: module.ProfilePage };
 });
 
 const BatchTab = lazy(async () => {
@@ -73,36 +84,49 @@ export const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       {
-        index: true,
-        element: withSuspense(<DashboardPage />),
+        path: 'login',
+        element: withSuspense(<LoginPage />),
       },
       {
-        path: 'workshops/:workshopId',
-        element: withSuspense(<WorkshopPage />),
-      },
-      {
-        path: 'workshops/:workshopId/units/:unitId',
-        element: withSuspense(<DetailsLayout />),
+        element: <RequireAuth />,
         children: [
           {
             index: true,
-            element: <Navigate to="batch" replace />,
+            element: withSuspense(<DashboardPage />),
           },
           {
-            path: 'batch',
-            element: withSuspense(<BatchTab />),
+            path: 'workshops/:workshopId',
+            element: withSuspense(<WorkshopPage />),
           },
           {
-            path: 'devices',
-            element: withSuspense(<DevicesTab />),
+            path: 'profile',
+            element: withSuspense(<ProfilePage />),
           },
           {
-            path: 'queue',
-            element: withSuspense(<QueueTab />),
-          },
-          {
-            path: 'logs',
-            element: withSuspense(<LogsTab />),
+            path: 'workshops/:workshopId/units/:unitId',
+            element: withSuspense(<DetailsLayout />),
+            children: [
+              {
+                index: true,
+                element: <Navigate to="batch" replace />,
+              },
+              {
+                path: 'batch',
+                element: withSuspense(<BatchTab />),
+              },
+              {
+                path: 'devices',
+                element: withSuspense(<DevicesTab />),
+              },
+              {
+                path: 'queue',
+                element: withSuspense(<QueueTab />),
+              },
+              {
+                path: 'logs',
+                element: withSuspense(<LogsTab />),
+              },
+            ],
           },
         ],
       },

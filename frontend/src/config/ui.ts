@@ -56,6 +56,7 @@ export const UI_COPY = Object.freeze({
    * Детальный текст ошибки отображается в теле страницы через getErrorBodyMessage().
    */
   headerErrorLabel: 'Ошибка',
+  profileButtonAriaLabel: 'Профиль',
   // Вкладка «Устройства» — заголовки групп устройств и статусы
   devicesGroupPrinters: '🖨️ Принтеры',
   devicesGroupAggrCams: '📷 Камеры агрегации',
@@ -69,6 +70,21 @@ export const UI_COPY = Object.freeze({
   devicesNoTopology: 'Не удалось загрузить список устройств',
   devicesStatRead: 'Считано',
   devicesStatUnread: 'Несчитано',
+});
+
+export const AUTH_COPY = Object.freeze({
+  title: 'Вход в аккаунт',
+  workerCodeLabel: 'Код работника',
+  passwordLabel: 'Пароль работника',
+  submit: 'Войти',
+  submitting: 'Входим...',
+  forgot: 'Забыли пароль?',
+  forgotHint: 'Обратитесь к администратору, который выдал вам код и пароль',
+  requiredWorkerCode: 'Введите код работника',
+  requiredPassword: 'Введите пароль',
+  notFound: 'Пользователь не найден, проверьте правильность введенных данных',
+  workerCodePlaceholder: 'Введите код',
+  passwordPlaceholder: 'Введите пароль',
 });
 
 export const UI_PALETTE = Object.freeze({

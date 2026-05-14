@@ -26,6 +26,8 @@ export type AppErrorSource =
   | 'topology/workshops' // GET /workshops/topology
   | 'topology/units' // GET /workshops/{id}/units/topology
   | 'topology/devices' // GET /workshops/{id}/units/{unitId}/devices/topology
+  | 'profile' // GET /users/me (профиль пользователя)
+  | 'notification-settings' // GET/PUT /notifications/settings
   | 'ws/live' // WS  /ws/live (мультиплексный канал)
   | 'ws/unit' // WS  /ws/unit/{unitId}
   | 'ui/render' // Ошибка React-рендера (ErrorBoundary)

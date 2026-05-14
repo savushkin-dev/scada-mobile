@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { USER_ID, WS_BASE } from '../config';
+import { WS_BASE } from '../config';
 import { classifyError } from '../errors/classifyError';
 import type { AppError } from '../errors/AppError';
 import { createManagedWs } from '../lib/createManagedWs';
@@ -20,10 +20,12 @@ interface UnitWsCallbacks {
  * корректный cleanup при размонтировании.
  *
  * @param unitId    ID аппарата для подписки, или {@code null} для отключения.
+ * @param userId    Идентификатор пользователя для аутентификации WS.
  * @param onMessage Callback, вызываемый при каждом новом сообщении.
  */
 export function useUnitWs(
   unitId: string | null,
+  userId: string | null,
   onMessage: (msg: UnitWsMessage) => void,
   callbacks?: UnitWsCallbacks
 ): void {
@@ -34,10 +36,10 @@ export function useUnitWs(
   callbacksRef.current = callbacks;
 
   useEffect(() => {
-    if (!unitId) return;
+    if (!unitId || !userId) return;
 
     const conn = createManagedWs({
-      url: `${WS_BASE}/ws/unit/${unitId}${USER_ID ? `?userId=${encodeURIComponent(USER_ID)}` : ''}`,
+      url: `${WS_BASE}/ws/unit/${unitId}?userId=${encodeURIComponent(userId)}`,
       source: 'ws/unit',
       onReconnecting: () => callbacksRef.current?.onReconnecting?.(),
       onError: (error) => callbacksRef.current?.onError?.(error),
@@ -68,5 +70,5 @@ export function useUnitWs(
     return () => {
       conn.destroy();
     };
-  }, [unitId]);
+  }, [unitId, userId]);
 }

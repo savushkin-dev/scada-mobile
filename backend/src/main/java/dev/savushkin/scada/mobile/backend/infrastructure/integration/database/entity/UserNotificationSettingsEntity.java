@@ -44,14 +44,11 @@ public class UserNotificationSettingsEntity {
     @JoinColumn(name = "unit_id", nullable = false)
     private UnitEntity unit;
 
-    @Column(name = "system_sound_enabled", nullable = false)
-    private boolean systemSoundEnabled = true;
+        @Column(name = "incident_notifications_enabled", nullable = false)
+        private boolean incidentNotificationsEnabled = true;
 
-    @Column(name = "system_vibration_enabled", nullable = false)
-    private boolean systemVibrationEnabled = true;
-
-    @Column(name = "android_push_enabled", nullable = false)
-    private boolean androidPushEnabled = true;
+        @Column(name = "android_call_notifications_enabled", nullable = false)
+        private boolean androidCallNotificationsEnabled = true;
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;

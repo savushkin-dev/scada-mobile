@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { USER_ID, WS_BASE } from '../config';
+import { WS_BASE } from '../config';
 import { classifyError } from '../errors/classifyError';
 import type { AppError } from '../errors/AppError';
 import { createManagedWs, type ManagedWsConnection } from '../lib/createManagedWs';
@@ -54,9 +54,14 @@ export interface LiveWsCallbacks {
  *
  * @param subscribedWorkshopId ID цеха для подписки (SUBSCRIBE_WORKSHOP/UNSUBSCRIBE_WORKSHOP),
  *                             или {@code null} когда пользователь не на экране цеха.
+ * @param userId                Идентификатор пользователя для аутентификации WS.
  * @param callbacks            Коллбэки для трёх типов входящих сообщений.
  */
-export function useLiveWs(subscribedWorkshopId: string | null, callbacks: LiveWsCallbacks): void {
+export function useLiveWs(
+  subscribedWorkshopId: string | null,
+  userId: string | null,
+  callbacks: LiveWsCallbacks
+): void {
   // Ссылка на управляемое соединение — нужна второму эффекту для отправки сообщений
   const connRef = useRef<ManagedWsConnection | null>(null);
 
@@ -67,10 +72,18 @@ export function useLiveWs(subscribedWorkshopId: string | null, callbacks: LiveWs
   const subscribedWorkshopIdRef = useRef(subscribedWorkshopId);
   subscribedWorkshopIdRef.current = subscribedWorkshopId;
 
-  // Effect 1: открываем соединение один раз при монтировании
+  // Effect 1: открываем соединение при наличии userId
   useEffect(() => {
+    if (!userId) {
+      if (connRef.current) {
+        connRef.current.destroy();
+        connRef.current = null;
+      }
+      return;
+    }
+
     const conn = createManagedWs({
-      url: `${WS_BASE}/ws/live${USER_ID ? `?userId=${encodeURIComponent(USER_ID)}` : ''}`,
+      url: `${WS_BASE}/ws/live?userId=${encodeURIComponent(userId)}`,
       source: 'ws/live',
       onReconnecting: () => callbacksRef.current.onReconnecting?.(),
       onError: (error) => callbacksRef.current.onError?.(error),
@@ -133,7 +146,7 @@ export function useLiveWs(subscribedWorkshopId: string | null, callbacks: LiveWs
       connRef.current = null;
       conn.destroy();
     };
-  }, []); // Монтируется один раз
+  }, [userId]);
 
   // Effect 2: управляем подпиской на цех при изменении subscribedWorkshopId.
   // conn.send() — noop если соединение ещё не открыто;

@@ -7,9 +7,9 @@ import {
   HTTP_REQUEST,
   UI_BEHAVIOR,
   UI_COPY,
-  USER_ID,
 } from '../config';
 import type { NotificationData } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 /**
  * FAB для action "последняя партия" / toggle notification на детальной странице аппарата.
@@ -41,6 +41,7 @@ function getViewportWidth(): number {
 }
 
 export function Fab({ visible, unitId, scrollContainer, notification }: Props) {
+  const { userId } = useAuth();
   const [collapseProgress, setCollapseProgress] = useState(0);
   const [viewportWidth, setViewportWidth] = useState(() => getViewportWidth());
   const [sending, setSending] = useState(false);
@@ -150,7 +151,7 @@ export function Fab({ visible, unitId, scrollContainer, notification }: Props) {
       const headers: Record<string, string> = {
         'Content-Type': HTTP_REQUEST.jsonContentType,
       };
-      if (USER_ID) headers['X-User-Id'] = USER_ID;
+      if (userId) headers['X-User-Id'] = userId;
       const resp = await fetch(`${API_BASE}/api/line/${unitId}/last-batch`, {
         method: HTTP_REQUEST.post,
         headers,
@@ -172,8 +173,9 @@ export function Fab({ visible, unitId, scrollContainer, notification }: Props) {
 
   if (!visible) return null;
 
-  const isActiveByMe = notification != null && notification.creatorId === USER_ID;
-  const isActiveByOther = notification != null && notification.creatorId !== USER_ID;
+  const isActiveByMe = notification != null && userId != null && notification.creatorId === userId;
+  const isActiveByOther =
+    notification != null && userId != null && notification.creatorId !== userId;
 
   // Визуальное состояние кнопки после toggle
   const showToggleFeedback = sent && toggleResult !== 'idle';

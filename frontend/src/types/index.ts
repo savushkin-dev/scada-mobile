@@ -42,6 +42,9 @@ export type {
   ErrorsPayload,
 } from '../schemas';
 
+// profile (REST API)
+export type { UserProfile, NotificationSetting } from '../schemas';
+
 // ── Navigation ────────────────────────────────────────────────────────
 
 /** URL search-param «?tab=» для детальной страницы аппарата. */

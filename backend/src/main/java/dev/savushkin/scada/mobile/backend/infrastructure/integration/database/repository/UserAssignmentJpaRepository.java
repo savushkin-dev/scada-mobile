@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Set;
 
 public interface UserAssignmentJpaRepository extends JpaRepository<UserAssignmentEntity, Long> {
@@ -31,4 +32,14 @@ public interface UserAssignmentJpaRepository extends JpaRepository<UserAssignmen
               and u.printsrvInstanceId is not null
             """)
     Set<String> findActiveAssignedPrintsrvIdsByUserId(@Param("userId") Long userId);
+
+    @Query("""
+            select u.id as unitId, u.name as unitName
+            from UserAssignmentEntity a
+            join a.unit u
+            where a.user.id = :userId
+              and a.active = true
+              and u.active = true
+            """)
+    List<AssignedUnitProjection> findActiveAssignedUnitsByUserId(@Param("userId") Long userId);
 }

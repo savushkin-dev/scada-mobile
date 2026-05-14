@@ -1,4 +1,7 @@
+import { useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { BACK_BUTTON_STYLE, UI_COPY } from '../config';
+import { useAuth } from '../context/AuthContext';
 import { HeaderErrorIndicator } from './HeaderErrorIndicator';
 
 /**
@@ -25,23 +28,27 @@ interface PageHeaderProps {
   onBack?: () => void;
 }
 
-export function PageHeader({ title, subtitle, variant = 'default', onBack }: PageHeaderProps) {
-  const isCompact = variant === 'compact';
-  const headerClassName = [
-    'z-10 backdrop-blur-md bg-[#f8f9fa]/30 border-b border-white/15 flex items-center gap-3 flex-shrink-0',
-    isCompact ? 'px-5 py-4 sm:px-6 lg:px-8' : 'px-6 pt-5 pb-4 sm:px-8 lg:px-10',
-  ].join(' ');
+export function PageHeader({ title, subtitle, onBack }: PageHeaderProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
+  const headerClassName =
+    'z-10 h-[88px] backdrop-blur-md bg-[#f8f9fa]/30 border-b border-white/15 flex items-center gap-3 flex-shrink-0 px-6 py-4 sm:px-8 lg:px-10';
 
-  const titleClassName = isCompact
-    ? 'text-base font-bold text-[#1A1C1E] leading-tight truncate'
-    : onBack
-      ? 'text-xl font-bold text-[#1A1C1E] leading-tight'
-      : 'text-2xl font-bold text-[#1A1C1E]';
+  const titleClassName = 'text-xl font-bold text-[#1A1C1E] leading-tight truncate';
+
+  const isProfileRoute = location.pathname.startsWith('/profile');
+
+  const handleProfileClick = useCallback(() => {
+    if (isProfileRoute) return;
+    const target = isAuthenticated ? '/profile' : '/login';
+    navigate(target, { state: { from: location } });
+  }, [navigate, location, isAuthenticated, isProfileRoute]);
 
   return (
     <header className={headerClassName}>
       <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
-        {onBack && (
+        {onBack ? (
           <button
             onClick={onBack}
             style={BACK_BUTTON_STYLE}
@@ -49,23 +56,43 @@ export function PageHeader({ title, subtitle, variant = 'default', onBack }: Pag
           >
             {UI_COPY.backIcon}
           </button>
+        ) : (
+          <div aria-hidden="true" className="h-10 w-10 flex-shrink-0" />
         )}
-        <div className="min-w-0 overflow-hidden">
-          {subtitle && (
-            <p
-              className={
-                isCompact
-                  ? 'text-[10px] font-bold tracking-[0.08em] text-[#74777F] uppercase mb-0.5'
-                  : 'text-[10px] font-bold tracking-wider text-[#74777F] uppercase mb-1'
-              }
-            >
+        <div className="min-w-0 overflow-hidden flex flex-col justify-center min-h-[40px]">
+          {subtitle ? (
+            <p className="text-[10px] font-bold tracking-wider text-[#74777F] uppercase mb-1">
               {subtitle}
             </p>
-          )}
+          ) : null}
           <h1 className={titleClassName}>{title}</h1>
         </div>
       </div>
-      <HeaderErrorIndicator />
+      <div className="ml-auto flex items-center gap-3">
+        <HeaderErrorIndicator />
+        <button
+          type="button"
+          onClick={handleProfileClick}
+          aria-label={UI_COPY.profileButtonAriaLabel}
+          aria-pressed={isProfileRoute}
+          className={
+            'flex h-10 w-10 items-center justify-center rounded-full backdrop-blur-sm transition-all duration-200 ease-in-out active:scale-[0.98] ' +
+            (isProfileRoute
+              ? 'border border-[#2b2f36] bg-[#2b2f36] text-white shadow-[0_0_10px_rgba(17,24,39,0.18)]'
+              : 'border-0 bg-transparent text-[#1A1C1E] shadow-none')
+          }
+        >
+          <img
+            src="/assets/user-tie.svg"
+            alt=""
+            aria-hidden="true"
+            className={
+              'h-5 w-5 transition-all duration-200 ease-in-out ' +
+              (isProfileRoute ? 'invert' : 'invert-0')
+            }
+          />
+        </button>
+      </div>
     </header>
   );
 }

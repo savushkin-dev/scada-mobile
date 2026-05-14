@@ -10,6 +10,7 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Component;
 
 import jakarta.persistence.EntityManager;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -32,6 +33,14 @@ public class NotificationSettingsJpaAdapter implements NotificationSettingsRepos
     }
 
     @Override
+    public @NonNull List<UserNotificationSettings> findByUserId(long userId) {
+        return settingsRepository.findByUserId(userId)
+                .stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    @Override
     public @NonNull UserNotificationSettings save(@NonNull UserNotificationSettings settings) {
         UserNotificationSettingsEntity entity = settingsRepository
                 .findByUser_IdAndUnit_Id(settings.userId(), settings.unitId())
@@ -44,9 +53,8 @@ public class NotificationSettingsJpaAdapter implements NotificationSettingsRepos
             entity.setUnit(unitRef);
         }
 
-        entity.setSystemSoundEnabled(settings.systemSoundEnabled());
-        entity.setSystemVibrationEnabled(settings.systemVibrationEnabled());
-        entity.setAndroidPushEnabled(settings.androidPushEnabled());
+        entity.setIncidentNotificationsEnabled(settings.incidentNotificationsEnabled());
+        entity.setAndroidCallNotificationsEnabled(settings.androidCallNotificationsEnabled());
         entity.setActive(settings.active());
         entity.setUpdatedAt(settings.updatedAt());
 
@@ -65,9 +73,8 @@ public class NotificationSettingsJpaAdapter implements NotificationSettingsRepos
                 entity.getId(),
                 entity.getUser().getId(),
                 entity.getUnit().getId(),
-                entity.isSystemSoundEnabled(),
-                entity.isSystemVibrationEnabled(),
-                entity.isAndroidPushEnabled(),
+                entity.isIncidentNotificationsEnabled(),
+                entity.isAndroidCallNotificationsEnabled(),
                 entity.isActive(),
                 entity.getUpdatedAt()
         );

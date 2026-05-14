@@ -165,7 +165,7 @@ cors:
     # Переопределяется в каждом профиле — здесь намеренно пусто (fail-closed).
     allowed-origins: [ ]
     # GET — данные, POST — Web Push subscribe (/api/push/subscribe), OPTIONS — preflight.
-    allowed-methods: [ "GET", "POST", "OPTIONS" ]
+    allowed-methods: [ "GET", "POST", "PUT", "OPTIONS" ]
     # Content-Type и Authorization — стандартные заголовки запроса.
     # If-None-Match и If-Match — заголовки условного запроса (RFC 7232);
     # необходимы для ETag-кэширования topology-эндпоинтов.

@@ -6,9 +6,8 @@ public record UserNotificationSettings(
         Long id,
         long userId,
         long unitId,
-        boolean systemSoundEnabled,
-        boolean systemVibrationEnabled,
-        boolean androidPushEnabled,
+    boolean incidentNotificationsEnabled,
+    boolean androidCallNotificationsEnabled,
         boolean active,
         LocalDateTime updatedAt
 ) {
@@ -17,9 +16,8 @@ public record UserNotificationSettings(
                 id,
                 userId,
                 unitId,
-                systemSoundEnabled,
-                systemVibrationEnabled,
-                androidPushEnabled,
+            incidentNotificationsEnabled,
+            androidCallNotificationsEnabled,
                 active,
                 updatedAt
         );
