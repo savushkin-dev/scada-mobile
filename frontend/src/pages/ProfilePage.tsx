@@ -81,6 +81,11 @@ export function ProfilePage() {
     return getInitials(profileFetch.data.fullName);
   }, [profileFetch.data?.fullName]);
 
+  const assignedUnitIds = useMemo(() => {
+    const units = profileFetch.data?.assignedUnits ?? [];
+    return new Set(units.map((unit) => unit.unitId));
+  }, [profileFetch.data?.assignedUnits]);
+
   const handleToggle = useCallback(
     async (unitId: string, field: 'techEnabled' | 'masterEnabled') => {
       const current = settings.find((item) => item.unitId === unitId);
@@ -263,6 +268,7 @@ export function ProfilePage() {
                     const isPending = pendingUnits.includes(item.unitId);
                     const techActive = item.techEnabled;
                     const masterActive = item.masterEnabled;
+                    const isAssigned = assignedUnitIds.has(item.unitId);
 
                     const buttonBase =
                       'flex h-11 w-11 items-center justify-center rounded-2xl border text-base font-semibold transition';
@@ -280,7 +286,14 @@ export function ProfilePage() {
                         key={item.unitId}
                         className="flex items-center justify-between gap-3 rounded-[20px] border border-white/70 bg-white px-4 py-3 shadow-sm"
                       >
-                        <div className="text-sm font-semibold text-[#1A1C1E]">{item.unitName}</div>
+                        <div className="text-sm font-semibold text-[#1A1C1E]">
+                          <span>{item.unitName}</span>
+                          {isAssigned ? (
+                            <span className="ml-2 text-sm font-semibold text-[#1A1C1E]">
+                              • Ваш автомат
+                            </span>
+                          ) : null}
+                        </div>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"

@@ -3,4 +3,5 @@ package dev.savushkin.scada.mobile.backend.infrastructure.integration.database.r
 public interface AssignedUnitProjection {
     Long getUnitId();
     String getUnitName();
+    String getPrintsrvInstanceId();
 }

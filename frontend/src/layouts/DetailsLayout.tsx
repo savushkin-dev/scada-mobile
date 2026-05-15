@@ -11,6 +11,7 @@ import {
 } from '../config';
 import { BottomNav } from '../components/BottomNav';
 import { Fab } from '../components/Fab';
+import { useAccessControl } from '../context/AccessControlContext';
 import { DetailsProvider } from '../context/DetailsContext';
 import { usePageHeader } from '../context/PageHeaderContext';
 import {
@@ -101,6 +102,7 @@ export function DetailsLayout() {
     setWorkshopTopology,
   } = useAppContext();
   const { userId } = useAuth();
+  const { canUseUnitAction } = useAccessControl();
   const { workshopId = '', unitId = '' } = useParams<{
     workshopId: string;
     unitId: string;
@@ -271,6 +273,8 @@ export function DetailsLayout() {
     [navigate, location.state]
   );
 
+  const canUseLastBatch = canUseUnitAction('last-batch', unitId || null);
+
   // ── Context для вложенных табов ───────────────────────────────────────
   const unitSignal = state.signalStates.unit;
   const unitError = state.headerErrors.unit?.error ?? null;
@@ -323,7 +327,7 @@ export function DetailsLayout() {
         </section>
 
         <Fab
-          visible={true}
+          visible={canUseLastBatch}
           unitId={unitId || null}
           scrollContainer={scrollRef.current}
           notification={state.notifications.get(unitId ?? '') ?? null}

@@ -60,7 +60,9 @@ public class UserProfileService {
                 .append(profile.role()).append('|');
 
         for (AssignedUnit unit : profile.assignedUnits()) {
-            sb.append(unit.unitId()).append(':').append(unit.unitName()).append(';');
+            sb.append(unit.unitId()).append(':')
+                    .append(unit.unitName()).append(':')
+                    .append(unit.printsrvInstanceId()).append(';');
         }
 
         return sha256(sb.toString());

@@ -9,6 +9,7 @@ import { z } from 'zod';
 export const AssignedUnitSchema = z.object({
   unitId: z.string(),
   unitName: z.string(),
+  printsrvInstanceId: z.string().nullable().optional(),
 });
 
 export const UserProfileSchema = z.object({

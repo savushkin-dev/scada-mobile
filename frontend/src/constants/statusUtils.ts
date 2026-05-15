@@ -124,6 +124,7 @@ export interface ErrorEntry {
  * - `entries` — все активные ошибки данного аппарата.
  */
 export interface ErrorGroup {
+  unitId?: string;
   unitName?: string;
   entries: ErrorEntry[];
 }
@@ -137,7 +138,10 @@ export function getUnitErrorGroups(unitId: string, alerts: Map<string, AlertData
   const alert = alerts.get(unitId);
   if (!alert || alert.errors.length === 0) return [];
   return [
-    { entries: alert.errors.map((e: AlertError) => ({ device: e.device, message: e.message })) },
+    {
+      unitId,
+      entries: alert.errors.map((e: AlertError) => ({ device: e.device, message: e.message })),
+    },
   ];
 }
 
@@ -150,9 +154,10 @@ export function getWorkshopErrorGroups(
   alerts: Map<string, AlertData>
 ): ErrorGroup[] {
   const groups: ErrorGroup[] = [];
-  for (const alert of alerts.values()) {
+  for (const [unitId, alert] of alerts.entries()) {
     if (alert.workshopId !== workshopId || alert.errors.length === 0) continue;
     groups.push({
+      unitId,
       unitName: alert.unitName,
       entries: alert.errors.map((e: AlertError) => ({ device: e.device, message: e.message })),
     });

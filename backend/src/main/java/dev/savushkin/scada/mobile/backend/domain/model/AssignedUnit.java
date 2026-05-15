@@ -5,6 +5,7 @@ package dev.savushkin.scada.mobile.backend.domain.model;
  */
 public record AssignedUnit(
         long unitId,
-        String unitName
+        String unitName,
+        String printsrvInstanceId
 ) {
 }

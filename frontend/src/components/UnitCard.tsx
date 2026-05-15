@@ -4,6 +4,7 @@ import {
   UNIT_STATUS_CLASS,
 } from '../constants/statusUtils';
 import { UnitErrorBoard } from './UnitErrorBoard';
+import { useAccessControl } from '../context/AccessControlContext';
 import type { AlertData, NotificationData, Unit } from '../types';
 
 /**
@@ -26,10 +27,12 @@ interface Props {
 }
 
 export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
+  const { isAssignedUnit } = useAccessControl();
   const statusLevel = getUnitStatusLevel(unit, alerts);
   const isPending = statusLevel === 'pending';
   const isOffline = statusLevel === 'offline';
   const isCritical = statusLevel === 'critical';
+  const isAssigned = isAssignedUnit(unit.id);
 
   // Notification — отдельный визуальный слой (не заменяет статус).
   const notification = notifications?.get(String(unit.id));
@@ -47,25 +50,28 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
       className={`card p-4 md:h-full ${statusClass}${isOffline ? ' card-static' : ''}`}
       {...interactiveProps}
     >
-      <div className="flex items-center gap-2 mb-1">
-        <h3 className="font-bold text-lg">{unit.unit}</h3>
-        {notification && (
-          <span
-            className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
-            style={{
-              backgroundColor: '#FFF3CD',
-              color: '#856404',
-              border: '1px solid #FFECB5',
-            }}
-            title={
-              notification.creatorId
-                ? `Уведомление от ${notification.creatorId}`
-                : 'Активное уведомление'
-            }
-          >
-            🔔 {notification.creatorId && <span>{notification.creatorId}</span>}
-          </span>
-        )}
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <h3 className="font-bold text-lg">{unit.unit}</h3>
+          {notification && (
+            <span
+              className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
+              style={{
+                backgroundColor: '#FFF3CD',
+                color: '#856404',
+                border: '1px solid #FFECB5',
+              }}
+              title={
+                notification.creatorId
+                  ? `Уведомление от ${notification.creatorId}`
+                  : 'Активное уведомление'
+              }
+            >
+              🔔 {notification.creatorId && <span>{notification.creatorId}</span>}
+            </span>
+          )}
+        </div>
+        {isAssigned ? <span className="text-lg font-bold text-[#1A1C1E]">Ваш автомат</span> : null}
       </div>
       {isCritical && errorGroups.length > 0 ? (
         <UnitErrorBoard groups={errorGroups} />

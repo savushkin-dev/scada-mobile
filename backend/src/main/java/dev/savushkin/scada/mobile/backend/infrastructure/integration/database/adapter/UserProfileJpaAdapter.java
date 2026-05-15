@@ -53,7 +53,8 @@ public class UserProfileJpaAdapter implements UserProfileRepository {
     private AssignedUnit toAssignedUnit(AssignedUnitProjection projection) {
         return new AssignedUnit(
                 projection.getUnitId(),
-                projection.getUnitName()
+                projection.getUnitName(),
+                projection.getPrintsrvInstanceId()
         );
     }
 }

@@ -34,7 +34,7 @@ public interface UserAssignmentJpaRepository extends JpaRepository<UserAssignmen
     Set<String> findActiveAssignedPrintsrvIdsByUserId(@Param("userId") Long userId);
 
     @Query("""
-            select u.id as unitId, u.name as unitName
+          select u.id as unitId, u.name as unitName, u.printsrvInstanceId as printsrvInstanceId
             from UserAssignmentEntity a
             join a.unit u
             where a.user.id = :userId

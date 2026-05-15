@@ -58,7 +58,11 @@ public class UserProfileController {
 
     private List<AssignedUnitDTO> mapAssignedUnits(List<AssignedUnit> units) {
         return units.stream()
-                .map(unit -> new AssignedUnitDTO(Long.toString(unit.unitId()), unit.unitName()))
+            .map(unit -> new AssignedUnitDTO(
+                Long.toString(unit.unitId()),
+                unit.unitName(),
+                unit.printsrvInstanceId()
+            ))
                 .toList();
     }
 
