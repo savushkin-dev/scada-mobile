@@ -7,6 +7,7 @@ import { PageHeaderProvider, usePageHeaderContext } from '../context/PageHeaderC
 import { PageHeader } from '../components/PageHeader';
 import { useLiveWs } from '../hooks/useLiveWs';
 import { useHardwareBackGuard } from '../hooks/useHardwareBackGuard';
+import { pushNotificationEvent, syncNotificationSnapshot } from '../lib/notificationSwBridge';
 import type { AlertWsMessage, UnitsStatusMessage } from '../types';
 
 type AlertRouteScope =
@@ -86,6 +87,14 @@ function RootLayoutInner() {
     [setAlertSnapshot]
   );
 
+  const handleNotificationSnapshot = useCallback(
+    (notifications) => {
+      setNotificationSnapshot(notifications);
+      void syncNotificationSnapshot(notifications);
+    },
+    [setNotificationSnapshot]
+  );
+
   const handleUnitsStatus = useCallback(
     (msg: UnitsStatusMessage) => patchUnitsStatus(msg.workshopId, msg.payload),
     [patchUnitsStatus]
@@ -108,6 +117,14 @@ function RootLayoutInner() {
     [handleAlert, alertRouteScope]
   );
 
+  const handleLiveNotification = useCallback(
+    (msg) => {
+      handleNotification(msg);
+      void pushNotificationEvent(msg);
+    },
+    [handleNotification]
+  );
+
   // Перехватывает события popstate (кнопка «назад» на Android / в браузере)
   // и гарантирует навигацию строго по иерархии экранов приложения.
   useHardwareBackGuard();
@@ -117,10 +134,10 @@ function RootLayoutInner() {
   // Соединение живёт всю сессию и не обрывается при смене страниц.
   useLiveWs(subscribedWorkshopId, userId, {
     onAlertSnapshot: handleAlertSnapshot,
-    onNotificationSnapshot: setNotificationSnapshot,
+    onNotificationSnapshot: handleNotificationSnapshot,
     onUnitsStatus: handleUnitsStatus,
     onAlert: handleLiveAlert,
-    onNotification: handleNotification,
+    onNotification: handleLiveNotification,
     onReconnecting: () => {
       setSignalState('live', 'reconnecting');
     },

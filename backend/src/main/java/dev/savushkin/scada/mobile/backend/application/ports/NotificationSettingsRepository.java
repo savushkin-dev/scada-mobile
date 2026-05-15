@@ -15,5 +15,5 @@ public interface NotificationSettingsRepository {
 
     @NonNull UserNotificationSettings save(@NonNull UserNotificationSettings settings);
 
-    @NonNull Set<String> findActivePrintSrvUnitIds(long userId);
+    @NonNull Set<String> findAndroidCallEnabledPrintSrvUnitIds(long userId);
 }

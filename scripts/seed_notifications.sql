@@ -12,6 +12,14 @@ ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id,
                                    full_name = EXCLUDED.full_name,
                                    is_active = EXCLUDED.is_active;
 
+INSERT INTO users (user_id, role_id, code, password, full_name, is_active)
+VALUES (2, 1, 'USR-000002', 'PWD-000002', 'Second User', true)
+ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id,
+                                   code = EXCLUDED.code,
+                                   password = EXCLUDED.password,
+                                   full_name = EXCLUDED.full_name,
+                                   is_active = EXCLUDED.is_active;
+
 INSERT INTO workshops (workshop_id, name, is_active)
 VALUES (1, 'Цех десертов', true),
        (2, 'Цех розлива', true)
@@ -118,10 +126,16 @@ WHERE NOT EXISTS (
 
 DELETE FROM user_unit_assignments WHERE user_id = 1;
 DELETE FROM user_notification_settings WHERE user_id = 1;
+DELETE FROM user_unit_assignments WHERE user_id = 2;
+DELETE FROM user_notification_settings WHERE user_id = 2;
 
 INSERT INTO user_unit_assignments (user_id, unit_id, assigned_at, is_active)
 VALUES (1, 1, NOW(), true),
        (1, 3, NOW(), true);
+
+INSERT INTO user_unit_assignments (user_id, unit_id, assigned_at, is_active)
+VALUES (2, 2, NOW(), true),
+       (2, 4, NOW(), true);
 
 INSERT INTO user_notification_settings
     (user_id, unit_id, incident_notifications_enabled, android_call_notifications_enabled, is_active, updated_at)
@@ -136,6 +150,22 @@ WHERE NOT EXISTS (
     SELECT 1
     FROM user_notification_settings uns
     WHERE uns.user_id = 1
+      AND uns.unit_id = u.unit_id
+);
+
+INSERT INTO user_notification_settings
+    (user_id, unit_id, incident_notifications_enabled, android_call_notifications_enabled, is_active, updated_at)
+SELECT 2,
+       u.unit_id,
+       true,
+       true,
+       true,
+       NOW()
+FROM units u
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM user_notification_settings uns
+    WHERE uns.user_id = 2
       AND uns.unit_id = u.unit_id
 );
 

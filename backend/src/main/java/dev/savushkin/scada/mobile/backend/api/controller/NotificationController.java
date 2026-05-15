@@ -77,19 +77,22 @@ public class NotificationController {
         }
 
         Long numericUnitId = parseLong(unitId);
-        if (numericUnitId == null) {
-            return ResponseEntity.badRequest().body(
-                    new NotificationToggleResponseDTO("error", unitId, null, null));
+        String printsrvUnitId;
+
+        if (numericUnitId != null) {
+            printsrvUnitId = unitMappingService.findPrintSrvInstanceId(numericUnitId)
+                .orElse(null);
+        } else {
+            printsrvUnitId = unitId;
+            numericUnitId = unitMappingService.findUnitIdByPrintSrvInstanceId(unitId).orElse(null);
         }
 
-        String printsrvUnitId = unitMappingService.findPrintSrvInstanceId(numericUnitId)
-                .orElse(null);
         if (printsrvUnitId == null || printsrvUnitId.isBlank()) {
             return ResponseEntity.status(404).body(
-                    new NotificationToggleResponseDTO("error", unitId, null, null));
+                new NotificationToggleResponseDTO("error", unitId, null, null));
         }
 
-        String unitIdValue = Long.toString(numericUnitId);
+        String unitIdValue = numericUnitId != null ? Long.toString(numericUnitId) : unitId;
         String userIdValue = Long.toString(userId);
 
         ToggleResult result = notificationService.toggleNotification(printsrvUnitId, userId);

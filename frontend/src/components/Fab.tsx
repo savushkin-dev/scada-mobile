@@ -152,7 +152,7 @@ export function Fab({ visible, unitId, scrollContainer, notification }: Props) {
         'Content-Type': HTTP_REQUEST.jsonContentType,
       };
       if (userId) headers['X-User-Id'] = userId;
-      const resp = await fetch(`${API_BASE}/api/line/${unitId}/last-batch`, {
+      const resp = await fetch(`${API_BASE}/api/v1.0.0/line/${unitId}/last-batch`, {
         method: HTTP_REQUEST.post,
         headers,
       });

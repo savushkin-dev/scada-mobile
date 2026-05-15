@@ -29,8 +29,9 @@ public interface UserNotificationSettingsJpaRepository extends JpaRepository<Use
             join s.unit u
             where s.user.id = :userId
               and s.active = true
+              and s.androidCallNotificationsEnabled = true
               and u.active = true
               and u.printsrvInstanceId is not null
             """)
-    @NonNull Set<String> findActivePrintsrvUnitIdsByUserId(@Param("userId") Long userId);
+    @NonNull Set<String> findAndroidCallEnabledPrintsrvUnitIdsByUserId(@Param("userId") Long userId);
 }

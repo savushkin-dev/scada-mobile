@@ -216,11 +216,6 @@ public class StatusBroadcaster {
     }
 
     private void sendNotification(NotificationMessageDTO notification) {
-        try {
-            liveWsHandler.broadcastNotification(liveWsHandler.toJson(notification));
-        } catch (JsonProcessingException e) {
-            log.error("StatusBroadcaster: failed to serialize NOTIFICATION for unit '{}'",
-                    notification.unitId(), e);
-        }
+        liveWsHandler.broadcastNotification(notification);
     }
 }

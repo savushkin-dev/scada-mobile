@@ -62,8 +62,8 @@ public class NotificationSettingsService {
         return settingsRepository.save(settings.withUpdatedAt(updatedAt));
     }
 
-    public @NonNull Set<String> getActivePrintSrvUnitIds(long userId) {
-        return settingsRepository.findActivePrintSrvUnitIds(userId);
+    public @NonNull Set<String> getAndroidCallEnabledPrintSrvUnitIds(long userId) {
+        return settingsRepository.findAndroidCallEnabledPrintSrvUnitIds(userId);
     }
 
     @Transactional(readOnly = true)

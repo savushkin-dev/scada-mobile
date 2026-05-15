@@ -10,7 +10,6 @@ import dev.savushkin.scada.mobile.backend.config.WebSocketUserIdInterceptor;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitsStatusMessageDTO;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveAlertStore;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveNotificationStore;
-import dev.savushkin.scada.mobile.backend.services.NotificationService;
 import dev.savushkin.scada.mobile.backend.services.NotificationSettingsService;
 import dev.savushkin.scada.mobile.backend.services.WorkshopService;
 import org.jspecify.annotations.NonNull;
@@ -23,7 +22,6 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
@@ -77,7 +75,6 @@ public class LiveWsHandler extends TextWebSocketHandler {
     private final ActiveAlertStore alertStore;
     private final ActiveNotificationStore notificationStore;
     private final WorkshopService workshopService;
-    private final NotificationService notificationService;
     private final NotificationSettingsService notificationSettingsService;
     private final ObjectMapper objectMapper;
 
@@ -95,14 +92,12 @@ public class LiveWsHandler extends TextWebSocketHandler {
             ActiveAlertStore alertStore,
             ActiveNotificationStore notificationStore,
             WorkshopService workshopService,
-            NotificationService notificationService,
             NotificationSettingsService notificationSettingsService,
             ObjectMapper objectMapper
     ) {
         this.alertStore = alertStore;
         this.notificationStore = notificationStore;
         this.workshopService = workshopService;
-        this.notificationService = notificationService;
         this.notificationSettingsService = notificationSettingsService;
         this.objectMapper = objectMapper;
     }
@@ -218,9 +213,31 @@ public class LiveWsHandler extends TextWebSocketHandler {
      *
      * @param json сериализованный {@link dev.savushkin.scada.mobile.backend.api.dto.NotificationMessageDTO}
      */
-    public void broadcastNotification(String json) {
+    public void broadcastNotification(@NonNull NotificationMessageDTO notification) {
         if (allSessions.isEmpty()) return;
-        sendToSessions(allSessions, json);
+
+        String json = null;
+        for (WebSocketSession session : allSessions) {
+            if (!session.isOpen()) {
+                allSessions.remove(session);
+                continue;
+            }
+            if (!isNotificationAllowed(session, notification.unitId())) {
+                continue;
+            }
+            try {
+                if (json == null) {
+                    json = toJson(notification);
+                }
+                sendMessageSafely(session, json);
+            } catch (JsonProcessingException e) {
+                log.error("WS /live: failed to serialize NOTIFICATION for unit '{}'", notification.unitId(), e);
+                return;
+            } catch (IOException | IllegalStateException e) {
+                log.warn("WS /live: send NOTIFICATION failed, id={}: {}", session.getId(), e.getMessage());
+                allSessions.remove(session);
+            }
+        }
     }
 
     // ─── Diagnostics ─────────────────────────────────────────────────────────
@@ -310,19 +327,17 @@ public class LiveWsHandler extends TextWebSocketHandler {
         }
 
         long numericUserId = userId.getAsLong();
-        Set<String> assigned = notificationService.getSubscribedUnitIds(numericUserId);
-        if (assigned.isEmpty()) {
-            return Set.of();
-        }
-
-        Set<String> enabled = notificationSettingsService.getActivePrintSrvUnitIds(numericUserId);
+        Set<String> enabled = notificationSettingsService.getAndroidCallEnabledPrintSrvUnitIds(numericUserId);
         if (enabled.isEmpty()) {
             return Set.of();
         }
 
-        Set<String> allowed = new HashSet<>(assigned);
-        allowed.retainAll(enabled);
-        return allowed;
+        return enabled;
+    }
+
+    private boolean isNotificationAllowed(WebSocketSession session, String unitId) {
+        Set<String> allowed = resolveAllowedNotificationUnits(session);
+        return !allowed.isEmpty() && allowed.contains(unitId);
     }
 
     private OptionalLong resolveUserId(WebSocketSession session) {

@@ -63,8 +63,8 @@ public class NotificationSettingsJpaAdapter implements NotificationSettingsRepos
     }
 
     @Override
-    public @NonNull Set<String> findActivePrintSrvUnitIds(long userId) {
-        Set<String> result = settingsRepository.findActivePrintsrvUnitIdsByUserId(userId);
+    public @NonNull Set<String> findAndroidCallEnabledPrintSrvUnitIds(long userId) {
+        Set<String> result = settingsRepository.findAndroidCallEnabledPrintsrvUnitIdsByUserId(userId);
         return result == null ? Set.of() : Set.copyOf(result);
     }
 
