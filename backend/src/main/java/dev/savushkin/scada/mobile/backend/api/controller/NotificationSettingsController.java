@@ -2,7 +2,7 @@ package dev.savushkin.scada.mobile.backend.api.controller;
 
 import dev.savushkin.scada.mobile.backend.api.dto.NotificationSettingDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.NotificationSettingsUpdateDTO;
-import dev.savushkin.scada.mobile.backend.config.UserIdFilter;
+import dev.savushkin.scada.mobile.backend.config.jwt.JwtAuthenticationFilter;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitNotificationPreference;
 import dev.savushkin.scada.mobile.backend.services.NotificationSettingsService;
 import jakarta.annotation.Nullable;
@@ -76,9 +76,9 @@ public class NotificationSettingsController {
     }
 
     private Long resolveUserId(HttpServletRequest request) {
-        String userIdRaw = UserIdFilter.resolveUserId(request);
+        String userIdRaw = JwtAuthenticationFilter.resolveUserId(request);
         if (userIdRaw == null || userIdRaw.isBlank()) {
-            throw new IllegalArgumentException("Отсутствует заголовок X-User-Id");
+            throw new IllegalArgumentException("Отсутствует аутентификация");
         }
         return parseLong(userIdRaw, "userId");
     }

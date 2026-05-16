@@ -38,6 +38,8 @@ dependencies {
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springframework.boot:spring-boot-starter-flyway")
+    implementation("org.springframework.boot:spring-boot-starter-security")
+    testImplementation("org.springframework.security:spring-security-test")
 
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
@@ -47,6 +49,11 @@ dependencies {
     implementation("org.jetbrains:annotations:26.0.1")
     // springdoc 3.x — ветка для Spring Boot 4 / Spring Framework 7
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.1")
+
+    // JWT (jjwt) — access/refresh token authentication
+    implementation("io.jsonwebtoken:jjwt-api:0.12.6")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-webmvc-test")

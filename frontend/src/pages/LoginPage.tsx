@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { APP_BRAND, AUTH_COPY } from '../config';
 import { loginUser } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
+import type { LoginResponse } from '../api/auth';
 
 type FieldErrors = {
   workerCode?: string;
@@ -19,6 +20,7 @@ export function LoginPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showHint, setShowHint] = useState(false);
+  const passwordRef = useRef<HTMLInputElement>(null);
 
   const fromPath = useMemo(() => {
     const state = location.state as { from?: { pathname?: string } } | null;
@@ -44,11 +46,11 @@ export function LoginPage() {
 
       setSubmitting(true);
       try {
-        const result = await loginUser({
+        const result: LoginResponse = await loginUser({
           workerCode: workerCode.trim(),
           password: password.trim(),
         });
-        login(result.userId);
+        login(result.userId, result.accessToken, result.refreshToken);
         navigate(fromPath, { replace: true });
       } catch {
         setFormError(AUTH_COPY.notFound);
@@ -81,6 +83,21 @@ export function LoginPage() {
     [fieldErrors.password, formError]
   );
 
+  const handleWorkerCodeKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      passwordRef.current?.focus();
+    }
+  }, []);
+
+  const handlePasswordKeyDown = useCallback((event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      // Программно отправляем форму — вызывает onSubmit формы
+      event.currentTarget.form?.requestSubmit();
+    }
+  }, []);
+
   return (
     <div
       className="fixed inset-0 z-40 flex items-center justify-center bg-[#f8f9fa]/95 px-5 py-8 backdrop-blur-sm"
@@ -112,6 +129,7 @@ export function LoginPage() {
               inputMode="text"
               value={workerCode}
               onChange={handleWorkerCodeChange}
+              onKeyDown={handleWorkerCodeKeyDown}
               aria-invalid={Boolean(fieldErrors.workerCode)}
               aria-describedby={fieldErrors.workerCode ? 'workerCode-error' : undefined}
               placeholder={AUTH_COPY.workerCodePlaceholder}
@@ -138,7 +156,9 @@ export function LoginPage() {
               type="password"
               autoComplete="current-password"
               value={password}
+              ref={passwordRef}
               onChange={handlePasswordChange}
+              onKeyDown={handlePasswordKeyDown}
               aria-invalid={Boolean(fieldErrors.password)}
               aria-describedby={fieldErrors.password ? 'password-error' : undefined}
               placeholder={AUTH_COPY.passwordPlaceholder}

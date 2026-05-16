@@ -179,25 +179,23 @@ cors:
     max-age-seconds: 3600
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Notifications — производственные уведомления (工人触发).
+# JWT — конфигурация токенов аутентификации.
 #
-# defaultAccess: true — любой пользователь имеет доступ ко всем аппаратам
-#                        (режим разработки/тестирования).
-# defaultAccess: false — используется assignments для явных привязок.
-#
-# assignments — список привязок: userId → unitIds[].
-# Поля unitIds содержат PrintSrv instance ids (те же, что в printsrv.instances[].id).
-#
-# В будущем: admin UI будет управлять assignments через REST API,
-# а данные будут храниться в PostgreSQL.
+# access-secret / refresh-secret: минимум 256 бит в Base64.
+# В prod задаются через переменные окружения JWT_ACCESS_SECRET / JWT_REFRESH_SECRET.
+# Генерация: openssl rand -base64 32
 # ─────────────────────────────────────────────────────────────────────────────
-notifications:
-  defaultAccess: true
-  assignments: []
-  #  - userId: "ivanov"
-  #    unitIds: ["trepko1", "trepko2", "hassia1"]
-  #  - userId: "petrov"
-  #    unitIds: ["hassia2", "hassia3"]
+jwt:
+  access-secret: "${JWT_ACCESS_SECRET:}"
+  refresh-secret: "${JWT_REFRESH_SECRET:}"
+  access-expiration-minutes: 15
+  refresh-expiration-days: 7
+  public-paths:
+    - "/api/**/auth/login"
+    - "/api/**/auth/logout"
+    - "/api/**/auth/refresh"
+    - "/actuator/**"
+    - "/ws/**"
 
 # Логирование — конфигурация в src/main/resources/logback-spring.xml
 # Уровни переопределяются по профилям (dev / prod) в logback-spring.xml

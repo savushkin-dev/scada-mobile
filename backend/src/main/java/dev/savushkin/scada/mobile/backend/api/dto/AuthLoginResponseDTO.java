@@ -6,9 +6,12 @@ public record AuthLoginResponseDTO(
         String status,
         @Nullable String userId,
         @Nullable String code,
-        @Nullable String fullName
+        @Nullable String fullName,
+        @Nullable String accessToken,
+        @Nullable String refreshToken
 ) {
-    public static AuthLoginResponseDTO success(String userId, String code, String fullName) {
-        return new AuthLoginResponseDTO("ok", userId, code, fullName);
+    public static AuthLoginResponseDTO success(String userId, String code, String fullName,
+                                                String accessToken, String refreshToken) {
+        return new AuthLoginResponseDTO("ok", userId, code, fullName, accessToken, refreshToken);
     }
 }

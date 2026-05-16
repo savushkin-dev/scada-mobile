@@ -4,12 +4,12 @@ import {
   FAB_ICON_STYLE,
   getFabButtonStyle,
   getFabLabelStyle,
-  HTTP_REQUEST,
   UI_BEHAVIOR,
   UI_COPY,
 } from '../config';
 import type { NotificationData } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { apiFetch } from '../api/client';
 
 /**
  * FAB для action "последняя партия" / toggle notification на детальной странице аппарата.
@@ -148,13 +148,8 @@ export function Fab({ visible, unitId, scrollContainer, notification }: Props) {
     if (!unitId || sending) return;
     setSending(true);
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': HTTP_REQUEST.jsonContentType,
-      };
-      if (userId) headers['X-User-Id'] = userId;
-      const resp = await fetch(`${API_BASE}/api/v1.0.0/line/${unitId}/last-batch`, {
-        method: HTTP_REQUEST.post,
-        headers,
+      const resp = await apiFetch(`${API_BASE}/api/v1.0.0/line/${unitId}/last-batch`, {
+        method: 'POST',
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const body = await resp.json();

@@ -11,7 +11,7 @@
 
 printsrv:
   polling:
-    fixed-delay-ms: 1000  # Dev: задержка между проходами каждого instance worker (1 секунда)
+    fixed-delay-ms: 100000  # Dev: задержка между проходами каждого instance worker (1 секунда)
 
   # ─────────────────────────────────────────────────────────────────────────
   # MockPrintSrv — используется ТОЛЬКО в профиле dev.
@@ -60,11 +60,15 @@ printsrv:
 cors:
   policy:
     # Локальные фронты: localhost и 127.0.0.1 на любом порту.
+    # Также разрешаем любой origin в локальной сети (192.168.x.x, 10.x.x.x и т.д.)
+    # для тестирования с телефона/другого устройства в той же сети.
     allowed-origin-patterns:
       - "http://localhost:[*]"
       - "http://127.0.0.1:[*]"
       - "https://localhost:[*]"
       - "https://127.0.0.1:[*]"
+      - "http://192.168.*:[*]"
+      - "http://10.*:*"
       - "https://*.ngrok-free.dev"
       - "https://*.ngrok-free.app"
 

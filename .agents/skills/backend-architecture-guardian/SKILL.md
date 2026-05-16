@@ -1,6 +1,6 @@
 ---
 name: backend-architecture-guardian
-description: 'Strict backend architecture skill for Spring/Spring Boot. Use when: designing or implementing backend features, refactors, integrations, API changes, security, domain modeling, transactions, repositories, or architecture reviews. Auto-load for backend work.'
+description: 'Strict backend architecture skill for Spring/Spring Boot. Use when: designing or implementing backend features, refactors, integrations, API changes, security, domain modeling, transactions, repositories, or architecture reviews. Covers Clean Architecture, Spring Security JWT setup, access/refresh token rotation, filter chain configuration, CORS, CSRF, password hashing, and authorization patterns. Auto-load for backend work.'
 argument-hint: 'Опиши задачу backend и ключевой контекст'
 user-invocable: true
 disable-model-invocation: false
@@ -64,6 +64,7 @@ disable-model-invocation: false
 ## Security Requirements
 - Use Spring Security with JWT architecture: access and refresh tokens with rotation.
 - If a security model already exists, it must be followed and extended without breaking behavior.
+- For detailed Spring Security production rules, JWT validation, filter chain configuration, CORS/CSRF policies, and anti-patterns — read [references/spring-security-production-rules.md](references/spring-security-production-rules.md).
 
 ## Naming and Responsibility Boundaries
 - Names must reflect domain meaning and follow existing project conventions.

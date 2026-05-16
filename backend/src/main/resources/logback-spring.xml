@@ -113,9 +113,9 @@
         <!-- Код проекта — подробно -->
         <logger name="dev.savushkin.scada.mobile.backend" level="DEBUG"/>
 
-        <!-- Инфраструктура polling (сокет, retry) — максимальные детали -->
-        <logger name="dev.savushkin.scada.mobile.backend.infrastructure.polling" level="TRACE"/>
-        <logger name="dev.savushkin.scada.mobile.backend.infrastructure.integration" level="TRACE"/>
+        <!-- Polling / integration — в dev достаточно DEBUG, TRACE замусоривает консоль -->
+        <logger name="dev.savushkin.scada.mobile.backend.infrastructure.polling" level="DEBUG"/>
+        <logger name="dev.savushkin.scada.mobile.backend.infrastructure.integration" level="DEBUG"/>
 
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>

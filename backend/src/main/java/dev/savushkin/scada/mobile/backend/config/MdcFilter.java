@@ -5,6 +5,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.jspecify.annotations.NonNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -48,6 +50,8 @@ import java.util.UUID;
  */
 public class MdcFilter extends OncePerRequestFilter {
 
+    private static final Logger log = LoggerFactory.getLogger(MdcFilter.class);
+
     /**
      * Имя HTTP-заголовка, из которого принимается внешний requestId.
      * Полезно при работе через nginx / API Gateway, который уже проставляет трассировочный ID.
@@ -76,20 +80,30 @@ public class MdcFilter extends OncePerRequestFilter {
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
 
+        // Пропускаем логирование для WebSocket upgrade-запросов — их логирует хендлер
+        String upgradeHeader = request.getHeader("Upgrade");
+        boolean isWsHandshake = upgradeHeader != null && upgradeHeader.equalsIgnoreCase("websocket");
+
+        // Используем внешний X-Request-ID если он валиден, иначе генерируем свой
+        String requestId = resolveRequestId(request);
+
+        MDC.put(MDC_REQUEST_ID, requestId);
+        MDC.put(MDC_METHOD, request.getMethod());
+        MDC.put(MDC_URI, request.getRequestURI());
+
+        // Пробрасываем requestId клиенту — удобно для корреляции в логах на стороне фронта
+        response.setHeader(REQUEST_ID_HEADER, requestId);
+
+        if (!isWsHandshake && log.isDebugEnabled()) {
+            log.debug("→ {} {}", request.getMethod(), request.getRequestURI());
+        }
+
         try {
-            // Используем внешний X-Request-ID если он валиден, иначе генерируем свой
-            String requestId = resolveRequestId(request);
-
-            MDC.put(MDC_REQUEST_ID, requestId);
-            MDC.put(MDC_METHOD, request.getMethod());
-            MDC.put(MDC_URI, request.getRequestURI());
-
-            // Пробрасываем requestId клиенту — удобно для корреляции в логах на стороне фронта
-            response.setHeader(REQUEST_ID_HEADER, requestId);
-
             filterChain.doFilter(request, response);
-
         } finally {
+            if (!isWsHandshake && log.isDebugEnabled()) {
+                log.debug("← {} {} — {}", request.getMethod(), request.getRequestURI(), response.getStatus());
+            }
             // ОБЯЗАТЕЛЬНО — иначе MDC «протекает» в следующий запрос в том же потоке
             // (HTTP thread pool переиспользует потоки)
             MDC.remove(MDC_REQUEST_ID);

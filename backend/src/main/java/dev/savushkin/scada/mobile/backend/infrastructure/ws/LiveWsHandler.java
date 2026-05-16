@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.savushkin.scada.mobile.backend.api.dto.AlertSnapshotMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.NotificationMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.NotificationSnapshotMessageDTO;
-import dev.savushkin.scada.mobile.backend.config.WebSocketUserIdInterceptor;
+import dev.savushkin.scada.mobile.backend.config.jwt.WebSocketJwtInterceptor;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitsStatusMessageDTO;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveAlertStore;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveNotificationStore;
@@ -341,7 +341,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
     }
 
     private OptionalLong resolveUserId(WebSocketSession session) {
-        Object raw = session.getAttributes().get(WebSocketUserIdInterceptor.ATTR_USER_ID);
+        Object raw = session.getAttributes().get(WebSocketJwtInterceptor.ATTR_USER_ID);
         if (raw instanceof Number number) {
             return OptionalLong.of(number.longValue());
         }

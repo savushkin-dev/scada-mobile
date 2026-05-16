@@ -247,12 +247,12 @@ public class MockStateSimulator {
         if ("1".equals(currentError)) {
             if (shouldErrorClear()) {
                 state.setProperty(device, "Error", "0");
-                log.debug("[{}] {} — Error cleared", instanceId, device);
+                log.trace("[{}] {} — Error cleared", instanceId, device);
             }
         } else {
             if (shouldErrorAppear()) {
                 state.setProperty(device, "Error", "1");
-                log.debug("[{}] {} — Error set", instanceId, device);
+                log.trace("[{}] {} — Error set", instanceId, device);
             }
         }
 
@@ -359,7 +359,7 @@ public class MockStateSimulator {
                     state.setProperty(scadaDevice, key, "0");
                     activeErrorCount[0]--;
                     isActive = false;
-                    log.debug("[{}] scada.{} — error cleared (active now: {})",
+                    log.trace("[{}] scada.{} — error cleared (active now: {})",
                             instanceId, key, activeErrorCount[0]);
                 }
             } else {
@@ -368,7 +368,7 @@ public class MockStateSimulator {
                     state.setProperty(scadaDevice, key, "1");
                     activeErrorCount[0]++;
                     isActive = true;
-                    log.debug("[{}] scada.{} — error activated (active now: {})",
+                    log.trace("[{}] scada.{} — error activated (active now: {})",
                             instanceId, key, activeErrorCount[0]);
                 }
             }

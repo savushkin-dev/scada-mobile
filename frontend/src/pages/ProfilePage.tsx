@@ -6,6 +6,8 @@ import {
   fetchUserProfile,
   updateNotificationSetting,
 } from '../api/profile';
+import { logoutUser } from '../api/auth';
+import { useAuth } from '../context/AuthContext';
 import { usePageHeader } from '../context/PageHeaderContext';
 import { useAsyncFetch } from '../hooks/useAsyncFetch';
 import { classifyError } from '../errors/classifyError';
@@ -29,6 +31,11 @@ const PROFILE_COPY = Object.freeze({
   overlayMasterHint: '(Оператор)',
   notificationEmpty: 'Список аппаратов пуст',
   updateErrorLabel: 'Не удалось сохранить изменения',
+  logoutButtonAriaLabel: 'Выйти из аккаунта',
+  logoutOverlayTitle: 'Выйти из аккаунта?',
+  logoutOverlayMessage: 'Для повторного входа потребуется ввести код и пароль работника',
+  logoutOverlayCancel: 'Отмена',
+  logoutOverlayConfirm: 'Выйти',
 });
 
 function getInitials(fullName: string): string {
@@ -45,6 +52,7 @@ function mergePending(prev: string[], unitId: string, pending: boolean): string[
 
 export function ProfilePage() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const handleBack = useCallback(() => navigate(-1), [navigate]);
 
   usePageHeader(PROFILE_COPY.title, undefined, 'default', handleBack);
@@ -61,8 +69,26 @@ export function ProfilePage() {
 
   const [settings, setSettings] = useState<NotificationSetting[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
   const [pendingUnits, setPendingUnits] = useState<string[]>([]);
   const [updateError, setUpdateError] = useState<AppError | null>(null);
+
+  const handleLogoutClick = useCallback(() => {
+    setLogoutOpen(true);
+  }, []);
+
+  const handleLogoutCancel = useCallback(() => {
+    setLogoutOpen(false);
+  }, []);
+
+  const handleLogoutConfirm = useCallback(async () => {
+    setLogoutOpen(false);
+    await logoutUser();
+    logout();
+    navigate('/login', { replace: true });
+    // Принудительно перезагружаем страницу для полной очистки состояния
+    window.location.reload();
+  }, [logout, navigate]);
 
   useEffect(() => {
     if (!settingsFetch.data) return;
@@ -212,14 +238,29 @@ export function ProfilePage() {
                 )}
               </div>
 
-              <button
-                type="button"
-                onClick={() => setSettingsOpen(true)}
-                className="mt-2 flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#111827] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(15,23,42,0.32)]"
-              >
-                <span aria-hidden="true">🔔</span>
-                <span>{PROFILE_COPY.notificationButton}</span>
-              </button>
+              <div className="mt-2 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setSettingsOpen(true)}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-[18px] bg-[#111827] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(15,23,42,0.32)]"
+                >
+                  <span aria-hidden="true">🔔</span>
+                  <span>{PROFILE_COPY.notificationButton}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogoutClick}
+                  aria-label={PROFILE_COPY.logoutButtonAriaLabel}
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#EA4335] text-white shadow-[0_0_10px_rgba(234,67,53,0.18)] transition-all duration-200 ease-in-out active:scale-[0.98]"
+                >
+                  <img
+                    src="/assets/logout.svg"
+                    alt=""
+                    aria-hidden="true"
+                    className="h-5 w-5 invert"
+                  />
+                </button>
+              </div>
             </>
           )}
         </div>
@@ -345,6 +386,43 @@ export function ProfilePage() {
                   })}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {logoutOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 py-6 backdrop-blur-[2px]"
+          onClick={handleLogoutCancel}
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={PROFILE_COPY.logoutOverlayTitle}
+            className="w-full max-w-[360px] rounded-[26px] bg-[#f8fafc] p-6 shadow-[0_30px_80px_rgba(17,24,39,0.25)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-semibold text-[#1A1C1E]">
+              {PROFILE_COPY.logoutOverlayTitle}
+            </h3>
+            <p className="mt-2 text-sm text-[#5F6368]">{PROFILE_COPY.logoutOverlayMessage}</p>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleLogoutCancel}
+                className="rounded-2xl border border-[#e2e8f0] bg-white px-5 py-2.5 text-sm font-semibold text-[#1A1C1E] transition active:scale-[0.98]"
+              >
+                {PROFILE_COPY.logoutOverlayCancel}
+              </button>
+              <button
+                type="button"
+                onClick={handleLogoutConfirm}
+                className="rounded-2xl bg-[#EA4335] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(234,67,53,0.35)] transition active:scale-[0.98]"
+              >
+                {PROFILE_COPY.logoutOverlayConfirm}
+              </button>
             </div>
           </div>
         </div>

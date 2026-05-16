@@ -2,7 +2,7 @@ package dev.savushkin.scada.mobile.backend.api.controller;
 
 import dev.savushkin.scada.mobile.backend.api.dto.AssignedUnitDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UserProfileDTO;
-import dev.savushkin.scada.mobile.backend.config.UserIdFilter;
+import dev.savushkin.scada.mobile.backend.config.jwt.JwtAuthenticationFilter;
 import dev.savushkin.scada.mobile.backend.domain.model.AssignedUnit;
 import dev.savushkin.scada.mobile.backend.domain.model.UserProfile;
 import dev.savushkin.scada.mobile.backend.services.UserProfileService;
@@ -67,9 +67,9 @@ public class UserProfileController {
     }
 
     private Long resolveUserId(HttpServletRequest request) {
-        String userIdRaw = UserIdFilter.resolveUserId(request);
+        String userIdRaw = JwtAuthenticationFilter.resolveUserId(request);
         if (userIdRaw == null || userIdRaw.isBlank()) {
-            throw new IllegalArgumentException("Отсутствует заголовок X-User-Id");
+            throw new IllegalArgumentException("Отсутствует аутентификация");
         }
         return parseLong(userIdRaw, "userId");
     }

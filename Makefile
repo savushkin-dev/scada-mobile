@@ -77,19 +77,19 @@ endif
 
 ifeq ($(OS),Windows_NT)
 back-run:
-	powershell -NoProfile -Command "$$env:JAVA_TOOL_OPTIONS='$(JAVA_OPTS)'; $$env:SPRING_PROFILES_ACTIVE='dev'; $$env:SERVER_PORT='$(DEV_BACKEND_PORT)'; $$p = Start-Process -FilePath '.\\gradlew.bat' -ArgumentList 'bootRun' -WorkingDirectory '$(BACKEND_DIR)' -PassThru; $$p.Id | Set-Content '$(BACKEND_DIR)\\.backend.pid'"
+	powershell -NoProfile -Command "$$env:JAVA_TOOL_OPTIONS='$(JAVA_OPTS)'; $$env:SPRING_PROFILES_ACTIVE='dev'; $$env:SERVER_PORT='$(DEV_BACKEND_PORT)'; $$env:JWT_ACCESS_SECRET='$(JWT_ACCESS_SECRET)'; $$env:JWT_REFRESH_SECRET='$(JWT_REFRESH_SECRET)'; $$p = Start-Process -FilePath '.\\gradlew.bat' -ArgumentList 'bootRun' -WorkingDirectory '$(BACKEND_DIR)' -PassThru; $$p.Id | Set-Content '$(BACKEND_DIR)\\.backend.pid'"
 
 back-stop:
 	powershell -NoProfile -Command "if (Test-Path '$(BACKEND_DIR)\\.backend.pid') { $$backendPid = Get-Content '$(BACKEND_DIR)\\.backend.pid'; Stop-Process -Id $$backendPid -Force; Remove-Item '$(BACKEND_DIR)\\.backend.pid' } else { Write-Host 'No backend PID file found.' }"
 
 back-run-prod:
-	cmd /V:ON /C "chcp 65001 >NUL & setlocal EnableDelayedExpansion & set "ENV_FILE=$(PROD_ENV_ACTIVE_FILE)" & (for /f "usebackq eol=# tokens=1,* delims==" %%A in ("!ENV_FILE!") do (if not "%%A"=="" set "%%A=%%B")) & if "!BACKEND_PORT!"=="" (echo Missing BACKEND_PORT in !ENV_FILE!. & exit /b 1) & cd $(BACKEND_DIR) & set "JAVA_TOOL_OPTIONS=$(JAVA_OPTS)" & set "SPRING_PROFILES_ACTIVE=prod" & set "SERVER_PORT=!BACKEND_PORT!" & $(GRADLEW) bootRun"
+	cmd /V:ON /C "chcp 65001 >NUL & setlocal EnableDelayedExpansion & set "ENV_FILE=$(PROD_ENV_ACTIVE_FILE)" & (for /f "usebackq eol=# tokens=1,* delims==" %%A in ("!ENV_FILE!") do (if not "%%A"=="" set "%%A=%%B")) & if "!BACKEND_PORT!"=="" (echo Missing BACKEND_PORT in !ENV_FILE!. & exit /b 1) & if "!JWT_ACCESS_SECRET!"=="" (echo Missing JWT_ACCESS_SECRET in !ENV_FILE!. & exit /b 1) & if "!JWT_REFRESH_SECRET!"=="" (echo Missing JWT_REFRESH_SECRET in !ENV_FILE!. & exit /b 1) & cd $(BACKEND_DIR) & set "JAVA_TOOL_OPTIONS=$(JAVA_OPTS)" & set "SPRING_PROFILES_ACTIVE=prod" & set "SERVER_PORT=!BACKEND_PORT!" & set "JWT_ACCESS_SECRET=!JWT_ACCESS_SECRET!" & set "JWT_REFRESH_SECRET=!JWT_REFRESH_SECRET!" & $(GRADLEW) bootRun"
 
 db-seed:
 	cmd /V:ON /C "set \"SEED_DB_PASSWORD=$(SEED_DB_PASSWORD)\" & if not exist $(SEED_SQL) (echo Missing $(SEED_SQL). & exit /b 1) else if \"!SEED_DB_PASSWORD!\"==\"\" (echo Missing SEED_DB_PASSWORD. & exit /b 1) else (docker exec -i -e PGPASSWORD=!SEED_DB_PASSWORD! $(SEED_DB_CONTAINER) psql -U $(SEED_DB_USER) -d $(SEED_DB_NAME) -v ON_ERROR_STOP=1 -f - < $(SEED_SQL))"
 else
 back-run:
-	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=dev SERVER_PORT='$(DEV_BACKEND_PORT)' nohup $(GRADLEW) bootRun > .backend.log 2>&1 & echo $$! > .backend.pid
+	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=dev SERVER_PORT='$(DEV_BACKEND_PORT)' JWT_ACCESS_SECRET='$(JWT_ACCESS_SECRET)' JWT_REFRESH_SECRET='$(JWT_REFRESH_SECRET)' nohup $(GRADLEW) bootRun > .backend.log 2>&1 & echo $$! > .backend.pid
 
 back-stop:
 	@if [ -f "$(BACKEND_DIR)/.backend.pid" ]; then \
@@ -106,7 +106,15 @@ back-run-prod:
 		echo "Missing BACKEND_PORT in $(PROD_ENV_ACTIVE_FILE)."; \
 		exit 1; \
 	fi; \
-	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=prod SERVER_PORT="$$BACKEND_PORT" $(GRADLEW) bootRun
+	if [ -z "$$JWT_ACCESS_SECRET" ]; then \
+		echo "Missing JWT_ACCESS_SECRET in $(PROD_ENV_ACTIVE_FILE)."; \
+		exit 1; \
+	fi; \
+	if [ -z "$$JWT_REFRESH_SECRET" ]; then \
+		echo "Missing JWT_REFRESH_SECRET in $(PROD_ENV_ACTIVE_FILE)."; \
+		exit 1; \
+	fi; \
+	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=prod SERVER_PORT="$$BACKEND_PORT" JWT_ACCESS_SECRET="$$JWT_ACCESS_SECRET" JWT_REFRESH_SECRET="$$JWT_REFRESH_SECRET" $(GRADLEW) bootRun
 
 db-seed:
 	@if [ ! -f "$(SEED_SQL)" ]; then \

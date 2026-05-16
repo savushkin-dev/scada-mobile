@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { WS_BASE } from '../config';
+import { getAccessToken } from '../auth/session';
 import { classifyError } from '../errors/classifyError';
 import type { AppError } from '../errors/AppError';
 import { createManagedWs, type ManagedWsConnection } from '../lib/createManagedWs';
@@ -54,7 +55,7 @@ export interface LiveWsCallbacks {
  *
  * @param subscribedWorkshopId ID цеха для подписки (SUBSCRIBE_WORKSHOP/UNSUBSCRIBE_WORKSHOP),
  *                             или {@code null} когда пользователь не на экране цеха.
- * @param userId                Идентификатор пользователя для аутентификации WS.
+ * @param userId                Идентификатор пользователя (для триггера переподключения).
  * @param callbacks            Коллбэки для трёх типов входящих сообщений.
  */
 export function useLiveWs(
@@ -72,9 +73,10 @@ export function useLiveWs(
   const subscribedWorkshopIdRef = useRef(subscribedWorkshopId);
   subscribedWorkshopIdRef.current = subscribedWorkshopId;
 
-  // Effect 1: открываем соединение при наличии userId
+  // Effect 1: открываем соединение при наличии токена
   useEffect(() => {
-    if (!userId) {
+    const token = getAccessToken();
+    if (!token) {
       if (connRef.current) {
         connRef.current.destroy();
         connRef.current = null;
@@ -83,7 +85,10 @@ export function useLiveWs(
     }
 
     const conn = createManagedWs({
-      url: `${WS_BASE}/ws/live?userId=${encodeURIComponent(userId)}`,
+      url: () => {
+        const currentToken = getAccessToken();
+        return `${WS_BASE}/ws/live?token=${encodeURIComponent(currentToken ?? token)}`;
+      },
       source: 'ws/live',
       onReconnecting: () => callbacksRef.current.onReconnecting?.(),
       onError: (error) => callbacksRef.current.onError?.(error),

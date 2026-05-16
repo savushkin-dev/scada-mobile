@@ -31,8 +31,13 @@ import type { AppError, AppErrorSource } from '../errors/AppError';
 // ── Публичные типы ────────────────────────────────────────────────────
 
 export interface ManagedWsOptions {
-  /** URL для подключения (строка, не меняется в течение жизни объекта). */
-  url: string;
+  /**
+   * URL для подключения.
+   * Может быть строкой или функцией, возвращающей строку.
+   * Функция вызывается перед каждой попыткой подключения —
+   * это позволяет использовать актуальный токен при реконнекте.
+   */
+  url: string | (() => string);
   /** Источник ошибки для общей классификации. */
   source?: AppErrorSource;
   /**
@@ -155,10 +160,21 @@ export function createManagedWs(options: ManagedWsOptions): ManagedWsConnection 
     if (destroyed) return;
 
     try {
-      const ws = new WebSocket(options.url);
+      const url = typeof options.url === 'function' ? options.url() : options.url;
+
+      if (import.meta.env.DEV) {
+         
+        console.log(`[ws] connecting → ${url.replace(/\?token=.*/, '?token=***')}`);
+      }
+
+      const ws = new WebSocket(url);
       currentWs = ws;
 
       ws.onopen = () => {
+        if (import.meta.env.DEV) {
+           
+          console.log(`[ws] open ← ${url.replace(/\?token=.*/, '?token=***')}`);
+        }
         // Успешное подключение: сбрасываем счётчик неудач и задержку
         failedAttempts = 0;
         delay = WS_RECONNECT_BASE_DELAY_MS;
@@ -169,6 +185,10 @@ export function createManagedWs(options: ManagedWsOptions): ManagedWsConnection 
       ws.onmessage = (e) => options.onMessage(e);
 
       ws.onclose = () => {
+        if (import.meta.env.DEV) {
+           
+          console.log(`[ws] close ← ${url.replace(/\?token=.*/, '?token=***')}`);
+        }
         handleFailure();
         scheduleReconnect();
       };
@@ -178,6 +198,10 @@ export function createManagedWs(options: ManagedWsOptions): ManagedWsConnection 
       ws.onerror = () => ws.close();
     } catch {
       // WebSocket-конструктор выбросил исключение (невалидный URL и т.п.)
+      if (import.meta.env.DEV) {
+         
+        console.error('[ws] constructor failed');
+      }
       handleFailure();
       scheduleReconnect();
     }

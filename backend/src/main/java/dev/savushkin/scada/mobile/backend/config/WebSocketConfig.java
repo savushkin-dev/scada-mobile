@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
+import org.springframework.web.socket.server.HandshakeInterceptor;
 
 /**
  * Конфигурация единственного WebSocket-эндпоинта {@code /ws/live}.
@@ -41,38 +42,41 @@ public class WebSocketConfig implements WebSocketConfigurer {
     private final LiveWsHandler liveWsHandler;
     private final UnitWsHandler unitWsHandler;
     private final CorsProperties corsProperties;
-    private final WebSocketUserIdInterceptor userIdInterceptor;
+    private final HandshakeInterceptor jwtInterceptor;
 
     public WebSocketConfig(LiveWsHandler liveWsHandler, UnitWsHandler unitWsHandler,
                            CorsProperties corsProperties,
-                           WebSocketUserIdInterceptor userIdInterceptor) {
+                           HandshakeInterceptor jwtInterceptor) {
         this.liveWsHandler = liveWsHandler;
         this.unitWsHandler = unitWsHandler;
         this.corsProperties = corsProperties;
-        this.userIdInterceptor = userIdInterceptor;
+        this.jwtInterceptor = jwtInterceptor;
     }
 
     @Override
     public void registerWebSocketHandlers(@NonNull WebSocketHandlerRegistry registry) {
-        String[] allowedOrigins = corsProperties.getPolicy()
-                .getAllowedOrigins()
-                .toArray(String[]::new);
-        String[] allowedOriginPatterns = corsProperties.getPolicy()
-                .getAllowedOriginPatterns()
-                .toArray(String[]::new);
+        CorsProperties.Policy policy = corsProperties.getPolicy();
+        String[] allowedOrigins = policy.getAllowedOrigins().toArray(String[]::new);
+        String[] allowedOriginPatterns = policy.getAllowedOriginPatterns().toArray(String[]::new);
 
-        registry.addHandler(liveWsHandler, "/ws/live")
-                .addInterceptors(userIdInterceptor)
-                .setAllowedOrigins(allowedOrigins)
-                .setAllowedOriginPatterns(allowedOriginPatterns);
+        var liveRegistration = registry.addHandler(liveWsHandler, "/ws/live")
+                .addInterceptors(jwtInterceptor);
+        var unitRegistration = registry.addHandler(unitWsHandler, "/ws/unit/*")
+                .addInterceptors(jwtInterceptor);
 
-        registry.addHandler(unitWsHandler, "/ws/unit/*")
-                .addInterceptors(userIdInterceptor)
-                .setAllowedOrigins(allowedOrigins)
-                .setAllowedOriginPatterns(allowedOriginPatterns);
+        // Spring WebSocket: пустой массив в setAllowedOrigins блокирует все cross-origin запросы.
+        // Передаём origins только если они явно заданы; иначе полагаемся на originPatterns.
+        if (allowedOrigins.length > 0) {
+            liveRegistration.setAllowedOrigins(allowedOrigins);
+            unitRegistration.setAllowedOrigins(allowedOrigins);
+        }
+        if (allowedOriginPatterns.length > 0) {
+            liveRegistration.setAllowedOriginPatterns(allowedOriginPatterns);
+            unitRegistration.setAllowedOriginPatterns(allowedOriginPatterns);
+        }
 
         log.info("WebSocket endpoints registered: /ws/live, /ws/unit/* (allowedOrigins: {}, allowedOriginPatterns: {})",
-                corsProperties.getPolicy().getAllowedOrigins(),
-                corsProperties.getPolicy().getAllowedOriginPatterns());
+                policy.getAllowedOrigins(),
+                policy.getAllowedOriginPatterns());
     }
 }

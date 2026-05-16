@@ -181,8 +181,9 @@ export function useAsyncFetch<T>(
         for (let attempt = 1; attempt <= cfg.maxAttempts; attempt++) {
           if (stale || runIdRef.current !== runId) return;
 
-          if (attempt > 1 && lastError) {
+          if (attempt > 1 && lastError && import.meta.env.DEV) {
             // При ретраях: в лог идёт техническое сообщение (raw), пользователь видит только скелетон.
+             
             console.warn(
               `[useAsyncFetch] retry ${attempt}/${cfg.maxAttempts} after: ${lastError.raw}`
             );
@@ -207,9 +208,6 @@ export function useAsyncFetch<T>(
 
             if (attempt < cfg.maxAttempts) {
               const delay = computeDelay(attempt, cfg);
-              console.warn(
-                `[useAsyncFetch] waiting ${delay}ms before retry ${attempt + 1}/${cfg.maxAttempts}`
-              );
               try {
                 await sleep(delay, controller.signal);
               } catch {
@@ -224,14 +222,16 @@ export function useAsyncFetch<T>(
         const finalError =
           lastError ??
           classifyError(new Error(ERROR_MESSAGES.unknownError), cfg.source ?? 'unknown');
-        console.error(`[useAsyncFetch] all ${cfg.maxAttempts} attempts failed: ${finalError.raw}`);
+        if (import.meta.env.DEV) {
+           
+          console.error(
+            `[useAsyncFetch] all ${cfg.maxAttempts} attempts failed: ${finalError.raw}`
+          );
+        }
         setState({ loading: false, status: 'error', data: null, error: finalError });
 
         if (!finalError.retryable) return;
 
-        console.warn(
-          `[useAsyncFetch] scheduling recovery cycle in ${cfg.recoveryDelayMs}ms after failure: ${finalError.raw}`
-        );
         try {
           await sleep(cfg.recoveryDelayMs, controller.signal);
         } catch {
