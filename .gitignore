@@ -216,3 +216,6 @@ backend/logs/*
 # yarn.lock
 # gradle/wrapper/gradle-wrapper.jar
 *.bkp
+
+# Playwright MCP snapshots
+.playwright-mcp/

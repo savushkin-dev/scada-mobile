@@ -2,12 +2,11 @@ package dev.savushkin.scada.mobile.backend.api.controller;
 
 import dev.savushkin.scada.mobile.backend.api.dto.AssignedUnitDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UserProfileDTO;
-import dev.savushkin.scada.mobile.backend.config.jwt.JwtAuthenticationFilter;
+import dev.savushkin.scada.mobile.backend.config.jwt.JwtPrincipalUtil;
 import dev.savushkin.scada.mobile.backend.domain.model.AssignedUnit;
 import dev.savushkin.scada.mobile.backend.domain.model.UserProfile;
 import dev.savushkin.scada.mobile.backend.services.UserProfileService;
 import jakarta.annotation.Nullable;
-import jakarta.servlet.http.HttpServletRequest;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -31,10 +30,12 @@ public class UserProfileController {
 
     @GetMapping("/users/me")
     public ResponseEntity<UserProfileDTO> getProfile(
-            @NonNull HttpServletRequest request,
             @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch
     ) {
-        Long userId = resolveUserId(request);
+        Long userId = JwtPrincipalUtil.getCurrentUserId();
+        if (userId == null) {
+            throw new IllegalArgumentException("Отсутствует аутентификация");
+        }
         UserProfileService.ProfileSnapshot snapshot = profileService.getProfileSnapshot(userId);
 
         if (isNotModified(ifNoneMatch, snapshot.etag())) {
@@ -64,14 +65,6 @@ public class UserProfileController {
                 unit.printsrvInstanceId()
             ))
                 .toList();
-    }
-
-    private Long resolveUserId(HttpServletRequest request) {
-        String userIdRaw = JwtAuthenticationFilter.resolveUserId(request);
-        if (userIdRaw == null || userIdRaw.isBlank()) {
-            throw new IllegalArgumentException("Отсутствует аутентификация");
-        }
-        return parseLong(userIdRaw, "userId");
     }
 
     private Long parseLong(String raw, String field) {

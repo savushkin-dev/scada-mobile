@@ -6,16 +6,27 @@ import org.jspecify.annotations.NonNull;
 import java.util.Optional;
 
 /**
- * Port for resolving users by credentials.
+ * Port for resolving users by worker code.
  */
 public interface UserAuthRepository {
 
     /**
-     * Finds user by worker code and password.
+     * Finds user by worker code.
      *
-     * @param code     worker code
-     * @param password worker password
-     * @return optional user
+     * @param code worker code
+     * @return optional user with password hash
      */
-    @NonNull Optional<AuthUser> findByCredentials(@NonNull String code, @NonNull String password);
+    @NonNull Optional<AuthUserWithPassword> findByCode(@NonNull String code);
+
+    /**
+     * Domain model with password hash for authentication.
+     */
+    record AuthUserWithPassword(
+            long id,
+            @NonNull String code,
+            @NonNull String fullName,
+            boolean active,
+            @NonNull String passwordHash
+    ) {
+    }
 }

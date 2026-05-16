@@ -18,10 +18,10 @@ import java.util.List;
  * Spring {@link org.springframework.web.servlet.config.annotation.CorsRegistry}
  * (через {@link CorsConfig}) работает на уровне HandlerMapping и НЕ добавляет
  * CORS-заголовки к ответам, сформированным до достижения контроллера — например,
- к 401 от {@link JwtAuthenticationFilter}.
+ * к 401 от Spring Security filter chain.
  * <p>
  * Servlet Filter с {@link Ordered#HIGHEST_PRECEDENCE} гарантирует, что CORS-
- * preflight и заголовки ответа обрабатываются ДО JWT-фильтра, устраняя
+ * preflight и заголовки ответа обрабатываются ДО security filter chain, устраняя
  * ложные CORS-ошибки в браузере при истёкшем/отсутствующем токене.
  */
 @Configuration

@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -22,10 +23,14 @@ import java.util.Date;
 import java.util.UUID;
 
 /**
- * Провайдер JWT-токенов: генерация access/refresh и валидация.
+ * Провайдер JWT-токенов: генерация access/refresh.
  * <p>
- * Access-токен — подписанный JWT с claims (sub, role, exp).
- * Refresh-токен — криптостойкий случайный UUID, хранится в БД (хэш).
+ * Валидация access-токена для HTTP-запросов теперь выполняется Spring Security
+ * Resource Server через {@link dev.savushkin.scada.mobile.backend.config.SecurityConfig#jwtDecoder}.
+ * <p>
+ * Этот класс отвечает за <strong>создание</strong> токенов, а также за
+ * валидацию WebSocket handshake токенов (где Spring Security filter chain
+ * не применяется).
  */
 @Component
 public class JwtTokenProvider {
@@ -54,14 +59,20 @@ public class JwtTokenProvider {
         return Jwts.builder()
                 .subject(Long.toString(userId))
                 .claim("role", role)
+                .id(UUID.randomUUID().toString())
+                .issuer("scada-mobile")
+                .audience().add("scada-mobile-api").and()
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiry))
-                .signWith(getAccessKey())
+                .signWith(getAccessKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
     /**
      * Валидирует access-токен и возвращает userId.
+     * <p>
+     * Используется только для WebSocket handshake (где Spring Security
+     * Resource Server не обрабатывает запрос).
      *
      * @param token JWT access-токен
      * @return userId или null если токен невалиден/истёк
@@ -79,23 +90,6 @@ public class JwtTokenProvider {
             return null;
         } catch (JwtException | IllegalArgumentException e) {
             log.debug("Invalid access token: {}", e.getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Извлекает роль из access-токена без полной валидации подписи.
-     * Используется только после успешной {@link #validateAccessToken}.
-     */
-    public @Nullable String extractRole(@NonNull String token) {
-        try {
-            Claims claims = Jwts.parser()
-                    .verifyWith(getAccessKey())
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
-            return claims.get("role", String.class);
-        } catch (JwtException e) {
             return null;
         }
     }
@@ -126,18 +120,6 @@ public class JwtTokenProvider {
 
     // ── Private helpers ───────────────────────────────────────────────────
 
-    private SecretKey getAccessKey() {
-        String secret = jwtProperties.getAccessSecret();
-        if (secret == null || secret.isBlank()) {
-            log.warn("JWT access secret is not configured — using dev fallback. "
-                    + "Set JWT_ACCESS_SECRET env var for production!");
-            // Dev fallback: генерируем детерминированный ключ из дефолтной строки.
-            // В продакшене это НЕБЕЗОПАСНО — обязательно задавать JWT_ACCESS_SECRET.
-            secret = "scada-mobile-dev-secret-key-do-not-use-in-production";
-        }
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-    }
-
     private @Nullable Long parseUserId(String subject) {
         if (subject == null || subject.isBlank()) return null;
         try {
@@ -145,5 +127,16 @@ public class JwtTokenProvider {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    private SecretKey getAccessKey() {
+        String secret = jwtProperties.getAccessSecret();
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                    "JWT access secret is not configured. " +
+                    "Set JWT_ACCESS_SECRET environment variable."
+            );
+        }
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 }

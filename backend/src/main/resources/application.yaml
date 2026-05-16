@@ -190,12 +190,6 @@ jwt:
   refresh-secret: "${JWT_REFRESH_SECRET:}"
   access-expiration-minutes: 15
   refresh-expiration-days: 7
-  public-paths:
-    - "/api/**/auth/login"
-    - "/api/**/auth/logout"
-    - "/api/**/auth/refresh"
-    - "/actuator/**"
-    - "/ws/**"
 
 # Логирование — конфигурация в src/main/resources/logback-spring.xml
 # Уровни переопределяются по профилям (dev / prod) в logback-spring.xml

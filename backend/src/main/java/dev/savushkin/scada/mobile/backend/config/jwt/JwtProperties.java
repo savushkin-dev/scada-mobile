@@ -2,8 +2,6 @@ package dev.savushkin.scada.mobile.backend.config.jwt;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import java.util.List;
-
 /**
  * Конфигурация JWT-токенов.
  * <p>
@@ -20,17 +18,6 @@ public class JwtProperties {
     private long accessExpirationMinutes = 15;
     private long refreshExpirationDays = 7;
 
-    /**
-     * Пути, которые не требуют JWT-аутентификации.
-     * Задаются антишаблонами (Ant-style).
-     */
-    private List<String> publicPaths = List.of(
-            "/api/**/auth/login",
-            "/api/**/auth/logout",
-            "/api/**/auth/refresh",
-            "/actuator/**"
-    );
-
     public String getAccessSecret() { return accessSecret; }
     public void setAccessSecret(String accessSecret) { this.accessSecret = accessSecret; }
 
@@ -42,7 +29,4 @@ public class JwtProperties {
 
     public long getRefreshExpirationDays() { return refreshExpirationDays; }
     public void setRefreshExpirationDays(long refreshExpirationDays) { this.refreshExpirationDays = refreshExpirationDays; }
-
-    public List<String> getPublicPaths() { return publicPaths; }
-    public void setPublicPaths(List<String> publicPaths) { this.publicPaths = publicPaths; }
 }

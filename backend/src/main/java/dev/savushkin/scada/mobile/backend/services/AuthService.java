@@ -2,12 +2,14 @@ package dev.savushkin.scada.mobile.backend.services;
 
 import dev.savushkin.scada.mobile.backend.application.ports.RefreshTokenRepository;
 import dev.savushkin.scada.mobile.backend.application.ports.UserAuthRepository;
+import dev.savushkin.scada.mobile.backend.application.ports.UserAuthRepository.AuthUserWithPassword;
 import dev.savushkin.scada.mobile.backend.config.jwt.JwtTokenProvider;
 import dev.savushkin.scada.mobile.backend.domain.model.AuthUser;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.RefreshTokenEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UserJpaRepository;
 import org.jspecify.annotations.NonNull;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,15 +23,18 @@ public class AuthService {
     private final UserJpaRepository userJpaRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final PasswordEncoder passwordEncoder;
 
     public AuthService(UserAuthRepository userAuthRepository,
                        UserJpaRepository userJpaRepository,
                        RefreshTokenRepository refreshTokenRepository,
-                       JwtTokenProvider jwtTokenProvider) {
+                       JwtTokenProvider jwtTokenProvider,
+                       PasswordEncoder passwordEncoder) {
         this.userAuthRepository = userAuthRepository;
         this.userJpaRepository = userJpaRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public @NonNull AuthUser authenticate(@NonNull String workerCode, @NonNull String password) {
@@ -39,14 +44,23 @@ public class AuthService {
             throw new InvalidCredentialsException(code);
         }
 
-        AuthUser user = userAuthRepository.findByCredentials(code, pass)
+        AuthUserWithPassword userWithPassword = userAuthRepository.findByCode(code)
                 .orElseThrow(() -> new InvalidCredentialsException(code));
 
-        if (!user.active()) {
-            throw new UserInactiveException(user.id(), user.code());
+        if (!passwordEncoder.matches(pass, userWithPassword.passwordHash())) {
+            throw new InvalidCredentialsException(code);
         }
 
-        return user;
+        if (!userWithPassword.active()) {
+            throw new UserInactiveException(userWithPassword.id(), userWithPassword.code());
+        }
+
+        return new AuthUser(
+                userWithPassword.id(),
+                userWithPassword.code(),
+                userWithPassword.fullName(),
+                userWithPassword.active()
+        );
     }
 
     /**
@@ -113,7 +127,21 @@ public class AuthService {
     }
 
     /**
-     * Отзывает все refresh-токены пользователя (logout).
+     * Отзывает конкретный refresh-токен (logout).
+     */
+    @Transactional
+    public void revokeRefreshToken(@NonNull String rawRefreshToken) {
+        String hash = jwtTokenProvider.hashRefreshToken(rawRefreshToken);
+        RefreshTokenEntity entity = refreshTokenRepository.findByTokenHash(hash)
+                .orElse(null);
+        if (entity != null && !entity.isRevoked()) {
+            entity.setRevoked(true);
+            refreshTokenRepository.save(entity);
+        }
+    }
+
+    /**
+     * Отзывает все refresh-токены пользователя.
      */
     @Transactional
     public void revokeAllRefreshTokens(long userId) {

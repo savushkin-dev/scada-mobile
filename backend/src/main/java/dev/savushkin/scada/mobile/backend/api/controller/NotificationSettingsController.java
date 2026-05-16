@@ -2,11 +2,10 @@ package dev.savushkin.scada.mobile.backend.api.controller;
 
 import dev.savushkin.scada.mobile.backend.api.dto.NotificationSettingDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.NotificationSettingsUpdateDTO;
-import dev.savushkin.scada.mobile.backend.config.jwt.JwtAuthenticationFilter;
+import dev.savushkin.scada.mobile.backend.config.jwt.JwtPrincipalUtil;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitNotificationPreference;
 import dev.savushkin.scada.mobile.backend.services.NotificationSettingsService;
 import jakarta.annotation.Nullable;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpHeaders;
@@ -33,10 +32,12 @@ public class NotificationSettingsController {
 
     @GetMapping("/notifications/settings")
     public ResponseEntity<List<NotificationSettingDTO>> getSettings(
-            @NonNull HttpServletRequest request,
             @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch
     ) {
-        Long userId = resolveUserId(request);
+        Long userId = JwtPrincipalUtil.getCurrentUserId();
+        if (userId == null) {
+            throw new IllegalArgumentException("Отсутствует аутентификация");
+        }
         NotificationSettingsService.SettingsSnapshot snapshot = settingsService.getSettingsSnapshot(userId);
 
         if (isNotModified(ifNoneMatch, snapshot.etag())) {
@@ -56,10 +57,12 @@ public class NotificationSettingsController {
 
     @PutMapping("/notifications/settings")
     public ResponseEntity<Void> updateSettings(
-            @NonNull HttpServletRequest request,
             @Valid @RequestBody NotificationSettingsUpdateDTO payload
     ) {
-        Long userId = resolveUserId(request);
+        Long userId = JwtPrincipalUtil.getCurrentUserId();
+        if (userId == null) {
+            throw new IllegalArgumentException("Отсутствует аутентификация");
+        }
         Long unitId = parseLong(payload.unitId(), "unitId");
 
         settingsService.updateSettings(userId, unitId, payload.techEnabled(), payload.masterEnabled());
@@ -73,14 +76,6 @@ public class NotificationSettingsController {
                 pref.techEnabled(),
                 pref.masterEnabled()
         );
-    }
-
-    private Long resolveUserId(HttpServletRequest request) {
-        String userIdRaw = JwtAuthenticationFilter.resolveUserId(request);
-        if (userIdRaw == null || userIdRaw.isBlank()) {
-            throw new IllegalArgumentException("Отсутствует аутентификация");
-        }
-        return parseLong(userIdRaw, "userId");
     }
 
     private Long parseLong(String raw, String field) {

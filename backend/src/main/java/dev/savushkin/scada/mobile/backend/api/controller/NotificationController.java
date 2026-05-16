@@ -1,11 +1,10 @@
 package dev.savushkin.scada.mobile.backend.api.controller;
 
 import dev.savushkin.scada.mobile.backend.api.dto.NotificationToggleResponseDTO;
-import dev.savushkin.scada.mobile.backend.config.jwt.JwtAuthenticationFilter;
+import dev.savushkin.scada.mobile.backend.config.jwt.JwtPrincipalUtil;
 import dev.savushkin.scada.mobile.backend.services.NotificationService;
 import dev.savushkin.scada.mobile.backend.services.NotificationService.ToggleResult;
 import dev.savushkin.scada.mobile.backend.services.UnitMappingService;
-import jakarta.servlet.http.HttpServletRequest;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,18 +35,11 @@ public class NotificationController {
 
     @PostMapping("/line/{unitId}/last-batch")
     public ResponseEntity<NotificationToggleResponseDTO> toggleNotification(
-            @PathVariable @NonNull String unitId,
-            @NonNull HttpServletRequest request
+            @PathVariable @NonNull String unitId
     ) {
-        String userIdRaw = JwtAuthenticationFilter.resolveUserId(request);
-        if (userIdRaw == null || userIdRaw.isBlank()) {
-            return ResponseEntity.status(401).body(
-                    new NotificationToggleResponseDTO("error", unitId, null, null));
-        }
-
-        Long userId = parseLong(userIdRaw);
+        Long userId = JwtPrincipalUtil.getCurrentUserId();
         if (userId == null) {
-            return ResponseEntity.badRequest().body(
+            return ResponseEntity.status(401).body(
                     new NotificationToggleResponseDTO("error", unitId, null, null));
         }
 

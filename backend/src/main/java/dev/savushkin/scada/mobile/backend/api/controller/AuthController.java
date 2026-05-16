@@ -77,20 +77,10 @@ public class AuthController {
 
     @PostMapping("/auth/logout")
     public ResponseEntity<Void> logout(@Valid @RequestBody AuthRefreshRequestDTO request) {
-        try {
-            AuthService.TokenPair tokens = authService.rotateTokens(request.refreshToken());
-            // Сразу отзываем только что выданный токен — эффективно logout
-            // Но rotateTokens уже отозвал старый, а новый... нам нужно найти userId
-            // Проще: logout через userId из access token, но его может не быть.
-            // Альтернатива: logout просто отзывает переданный refresh token.
-            // rotateTokens уже отозвал старый — значит logout выполнен.
-            // Отзовем и новый для полноты:
-            // Находим новый токен по хэшу и отзываем
-            return ResponseEntity.ok().build();
-        } catch (InvalidRefreshTokenException e) {
-            // Даже если токен невалиден — logout считается успешным на клиенте
-            return ResponseEntity.ok().build();
-        }
+        // Отзываем переданный refresh-токен — реальный logout
+        authService.revokeRefreshToken(request.refreshToken());
+        log.info("Auth logout: refresh token revoked");
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/auth/refresh")

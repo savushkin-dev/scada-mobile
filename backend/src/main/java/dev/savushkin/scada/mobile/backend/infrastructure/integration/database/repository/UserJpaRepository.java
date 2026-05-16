@@ -10,7 +10,7 @@ import java.util.Optional;
 
 public interface UserJpaRepository extends JpaRepository<UserEntity, Long> {
 
-    @NonNull Optional<UserEntity> findByCodeAndPassword(@NonNull String code, @NonNull String password);
+    @NonNull Optional<UserEntity> findByCode(@NonNull String code);
 
     @Query("""
             select u
