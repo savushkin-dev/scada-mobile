@@ -44,6 +44,7 @@ public class AuthController {
 
     @PostMapping("/auth/login")
     public ResponseEntity<?> login(@Valid @RequestBody AuthLoginRequestDTO request) {
+        log.info("Request: POST /auth/login, code='{}'", request.workerCode());
         try {
             AuthUser user = authService.authenticate(request.workerCode(), request.password());
             AuthService.TokenPair tokens = authService.createTokenPair(user);
@@ -77,6 +78,7 @@ public class AuthController {
 
     @PostMapping("/auth/logout")
     public ResponseEntity<Void> logout(@Valid @RequestBody AuthRefreshRequestDTO request) {
+        log.info("Request: POST /auth/logout");
         // Отзываем переданный refresh-токен — реальный logout
         authService.revokeRefreshToken(request.refreshToken());
         log.info("Auth logout: refresh token revoked");
@@ -85,6 +87,7 @@ public class AuthController {
 
     @PostMapping("/auth/refresh")
     public ResponseEntity<?> refresh(@Valid @RequestBody AuthRefreshRequestDTO request) {
+        log.info("Request: POST /auth/refresh");
         try {
             AuthService.TokenPair tokens = authService.rotateTokens(request.refreshToken());
             return ResponseEntity.ok(new AuthRefreshResponseDTO(tokens.accessToken(), tokens.refreshToken()));

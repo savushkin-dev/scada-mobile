@@ -132,6 +132,7 @@ public class Controller {
     @GetMapping("/workshops/topology")
     public ResponseEntity<List<WorkshopTopologyDTO>> getWorkshopsTopology(
             @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
+        log.info("Request: GET /workshops/topology");
         String etag = workshopService.getConfigETag();
         if (isNotModified(ifNoneMatch, etag)) {
             return ResponseEntity.status(HttpStatus.NOT_MODIFIED)
@@ -161,6 +162,7 @@ public class Controller {
             @PathVariable @NonNull String id,
             @PathVariable @NonNull String unitId,
             @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
+        log.info("Request: GET /workshops/{}/units/{}/devices/topology", id, unitId);
         if (!workshopService.workshopExists(id)) {
             return ResponseEntity.notFound().build();
         }
@@ -198,6 +200,7 @@ public class Controller {
     public ResponseEntity<List<UnitTopologyDTO>> getUnitsTopology(
             @PathVariable @NonNull String id,
             @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
+        log.info("Request: GET /workshops/{}/units/topology", id);
         if (!workshopService.workshopExists(id)) {
             return ResponseEntity.notFound().build();
         }
@@ -217,6 +220,7 @@ public class Controller {
             content = @Content(mediaType = "application/json")))
     @GetMapping("/health/live")
     public ResponseEntity<Map<String, Object>> live() {
+        log.info("Request: GET /health/live");
         boolean alive = healthService.isAlive();
         return ResponseEntity.ok(Map.of(
                 "status", alive ? "UP" : "DOWN",
@@ -234,6 +238,7 @@ public class Controller {
     })
     @GetMapping("/health/ready")
     public ResponseEntity<Map<String, Object>> ready() {
+        log.info("Request: GET /health/ready");
         boolean ready = healthService.isReady();
         HttpStatus status = ready ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
         return ResponseEntity.status(status).body(Map.of(

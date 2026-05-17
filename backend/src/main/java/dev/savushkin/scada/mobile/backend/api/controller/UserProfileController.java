@@ -8,6 +8,8 @@ import dev.savushkin.scada.mobile.backend.domain.model.UserProfile;
 import dev.savushkin.scada.mobile.backend.services.UserProfileService;
 import jakarta.annotation.Nullable;
 import org.jspecify.annotations.NonNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +24,8 @@ import java.util.List;
 @RequestMapping("${scada.api.base-path}")
 public class UserProfileController {
 
+    private static final Logger log = LoggerFactory.getLogger(UserProfileController.class);
+
     private final UserProfileService profileService;
 
     public UserProfileController(UserProfileService profileService) {
@@ -32,6 +36,7 @@ public class UserProfileController {
     public ResponseEntity<UserProfileDTO> getProfile(
             @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch
     ) {
+        log.info("Request: GET /users/me");
         Long userId = JwtPrincipalUtil.getCurrentUserId();
         if (userId == null) {
             throw new IllegalArgumentException("Отсутствует аутентификация");

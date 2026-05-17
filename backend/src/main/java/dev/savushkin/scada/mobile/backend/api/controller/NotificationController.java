@@ -37,6 +37,7 @@ public class NotificationController {
     public ResponseEntity<NotificationToggleResponseDTO> toggleNotification(
             @PathVariable @NonNull String unitId
     ) {
+        log.info("Request: POST /line/{}/last-batch", unitId);
         Long userId = JwtPrincipalUtil.getCurrentUserId();
         if (userId == null) {
             return ResponseEntity.status(401).body(

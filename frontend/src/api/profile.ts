@@ -1,5 +1,5 @@
 import { API_BASE } from '../config';
-import { apiFetchJson } from './client';
+import { apiFetch, apiFetchJson } from './client';
 import { HttpError } from '../errors/AppError';
 import {
   NotificationSettingsSchema,

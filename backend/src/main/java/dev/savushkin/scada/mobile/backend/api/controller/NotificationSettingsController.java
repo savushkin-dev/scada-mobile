@@ -8,6 +8,8 @@ import dev.savushkin.scada.mobile.backend.services.NotificationSettingsService;
 import jakarta.annotation.Nullable;
 import jakarta.validation.Valid;
 import org.jspecify.annotations.NonNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +26,8 @@ import java.util.List;
 @RequestMapping("${scada.api.base-path}")
 public class NotificationSettingsController {
 
+    private static final Logger log = LoggerFactory.getLogger(NotificationSettingsController.class);
+
     private final NotificationSettingsService settingsService;
 
     public NotificationSettingsController(NotificationSettingsService settingsService) {
@@ -34,6 +38,7 @@ public class NotificationSettingsController {
     public ResponseEntity<List<NotificationSettingDTO>> getSettings(
             @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch
     ) {
+        log.info("Request: GET /notifications/settings");
         Long userId = JwtPrincipalUtil.getCurrentUserId();
         if (userId == null) {
             throw new IllegalArgumentException("Отсутствует аутентификация");
@@ -59,6 +64,8 @@ public class NotificationSettingsController {
     public ResponseEntity<Void> updateSettings(
             @Valid @RequestBody NotificationSettingsUpdateDTO payload
     ) {
+        log.info("Request: PUT /notifications/settings, unitId='{}', techEnabled={}, masterEnabled={}",
+                payload.unitId(), payload.techEnabled(), payload.masterEnabled());
         Long userId = JwtPrincipalUtil.getCurrentUserId();
         if (userId == null) {
             throw new IllegalArgumentException("Отсутствует аутентификация");
