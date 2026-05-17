@@ -1,5 +1,5 @@
 import { DOMAIN_DEFAULTS, DOMAIN_FLAGS } from '../config';
-import type { AlertData, AlertError, DevicesStatusPayload, Unit } from '../types';
+import type { AlertData, AlertError, DevicesStatusPayload, NotificationData, Unit } from '../types';
 
 // ── Уровни статуса ────────────────────────────────────────────────────────────
 /**
@@ -34,19 +34,35 @@ export function getUnitStatusLevel(unit: Unit, alerts: Map<string, AlertData>): 
 
 // ── Статус цеха (workshop) ────────────────────────────────────────────────────
 
-export type WorkshopStatusLevel = 'critical' | 'none';
+export type WorkshopStatusLevel = 'critical' | 'warning' | 'none';
 
 /**
- * Вычисляет уровень проблемности цеха по его алертам.
- * Есть хотя бы один алёрт в цехе → critical; иначе none.
+ * Вычисляет уровень проблемности цеха по его алертам и уведомлениям.
+ * Приоритет:
+ *  1. Есть хотя бы один алёрт в цехе → critical (красный).
+ *  2. Есть хотя бы одно уведомление от мастера, но нет алёртов → warning (жёлтый).
+ *  3. Нет ни алёртов, ни уведомлений → none (зелёный).
  */
 export function getWorkshopStatusLevel(
   workshopId: string,
-  alerts: Map<string, AlertData>
+  alerts: Map<string, AlertData>,
+  notifications?: Map<string, NotificationData>,
+  unitTopologyByWorkshop?: Record<string, { id: string }[]>
 ): WorkshopStatusLevel {
+  // Сначала проверяем алёрты — highest priority
   for (const alert of alerts.values()) {
     if (alert.workshopId === workshopId) return 'critical';
   }
+
+  // Затем проверяем уведомления от мастеров
+  if (notifications && notifications.size > 0 && unitTopologyByWorkshop) {
+    const units = unitTopologyByWorkshop[workshopId] ?? [];
+    const unitIds = new Set(units.map((u) => String(u.id)));
+    for (const [unitId] of notifications.entries()) {
+      if (unitIds.has(unitId)) return 'warning';
+    }
+  }
+
   return 'none';
 }
 
@@ -63,6 +79,7 @@ export const UNIT_STATUS_CLASS: Record<UnitStatusLevel, string> = {
 /** CSS-класс карточки цеха по уровню статуса. */
 export const WORKSHOP_STATUS_CLASS: Record<WorkshopStatusLevel, string> = {
   critical: 'status-critical',
+  warning: 'status-warning',
   none: 'status-normal',
 };
 
@@ -161,6 +178,42 @@ export function getWorkshopErrorGroups(
       unitName: alert.unitName,
       entries: alert.errors.map((e: AlertError) => ({ device: e.device, message: e.message })),
     });
+  }
+  return groups;
+}
+
+// ── Помощники для отображения уведомлений в карточках цеха ────────────────────
+
+/**
+ * Группа уведомлений одного аппарата для отображения в карточке цеха.
+ */
+export interface NotificationGroup {
+  unitId: string;
+  unitName: string;
+  eventType: string | null;
+}
+
+/**
+ * Возвращает уведомления от мастеров для конкретного цеха.
+ */
+export function getWorkshopNotificationGroups(
+  workshopId: string,
+  notifications: Map<string, NotificationData>,
+  unitTopologyByWorkshop: Record<string, { id: string; unit: string }[]>
+): NotificationGroup[] {
+  const groups: NotificationGroup[] = [];
+  const units = unitTopologyByWorkshop[workshopId] ?? [];
+  const unitMap = new Map(units.map((u) => [String(u.id), u.unit]));
+
+  for (const [unitId, notification] of notifications.entries()) {
+    const unitName = unitMap.get(unitId);
+    if (unitName !== undefined) {
+      groups.push({
+        unitId,
+        unitName: notification.unitName || unitName,
+        eventType: notification.eventType,
+      });
+    }
   }
   return groups;
 }

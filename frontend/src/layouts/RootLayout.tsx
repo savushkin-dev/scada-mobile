@@ -8,7 +8,7 @@ import { PageHeader } from '../components/PageHeader';
 import { useLiveWs } from '../hooks/useLiveWs';
 import { useHardwareBackGuard } from '../hooks/useHardwareBackGuard';
 import { pushNotificationEvent, syncNotificationSnapshot } from '../lib/notificationSwBridge';
-import type { AlertWsMessage, UnitsStatusMessage } from '../types';
+import type { AlertWsMessage, NotificationWsMessage, UnitsStatusMessage } from '../types';
 
 type AlertRouteScope =
   | { kind: 'dashboard' }
@@ -88,7 +88,7 @@ function RootLayoutInner() {
   );
 
   const handleNotificationSnapshot = useCallback(
-    (notifications) => {
+    (notifications: NotificationWsMessage[]) => {
       setNotificationSnapshot(notifications);
       void syncNotificationSnapshot(notifications);
     },
@@ -118,7 +118,7 @@ function RootLayoutInner() {
   );
 
   const handleLiveNotification = useCallback(
-    (msg) => {
+    (msg: NotificationWsMessage) => {
       handleNotification(msg);
       void pushNotificationEvent(msg);
     },

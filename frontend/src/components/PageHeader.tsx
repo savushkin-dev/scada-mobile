@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { BACK_BUTTON_STYLE, UI_COPY } from '../config';
 import { useAuth } from '../context/AuthContext';
+import { useAppContext } from '../context/AppContext';
 import { HeaderErrorIndicator } from './HeaderErrorIndicator';
 
 /**
@@ -32,18 +33,27 @@ export function PageHeader({ title, subtitle, onBack }: PageHeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
+  const { state } = useAppContext();
   const headerClassName =
     'z-10 h-[88px] backdrop-blur-md bg-[#f8f9fa]/30 border-b border-white/15 flex items-center gap-3 flex-shrink-0 px-6 py-4 sm:px-8 lg:px-10';
 
   const titleClassName = 'text-xl font-bold text-[#1A1C1E] leading-tight truncate';
 
   const isProfileRoute = location.pathname.startsWith('/profile');
+  const isNotificationsRoute = location.pathname.startsWith('/notifications');
+
+  const activeNotificationCount = state.notifications.size;
 
   const handleProfileClick = useCallback(() => {
     if (isProfileRoute) return;
     const target = isAuthenticated ? '/profile' : '/login';
     navigate(target, { state: { from: location } });
   }, [navigate, location, isAuthenticated, isProfileRoute]);
+
+  const handleNotificationClick = useCallback(() => {
+    if (isNotificationsRoute) return;
+    navigate('/notifications', { state: { from: location } });
+  }, [navigate, location, isNotificationsRoute]);
 
   return (
     <header className={headerClassName}>
@@ -70,6 +80,36 @@ export function PageHeader({ title, subtitle, onBack }: PageHeaderProps) {
       </div>
       <div className="ml-auto flex items-center gap-3">
         <HeaderErrorIndicator />
+        <button
+          type="button"
+          onClick={handleNotificationClick}
+          aria-label={UI_COPY.notificationButtonAriaLabel}
+          aria-pressed={isNotificationsRoute}
+          className={
+            'relative flex h-10 w-10 items-center justify-center rounded-full backdrop-blur-sm transition-all duration-200 ease-in-out active:scale-[0.98] ' +
+            (isNotificationsRoute
+              ? 'border border-[#2b2f36] bg-[#2b2f36] text-white shadow-[0_0_10px_rgba(17,24,39,0.18)]'
+              : 'border-0 bg-transparent text-[#1A1C1E] shadow-none')
+          }
+        >
+          <img
+            src="/assets/bell.svg"
+            alt=""
+            aria-hidden="true"
+            className={
+              'h-5 w-5 transition-all duration-200 ease-in-out ' +
+              (isNotificationsRoute ? 'invert' : 'invert-0')
+            }
+          />
+          {activeNotificationCount > 0 && (
+            <span
+              className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#F59E0B] px-1 text-[9px] font-bold text-white shadow-sm"
+              aria-hidden="true"
+            >
+              {activeNotificationCount > 99 ? '99+' : activeNotificationCount}
+            </span>
+          )}
+        </button>
         <button
           type="button"
           onClick={handleProfileClick}

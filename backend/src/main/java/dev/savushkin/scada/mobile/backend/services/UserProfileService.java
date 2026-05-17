@@ -4,6 +4,7 @@ import dev.savushkin.scada.mobile.backend.application.ports.UserProfileRepositor
 import dev.savushkin.scada.mobile.backend.domain.model.AssignedUnit;
 import dev.savushkin.scada.mobile.backend.domain.model.UserProfile;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -50,6 +51,28 @@ public class UserProfileService {
 
         String etag = computeProfileEtag(profile);
         return new ProfileSnapshot(profile, etag);
+    }
+
+    /**
+     * Возвращает полное имя (ФИО) пользователя по его ID.
+     * Используется для резолвинга creatorId → creatorName в WebSocket-сообщениях.
+     *
+     * @param userId строковый идентификатор пользователя
+     * @return полное имя или {@code null}, если пользователь не найден
+     */
+    @Transactional(readOnly = true)
+    public @Nullable String resolveFullName(@Nullable String userId) {
+        if (userId == null || userId.isBlank()) {
+            return null;
+        }
+        try {
+            long id = Long.parseLong(userId.trim());
+            return profileRepository.findById(id)
+                    .map(UserProfile::fullName)
+                    .orElse(null);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private String computeProfileEtag(UserProfile profile) {

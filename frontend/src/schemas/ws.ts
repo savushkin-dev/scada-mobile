@@ -72,6 +72,8 @@ export const NotificationWsMessageSchema = z.object({
   unitId: z.string(),
   unitName: z.string(),
   creatorId: z.string().nullable(),
+  creatorName: z.string().nullable().optional(),
+  eventType: z.string().nullable().optional(),
   active: z.boolean(),
   timestamp: z.string().nullable(),
 });

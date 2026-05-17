@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { PAGE_FADE_SECTION_STYLE } from '../config';
 import {
   fetchNotificationSettings,
@@ -50,10 +50,35 @@ function mergePending(prev: string[], unitId: string, pending: boolean): string[
   return prev.filter((id) => id !== unitId);
 }
 
+/** Служебные страницы, которые пропускаются при навигации назад. */
+const TRANSIENT_ROUTES = ['/profile', '/notifications', '/login'];
+
+function isTransientRoute(pathname: string): boolean {
+  return TRANSIENT_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+}
+
+/**
+ * Возвращает ближайшую неслужебную страницу из истории.
+ * Если такой нет — возвращает fallback.
+ */
+function findNonTransientBackTarget(locationState: unknown, fallback: string): string {
+  const state = locationState as { from?: { pathname?: string } } | null;
+  const fromPath = state?.from?.pathname;
+  if (fromPath && !isTransientRoute(fromPath)) {
+    return fromPath;
+  }
+  return fallback;
+}
+
 export function ProfilePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { logout } = useAuth();
-  const handleBack = useCallback(() => navigate(-1), [navigate]);
+
+  const handleBack = useCallback(() => {
+    const target = findNonTransientBackTarget(location.state, '/');
+    navigate(target, { replace: true });
+  }, [navigate, location.state]);
 
   usePageHeader(PROFILE_COPY.title, undefined, 'default', handleBack);
 

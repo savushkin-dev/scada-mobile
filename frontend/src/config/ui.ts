@@ -57,6 +57,7 @@ export const UI_COPY = Object.freeze({
    */
   headerErrorLabel: 'Ошибка',
   profileButtonAriaLabel: 'Профиль',
+  notificationButtonAriaLabel: 'Уведомления',
   // Вкладка «Устройства» — заголовки групп устройств и статусы
   devicesGroupPrinters: '🖨️ Принтеры',
   devicesGroupAggrCams: '📷 Камеры агрегации',
@@ -100,6 +101,11 @@ export const UI_PALETTE = Object.freeze({
   neutralText: '#5F6368',
   fabIdle: '#F97316',
   white: '#FFFFFF',
+  warning: '#F59E0B',
+  warningBg: '#FFFBEB',
+  warningBorder: '#FCD34D',
+  warningText: '#92400E',
+  warningTextDark: '#78350F',
 });
 
 export const DETAIL_TABS = Object.freeze({

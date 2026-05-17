@@ -2,13 +2,34 @@ import { useEffect, useRef } from 'react';
 import { matchPath, useLocation, useNavigate } from 'react-router-dom';
 
 /**
+ * Служебные страницы, которые не должны накапливаться в истории.
+ * При нажатии «назад» с них происходит пропуск до ближайшей неслужебной страницы.
+ */
+const TRANSIENT_ROUTES = new Set(['/profile', '/notifications', '/login']);
+
+function isTransientRoute(pathname: string): boolean {
+  for (const route of TRANSIENT_ROUTES) {
+    if (pathname === route || pathname.startsWith(`${route}/`)) return true;
+  }
+  return false;
+}
+
+/**
  * Возвращает канонический иерархический родительский путь для заданного pathname,
  * или null если уже находимся в корне.
  *
  * Иерархия приложения:
  *   /  →  /workshops/:id  →  /workshops/:id/units/:uid/*
+ *
+ * Служебные страницы (/profile, /notifications, /login) пропускаются —
+ * возвращается родитель предыдущей неслужебной страницы.
  */
 function getHierarchicalParent(pathname: string): string | null {
+  // Служебные страницы — пропускаем, возвращаем маркер для дальнейшей обработки
+  if (isTransientRoute(pathname)) {
+    return '_SKIP_TRANSIENT_';
+  }
+
   // Уровень деталей аппарата (включая любую вкладку) → уровень цеха
   const detailMatch = matchPath('/workshops/:workshopId/units/:unitId/*', pathname);
   if (detailMatch?.params.workshopId) {
@@ -53,7 +74,8 @@ export function useHardwareBackGuard(): void {
     const handlePopState = (): void => {
       // window.location уже изменился на URL после pop-навигации.
       // currentPathnameRef сохранил страницу, с которой нажали «назад».
-      const parent = getHierarchicalParent(currentPathnameRef.current);
+      const fromPath = currentPathnameRef.current;
+      const parent = getHierarchicalParent(fromPath);
 
       if (parent === null) {
         // Корень — позволяем платформе выполнить дефолтное действие (выход из TWA).
@@ -61,6 +83,17 @@ export function useHardwareBackGuard(): void {
       }
 
       const poppedTo = window.location.pathname;
+
+      // Если ушли со служебной страницы — пропускаем все служебные в истории
+      if (parent === '_SKIP_TRANSIENT_') {
+        if (isTransientRoute(poppedTo)) {
+          // Продолжаем идти назад через replace (не накапливаем forward-историю)
+          navigate(-1);
+        } else {
+          // Оказались на неслужебной странице — это правильный результат
+        }
+        return;
+      }
 
       // Браузер сам оказался на правильном иерархическом родителе
       // (нормальный flow с чистой историей) — не вмешиваемся.

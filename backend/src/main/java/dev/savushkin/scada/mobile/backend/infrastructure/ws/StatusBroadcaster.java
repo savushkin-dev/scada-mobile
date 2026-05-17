@@ -14,6 +14,7 @@ import dev.savushkin.scada.mobile.backend.infrastructure.store.UnitErrorStore;
 import dev.savushkin.scada.mobile.backend.services.AlertService;
 import dev.savushkin.scada.mobile.backend.services.NotificationStateChangedEvent;
 import dev.savushkin.scada.mobile.backend.services.UnitDetailService;
+import dev.savushkin.scada.mobile.backend.services.UserProfileService;
 import dev.savushkin.scada.mobile.backend.services.WorkshopService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +56,7 @@ public class StatusBroadcaster {
     private final LiveWsHandler liveWsHandler;
     private final UnitWsHandler unitWsHandler;
     private final PrintSrvProperties printSrvProperties;
+    private final UserProfileService userProfileService;
 
     public StatusBroadcaster(
             WorkshopService workshopService,
@@ -65,7 +67,8 @@ public class StatusBroadcaster {
             UnitDetailService unitDetailService,
             LiveWsHandler liveWsHandler,
             UnitWsHandler unitWsHandler,
-            PrintSrvProperties printSrvProperties
+            PrintSrvProperties printSrvProperties,
+            UserProfileService userProfileService
     ) {
         this.workshopService = workshopService;
         this.alertService = alertService;
@@ -76,6 +79,7 @@ public class StatusBroadcaster {
         this.liveWsHandler = liveWsHandler;
         this.unitWsHandler = unitWsHandler;
         this.printSrvProperties = printSrvProperties;
+        this.userProfileService = userProfileService;
     }
 
     @EventListener
@@ -189,13 +193,15 @@ public class StatusBroadcaster {
                 .atOffset(ZoneOffset.UTC)
                 .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
 
+        String creatorName = userProfileService.resolveFullName(event.notification().creatorId());
+
         NotificationMessageDTO dto;
         if (event.type() == NotificationStateChangedEvent.EventType.ACTIVATED) {
             dto = NotificationMessageDTO.activated(
-                    event.unitId(), unitName, event.notification().creatorId(), timestamp);
+                    event.unitId(), unitName, event.notification().creatorId(), creatorName, timestamp);
         } else {
             dto = NotificationMessageDTO.deactivated(
-                    event.unitId(), unitName, event.notification().creatorId(), timestamp);
+                    event.unitId(), unitName, event.notification().creatorId(), creatorName, timestamp);
         }
 
         ActiveNotificationStore.Delta delta = notificationStore.updateAndDiff(event.unitId(), dto);
@@ -206,12 +212,14 @@ public class StatusBroadcaster {
 
         for (NotificationMessageDTO added : delta.added()) {
             sendNotification(added);
-            log.info("Notification ACTIVE: unit='{}', creator='{}'", added.unitId(), added.creatorId());
+            log.info("Notification ACTIVE: unit='{}', creator='{}' ({})",
+                    added.unitId(), added.creatorId(), added.creatorName());
         }
 
         for (NotificationMessageDTO removed : delta.removed()) {
             sendNotification(removed);
-            log.info("Notification DEACTIVATED: unit='{}', creator='{}'", removed.unitId(), removed.creatorId());
+            log.info("Notification DEACTIVATED: unit='{}', creator='{}' ({})",
+                    removed.unitId(), removed.creatorId(), removed.creatorName());
         }
     }
 

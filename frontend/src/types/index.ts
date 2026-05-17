@@ -70,8 +70,12 @@ export interface NotificationData {
   unitName: string;
   /** Идентификатор работника, создавшего уведомление. */
   creatorId: string | null;
+  /** Полное имя (ФИО) работника, создавшего уведомление. */
+  creatorName: string | null;
   /** Время создания уведомления. */
   timestamp: string | null;
+  /** Тип события уведомления (например, "Последняя партия"). */
+  eventType: string | null;
 }
 
 // ── Merged view types (topology + status, используются компонентами) ──
@@ -82,6 +86,7 @@ export interface Workshop {
   name: string;
   totalUnits: number;
   problemUnits: number;
+  notificationUnits: number;
 }
 
 /** Полные данные аппарата для UI — topology + статус объединённые */

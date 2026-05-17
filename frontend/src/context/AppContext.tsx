@@ -132,11 +132,17 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, alerts: next };
     }
     case 'HANDLE_NOTIFICATION': {
-      const { unitId, unitName, creatorId, active, timestamp } = action.msg;
+      const { unitId, unitName, creatorId, creatorName, active, timestamp } = action.msg;
       const uid = String(unitId);
       const next = new Map(state.notifications);
       if (active) {
-        next.set(uid, { unitName, creatorId, timestamp });
+        next.set(uid, {
+          unitName,
+          creatorId,
+          creatorName: creatorName ?? null,
+          eventType: action.msg.eventType ?? null,
+          timestamp,
+        });
       } else {
         next.delete(uid);
       }
@@ -149,6 +155,8 @@ function reducer(state: AppState, action: Action): AppState {
           next.set(String(msg.unitId), {
             unitName: msg.unitName,
             creatorId: msg.creatorId,
+            creatorName: msg.creatorName ?? null,
+            eventType: msg.eventType ?? null,
             timestamp: msg.timestamp,
           });
         }
@@ -254,6 +262,8 @@ interface AppContextValue {
   workshops: Workshop[];
   unitsByWorkshop: Record<string, Unit[]>;
   headerError: HeaderErrorEntry | null;
+  /** Топология аппаратов по цехам (для вычисления warning-статуса цехов). */
+  unitTopologyByWorkshop: Record<string, UnitTopology[]>;
   // Alerts
   handleAlert: (msg: AlertWsMessage) => void;
   setSignalState: (slot: SignalSlot, signalState: SignalState) => void;
@@ -343,13 +353,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // не шлёт отдельный WORKSHOPS_STATUS, клиент считает сам.
   const workshops = useMemo<Workshop[]>(
     () =>
-      state.workshopTopology.map((t) => ({
-        id: t.id,
-        name: t.name,
-        totalUnits: t.totalUnits,
-        problemUnits: [...state.alerts.values()].filter((a) => a.workshopId === t.id).length,
-      })),
-    [state.workshopTopology, state.alerts]
+      state.workshopTopology.map((t) => {
+        const units = state.unitTopologyByWorkshop[t.id] ?? [];
+        const unitIds = new Set(units.map((u) => String(u.id)));
+        const notificationCount = [...state.notifications.entries()].filter(([unitId]) =>
+          unitIds.has(unitId)
+        ).length;
+        return {
+          id: t.id,
+          name: t.name,
+          totalUnits: t.totalUnits,
+          problemUnits: [...state.alerts.values()].filter((a) => a.workshopId === t.id).length,
+          notificationUnits: notificationCount,
+        };
+      }),
+    [state.workshopTopology, state.alerts, state.notifications, state.unitTopologyByWorkshop]
   );
 
   const unitsByWorkshop = useMemo<Record<string, Unit[]>>(() => {
@@ -381,6 +399,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         workshops,
         unitsByWorkshop,
         headerError,
+        unitTopologyByWorkshop: state.unitTopologyByWorkshop,
         handleAlert,
         setSignalState,
         setHeaderError,

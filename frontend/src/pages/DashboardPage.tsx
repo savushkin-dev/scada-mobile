@@ -28,7 +28,8 @@ const WorkshopCard = lazy(async () => {
  */
 
 export function DashboardPage() {
-  const { state, workshops, setWorkshopTopology, setTopologyETag } = useAppContext();
+  const { state, workshops, setWorkshopTopology, setTopologyETag, unitTopologyByWorkshop } =
+    useAppContext();
   const navigate = useNavigate();
   const liveSignal = state.signalStates.live;
 
@@ -96,6 +97,8 @@ export function DashboardPage() {
                 key={ws.id}
                 workshop={ws}
                 alerts={state.alerts}
+                notifications={state.notifications}
+                unitTopologyByWorkshop={unitTopologyByWorkshop}
                 onClick={() =>
                   navigate(`/workshops/${ws.id}`, { state: { workshopName: ws.name } })
                 }

@@ -48,6 +48,11 @@ const ProfilePage = lazy(async () => {
   return { default: module.ProfilePage };
 });
 
+const NotificationsPage = lazy(async () => {
+  const module = await import('./pages/NotificationsPage');
+  return { default: module.NotificationsPage };
+});
+
 const BatchTab = lazy(async () => {
   const module = await import('./components/details/BatchTab');
   return { default: module.BatchTab };
@@ -101,6 +106,10 @@ export const router = createBrowserRouter([
           {
             path: 'profile',
             element: withSuspense(<ProfilePage />),
+          },
+          {
+            path: 'notifications',
+            element: withSuspense(<NotificationsPage />),
           },
           {
             path: 'workshops/:workshopId/units/:unitId',

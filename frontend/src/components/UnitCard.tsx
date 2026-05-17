@@ -3,6 +3,7 @@ import {
   getUnitStatusLevel,
   UNIT_STATUS_CLASS,
 } from '../constants/statusUtils';
+import { UI_PALETTE } from '../config';
 import { UnitErrorBoard } from './UnitErrorBoard';
 import { useAccessControl } from '../context/AccessControlContext';
 import type { AlertData, NotificationData, Unit } from '../types';
@@ -15,7 +16,7 @@ import type { AlertData, NotificationData, Unit } from '../types';
  * не повторяет доменные правила.
  *
  * Слой уведомлений: если для аппарата есть активное notification —
- * на карточке показывается индикатор (оранжевый / жёлтый).
+ * на карточке показывается индикатор-колокольчик (жёлтый).
  */
 
 interface Props {
@@ -51,35 +52,35 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
       {...interactiveProps}
     >
       <div className="mb-1 flex items-center justify-between gap-2">
+        <h3 className="font-bold text-lg">{unit.unit}</h3>
         <div className="flex items-center gap-2">
-          <h3 className="font-bold text-lg">{unit.unit}</h3>
+          {isAssigned ? (
+            <span className="text-lg font-bold text-[#1A1C1E]">Ваш автомат</span>
+          ) : null}
           {notification && (
             <span
-              className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
+              className="inline-flex items-center rounded-full px-2 py-1.5"
               style={{
-                backgroundColor: '#FFF3CD',
-                color: '#856404',
-                border: '1px solid #FFECB5',
+                backgroundColor: UI_PALETTE.warningBg,
               }}
-              title={
-                notification.creatorId
-                  ? `Уведомление от ${notification.creatorId}`
-                  : 'Активное уведомление'
-              }
+              title="Активное уведомление"
             >
-              🔔 {notification.creatorId && <span>{notification.creatorId}</span>}
+              <img
+                src="/assets/bell.svg"
+                alt=""
+                aria-hidden="true"
+                className="h-5 w-5"
+                style={{
+                  filter:
+                    'brightness(0) saturate(100%) invert(58%) sepia(97%) saturate(1319%) hue-rotate(5deg) brightness(101%) contrast(96%)',
+                }}
+              />
             </span>
           )}
         </div>
-        {isAssigned ? <span className="text-lg font-bold text-[#1A1C1E]">Ваш автомат</span> : null}
       </div>
       {isCritical && errorGroups.length > 0 ? (
         <UnitErrorBoard groups={errorGroups} />
-      ) : notification ? (
-        <p className="text-sm mb-3 text-amber-600 italic">
-          ⚠ Производственное уведомление
-          {notification.creatorId ? ` от ${notification.creatorId}` : ''}
-        </p>
       ) : (
         <p
           className={`text-sm mb-3 italic ${isPending || isOffline ? 'text-gray-400' : 'text-gray-500'}`}

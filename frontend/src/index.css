@@ -136,6 +136,11 @@
     background-color: var(--clr-crit-bg);
   }
 
+  .status-warning {
+    border-color: #f59e0b;
+    background-color: #fffbeb;
+  }
+
   .status-indicator {
     width: 14px;
     height: 14px;
@@ -147,6 +152,11 @@
   .status-indicator.error {
     background-color: var(--clr-crit-border);
     box-shadow: 0 0 0 3px var(--clr-crit-glow);
+  }
+
+  .status-indicator.warning {
+    background-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
   }
 
   .card-title {
