@@ -50,7 +50,7 @@ export function LoginPage() {
           workerCode: workerCode.trim(),
           password: password.trim(),
         });
-        login(result.userId, result.accessToken, result.refreshToken);
+        login(result.userId, result.role, result.accessToken, result.refreshToken);
         navigate(fromPath, { replace: true });
       } catch {
         setFormError(AUTH_COPY.notFound);
