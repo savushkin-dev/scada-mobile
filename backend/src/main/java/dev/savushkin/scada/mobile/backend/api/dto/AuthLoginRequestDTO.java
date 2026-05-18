@@ -5,6 +5,6 @@ import jakarta.validation.constraints.Size;
 
 public record AuthLoginRequestDTO(
         @NotBlank @Size(max = 10) String workerCode,
-        @NotBlank @Size(max = 10) String password
+        @NotBlank String password
 ) {
 }

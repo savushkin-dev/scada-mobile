@@ -5,7 +5,7 @@ FRONTEND_DIR := frontend
 JAVA_OPTS := -Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8
 DEV_BACKEND_PORT ?= 8080
 DEV_FRONTEND_PORT ?= 5500
-SEED_DB_CONTAINER ?= postgres
+SEED_DB_CONTAINER ?= scada-mobile-postgres
 SEED_DB_NAME ?= scada_mobile
 SEED_DB_USER ?= scada_user
 SEED_DB_PASSWORD ?= scada_password
@@ -34,7 +34,7 @@ help:
 	@echo "Backend:"
 	@echo "  make back-run       - run backend in background [dev profile, port $(DEV_BACKEND_PORT), Swagger enabled]"
 	@echo "  make back-stop      - stop backend started by back-run"
-	@echo "  make back-run-prod  - run backend [prod profile, port from BACKEND_PORT, Swagger disabled]"
+	@echo "  make back-run-prod  - run backend [prod profile, port from SCADA_MOBILE_BACKEND_PORT, Swagger disabled]"
 	@echo ""
 	@echo "Docker:"
 	@echo "  make docker-prod-up   - start docker stack (prod mode) (env: PROD_ENV_FILE=.env.prod.local)"
@@ -57,7 +57,7 @@ help:
 	@echo "Backend:"
 	@echo "  make back-run       - run backend in background [dev profile, port $(DEV_BACKEND_PORT), Swagger enabled]"
 	@echo "  make back-stop      - stop backend started by back-run"
-	@echo "  make back-run-prod  - run backend [prod profile, port from BACKEND_PORT, Swagger disabled]"
+	@echo "  make back-run-prod  - run backend [prod profile, port from SCADA_MOBILE_BACKEND_PORT, Swagger disabled]"
 	@echo ""
 	@echo "Docker:"
 	@echo "  make docker-prod-up   - start docker stack (prod mode) (env: PROD_ENV_FILE=.env.prod.local)"
@@ -77,19 +77,19 @@ endif
 
 ifeq ($(OS),Windows_NT)
 back-run:
-	powershell -NoProfile -Command "$$env:JAVA_TOOL_OPTIONS='$(JAVA_OPTS)'; $$env:SPRING_PROFILES_ACTIVE='dev'; $$env:SERVER_PORT='$(DEV_BACKEND_PORT)'; $$env:JWT_ACCESS_SECRET='$(JWT_ACCESS_SECRET)'; $$env:JWT_REFRESH_SECRET='$(JWT_REFRESH_SECRET)'; $$p = Start-Process -FilePath '.\\gradlew.bat' -ArgumentList 'bootRun' -WorkingDirectory '$(BACKEND_DIR)' -PassThru; $$p.Id | Set-Content '$(BACKEND_DIR)\\.backend.pid'"
+	powershell -NoProfile -Command "$$env:JAVA_TOOL_OPTIONS='$(JAVA_OPTS)'; $$env:SPRING_PROFILES_ACTIVE='dev'; $$env:SERVER_PORT='$(DEV_BACKEND_PORT)'; $$env:SCADA_MOBILE_JWT_ACCESS_SECRET='$(SCADA_MOBILE_JWT_ACCESS_SECRET)'; $$env:SCADA_MOBILE_JWT_REFRESH_SECRET='$(SCADA_MOBILE_JWT_REFRESH_SECRET)'; $$p = Start-Process -FilePath '.\\gradlew.bat' -ArgumentList 'bootRun' -WorkingDirectory '$(BACKEND_DIR)' -PassThru; $$p.Id | Set-Content '$(BACKEND_DIR)\\.backend.pid'"
 
 back-stop:
 	powershell -NoProfile -Command "if (Test-Path '$(BACKEND_DIR)\\.backend.pid') { $$backendPid = Get-Content '$(BACKEND_DIR)\\.backend.pid'; Stop-Process -Id $$backendPid -Force; Remove-Item '$(BACKEND_DIR)\\.backend.pid' } else { Write-Host 'No backend PID file found.' }"
 
 back-run-prod:
-	cmd /V:ON /C "chcp 65001 >NUL & setlocal EnableDelayedExpansion & set "ENV_FILE=$(PROD_ENV_ACTIVE_FILE)" & (for /f "usebackq eol=# tokens=1,* delims==" %%A in ("!ENV_FILE!") do (if not "%%A"=="" set "%%A=%%B")) & if "!BACKEND_PORT!"=="" (echo Missing BACKEND_PORT in !ENV_FILE!. & exit /b 1) & if "!JWT_ACCESS_SECRET!"=="" (echo Missing JWT_ACCESS_SECRET in !ENV_FILE!. & exit /b 1) & if "!JWT_REFRESH_SECRET!"=="" (echo Missing JWT_REFRESH_SECRET in !ENV_FILE!. & exit /b 1) & cd $(BACKEND_DIR) & set "JAVA_TOOL_OPTIONS=$(JAVA_OPTS)" & set "SPRING_PROFILES_ACTIVE=prod" & set "SERVER_PORT=!BACKEND_PORT!" & set "JWT_ACCESS_SECRET=!JWT_ACCESS_SECRET!" & set "JWT_REFRESH_SECRET=!JWT_REFRESH_SECRET!" & $(GRADLEW) bootRun"
+	cmd /V:ON /C "chcp 65001 >NUL & setlocal EnableDelayedExpansion & set "ENV_FILE=$(PROD_ENV_ACTIVE_FILE)" & (for /f "usebackq eol=# tokens=1,* delims==" %%A in ("!ENV_FILE!") do (if not "%%A"=="" set "%%A=%%B")) & if "!SCADA_MOBILE_BACKEND_PORT!"=="" (echo Missing SCADA_MOBILE_BACKEND_PORT in !ENV_FILE!. & exit /b 1) & if "!SCADA_MOBILE_JWT_ACCESS_SECRET!"=="" (echo Missing SCADA_MOBILE_JWT_ACCESS_SECRET in !ENV_FILE!. & exit /b 1) & if "!SCADA_MOBILE_JWT_REFRESH_SECRET!"=="" (echo Missing SCADA_MOBILE_JWT_REFRESH_SECRET in !ENV_FILE!. & exit /b 1) & cd $(BACKEND_DIR) & set "JAVA_TOOL_OPTIONS=$(JAVA_OPTS)" & set "SPRING_PROFILES_ACTIVE=prod" & set "SERVER_PORT=!SCADA_MOBILE_BACKEND_PORT!" & set "SCADA_MOBILE_JWT_ACCESS_SECRET=!SCADA_MOBILE_JWT_ACCESS_SECRET!" & set "SCADA_MOBILE_JWT_REFRESH_SECRET=!SCADA_MOBILE_JWT_REFRESH_SECRET!" & $(GRADLEW) bootRun"
 
 db-seed:
 	cmd /V:ON /C "set \"SEED_DB_PASSWORD=$(SEED_DB_PASSWORD)\" & if not exist $(SEED_SQL) (echo Missing $(SEED_SQL). & exit /b 1) else if \"!SEED_DB_PASSWORD!\"==\"\" (echo Missing SEED_DB_PASSWORD. & exit /b 1) else (docker exec -i -e PGPASSWORD=!SEED_DB_PASSWORD! $(SEED_DB_CONTAINER) psql -U $(SEED_DB_USER) -d $(SEED_DB_NAME) -v ON_ERROR_STOP=1 -f - < $(SEED_SQL))"
 else
 back-run:
-	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=dev SERVER_PORT='$(DEV_BACKEND_PORT)' JWT_ACCESS_SECRET='$(JWT_ACCESS_SECRET)' JWT_REFRESH_SECRET='$(JWT_REFRESH_SECRET)' nohup $(GRADLEW) bootRun > .backend.log 2>&1 & echo $$! > .backend.pid
+	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=dev SERVER_PORT='$(DEV_BACKEND_PORT)' SCADA_MOBILE_JWT_ACCESS_SECRET='$(SCADA_MOBILE_JWT_ACCESS_SECRET)' SCADA_MOBILE_JWT_REFRESH_SECRET='$(SCADA_MOBILE_JWT_REFRESH_SECRET)' nohup $(GRADLEW) bootRun > .backend.log 2>&1 & echo $$! > .backend.pid
 
 back-stop:
 	@if [ -f "$(BACKEND_DIR)/.backend.pid" ]; then \
@@ -102,19 +102,19 @@ back-run-prod:
 	@set -a; \
 	. "$(PROD_ENV_ACTIVE_FILE)"; \
 	set +a; \
-	if [ -z "$$BACKEND_PORT" ]; then \
-		echo "Missing BACKEND_PORT in $(PROD_ENV_ACTIVE_FILE)."; \
+	if [ -z "$$SCADA_MOBILE_BACKEND_PORT" ]; then \
+		echo "Missing SCADA_MOBILE_BACKEND_PORT in $(PROD_ENV_ACTIVE_FILE)."; \
 		exit 1; \
 	fi; \
-	if [ -z "$$JWT_ACCESS_SECRET" ]; then \
-		echo "Missing JWT_ACCESS_SECRET in $(PROD_ENV_ACTIVE_FILE)."; \
+	if [ -z "$$SCADA_MOBILE_JWT_ACCESS_SECRET" ]; then \
+		echo "Missing SCADA_MOBILE_JWT_ACCESS_SECRET in $(PROD_ENV_ACTIVE_FILE)."; \
 		exit 1; \
 	fi; \
-	if [ -z "$$JWT_REFRESH_SECRET" ]; then \
-		echo "Missing JWT_REFRESH_SECRET in $(PROD_ENV_ACTIVE_FILE)."; \
+	if [ -z "$$SCADA_MOBILE_JWT_REFRESH_SECRET" ]; then \
+		echo "Missing SCADA_MOBILE_JWT_REFRESH_SECRET in $(PROD_ENV_ACTIVE_FILE)."; \
 		exit 1; \
 	fi; \
-	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=prod SERVER_PORT="$$BACKEND_PORT" JWT_ACCESS_SECRET="$$JWT_ACCESS_SECRET" JWT_REFRESH_SECRET="$$JWT_REFRESH_SECRET" $(GRADLEW) bootRun
+	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=prod SERVER_PORT="$$SCADA_MOBILE_BACKEND_PORT" SCADA_MOBILE_JWT_ACCESS_SECRET="$$SCADA_MOBILE_JWT_ACCESS_SECRET" SCADA_MOBILE_JWT_REFRESH_SECRET="$$SCADA_MOBILE_JWT_REFRESH_SECRET" $(GRADLEW) bootRun
 
 db-seed:
 	@if [ ! -f "$(SEED_SQL)" ]; then \

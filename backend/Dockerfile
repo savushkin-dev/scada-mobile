@@ -30,7 +30,7 @@ ENV JAVA_TOOL_OPTIONS=""
 
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=5 \
-  CMD wget -q -O- http://127.0.0.1:8080/api/v1.0.0/health/live | grep -q '"status":"UP"' || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
+  CMD wget -q -O- http://127.0.0.1:8080/actuator/health | grep -q '"status":"UP"' || exit 1
 
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

@@ -15,7 +15,7 @@ scada:
 # host/port — плейсхолдеры для открытого репозитория. Реальные значения
 # задаются вне git. В prod они переопределяются через переменные окружения,
 # привязанные к id аппарата (см. application-prod.yaml), например:
-#   PRINTSRV_HASSIA4_HOST, PRINTSRV_HASSIA4_PORT
+#   SCADA_MOBILE_PRINTSRV_HASSIA4_HOST, SCADA_MOBILE_PRINTSRV_HASSIA4_PORT
 # devices — topology конкретного инстанса PrintSrv. Если блок не задан,
 # используются безопасные дефолты для одно-принтерной линии:
 #   line=Line, scada=scada, batchQueue=BatchQueue,
@@ -182,12 +182,13 @@ cors:
 # JWT — конфигурация токенов аутентификации.
 #
 # access-secret / refresh-secret: минимум 256 бит в Base64.
-# В prod задаются через переменные окружения JWT_ACCESS_SECRET / JWT_REFRESH_SECRET.
+# В prod задаются через переменные окружения SCADA_MOBILE_JWT_ACCESS_SECRET /
+# SCADA_MOBILE_JWT_REFRESH_SECRET.
 # Генерация: openssl rand -base64 32
 # ─────────────────────────────────────────────────────────────────────────────
 jwt:
-  access-secret: "${JWT_ACCESS_SECRET:}"
-  refresh-secret: "${JWT_REFRESH_SECRET:}"
+  access-secret: "${SCADA_MOBILE_JWT_ACCESS_SECRET:}"
+  refresh-secret: "${SCADA_MOBILE_JWT_REFRESH_SECRET:}"
   access-expiration-minutes: 15
   refresh-expiration-days: 7
 

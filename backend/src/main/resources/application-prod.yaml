@@ -16,8 +16,8 @@ logging:
 #   переменные окружения с именами по аппаратам.
 #
 #   Установить перед запуском (пример для systemd EnvironmentFile или docker-compose):
-#     PRINTSRV_TREPKO1_HOST=999.9.9.9   PRINTSRV_TREPKO1_PORT=9999
-#     PRINTSRV_TREPKO2_HOST=999.9.9.9   PRINTSRV_TREPKO2_PORT=9999
+#     SCADA_MOBILE_PRINTSRV_TREPKO1_HOST=999.9.9.9   SCADA_MOBILE_PRINTSRV_TREPKO1_PORT=9999
+#     SCADA_MOBILE_PRINTSRV_TREPKO2_HOST=999.9.9.9   SCADA_MOBILE_PRINTSRV_TREPKO2_PORT=9999
 #     ... и т.д. для всех 14 инстансов
 #
 #   Если переменная не задана — инстанс будет недоступен при старте
@@ -27,75 +27,75 @@ printsrv:
   instances:
     # Цех десертов (BR1_Marking_Dess.mpr)
     - id: "trepko1"
-      host: "${PRINTSRV_TREPKO1_HOST}"
-      port: "${PRINTSRV_TREPKO1_PORT}"
+      host: "${SCADA_MOBILE_PRINTSRV_TREPKO1_HOST}"
+      port: "${SCADA_MOBILE_PRINTSRV_TREPKO1_PORT}"
       displayName: "Trepko №1"
       workshopId: "dess"
     - id: "trepko2"
-      host: "${PRINTSRV_TREPKO2_HOST}"
-      port: "${PRINTSRV_TREPKO2_PORT}"
+      host: "${SCADA_MOBILE_PRINTSRV_TREPKO2_HOST}"
+      port: "${SCADA_MOBILE_PRINTSRV_TREPKO2_PORT}"
       displayName: "Trepko №2"
       workshopId: "dess"
     - id: "hassia1"
-      host: "${PRINTSRV_HASSIA1_HOST}"
-      port: "${PRINTSRV_HASSIA1_PORT}"
+      host: "${SCADA_MOBILE_PRINTSRV_HASSIA1_HOST}"
+      port: "${SCADA_MOBILE_PRINTSRV_HASSIA1_PORT}"
       displayName: "Hassia №1"
       workshopId: "dess"
     - id: "hassia2"
-      host: "${PRINTSRV_HASSIA2_HOST}"
-      port: "${PRINTSRV_HASSIA2_PORT}"
+      host: "${SCADA_MOBILE_PRINTSRV_HASSIA2_HOST}"
+      port: "${SCADA_MOBILE_PRINTSRV_HASSIA2_PORT}"
       displayName: "Hassia №2"
       workshopId: "dess"
     - id: "hassia4"
-      host: "${PRINTSRV_HASSIA4_HOST}"
-      port: "${PRINTSRV_HASSIA4_PORT}"
+      host: "${SCADA_MOBILE_PRINTSRV_HASSIA4_HOST}"
+      port: "${SCADA_MOBILE_PRINTSRV_HASSIA4_PORT}"
       displayName: "Hassia №4"
       workshopId: "dess"
     - id: "hassia5"
-      host: "${PRINTSRV_HASSIA5_HOST}"
-      port: "${PRINTSRV_HASSIA5_PORT}"
+      host: "${SCADA_MOBILE_PRINTSRV_HASSIA5_HOST}"
+      port: "${SCADA_MOBILE_PRINTSRV_HASSIA5_PORT}"
       displayName: "Hassia №5"
       workshopId: "dess"
     - id: "hassia6"
-      host: "${PRINTSRV_HASSIA6_HOST}"
-      port: "${PRINTSRV_HASSIA6_PORT}"
+      host: "${SCADA_MOBILE_PRINTSRV_HASSIA6_HOST}"
+      port: "${SCADA_MOBILE_PRINTSRV_HASSIA6_PORT}"
       displayName: "Hassia №6"
       workshopId: "dess"
     # Цех десертов (часть установок из BR1_Marking_Dess_Pouring.mpr)
     - id: "hassia3"
-      host: "${PRINTSRV_HASSIA3_HOST}"
-      port: "${PRINTSRV_HASSIA3_PORT}"
+      host: "${SCADA_MOBILE_PRINTSRV_HASSIA3_HOST}"
+      port: "${SCADA_MOBILE_PRINTSRV_HASSIA3_PORT}"
       displayName: "Hassia №3"
       workshopId: "dess"
     - id: "bosch"
-      host: "${PRINTSRV_BOSCH_HOST}"
-      port: "${PRINTSRV_BOSCH_PORT}"
+      host: "${SCADA_MOBILE_PRINTSRV_BOSCH_HOST}"
+      port: "${SCADA_MOBILE_PRINTSRV_BOSCH_PORT}"
       displayName: "Bosch"
       workshopId: "dess"
     - id: "grunwald5"
-      host: "${PRINTSRV_GRUNWALD5_HOST}"
-      port: "${PRINTSRV_GRUNWALD5_PORT}"
+      host: "${SCADA_MOBILE_PRINTSRV_GRUNWALD5_HOST}"
+      port: "${SCADA_MOBILE_PRINTSRV_GRUNWALD5_PORT}"
       displayName: "Grunwald №5"
       workshopId: "dess"
     - id: "grunwald8"
-      host: "${PRINTSRV_GRUNWALD8_HOST}"
-      port: "${PRINTSRV_GRUNWALD8_PORT}"
+      host: "${SCADA_MOBILE_PRINTSRV_GRUNWALD8_HOST}"
+      port: "${SCADA_MOBILE_PRINTSRV_GRUNWALD8_PORT}"
       displayName: "Grunwald №8"
       workshopId: "dess"
     # Цех розлива (установки из BR1_Marking_Dess_Pouring.mpr)
     - id: "grunwald1"
-      host: "${PRINTSRV_GRUNWALD1_HOST}"
-      port: "${PRINTSRV_GRUNWALD1_PORT}"
+      host: "${SCADA_MOBILE_PRINTSRV_GRUNWALD1_HOST}"
+      port: "${SCADA_MOBILE_PRINTSRV_GRUNWALD1_PORT}"
       displayName: "Grunwald №1"
       workshopId: "dess_pouring"
     - id: "grunwald2"
-      host: "${PRINTSRV_GRUNWALD2_HOST}"
-      port: "${PRINTSRV_GRUNWALD2_PORT}"
+      host: "${SCADA_MOBILE_PRINTSRV_GRUNWALD2_HOST}"
+      port: "${SCADA_MOBILE_PRINTSRV_GRUNWALD2_PORT}"
       displayName: "Grunwald №2"
       workshopId: "dess_pouring"
     - id: "grunwald11"
-      host: "${PRINTSRV_GRUNWALD11_HOST}"
-      port: "${PRINTSRV_GRUNWALD11_PORT}"
+      host: "${SCADA_MOBILE_PRINTSRV_GRUNWALD11_HOST}"
+      port: "${SCADA_MOBILE_PRINTSRV_GRUNWALD11_PORT}"
       displayName: "Grunwald №11"
       workshopId: "dess_pouring"
 
@@ -112,7 +112,7 @@ printsrv:
 # Остальные поля наследуются из application.yaml — не дублируем.
 #
 # Задать origins перед запуском (через запятую):
-#   CORS_POLICY_ALLOWED_ORIGINS=http://scada.plant.local,https://scada.plant.local
+#   SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS=http://scada.plant.local,https://scada.plant.local
 #
 # ВАЖНО: если переменная не задана — список пуст (fail-closed),
 # cross-origin запросы с браузера будут блокироваться CORS-фильтром.
@@ -120,7 +120,7 @@ printsrv:
 # чем «открыто всем».
 cors:
   policy:
-    allowed-origins: "${CORS_POLICY_ALLOWED_ORIGINS:}"
+    allowed-origins: "${SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS:}"
 
 # OpenAPI/Swagger UI: отключено в продакшене из соображений безопасности
 springdoc:
@@ -132,9 +132,9 @@ springdoc:
 # Настройки подключения к реальной БД
 spring:
   datasource:
-    url: ${DATABASE_URL}
-    username: ${DATABASE_USERNAME}
-    password: ${DATABASE_PASSWORD}
+    url: ${SCADA_MOBILE_DATABASE_URL}
+    username: ${SCADA_MOBILE_DATABASE_USERNAME}
+    password: ${SCADA_MOBILE_DATABASE_PASSWORD}
 
 # Actuator: только нужные endpoints, закрытые от внешней сети
 # health — для liveness/readiness probe (если нет /api/v1/commands/health/*)
