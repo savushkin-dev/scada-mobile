@@ -165,14 +165,14 @@ cors:
     # Переопределяется в каждом профиле — здесь намеренно пусто (fail-closed).
     allowed-origins: [ ]
     # GET — данные, POST — Web Push subscribe (/api/push/subscribe), OPTIONS — preflight.
-    allowed-methods: [ "GET", "POST", "PUT", "OPTIONS" ]
+    allowed-methods: [ "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" ]
     # Content-Type и Authorization — стандартные заголовки запроса.
     # If-None-Match и If-Match — заголовки условного запроса (RFC 7232);
     # необходимы для ETag-кэширования topology-эндпоинтов.
     # Без явного разрешения браузер отклоняет preflight с этими заголовками.
-    allowed-headers: [ "Content-Type", "Authorization", "If-None-Match", "If-Match", "X-User-Id" ]
+    allowed-headers: [ "Content-Type", "Authorization", "Range", "If-None-Match", "If-Match", "X-User-Id" ]
     # ETag добавляется автоматически в CorsConfig.mergeWithETag() — не дублируем здесь.
-    exposed-headers: [ ]
+    exposed-headers: [ "Content-Range" ]
     # Включать только при cookie-based auth; с wildcard origins несовместимо.
     allow-credentials: false
     # Preflight кэшируется браузером 1 час.

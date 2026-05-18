@@ -1,5 +1,6 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -23,5 +24,6 @@ public class DeviceTypeEntity {
     private String name;
 
     @OneToMany(mappedBy = "type")
+    @JsonIgnore
     private Set<DeviceEntity> devices;
 }

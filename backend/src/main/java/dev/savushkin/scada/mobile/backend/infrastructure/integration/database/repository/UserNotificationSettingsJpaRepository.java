@@ -5,15 +5,20 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.rest.core.annotation.RepositoryRestResource;
+import org.springframework.data.rest.core.annotation.RestResource;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+
 public interface UserNotificationSettingsJpaRepository extends JpaRepository<UserNotificationSettingsEntity, Long> {
 
+    @RestResource(exported = false)
     @NonNull Optional<UserNotificationSettingsEntity> findByUser_IdAndUnit_Id(Long userId, Long unitId);
 
+    @RestResource(exported = false)
     @Query("""
             select s
             from UserNotificationSettingsEntity s
@@ -23,6 +28,7 @@ public interface UserNotificationSettingsJpaRepository extends JpaRepository<Use
             """)
     @NonNull List<UserNotificationSettingsEntity> findByUserId(@Param("userId") Long userId);
 
+    @RestResource(exported = false)
     @Query("""
             select distinct u.printsrvInstanceId
             from UserNotificationSettingsEntity s

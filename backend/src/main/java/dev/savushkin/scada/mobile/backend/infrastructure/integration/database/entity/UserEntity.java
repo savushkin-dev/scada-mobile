@@ -1,5 +1,6 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -33,5 +34,13 @@ public class UserEntity {
     private boolean active = true;
 
     @OneToMany(mappedBy = "user")
+    @JsonIgnore
     private Set<UserAssignmentEntity> assignments;
+
+    /**
+     * Возвращает ID роли для сериализации JSON (React Admin ожидает roleId).
+     */
+    public Long getRoleId() {
+        return role != null ? role.getId() : null;
+    }
 }

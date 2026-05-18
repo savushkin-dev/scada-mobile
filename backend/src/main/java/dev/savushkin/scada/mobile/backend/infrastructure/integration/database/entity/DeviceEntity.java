@@ -27,4 +27,18 @@ public class DeviceEntity {
 
     @Column(name = "display_name", nullable = false)
     private String displayName;
+
+    /**
+     * Возвращает ID аппарата для сериализации JSON (React Admin ожидает unitId).
+     */
+    public Long getUnitId() {
+        return unit != null ? unit.getId() : null;
+    }
+
+    /**
+     * Возвращает ID типа устройства для сериализации JSON (React Admin ожидает typeId).
+     */
+    public Long getTypeId() {
+        return type != null ? type.getId() : null;
+    }
 }

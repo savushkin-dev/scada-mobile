@@ -22,6 +22,7 @@ import { lazy, Suspense, type ReactElement } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { RootLayout } from './layouts/RootLayout';
 import { RequireAuth } from './auth/RequireAuth';
+import { RequireAdmin } from './auth/RequireAdmin';
 
 const DetailsLayout = lazy(async () => {
   const module = await import('./layouts/DetailsLayout');
@@ -51,6 +52,11 @@ const ProfilePage = lazy(async () => {
 const NotificationsPage = lazy(async () => {
   const module = await import('./pages/NotificationsPage');
   return { default: module.NotificationsPage };
+});
+
+const AdminApp = lazy(async () => {
+  const module = await import('./admin/AdminApp');
+  return { default: module.AdminApp };
 });
 
 const BatchTab = lazy(async () => {
@@ -110,6 +116,15 @@ export const router = createBrowserRouter([
           {
             path: 'notifications',
             element: withSuspense(<NotificationsPage />),
+          },
+          {
+            element: <RequireAdmin />,
+            children: [
+              {
+                path: 'admin/*',
+                element: withSuspense(<AdminApp />),
+              },
+            ],
           },
           {
             path: 'workshops/:workshopId/units/:unitId',

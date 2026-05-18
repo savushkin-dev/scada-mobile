@@ -51,7 +51,7 @@ function mergePending(prev: string[], unitId: string, pending: boolean): string[
 }
 
 /** Служебные страницы, которые пропускаются при навигации назад. */
-const TRANSIENT_ROUTES = ['/profile', '/notifications', '/login'];
+const TRANSIENT_ROUTES = ['/profile', '/notifications', '/login', '/admin'];
 
 function isTransientRoute(pathname: string): boolean {
   return TRANSIENT_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
@@ -73,7 +73,7 @@ function findNonTransientBackTarget(locationState: unknown, fallback: string): s
 export function ProfilePage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, isAdmin } = useAuth();
 
   const handleBack = useCallback(() => {
     const target = findNonTransientBackTarget(location.state, '/');
@@ -263,28 +263,40 @@ export function ProfilePage() {
                 )}
               </div>
 
-              <div className="mt-2 flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setSettingsOpen(true)}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-[18px] bg-[#111827] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(15,23,42,0.32)]"
-                >
-                  <span aria-hidden="true">🔔</span>
-                  <span>{PROFILE_COPY.notificationButton}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLogoutClick}
-                  aria-label={PROFILE_COPY.logoutButtonAriaLabel}
-                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#EA4335] text-white shadow-[0_0_10px_rgba(234,67,53,0.18)] transition-all duration-200 ease-in-out active:scale-[0.98]"
-                >
-                  <img
-                    src="/assets/logout.svg"
-                    alt=""
-                    aria-hidden="true"
-                    className="h-5 w-5 invert"
-                  />
-                </button>
+              <div className="mt-2 flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSettingsOpen(true)}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-[18px] bg-[#111827] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(15,23,42,0.32)]"
+                  >
+                    <span aria-hidden="true">🔔</span>
+                    <span>{PROFILE_COPY.notificationButton}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLogoutClick}
+                    aria-label={PROFILE_COPY.logoutButtonAriaLabel}
+                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#EA4335] text-white shadow-[0_0_10px_rgba(234,67,53,0.18)] transition-all duration-200 ease-in-out active:scale-[0.98]"
+                  >
+                    <img
+                      src="/assets/logout.svg"
+                      alt=""
+                      aria-hidden="true"
+                      className="h-5 w-5 invert"
+                    />
+                  </button>
+                </div>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/admin')}
+                    className="flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#0b5da4] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(11,93,164,0.32)]"
+                  >
+                    <span aria-hidden="true">⚙️</span>
+                    <span>Админ-панель</span>
+                  </button>
+                )}
               </div>
             </>
           )}

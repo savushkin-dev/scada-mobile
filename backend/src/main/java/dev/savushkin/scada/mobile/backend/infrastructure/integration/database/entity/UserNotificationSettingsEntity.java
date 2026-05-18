@@ -55,4 +55,18 @@ public class UserNotificationSettingsEntity {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt = LocalDateTime.now();
+
+    /**
+     * Возвращает ID пользователя для сериализации JSON (React Admin ожидает userId).
+     */
+    public Long getUserId() {
+        return user != null ? user.getId() : null;
+    }
+
+    /**
+     * Возвращает ID аппарата для сериализации JSON (React Admin ожидает unitId).
+     */
+    public Long getUnitId() {
+        return unit != null ? unit.getId() : null;
+    }
 }

@@ -38,13 +38,13 @@ public class CorsProperties {
         /**
          * Разрешённые методы (минимизируем список).
          */
-        private List<String> allowedMethods = List.of("GET", "POST", "OPTIONS");
+        private List<String> allowedMethods = List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS");
 
         /**
          * Разрешённые заголовки запроса.
          * Для простого API обычно достаточно Content-Type и Authorization (если появится).
          */
-        private List<String> allowedHeaders = List.of("Content-Type", "Authorization");
+        private List<String> allowedHeaders = List.of("Content-Type", "Authorization", "Range", "If-Match", "If-None-Match");
 
         /**
          * Заголовки ответа, которые браузер может читать из JS.

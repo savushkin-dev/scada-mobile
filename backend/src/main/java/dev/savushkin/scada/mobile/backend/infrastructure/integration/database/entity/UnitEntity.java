@@ -1,5 +1,6 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -30,8 +31,17 @@ public class UnitEntity {
     private boolean active = true;
 
     @OneToMany(mappedBy = "unit")
+    @JsonIgnore
     private Set<DeviceEntity> devices;
 
     @OneToMany(mappedBy = "unit")
+    @JsonIgnore
     private Set<UserAssignmentEntity> assignments;
+
+    /**
+     * Возвращает ID цеха для сериализации JSON (React Admin ожидает workshopId).
+     */
+    public Long getWorkshopId() {
+        return workshop != null ? workshop.getId() : null;
+    }
 }

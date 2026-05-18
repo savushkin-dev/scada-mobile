@@ -1,5 +1,6 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,5 +21,6 @@ public class RoleEntity {
     private String name;
 
     @OneToMany(mappedBy = "role")
+    @JsonIgnore
     private Set<UserEntity> users;
 }

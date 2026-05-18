@@ -1,5 +1,6 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -23,5 +24,6 @@ public class WorkshopEntity {
     private boolean active = true;
 
     @OneToMany(mappedBy = "workshop")
+    @JsonIgnore
     private Set<UnitEntity> units;
 }

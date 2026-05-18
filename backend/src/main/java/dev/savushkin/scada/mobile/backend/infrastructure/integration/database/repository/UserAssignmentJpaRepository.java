@@ -4,12 +4,16 @@ import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.en
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.rest.core.annotation.RepositoryRestResource;
+import org.springframework.data.rest.core.annotation.RestResource;
 
 import java.util.List;
 import java.util.Set;
 
+
 public interface UserAssignmentJpaRepository extends JpaRepository<UserAssignmentEntity, Long> {
 
+    @RestResource(exported = false)
     @Query("""
             select (count(a) > 0)
             from UserAssignmentEntity a
@@ -22,6 +26,7 @@ public interface UserAssignmentJpaRepository extends JpaRepository<UserAssignmen
     boolean existsActiveAssignment(@Param("userId") Long userId,
                                    @Param("printsrvInstanceId") String printsrvInstanceId);
 
+    @RestResource(exported = false)
     @Query("""
             select distinct u.printsrvInstanceId
             from UserAssignmentEntity a
@@ -33,6 +38,7 @@ public interface UserAssignmentJpaRepository extends JpaRepository<UserAssignmen
             """)
     Set<String> findActiveAssignedPrintsrvIdsByUserId(@Param("userId") Long userId);
 
+    @RestResource(exported = false)
     @Query("""
           select u.id as unitId, u.name as unitName, u.printsrvInstanceId as printsrvInstanceId
             from UserAssignmentEntity a

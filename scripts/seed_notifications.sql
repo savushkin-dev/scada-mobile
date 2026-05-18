@@ -1,11 +1,12 @@
 BEGIN;
 
 INSERT INTO roles (role_id, name)
-VALUES (1, 'Master')
+VALUES (1, 'Master'),
+       (2, 'ADMIN')
 ON CONFLICT (role_id) DO UPDATE SET name = EXCLUDED.name;
 
 INSERT INTO users (user_id, role_id, code, password, full_name, is_active)
-VALUES (1, 1, 'USR-000001', 'PWD-000001', 'Test User', true)
+VALUES (1, 1, 'USR-000001', '$2a$10$N9qo8uLOickgx2ZMRZoMy.MqrqQzBZN0UfGNEsKYGs5qC6r1NZGqG', 'Test User', true)
 ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id,
                                    code = EXCLUDED.code,
                                    password = EXCLUDED.password,
@@ -13,7 +14,15 @@ ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id,
                                    is_active = EXCLUDED.is_active;
 
 INSERT INTO users (user_id, role_id, code, password, full_name, is_active)
-VALUES (2, 1, 'USR-000002', 'PWD-000002', 'Second User', true)
+VALUES (2, 1, 'USR-000002', '$2a$10$N9qo8uLOickgx2ZMRZoMy.MqrqQzBZN0UfGNEsKYGs5qC6r1NZGqG', 'Second User', true)
+ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id,
+                                   code = EXCLUDED.code,
+                                   password = EXCLUDED.password,
+                                   full_name = EXCLUDED.full_name,
+                                   is_active = EXCLUDED.is_active;
+
+INSERT INTO users (user_id, role_id, code, password, full_name, is_active)
+VALUES (3, 2, 'admin', '$2a$10$N9qo8uLOickgx2ZMRZoMy.MqrqQzBZN0UfGNEsKYGs5qC6r1NZGqG', 'Admin User', true)
 ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id,
                                    code = EXCLUDED.code,
                                    password = EXCLUDED.password,
@@ -124,10 +133,8 @@ WHERE NOT EXISTS (
       AND ud.code = d.device_code
 );
 
-DELETE FROM user_unit_assignments WHERE user_id = 1;
-DELETE FROM user_notification_settings WHERE user_id = 1;
-DELETE FROM user_unit_assignments WHERE user_id = 2;
-DELETE FROM user_notification_settings WHERE user_id = 2;
+DELETE FROM user_unit_assignments WHERE user_id IN (1, 2, 3);
+DELETE FROM user_notification_settings WHERE user_id IN (1, 2, 3);
 
 INSERT INTO user_unit_assignments (user_id, unit_id, assigned_at, is_active)
 VALUES (1, 1, NOW(), true),
@@ -136,6 +143,9 @@ VALUES (1, 1, NOW(), true),
 INSERT INTO user_unit_assignments (user_id, unit_id, assigned_at, is_active)
 VALUES (2, 2, NOW(), true),
        (2, 4, NOW(), true);
+
+INSERT INTO user_unit_assignments (user_id, unit_id, assigned_at, is_active)
+VALUES (3, 1, NOW(), true);
 
 INSERT INTO user_notification_settings
     (user_id, unit_id, incident_notifications_enabled, android_call_notifications_enabled, is_active, updated_at)
@@ -166,6 +176,22 @@ WHERE NOT EXISTS (
     SELECT 1
     FROM user_notification_settings uns
     WHERE uns.user_id = 2
+      AND uns.unit_id = u.unit_id
+);
+
+INSERT INTO user_notification_settings
+    (user_id, unit_id, incident_notifications_enabled, android_call_notifications_enabled, is_active, updated_at)
+SELECT 3,
+       u.unit_id,
+       true,
+       true,
+       true,
+       NOW()
+FROM units u
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM user_notification_settings uns
+    WHERE uns.user_id = 3
       AND uns.unit_id = u.unit_id
 );
 

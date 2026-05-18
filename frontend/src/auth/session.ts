@@ -1,4 +1,5 @@
 const AUTH_STORAGE_KEY = 'scada.userId';
+const ROLE_STORAGE_KEY = 'scada.role';
 const ACCESS_TOKEN_KEY = 'scada.accessToken';
 const REFRESH_TOKEN_KEY = 'scada.refreshToken';
 
@@ -78,6 +79,30 @@ export function setAccessToken(accessToken: string): void {
   }
 }
 
+export function getStoredRole(): string | null {
+  try {
+    return localStorage.getItem(ROLE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredRole(role: string): void {
+  try {
+    localStorage.setItem(ROLE_STORAGE_KEY, role);
+  } catch {
+    // ignore
+  }
+}
+
+export function clearStoredRole(): void {
+  try {
+    localStorage.removeItem(ROLE_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 /**
  * Полная очистка всех auth-данных из хранилища.
  * Вызывается при logout.
@@ -85,6 +110,7 @@ export function setAccessToken(accessToken: string): void {
 export function clearAllAuthData(): void {
   try {
     localStorage.removeItem(AUTH_STORAGE_KEY);
+    localStorage.removeItem(ROLE_STORAGE_KEY);
     localStorage.removeItem('scada.assignedUnits');
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);

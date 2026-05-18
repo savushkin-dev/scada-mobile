@@ -5,15 +5,20 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.rest.core.annotation.RepositoryRestResource;
+import org.springframework.data.rest.core.annotation.RestResource;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+
 public interface UnitJpaRepository extends JpaRepository<UnitEntity, Long> {
 
+    @RestResource(exported = false)
     @NonNull Optional<UnitEntity> findByPrintsrvInstanceId(@NonNull String printsrvInstanceId);
 
+    @RestResource(exported = false)
     @Query("""
             select u.printsrvInstanceId
             from UnitEntity u
@@ -21,6 +26,7 @@ public interface UnitJpaRepository extends JpaRepository<UnitEntity, Long> {
             """)
     @NonNull Set<String> findAllActivePrintsrvInstanceIds();
 
+    @RestResource(exported = false)
     @Query("""
             select u.printsrvInstanceId
             from UnitEntity u
@@ -28,6 +34,7 @@ public interface UnitJpaRepository extends JpaRepository<UnitEntity, Long> {
             """)
     @NonNull Optional<String> findPrintsrvInstanceIdById(@Param("unitId") Long unitId);
 
+    @RestResource(exported = false)
     @Query("""
             select u
             from UnitEntity u
@@ -35,6 +42,7 @@ public interface UnitJpaRepository extends JpaRepository<UnitEntity, Long> {
             """)
     @NonNull List<UnitEntity> findAllActiveUnits();
 
+    @RestResource(exported = false)
     @Query("""
             select u
             from UnitEntity u
@@ -42,6 +50,7 @@ public interface UnitJpaRepository extends JpaRepository<UnitEntity, Long> {
             """)
     @NonNull Optional<UnitEntity> findActiveUnitById(@Param("unitId") Long unitId);
 
+    @RestResource(exported = false)
     @Query("""
             select u.id
             from UnitEntity u

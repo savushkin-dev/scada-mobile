@@ -7,11 +7,12 @@ public record AuthLoginResponseDTO(
         @Nullable String userId,
         @Nullable String code,
         @Nullable String fullName,
+        @Nullable String role,
         @Nullable String accessToken,
         @Nullable String refreshToken
 ) {
-    public static AuthLoginResponseDTO success(String userId, String code, String fullName,
+    public static AuthLoginResponseDTO success(String userId, String code, String fullName, String role,
                                                 String accessToken, String refreshToken) {
-        return new AuthLoginResponseDTO("ok", userId, code, fullName, accessToken, refreshToken);
+        return new AuthLoginResponseDTO("ok", userId, code, fullName, role, accessToken, refreshToken);
     }
 }

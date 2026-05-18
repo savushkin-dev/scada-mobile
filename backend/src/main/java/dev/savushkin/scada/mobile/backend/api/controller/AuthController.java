@@ -6,6 +6,8 @@ import dev.savushkin.scada.mobile.backend.api.dto.AuthLoginResponseDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.AuthRefreshRequestDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.AuthRefreshResponseDTO;
 import dev.savushkin.scada.mobile.backend.domain.model.AuthUser;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserEntity;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UserJpaRepository;
 import dev.savushkin.scada.mobile.backend.services.AuthService;
 import dev.savushkin.scada.mobile.backend.services.AuthService.InvalidCredentialsException;
 import dev.savushkin.scada.mobile.backend.services.AuthService.InvalidRefreshTokenException;
@@ -37,9 +39,11 @@ public class AuthController {
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
     private final AuthService authService;
+    private final UserJpaRepository userJpaRepository;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, UserJpaRepository userJpaRepository) {
         this.authService = authService;
+        this.userJpaRepository = userJpaRepository;
     }
 
     @PostMapping("/auth/login")
@@ -50,11 +54,14 @@ public class AuthController {
             AuthService.TokenPair tokens = authService.createTokenPair(user);
 
             log.info("Auth login success: code='{}', userId='{}'", user.code(), user.id());
+            UserEntity userEntity = userJpaRepository.findByIdWithRole(user.id()).orElseThrow();
+            String role = userEntity.getRole().getName();
             return ResponseEntity.ok(
                     AuthLoginResponseDTO.success(
                             Long.toString(user.id()),
                             user.code(),
                             user.fullName(),
+                            role,
                             tokens.accessToken(),
                             tokens.refreshToken()
                     )

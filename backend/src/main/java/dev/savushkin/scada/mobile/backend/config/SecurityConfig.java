@@ -81,6 +81,8 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health").permitAll()
                 // WebSocket handshake — auth через отдельный interceptor
                 .requestMatchers("/ws/**").permitAll()
+                // Админ-эндпоинты — только для роли ADMIN
+                .requestMatchers("/api/v1.0.0/admin/**").hasRole("ADMIN")
                 // Всё остальное — только с валидным JWT
                 .anyRequest().authenticated()
             )

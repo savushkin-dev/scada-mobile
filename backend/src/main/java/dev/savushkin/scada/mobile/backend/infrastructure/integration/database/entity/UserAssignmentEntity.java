@@ -1,5 +1,6 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -28,4 +29,18 @@ public class UserAssignmentEntity {
 
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
+
+    /**
+     * Возвращает ID пользователя для сериализации JSON (React Admin ожидает userId).
+     */
+    public Long getUserId() {
+        return user != null ? user.getId() : null;
+    }
+
+    /**
+     * Возвращает ID аппарата для сериализации JSON (React Admin ожидает unitId).
+     */
+    public Long getUnitId() {
+        return unit != null ? unit.getId() : null;
+    }
 }

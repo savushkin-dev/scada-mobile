@@ -3,6 +3,7 @@ import { getRefreshToken, setTokens } from '../auth/session';
 
 export interface LoginResponse {
   userId: string;
+  role: string;
   accessToken: string;
   refreshToken: string;
 }
@@ -28,6 +29,7 @@ export async function loginUser(payload: LoginPayload): Promise<LoginResponse> {
   const raw: unknown = await resp.json();
   const rawObj = raw as {
     userId?: string | number;
+    role?: string;
     accessToken?: string;
     refreshToken?: string;
   } | null;
@@ -42,6 +44,7 @@ export async function loginUser(payload: LoginPayload): Promise<LoginResponse> {
 
   return {
     userId: candidate,
+    role: rawObj.role ?? '',
     accessToken: rawObj.accessToken,
     refreshToken: rawObj.refreshToken,
   };
