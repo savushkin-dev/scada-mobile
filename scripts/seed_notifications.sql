@@ -6,7 +6,7 @@ VALUES (1, 'Master'),
 ON CONFLICT (role_id) DO UPDATE SET name = EXCLUDED.name;
 
 INSERT INTO users (user_id, role_id, code, password, full_name, is_active)
-VALUES (1, 1, 'USR-000001', '$2a$10$N9qo8uLOickgx2ZMRZoMy.MqrqQzBZN0UfGNEsKYGs5qC6r1NZGqG', 'Test User', true)
+VALUES (1, 1, 'USR-000001', '$2a$10$Vl9uNi2cKwgVHNiZfQfTXe.YhvzBL0dEwNhvMxiVXPQYhsuIF8bOC', 'Test User', true)
 ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id,
                                    code = EXCLUDED.code,
                                    password = EXCLUDED.password,
@@ -14,7 +14,7 @@ ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id,
                                    is_active = EXCLUDED.is_active;
 
 INSERT INTO users (user_id, role_id, code, password, full_name, is_active)
-VALUES (2, 1, 'USR-000002', '$2a$10$N9qo8uLOickgx2ZMRZoMy.MqrqQzBZN0UfGNEsKYGs5qC6r1NZGqG', 'Second User', true)
+VALUES (2, 1, 'USR-000002', '$2a$10$Vl9uNi2cKwgVHNiZfQfTXe.YhvzBL0dEwNhvMxiVXPQYhsuIF8bOC', 'Second User', true)
 ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id,
                                    code = EXCLUDED.code,
                                    password = EXCLUDED.password,
@@ -22,7 +22,7 @@ ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id,
                                    is_active = EXCLUDED.is_active;
 
 INSERT INTO users (user_id, role_id, code, password, full_name, is_active)
-VALUES (3, 2, 'admin', '$2a$10$N9qo8uLOickgx2ZMRZoMy.MqrqQzBZN0UfGNEsKYGs5qC6r1NZGqG', 'Admin User', true)
+VALUES (3, 2, 'ADM-000001', '$2a$10$Vl9uNi2cKwgVHNiZfQfTXe.YhvzBL0dEwNhvMxiVXPQYhsuIF8bOC', 'Admin User', true)
 ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id,
                                    code = EXCLUDED.code,
                                    password = EXCLUDED.password,

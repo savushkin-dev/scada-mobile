@@ -1,5 +1,5 @@
 import { HTTP_REQUEST } from '../config';
-import { getAccessToken } from '../auth/session';
+import { getAccessToken, clearAllAuthData } from '../auth/session';
 import { refreshAccessToken } from './auth';
 
 let isRefreshing = false;
@@ -22,7 +22,7 @@ function logRequest(method: string, url: string, status?: number): void {
   if (!import.meta.env.DEV) return;
   const label = status === undefined ? '→' : '←';
   const statusStr = status !== undefined ? ` — ${status}` : '';
-   
+
   console.log(`[api] ${label} ${method} ${url}${statusStr}`);
 }
 
@@ -79,6 +79,10 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
   notifySubscribers(newToken);
 
   if (!newToken) {
+    // Refresh не удался — токены протухли или инвалидированы.
+    // Очищаем auth-данные и редиректим на логин.
+    clearAllAuthData();
+    window.location.href = '/login';
     return resp;
   }
 
