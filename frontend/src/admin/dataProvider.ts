@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { API_BASE } from '../config';
 import { apiFetch } from '../api/client';
 import type { DataProvider } from 'react-admin';
@@ -141,8 +142,8 @@ export const dataProvider: DataProvider = {
   delete: (resource, params) => {
     const url = `${baseUrl}/${resource}/${encodeURIComponent(params.id)}`;
     return httpClient(url, { method: 'DELETE' }).then(() => ({
-      data: { id: params.id } as Record<string, unknown>,
-    }));
+      data: { id: params.id },
+    })) as Promise<any>;
   },
 
   deleteMany: (resource, params) => {
