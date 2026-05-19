@@ -18,6 +18,11 @@ services:
     restart: unless-stopped
 
   backend:
+    image: scada-mobile/backend:0.1.0
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
@@ -63,6 +68,11 @@ services:
         condition: service_healthy
 
   frontend:
+    image: scada-mobile/frontend:0.1.0
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
     ports:
       - "${SCADA_MOBILE_FRONTEND_PORT:?SCADA_MOBILE_FRONTEND_PORT is required in prod env}:8080"
     depends_on:
