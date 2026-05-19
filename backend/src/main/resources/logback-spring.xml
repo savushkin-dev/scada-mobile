@@ -125,8 +125,7 @@
 
     <!-- =========================================================
          ПРАВИЛА ДЛЯ PROD ПРОФИЛЯ
-         - Нет консоли
-         - JSON файл через AsyncAppender
+         - JSON файл через AsyncAppender + консоль для Docker
          - Минимальный шум: root=WARN, backend=INFO
          ========================================================= -->
     <springProfile name="prod">
@@ -146,6 +145,7 @@
 
         <root level="WARN">
             <appender-ref ref="ASYNC_FILE"/>
+            <appender-ref ref="CONSOLE"/>
         </root>
     </springProfile>
 
