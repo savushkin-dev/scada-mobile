@@ -12,6 +12,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.security.SecureRandom;
 import java.util.Base64;
 
@@ -20,20 +24,28 @@ import java.util.Base64;
  * <p>
  * При первом запуске приложения, если в БД отсутствуют роли и пользователи,
  * создаётся роль ADMIN и пользователь-администратор с автоматически
- * сгенерированным паролем. Пароль выводится в лог (консоль) один раз.
+ * сгенерированным кодом и паролем.
+ * <p>
+ * Сгенерированные учётные данные записываются в файл {@code /app/admin-credentials.txt}
+ * внутри контейнера. Файл можно прочитать через:
+ * <pre>
+ *   docker exec scada-mobile-backend-1 cat /app/admin-credentials.txt
+ * </pre>
  * <p>
  * Это позволяет развёртывать приложение в production без предварительного
- * seed-скрипта: администратор входит с выведенным паролем и создаёт
- * остальных пользователей через админ-панель.
+ * seed-скрипта: администратор входит с сгенерированными учётными данными
+ * и создаёт остальных пользователей через админ-панель.
  */
 @Component
 public class AdminBootstrapConfig implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(AdminBootstrapConfig.class);
     private static final String ADMIN_ROLE_NAME = "ADMIN";
-    private static final String ADMIN_CODE = "admin";
     private static final String ADMIN_FULL_NAME = "System Administrator";
     private static final int RANDOM_PASSWORD_BYTES = 12;
+
+    /** Путь к файлу с учётными данными администратора внутри контейнера. */
+    public static final Path CREDENTIALS_FILE = Path.of("/app/admin-credentials.txt");
 
     private final RoleJpaRepository roleRepository;
     private final UserJpaRepository userRepository;
@@ -64,23 +76,47 @@ public class AdminBootstrapConfig implements ApplicationRunner {
                     return roleRepository.save(role);
                 });
 
+        String adminCode = generateRandomCode();
         String rawPassword = generateRandomPassword();
         String passwordHash = passwordEncoder.encode(rawPassword);
 
         UserEntity admin = new UserEntity();
         admin.setRole(adminRole);
-        admin.setCode(ADMIN_CODE);
+        admin.setCode(adminCode);
         admin.setPassword(passwordHash);
         admin.setFullName(ADMIN_FULL_NAME);
         admin.setActive(true);
         userRepository.save(admin);
 
-        log.info("╔══════════════════════════════════════════════════════════════════════╗");
-        log.info("║  BOOTSTRAP: Initial admin account created                            ║");
-        log.info("╠══════════════════════════════════════════════════════════════════════╣");
-        log.info("║  Login:    {}                                                       ║", ADMIN_CODE);
-        log.info("║  Password: {}                                                       ║", rawPassword);
-        log.info("╚══════════════════════════════════════════════════════════════════════╝");
+        // Записываем учётные данные в файл
+        writeCredentialsFile(adminCode, rawPassword);
+
+        log.info("Bootstrap: initial admin account created (code={})", adminCode);
+    }
+
+    private void writeCredentialsFile(String code, String password) {
+        try {
+            String content = """
+                    SCADA Mobile — Initial Admin Credentials
+                    =========================================
+                    Code:     %s
+                    Password: %s
+                    =========================================
+                    Save these credentials securely. This file is created only once.
+                    """.formatted(code, password);
+            Files.writeString(CREDENTIALS_FILE, content, StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            log.info("Bootstrap: admin credentials written to {}", CREDENTIALS_FILE);
+        } catch (Exception e) {
+            log.warn("Bootstrap: unable to write credentials file {}: {}", CREDENTIALS_FILE, e.getMessage());
+        }
+    }
+
+    private String generateRandomCode() {
+        SecureRandom random = new SecureRandom();
+        byte[] bytes = new byte[6];
+        random.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     private String generateRandomPassword() {

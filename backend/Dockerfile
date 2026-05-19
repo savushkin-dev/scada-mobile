@@ -12,7 +12,7 @@ RUN --mount=type=cache,target=/home/gradle/.gradle \
 
 COPY src src
 RUN --mount=type=cache,target=/home/gradle/.gradle \
-  gradle --no-daemon clean bootJar -x test
+  gradle --no-daemon --no-build-cache clean bootJar -x test
 
 FROM eclipse-temurin:21.0.8_9-jre-alpine AS runtime
 
