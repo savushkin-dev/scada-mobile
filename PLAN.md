@@ -1,6 +1,17 @@
 # SCADA Mobile — Технический план
 
-Актуальность: 30.03.2026.
+Актуальность: 18.05.2026.
+
+## Purpose
+Текущий план работ, этапы развития проекта и контрольные точки.
+
+## Table of contents
+- [Purpose](#purpose)
+- [Коротко о текущем состоянии](#коротко-о-текущем-состоянии)
+- [Контрольные точки](#контрольные-точки)
+- [План работ по этапам](#план-работ-по-этапам)
+- [Риски и как с ними работать](#риски-и-как-с-ними-работать)
+- [Критерий готовности к защите](#критерий-готовности-к-защите)
 
 ## Коротко о текущем состоянии
 
@@ -44,7 +55,7 @@
 - [ ] Формализовать runbook для операционного запуска и перезапуска.
 - [ ] Проверить доступность health-endpoint и журналов для диагностики.
 
-Документы этапа: [DOCKER_DEPLOY.md](DOCKER_DEPLOY.md), [RUN_PROJECT_DOCKER.md](RUN_PROJECT_DOCKER.md), [SECURITY.md](SECURITY.md), [backend/LOGGING.md](backend/LOGGING.md).
+Документы этапа: [RUN_PROJECT_DOCKER.md](RUN_PROJECT_DOCKER.md), [SECURITY.md](SECURITY.md), [backend/LOGGING.md](backend/LOGGING.md).
 
 ## Этап 3. Пилот и улучшения UX (май)
 
@@ -55,7 +66,7 @@
 - [ ] Финализировать модель уведомлений для открытого и фонового режима.
 - [ ] Подтвердить, что критичные уведомления доходят и понятны без обучения.
 
-Документы этапа: [frontend/UI_UX_SPEC.md](frontend/UI_UX_SPEC.md), [NOTIFICATIONS_ARCHITECTURE.md](NOTIFICATIONS_ARCHITECTURE.md), [PLAN_BUSINESS.md](PLAN_BUSINESS.md).
+Документы этапа: [frontend/UI_UX_SPEC.md](frontend/UI_UX_SPEC.md), [NOTIFICATIONS_ARCHITECTURE.md](NOTIFICATIONS_ARCHITECTURE.md), [ALERT_LIFECYCLE.md](ALERT_LIFECYCLE.md), [PLAN_BUSINESS.md](PLAN_BUSINESS.md).
 
 ## Этап 4. Подготовка к защите (май → начало июня)
 
@@ -66,7 +77,7 @@
 - [ ] Привести документацию к единому состоянию перед сдачей.
 - [ ] Подготовить краткий эксплуатационный сценарий для предприятия.
 
-Документы этапа: [STRUCTURE.md](STRUCTURE.md), [PROJECT_DIAGRAM.md](PROJECT_DIAGRAM.md), [README.md](README.md), [PLAN_BUSINESS.md](PLAN_BUSINESS.md).
+Документы этапа: [STRUCTURE.md](STRUCTURE.md), [PROJECT_DIAGRAM.md](PROJECT_DIAGRAM.md), [BACKEND_ARCHITECTURE.md](BACKEND_ARCHITECTURE.md), [FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md), [README.md](README.md), [PLAN_BUSINESS.md](PLAN_BUSINESS.md).
 
 ## Риски и как с ними работать
 
