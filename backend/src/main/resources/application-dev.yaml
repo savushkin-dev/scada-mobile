@@ -91,6 +91,6 @@ springdoc:
 # Настройки подключения к БД
 spring:
   datasource:
-    url: ${SCADA_MOBILE_SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/scada_mobile}
-    username: ${SCADA_MOBILE_SPRING_DATASOURCE_USERNAME:scada_user}
-    password: ${SCADA_MOBILE_SPRING_DATASOURCE_PASSWORD:scada_password}
+    url: ${SCADA_MOBILE_DATABASE_URL:jdbc:postgresql://localhost:5432/scada_mobile}
+    username: ${SCADA_MOBILE_DATABASE_USERNAME:scada_user}
+    password: ${SCADA_MOBILE_DATABASE_PASSWORD:scada_password}

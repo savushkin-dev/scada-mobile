@@ -5,8 +5,8 @@
 #   {"configuredLevel": "INFO"}   ← вернуть обратно
 logging:
   level:
-    root: WARN
-    dev.savushkin.scada.mobile.backend: INFO
+    root: DEBUG
+    dev.savushkin.scada.mobile.backend: DEBUG
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PrintSrv instances в prod:

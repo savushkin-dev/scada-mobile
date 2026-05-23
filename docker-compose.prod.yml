@@ -22,15 +22,17 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    restart: unless-stopped
+    restart: no
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      SPRING_PROFILES_ACTIVE: prod
+      SPRING_PROFILES_ACTIVE: dev
       SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS: ${SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS}
-      SCADA_MOBILE_DATABASE_URL: ${SCADA_MOBILE_DATABASE_URL:-jdbc:postgresql://scada-mobile-postgres:5432/scada_mobile}
+      SCADA_MOBILE_DATABASE_URL: ${SCADA_MOBILE_DATABASE_URL:-jdbc:postgresql://${SCADA_MOBILE_POSTGRES_HOST:-postgres}:5432/${SCADA_MOBILE_POSTGRES_DB:-scada_mobile}}
       SCADA_MOBILE_DATABASE_USERNAME: ${SCADA_MOBILE_DATABASE_USERNAME:-scada_user}
       SCADA_MOBILE_DATABASE_PASSWORD: ${SCADA_MOBILE_DATABASE_PASSWORD:?SCADA_MOBILE_DATABASE_PASSWORD is required in prod env}
+      SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE: ${SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE}
+      SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD: ${SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD}
       SCADA_MOBILE_JWT_ACCESS_SECRET: ${SCADA_MOBILE_JWT_ACCESS_SECRET:?SCADA_MOBILE_JWT_ACCESS_SECRET is required in prod env}
       SCADA_MOBILE_JWT_REFRESH_SECRET: ${SCADA_MOBILE_JWT_REFRESH_SECRET:?SCADA_MOBILE_JWT_REFRESH_SECRET is required in prod env}
       SCADA_MOBILE_PRINTSRV_TREPKO1_HOST: ${SCADA_MOBILE_PRINTSRV_TREPKO1_HOST:-999.9.9.9}
@@ -76,8 +78,7 @@ services:
     ports:
       - "${SCADA_MOBILE_FRONTEND_PORT:?SCADA_MOBILE_FRONTEND_PORT is required in prod env}:8080"
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
 
 volumes:
   scada-mobile-postgres-data:

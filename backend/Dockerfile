@@ -25,7 +25,7 @@ RUN mkdir -p /app/logs && chown -R app:app /app
 
 USER app
 
-ENV SPRING_PROFILES_ACTIVE=dev
+ENV SPRING_PROFILES_ACTIVE=prod
 ENV JAVA_TOOL_OPTIONS=""
 
 EXPOSE 8080

@@ -1,48 +1,59 @@
-# SCADA Mobile: пошаговый запуск в PROD через консоль
+# SCADA Mobile: пошаговый запуск в PROD
 
-`Примечание` Должен быть установлен Docker и Docker Compose.
+> **Требование:** установлены Docker и Docker Compose.
 
-## Purpose
-Пошаговый запуск прод-стека через Docker Compose и базовая диагностика.
+## Содержание
+- [SCADA Mobile: пошаговый запуск в PROD](#scada-mobile-пошаговый-запуск-в-prod)
+  - [Содержание](#содержание)
+  - [Шаг 1: Клонировать репозиторий](#шаг-1-клонировать-репозиторий)
+  - [Шаг 2: Создать файл окружения](#шаг-2-создать-файл-окружения)
+  - [Шаг 3: Сгенерировать секреты](#шаг-3-сгенерировать-секреты)
+    - [3.1 JWT-секреты (обязательно)](#31-jwt-секреты-обязательно)
+    - [3.2 Пароль PostgreSQL (обязательно)](#32-пароль-postgresql-обязательно)
+    - [3.3 Пароль администратора (опционально — генерируется автоматически)](#33-пароль-администратора-опционально--генерируется-автоматически)
+  - [Шаг 4: Заполнить обязательные переменные](#шаг-4-заполнить-обязательные-переменные)
+  - [Шаг 5: Запустить стек](#шаг-5-запустить-стек)
+  - [Шаг 6: Получить учётные данные администратора](#шаг-6-получить-учётные-данные-администратора)
+  - [Диагностика](#диагностика)
+    - [Логи](#логи)
+    - [Проверка health backend](#проверка-health-backend)
+    - [Проверка PostgreSQL](#проверка-postgresql)
+    - [Проверка WebSocket](#проверка-websocket)
+  - [Остановка](#остановка)
+  - [Если что-то не стартовало](#если-что-то-не-стартовало)
 
-## Table of contents
-- [Purpose](#purpose)
-- [1) Клонировать репозиторий](#1-клонировать-репозиторий)
-- [2) Подготовить PROD-конфигурацию](#2-подготовить-prod-конфигурацию)
-- [3) Запуск PROD-стека](#3-запуск-prod-стека)
-- [4) Логи и диагностика](#4-логи-и-диагностика)
-- [5) Остановка PROD-стека](#5-остановка-prod-стека)
-- [6) Если что-то не стартовало](#6-если-что-то-не-стартовало)
+---
 
-## 1) Клонировать репозиторий
+## Шаг 1: Клонировать репозиторий
 
 ~~~bash
 git clone https://github.com/savushkin-dev/scada-mobile.git
 cd scada-mobile
 ~~~
 
-## 2) Подготовить PROD-конфигурацию
+---
 
-Создайте файл окружения из шаблона.
+## Шаг 2: Создать файл окружения
 
-Windows PowerShell:
-
+**Windows PowerShell:**
 ~~~powershell
 Copy-Item .env.prod.example .env.prod.local
 ~~~
 
-Linux/macOS:
-
+**Linux / macOS:**
 ~~~bash
 cp .env.prod.example .env.prod.local
 ~~~
 
-### Генерация JWT-секретов (обязательно перед первым запуском)
+---
 
-Все переменные окружения проекта имеют префикс `SCADA_MOBILE_` для совместимости с другими сервисами на одном сервере.
+## Шаг 3: Сгенерировать секреты
+
+Все переменные имеют префикс `SCADA_MOBILE_`. Выполните команды и скопируйте вывод в `.env.prod.local`.
+
+### 3.1 JWT-секреты (обязательно)
 
 **bash / Linux / macOS:**
-
 ~~~bash
 export SCADA_MOBILE_JWT_ACCESS_SECRET=$(openssl rand -base64 32)
 export SCADA_MOBILE_JWT_REFRESH_SECRET=$(openssl rand -base64 32)
@@ -51,7 +62,6 @@ echo "REFRESH: $SCADA_MOBILE_JWT_REFRESH_SECRET"
 ~~~
 
 **PowerShell:**
-
 ~~~powershell
 $env:SCADA_MOBILE_JWT_ACCESS_SECRET = openssl rand -base64 32
 $env:SCADA_MOBILE_JWT_REFRESH_SECRET = openssl rand -base64 32
@@ -59,221 +69,190 @@ Write-Host "ACCESS:  $env:SCADA_MOBILE_JWT_ACCESS_SECRET"
 Write-Host "REFRESH: $env:SCADA_MOBILE_JWT_REFRESH_SECRET"
 ~~~
 
-Скопируйте сгенерированные значения в `.env.prod.local`.
+### 3.2 Пароль PostgreSQL (обязательно)
 
-### Минимальный набор переменных
+**bash / Linux / macOS:**
+~~~bash
+export SCADA_MOBILE_DATABASE_PASSWORD=$(openssl rand -base64 16)
+echo "DB_PASS: $SCADA_MOBILE_DATABASE_PASSWORD"
+~~~
 
-Откройте `.env.prod.local` и задайте минимум:
+**PowerShell:**
+~~~powershell
+$env:SCADA_MOBILE_DATABASE_PASSWORD = openssl rand -base64 16
+Write-Host "DB_PASS: $env:SCADA_MOBILE_DATABASE_PASSWORD"
+~~~
 
-1. `SCADA_MOBILE_BACKEND_PORT`
-2. `SCADA_MOBILE_FRONTEND_PORT`
-3. `SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS`
-4. `SCADA_MOBILE_JWT_ACCESS_SECRET` и `SCADA_MOBILE_JWT_REFRESH_SECRET`
-5. `SCADA_MOBILE_DATABASE_PASSWORD`
-6. Переменные по автоматам: `SCADA_MOBILE_PRINTSRV_<ID>_HOST` и `SCADA_MOBILE_PRINTSRV_<ID>_PORT`
+### 3.3 Пароль администратора (опционально — генерируется автоматически)
 
-Критично:
+Если хотите задать вручную:
 
-1. `SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS` должен совпадать с точным origin фронта в адресной строке браузера.
-2. Если фронт открывают по IP/домену сервера, нельзя оставлять только `http://localhost:5500`.
-3. Для нескольких вариантов доступа перечисляйте origin через запятую без пробелов. Пример: `http://localhost:5500,http://999.9.9.9:9999`
+**bash / Linux / macOS:**
+~~~bash
+export SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD=$(openssl rand -base64 7 | cut -c1-10)
+echo "ADMIN_PASS: $SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD"
+~~~
 
-Пример:
+**PowerShell:**
+~~~powershell
+$chars = (48..57) + (65..90) + (97..122) + (33,35,36,37,38,42,64,94)
+$env:SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD = -join ($chars | Get-Random -Count 10 | ForEach-Object { [char]$_ })
+Write-Host "ADMIN_PASS: $env:SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD"
+~~~
+
+> **Требования к паролю администратора:** ровно 10 символов, заглавные и строчные буквы, цифры, спецсимволы.
+
+---
+
+## Шаг 4: Заполнить обязательные переменные
+
+Откройте `.env.prod.local` и убедитесь, что заполнены:
+
+| Переменная | Описание | Пример |
+|-----------|----------|--------|
+| `SCADA_MOBILE_BACKEND_PORT` | Порт backend | `9999` |
+| `SCADA_MOBILE_FRONTEND_PORT` | Порт frontend | `9998` |
+| `SCADA_MOBILE_POSTGRES_PORT` | Порт PostgreSQL | `5432` |
+| `SCADA_MOBILE_DATABASE_PASSWORD` | Пароль БД | из шага 3.2 |
+| `SCADA_MOBILE_JWT_ACCESS_SECRET` | JWT access secret | из шага 3.1 |
+| `SCADA_MOBILE_JWT_REFRESH_SECRET` | JWT refresh secret | из шага 3.1 |
+| `SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS` | Origin фронтенда | `http://localhost:9998` |
+
+**Критично:** `SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS` должен совпадать с точным origin в адресной строке браузера. Для нескольких origin — через запятую без пробелов: `http://localhost:9998,http://192.168.1.10:9998`
+
+**Минимальный `.env.prod.local`:**
 
 ~~~env
 SCADA_MOBILE_BACKEND_PORT=9999
 SCADA_MOBILE_FRONTEND_PORT=9998
 SCADA_MOBILE_POSTGRES_PORT=5432
-SCADA_MOBILE_DATABASE_PASSWORD=your_secure_password_here
+SCADA_MOBILE_DATABASE_PASSWORD=YOUR_GENERATED_DB_PASSWORD
 SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS=http://999.9.9.9:9998
-
 SCADA_MOBILE_JWT_ACCESS_SECRET=YOUR_GENERATED_ACCESS_SECRET
 SCADA_MOBILE_JWT_REFRESH_SECRET=YOUR_GENERATED_REFRESH_SECRET
 
-SCADA_MOBILE_PRINTSRV_TREPKO1_HOST=999.9.9.9
-SCADA_MOBILE_PRINTSRV_TREPKO1_PORT=9999
-SCADA_MOBILE_PRINTSRV_TREPKO2_HOST=999.9.9.9
-SCADA_MOBILE_PRINTSRV_TREPKO2_PORT=9999
-SCADA_MOBILE_PRINTSRV_HASSIA1_HOST=999.9.9.9
-SCADA_MOBILE_PRINTSRV_HASSIA1_PORT=9999
-SCADA_MOBILE_PRINTSRV_HASSIA2_HOST=999.9.9.9
-SCADA_MOBILE_PRINTSRV_HASSIA2_PORT=9999
-SCADA_MOBILE_PRINTSRV_HASSIA4_HOST=999.9.9.9
-SCADA_MOBILE_PRINTSRV_HASSIA4_PORT=9999
-SCADA_MOBILE_PRINTSRV_HASSIA5_HOST=999.9.9.9
-SCADA_MOBILE_PRINTSRV_HASSIA5_PORT=9999
-SCADA_MOBILE_PRINTSRV_HASSIA6_HOST=999.9.9.9
-SCADA_MOBILE_PRINTSRV_HASSIA6_PORT=9999
-SCADA_MOBILE_PRINTSRV_GRUNWALD1_HOST=999.9.9.9
-SCADA_MOBILE_PRINTSRV_GRUNWALD1_PORT=9999
-SCADA_MOBILE_PRINTSRV_GRUNWALD2_HOST=999.9.9.9
-SCADA_MOBILE_PRINTSRV_GRUNWALD2_PORT=9999
-SCADA_MOBILE_PRINTSRV_HASSIA3_HOST=999.9.9.9
-SCADA_MOBILE_PRINTSRV_HASSIA3_PORT=9999
-SCADA_MOBILE_PRINTSRV_BOSCH_HOST=999.9.9.9
-SCADA_MOBILE_PRINTSRV_BOSCH_PORT=9999
-SCADA_MOBILE_PRINTSRV_GRUNWALD5_HOST=999.9.9.9
-SCADA_MOBILE_PRINTSRV_GRUNWALD5_PORT=9999
-SCADA_MOBILE_PRINTSRV_GRUNWALD8_HOST=999.9.9.9
-SCADA_MOBILE_PRINTSRV_GRUNWALD8_PORT=9999
-SCADA_MOBILE_PRINTSRV_GRUNWALD11_HOST=999.9.9.9
-SCADA_MOBILE_PRINTSRV_GRUNWALD11_PORT=9999
-~~~
+# Опционально: задать пароль админа вручную
+# SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD=YOUR_GENERATED_ADMIN_PASS
 
-### Учётные данные начального администратора
-
-При первом запуске, если в базе данных ещё нет пользователей с ролью ADMIN,
-backend автоматически создаёт начального администратора со случайно
-сгенерированным кодом (логином) и паролем. Учётные данные дописываются
-в файл `.env.prod.local` в корне проекта:
-
-**Требования к паролю:**
-- Ровно 10 символов
-- Обязательно содержит: заглавные и строчные латинские буквы, цифры, спецсимволы
-
-| Переменная окружения | Описание |
-|----------------------|----------|
-| `SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE` | Код (логин) администратора |
-| `SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD` | Пароль администратора |
-
-**Генерация пароля администратора (если нужно задать вручную):**
-
-~~~bash
-# bash / Linux / macOS
-openssl rand -base64 7 | cut -c1-10
-
-# PowerShell
--join ((48..57) + (65..90) + (97..122) + (33,35,36,37,38,42,64,94) | Get-Random -Count 10 | ForEach-Object { [char]$_ })
-~~~
-
-**Просмотр учётных данных:**
-
-~~~bash
-cat .env.prod.local | grep SCADA_MOBILE_ADMIN
-~~~
-
-> **Важно:** Переменные создаются только при первом старте (когда в БД нет
-> пользователя с ролью ADMIN). При последующих перезапусках администратор
-> уже существует в БД, и переменные не обновляются. Сохраните учётные
-> данные надёжно после первого запуска.
-
-### Пилотная проверка только одного автомата (Hassia 4)
-
-Если нужно проверить только один автомат, достаточно явно задать
-только `SCADA_MOBILE_PRINTSRV_HASSIA4_HOST` и `SCADA_MOBILE_PRINTSRV_HASSIA4_PORT`. Остальные просто не указывать (в работающем фронте они должны отображаться как «Нет данных»).
-
-Пример минимального `.env.prod.local`:
-
-~~~env
-SCADA_MOBILE_BACKEND_PORT=9999
-SCADA_MOBILE_FRONTEND_PORT=9998
-SCADA_MOBILE_DATABASE_PASSWORD=your_secure_password_here
-SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS=http://999.9.9.9:9998
-
-SCADA_MOBILE_JWT_ACCESS_SECRET=YOUR_GENERATED_ACCESS_SECRET
-SCADA_MOBILE_JWT_REFRESH_SECRET=YOUR_GENERATED_REFRESH_SECRET
-
-# Единственный автомат для проверки
+# Один автомат для проверки (остальные можно не указывать)
 SCADA_MOBILE_PRINTSRV_HASSIA4_HOST=999.9.9.9
 SCADA_MOBILE_PRINTSRV_HASSIA4_PORT=9999
 ~~~
 
-Где:
+> Не подключенные автоматы отобразятся как «Нет данных» — это нормально.
 
-1. `999.9.9.9` — плейсхолдер IP машины Hassia 4; в `.env.prod.local` указывается фактическое значение.
-2. `9999` — плейсхолдер TCP-порта PrintSrv; в `.env.prod.local` указывается фактическое значение.
+---
 
-Остальные автоматы можно временно не заполнять: backend запустится,
-а не подключенные автоматы будут отображаться как «Нет данных».
-
-## 3) Запуск PROD-стека
+## Шаг 5: Запустить стек
 
 ~~~bash
 make docker-prod-up
 ~~~
 
-После запуска фронт будет доступен по ссылке: `http://999.9.9.9:9998` (или по порту, который вы указали в `SCADA_MOBILE_FRONTEND_PORT`).
-
-Проверка статуса контейнеров:
+Подождите, пока все контейнеры станут `healthy`:
 
 ~~~bash
 make docker-ps
 ~~~
 
-Проверка здоровья backend:
-
-~~~bash
-curl http://localhost:8080/api/v1.0.0/health/live
+Ожидаемый результат:
+~~~
+NAME                      STATUS                    PORTS
+scada-mobile-postgres     healthy                   0.0.0.0:5432->5432/tcp
+scada-mobile-backend-1    healthy                   0.0.0.0:9999->8080/tcp
+scada-mobile-frontend-1   healthy                   0.0.0.0:9998->8080/tcp
 ~~~
 
-Если изменили `SCADA_MOBILE_BACKEND_PORT`, используйте его в URL.
+Фронтенд доступен по адресу: `http://<IP>:<FRONTEND_PORT>`
 
-Проверка подключения к PostgreSQL:
+---
+
+## Шаг 6: Получить учётные данные администратора
+
+При первом запуске backend автоматически создаёт администратора и дописывает учётные данные в `.env.prod.local`:
 
 ~~~bash
-docker exec -it scada-mobile-postgres pg_isready -U scada_user -d scada_mobile
+grep SCADA_MOBILE_ADMIN .env.prod.local
 ~~~
 
-## 4) Логи и диагностика
-
-Логи всех сервисов:
-
-~~~bash
-docker compose --env-file .env.prod.local -f docker-compose.yml -f docker-compose.prod.yml logs -f
+Ожидаемый вывод:
+~~~
+SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE=XXXXXXXX
+SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD=XXXXXXXXXX
 ~~~
 
-Логи только backend:
+> **Важно:** эти переменные создаются только при первом старте, когда в БД нет пользователя с ролью ADMIN. Сохраните их надёжно.
+
+---
+
+## Диагностика
+
+### Логи
 
 ~~~bash
+# Все сервисы
+make docker-logs
+
+# Только backend
 docker compose --env-file .env.prod.local -f docker-compose.yml -f docker-compose.prod.yml logs -f backend
-~~~
 
-Логи только frontend:
-
-~~~bash
-docker compose --env-file .env.prod.local -f docker-compose.yml -f docker-compose.prod.yml logs -f frontend
-~~~
-
-Логи только PostgreSQL:
-
-~~~bash
+# Только PostgreSQL
 docker compose --env-file .env.prod.local -f docker-compose.yml -f docker-compose.prod.yml logs -f postgres
 ~~~
 
-Быстрая проверка WebSocket origin-политики:
+### Проверка health backend
+
+~~~bash
+curl -s http://localhost:<BACKEND_PORT>/actuator/health
+~~~
+
+### Проверка PostgreSQL
+
+~~~bash
+docker exec scada-mobile-postgres pg_isready -U scada_user -d scada_mobile
+~~~
+
+### Проверка WebSocket
 
 ~~~bash
 curl -i \
   -H "Connection: Upgrade" \
   -H "Upgrade: websocket" \
-  -H "Origin: http://999.9.9.9:9999" \
+  -H "Origin: http://<YOUR_ORIGIN>" \
   -H "Sec-WebSocket-Version: 13" \
   -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
-  http://999.9.9.9:9999/ws/live
+  http://<YOUR_ORIGIN>/ws/live
 ~~~
 
-Ожидаемое поведение:
+- `101 Switching Protocols` — origin разрешён
+- `403` — origin не входит в `SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS`
 
-1. `101 Switching Protocols` — origin разрешён, handshake проходит.
-2. `403` — origin не входит в `SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS`.
+---
 
-## 5) Остановка PROD-стека
+## Остановка
 
 ~~~bash
 make docker-prod-down
 ~~~
 
-Данные PostgreSQL сохраняются в именованном Docker-томе `scada-mobile-postgres-data` и не теряются при остановке контейнеров.
+Данные PostgreSQL сохраняются в Docker-томе `scada-mobile-postgres-data`.
 
-## 6) Если что-то не стартовало
+---
 
-1. Проверьте, что порты не заняты: `SCADA_MOBILE_BACKEND_PORT`, `SCADA_MOBILE_FRONTEND_PORT`, `SCADA_MOBILE_POSTGRES_PORT`.
-2. Проверьте заполнение нужных `SCADA_MOBILE_PRINTSRV_<ID>_HOST` и `SCADA_MOBILE_PRINTSRV_<ID>_PORT`.
-3. Проверьте, что заданы `SCADA_MOBILE_JWT_ACCESS_SECRET` и `SCADA_MOBILE_JWT_REFRESH_SECRET`.
-4. Проверьте, что задан `SCADA_MOBILE_DATABASE_PASSWORD`.
-5. Пересоберите без кеша:
+## Если что-то не стартовало
+
+1. **Порт занят:** проверьте `SCADA_MOBILE_BACKEND_PORT`, `SCADA_MOBILE_FRONTEND_PORT`, `SCADA_MOBILE_POSTGRES_PORT`
+2. **Пустые секреты:** убедитесь, что `SCADA_MOBILE_JWT_ACCESS_SECRET`, `SCADA_MOBILE_JWT_REFRESH_SECRET`, `SCADA_MOBILE_DATABASE_PASSWORD` не пустые
+3. **CORS ошибки:** проверьте `SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS`
+4. **Пересобрать без кеша:**
 
 ~~~bash
 docker compose --env-file .env.prod.local -f docker-compose.yml -f docker-compose.prod.yml build --no-cache
 docker compose --env-file .env.prod.local -f docker-compose.yml -f docker-compose.prod.yml up -d
+~~~
+
+5. Очистить всё:
+
+~~~bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod.local down -v --rmi all
 ~~~
