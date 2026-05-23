@@ -18,19 +18,18 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.List;
 
 /**
  * Bootstrap-компонент для создания начального администратора.
  * <p>
- * При первом запуске приложения, если в БД отсутствуют роли и пользователи,
- * создаётся роль ADMIN и пользователь-администратор с автоматически
- * сгенерированным кодом и паролем.
+ * При первом запуске приложения, если в БД отсутствует пользователь с ролью ADMIN,
+ * создаётся роль ADMIN (если ещё не существует) и пользователь-администратор
+ * с автоматически сгенерированным кодом и паролем.
  * <p>
- * Сгенерированные учётные данные записываются в файл {@code /app/admin-credentials.txt}
- * внутри контейнера. Файл можно прочитать через:
- * <pre>
- *   docker exec scada-mobile-backend-1 cat /app/admin-credentials.txt
- * </pre>
+ * Сгенерированные учётные данные дописываются в файл {@code .env.prod.local}
+ * в корне проекта (переменные {@code SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE}
+ * и {@code SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD}).
  * <p>
  * Это позволяет развёртывать приложение в production без предварительного
  * seed-скрипта: администратор входит с сгенерированными учётными данными
@@ -44,8 +43,13 @@ public class AdminBootstrapConfig implements ApplicationRunner {
     private static final String ADMIN_FULL_NAME = "System Administrator";
     private static final int RANDOM_PASSWORD_BYTES = 12;
 
-    /** Путь к файлу с учётными данными администратора внутри контейнера. */
-    public static final Path CREDENTIALS_FILE = Path.of("/app/admin-credentials.txt");
+    /** Имя переменной окружения для кода (логина) администратора. */
+    public static final String ENV_ADMIN_CODE = "SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE";
+    /** Имя переменной окружения для пароля администратора. */
+    public static final String ENV_ADMIN_PASSWORD = "SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD";
+
+    /** Путь к файлу .env.prod.local относительно корня проекта. */
+    public static final Path ENV_FILE = Path.of(".env.prod.local");
 
     private final RoleJpaRepository roleRepository;
     private final UserJpaRepository userRepository;
@@ -62,8 +66,8 @@ public class AdminBootstrapConfig implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (userRepository.count() > 0) {
-            log.info("Bootstrap: users already exist in database, skipping admin creation");
+        if (hasAdminUser()) {
+            log.info("Bootstrap: admin user already exists, skipping admin creation");
             return;
         }
 
@@ -88,27 +92,57 @@ public class AdminBootstrapConfig implements ApplicationRunner {
         admin.setActive(true);
         userRepository.save(admin);
 
-        // Записываем учётные данные в файл
-        writeCredentialsFile(adminCode, rawPassword);
+        // Записываем учётные данные в .env.prod.local
+        writeEnvFile(adminCode, rawPassword);
 
         log.info("Bootstrap: initial admin account created (code={})", adminCode);
     }
 
-    private void writeCredentialsFile(String code, String password) {
+    /**
+     * Проверяет, существует ли в БД пользователь с ролью ADMIN.
+     */
+    private boolean hasAdminUser() {
+        return userRepository.findAll().stream()
+                .anyMatch(u -> u.getRole() != null && ADMIN_ROLE_NAME.equals(u.getRole().getName()));
+    }
+
+    /**
+     * Дописывает (или обновляет) переменные окружения с учётными данными
+     * администратора в файл {@code .env.prod.local}.
+     */
+    private void writeEnvFile(String code, String password) {
         try {
-            String content = """
-                    SCADA Mobile — Initial Admin Credentials
-                    =========================================
-                    Code:     %s
-                    Password: %s
-                    =========================================
-                    Save these credentials securely. This file is created only once.
-                    """.formatted(code, password);
-            Files.writeString(CREDENTIALS_FILE, content, StandardCharsets.UTF_8,
+            Path envPath = ENV_FILE.toAbsolutePath().normalize();
+
+            List<String> lines;
+            if (Files.exists(envPath)) {
+                lines = Files.readAllLines(envPath, StandardCharsets.UTF_8);
+            } else {
+                lines = List.of();
+            }
+
+            // Удаляем старые значения, если есть
+            lines = lines.stream()
+                    .filter(l -> !l.trim().startsWith(ENV_ADMIN_CODE + "=")
+                            && !l.trim().startsWith(ENV_ADMIN_PASSWORD + "="))
+                    .toList();
+
+            // Добавляем новые значения
+            StringBuilder sb = new StringBuilder();
+            for (String line : lines) {
+                sb.append(line).append(System.lineSeparator());
+            }
+            sb.append(System.lineSeparator());
+            sb.append("# ── Auto-generated admin credentials (created on first bootstrap) ──────────").append(System.lineSeparator());
+            sb.append(ENV_ADMIN_CODE).append("=").append(code).append(System.lineSeparator());
+            sb.append(ENV_ADMIN_PASSWORD).append("=").append(password).append(System.lineSeparator());
+
+            Files.writeString(envPath, sb.toString(), StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-            log.info("Bootstrap: admin credentials written to {}", CREDENTIALS_FILE);
+
+            log.info("Bootstrap: admin credentials written to {}", envPath);
         } catch (Exception e) {
-            log.warn("Bootstrap: unable to write credentials file {}: {}", CREDENTIALS_FILE, e.getMessage());
+            log.warn("Bootstrap: unable to write credentials to {}: {}", ENV_FILE, e.getMessage());
         }
     }
 
