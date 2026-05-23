@@ -31,6 +31,15 @@ description: 'Remote server deployment workflow for the SCADA Mobile project via
 4. **Deployment is the only permitted state change:** `make docker-prod-up`, `make docker-prod-down`, `docker compose ...` commands that start/stop/restart containers.
 5. **Pre-flight check:** Before executing ANY command on the server, verify it contains no forbidden operators for non-env files.
 
+## Git Workflow Rules (Local Machine)
+
+These rules apply when the agent commits and pushes code from the local machine:
+
+1. **Never use `git commit --amend` after push:** Once a commit is pushed to `origin/main`, never amend it. Amending rewrites history and breaks `git pull` on the server.
+2. **Never use `--force` or `--force-with-lease` on `main`:** Force-pushing to the shared main branch causes divergent history and breaks all deployed instances.
+3. **Always create new commits:** Even for small fixes, create a new commit rather than amending the previous one.
+4. **Push normal commits only:** Use `git push origin main` without flags after creating a standard commit.
+
 ## Environment Variable Management
 
 ### Scope
