@@ -6,7 +6,7 @@ import {
   WORKSHOP_STATUS_CLASS,
 } from '../constants/statusUtils';
 import { UnitErrorBoard } from './UnitErrorBoard';
-import type { AlertData, NotificationData } from '../types';
+import type { AlertData, NotificationData, Workshop } from '../types';
 
 /**
  * Карточка цеха на dashboard.
@@ -17,19 +17,11 @@ import type { AlertData, NotificationData } from '../types';
  */
 
 interface Props {
-  workshop: WorkshopWithNotifications;
+  workshop: Workshop;
   alerts: Map<string, AlertData>;
   notifications?: Map<string, NotificationData>;
   unitTopologyByWorkshop?: Record<string, { id: string; unit: string }[]>;
   onClick: () => void;
-}
-
-export interface WorkshopWithNotifications {
-  id: string;
-  name: string;
-  totalUnits: number;
-  problemUnits: number;
-  notificationUnits: number;
 }
 
 export function WorkshopCard({
