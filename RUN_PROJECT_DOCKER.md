@@ -10,7 +10,7 @@
   - [Шаг 3: Сгенерировать секреты](#шаг-3-сгенерировать-секреты)
     - [3.1 JWT-секреты (обязательно)](#31-jwt-секреты-обязательно)
     - [3.2 Пароль PostgreSQL (обязательно)](#32-пароль-postgresql-обязательно)
-    - [3.3 Пароль администратора (опционально — генерируется автоматически)](#33-пароль-администратора-опционально--генерируется-автоматически)
+    - [3.3 Пароль администратора (обязательно)](#33-пароль-администратора-обязательно)
   - [Шаг 4: Заполнить обязательные переменные](#шаг-4-заполнить-обязательные-переменные)
   - [Шаг 5: Запустить стек](#шаг-5-запустить-стек)
   - [Шаг 6: Получить учётные данные администратора](#шаг-6-получить-учётные-данные-администратора)
@@ -83,24 +83,30 @@ $env:SCADA_MOBILE_DATABASE_PASSWORD = openssl rand -base64 16
 Write-Host "DB_PASS: $env:SCADA_MOBILE_DATABASE_PASSWORD"
 ~~~
 
-### 3.3 Пароль администратора (опционально — генерируется автоматически)
+### 3.3 Пароль администратора (обязательно)
 
-Если хотите задать вручную:
+Сгенерируйте и запишите в `.env.prod.local`:
 
 **bash / Linux / macOS:**
 ~~~bash
 export SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD=$(openssl rand -base64 7 | cut -c1-10)
+export SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE=$(openssl rand -base64 6 | tr -dc 'A-Z0-9' | cut -c1-8)
 echo "ADMIN_PASS: $SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD"
+echo "ADMIN_CODE: $SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE"
 ~~~
 
 **PowerShell:**
 ~~~powershell
-$chars = (48..57) + (65..90) + (97..122) + (33,35,36,37,38,42,64,94)
-$env:SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD = -join ($chars | Get-Random -Count 10 | ForEach-Object { [char]$_ })
+$passChars = (48..57) + (65..90) + (97..122) + (33,35,36,37,38,42,64,94)
+$codeChars = (48..57) + (65..90)
+$env:SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD = -join ($passChars | Get-Random -Count 10 | ForEach-Object { [char]$_ })
+$env:SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE = -join ($codeChars | Get-Random -Count 8 | ForEach-Object { [char]$_ })
 Write-Host "ADMIN_PASS: $env:SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD"
+Write-Host "ADMIN_CODE: $env:SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE"
 ~~~
 
-> **Требования к паролю администратора:** ровно 10 символов, заглавные и строчные буквы, цифры, спецсимволы.
+> **Требования к паролю администратора:** ровно 10 символов, заглавные и строчные буквы, цифры, спецсимволы.  
+> **Требования к коду администратора:** рекомндуется написать просто "admin"
 
 ---
 
@@ -131,8 +137,8 @@ SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS=http://999.9.9.9:9998
 SCADA_MOBILE_JWT_ACCESS_SECRET=YOUR_GENERATED_ACCESS_SECRET
 SCADA_MOBILE_JWT_REFRESH_SECRET=YOUR_GENERATED_REFRESH_SECRET
 
-# Опционально: задать пароль админа вручную
-# SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD=YOUR_GENERATED_ADMIN_PASS
+SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD=YOUR_GENERATED_ADMIN_PASS
+SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE=YOUR_GENERATED_ADMIN_CODE
 
 # Один автомат для проверки (остальные можно не указывать)
 SCADA_MOBILE_PRINTSRV_HASSIA4_HOST=999.9.9.9
