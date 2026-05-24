@@ -26,7 +26,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: prod
       SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS: ${SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS}
       SCADA_MOBILE_DATABASE_URL: ${SCADA_MOBILE_DATABASE_URL:-jdbc:postgresql://${SCADA_MOBILE_POSTGRES_HOST:-postgres}:5432/${SCADA_MOBILE_POSTGRES_DB:-scada_mobile}}
       SCADA_MOBILE_DATABASE_USERNAME: ${SCADA_MOBILE_DATABASE_USERNAME:-scada_user}
