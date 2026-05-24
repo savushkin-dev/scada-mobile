@@ -10,7 +10,7 @@ package dev.savushkin.scada.mobile.backend.api.dto;
  * @param problemUnits число аппаратов с активными ошибками на текущий момент
  */
 public record WorkshopStatusDTO(
-        String workshopId,
+        long workshopId,
         int problemUnits
 ) {
 }

@@ -12,7 +12,7 @@ package dev.savushkin.scada.mobile.backend.api.dto;
  */
 public record UnitTopologyDTO(
         String id,
-        String workshopId,
+        long workshopId,
         String unit
 ) {
 }

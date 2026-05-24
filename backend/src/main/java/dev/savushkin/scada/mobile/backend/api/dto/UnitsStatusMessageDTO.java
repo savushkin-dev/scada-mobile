@@ -15,21 +15,21 @@ import java.util.List;
  *   "type": "UNITS_STATUS",
  *   "workshopId": "dess",
  *   "payload": [
- *     {"unitId": "hassia2", "workshopId": "dess", "event": "В работе", "timer": "00:00:00"}
+ *     {"unitId": "hassia2", "workshopId": 1, "event": "В работе", "timer": "00:00:00"}
  *   ]
  * }
  * </pre>
  */
 public record UnitsStatusMessageDTO(
         String type,
-        String workshopId,
+        long workshopId,
         List<UnitStatusDTO> payload
 ) {
     /**
      * Фабричный метод — тип всегда фиксирован.
      */
     @Contract("_, _ -> new")
-    public static @NonNull UnitsStatusMessageDTO of(String workshopId, List<UnitStatusDTO> payload) {
+    public static @NonNull UnitsStatusMessageDTO of(long workshopId, List<UnitStatusDTO> payload) {
         return new UnitsStatusMessageDTO("UNITS_STATUS", workshopId, payload);
     }
 }

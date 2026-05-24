@@ -2,8 +2,10 @@ package dev.savushkin.scada.mobile.backend.services;
 
 import dev.savushkin.scada.mobile.backend.api.dto.AlertErrorDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.AlertMessageDTO;
-import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
+import dev.savushkin.scada.mobile.backend.application.ports.PrintSrvTopologyRepository;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceError;
+import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
+import dev.savushkin.scada.mobile.backend.domain.model.Workshop;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.UnitErrorStore;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Service;
@@ -12,7 +14,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Сервис определения активных алёртов по текущему снапшоту PrintSrv.
@@ -34,39 +35,13 @@ public class AlertService {
 
     private static final String SEVERITY_CRITICAL = "Critical";
 
-    private final PrintSrvProperties config;
+    private final PrintSrvTopologyRepository topologyRepo;
     private final UnitErrorStore unitErrorStore;
 
-    /**
-     * workshopId → инстансы цеха (однократно строится при старте)
-     */
-    private final Map<String, List<PrintSrvProperties.InstanceProperties>> instancesByWorkshop;
-    private final Map<String, PrintSrvProperties.InstanceProperties> instancesById;
-    private final Map<String, PrintSrvProperties.WorkshopProperties> workshopsById;
-
-    public AlertService(PrintSrvProperties config,
+    public AlertService(PrintSrvTopologyRepository topologyRepo,
                         UnitErrorStore unitErrorStore) {
-        this.config = config;
+        this.topologyRepo = topologyRepo;
         this.unitErrorStore = unitErrorStore;
-        this.instancesByWorkshop = config.getInstances().stream()
-                .collect(Collectors.groupingBy(
-                        PrintSrvProperties.InstanceProperties::getWorkshopId,
-                        LinkedHashMap::new,
-                        Collectors.toList()));
-        this.instancesById = config.getInstances().stream()
-                .collect(Collectors.toMap(
-                        PrintSrvProperties.InstanceProperties::getId,
-                        inst -> inst,
-                        (left, right) -> left,
-                        LinkedHashMap::new
-                ));
-        this.workshopsById = config.getWorkshops().stream()
-                .collect(Collectors.toMap(
-                        PrintSrvProperties.WorkshopProperties::getId,
-                        workshop -> workshop,
-                        (left, right) -> left,
-                        LinkedHashMap::new
-                ));
     }
 
     /**
@@ -83,14 +58,18 @@ public class AlertService {
         Map<String, AlertMessageDTO> result = new LinkedHashMap<>();
         String timestamp = LocalDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
 
-        for (PrintSrvProperties.WorkshopProperties workshop : config.getWorkshops()) {
-            List<PrintSrvProperties.InstanceProperties> instances =
-                    instancesByWorkshop.getOrDefault(workshop.getId(), Collections.emptyList());
+        Map<Long, Workshop> workshopsById = new LinkedHashMap<>();
+        for (Workshop ws : topologyRepo.findAllActiveWorkshops()) {
+            workshopsById.put(ws.id(), ws);
+        }
 
-            for (PrintSrvProperties.InstanceProperties inst : instances) {
-                computeAlertForUnit(workshop, inst, timestamp)
-                        .ifPresent(alert -> result.put(inst.getId(), alert));
+        for (PrintSrvInstance inst : topologyRepo.findAllActiveInstances()) {
+            Workshop workshop = workshopsById.get(inst.workshopId());
+            if (workshop == null) {
+                continue;
             }
+            computeAlertForUnit(workshop, inst, timestamp)
+                    .ifPresent(alert -> result.put(inst.instanceId(), alert));
         }
 
         return Collections.unmodifiableMap(result);
@@ -103,12 +82,15 @@ public class AlertService {
      * @return активный алёрт или пусто, если проблем нет либо инстанс неизвестен
      */
     public Optional<AlertMessageDTO> computeAlertForInstance(String instanceId) {
-        PrintSrvProperties.InstanceProperties inst = instancesById.get(instanceId);
+        PrintSrvInstance inst = topologyRepo.findByInstanceId(instanceId).orElse(null);
         if (inst == null) {
             return Optional.empty();
         }
 
-        PrintSrvProperties.WorkshopProperties workshop = workshopsById.get(inst.getWorkshopId());
+        Workshop workshop = topologyRepo.findAllActiveWorkshops().stream()
+                .filter(ws -> ws.id() == inst.workshopId())
+                .findFirst()
+                .orElse(null);
         if (workshop == null) {
             return Optional.empty();
         }
@@ -127,11 +109,11 @@ public class AlertService {
      * перед вызовом этого метода (через {@code UnitDetailService.extractActiveErrors}).
      */
     private Optional<AlertMessageDTO> computeAlertForUnit(
-            PrintSrvProperties.WorkshopProperties workshop,
-            PrintSrvProperties.@NonNull InstanceProperties inst,
+            Workshop workshop,
+            @NonNull PrintSrvInstance inst,
             String timestamp
     ) {
-        List<DeviceError> deviceErrors = unitErrorStore.getErrors(inst.getId());
+        List<DeviceError> deviceErrors = unitErrorStore.getErrors(inst.instanceId());
         if (deviceErrors.isEmpty()) {
             return Optional.empty();
         }
@@ -141,9 +123,9 @@ public class AlertService {
                 .toList();
 
         return Optional.of(AlertMessageDTO.active(
-                workshop.getId(),
-                inst.getId(),
-                inst.getDisplayName(),
+                workshop.id(),
+                inst.instanceId(),
+                inst.displayName(),
                 SEVERITY_CRITICAL,
                 alertErrors,
                 timestamp

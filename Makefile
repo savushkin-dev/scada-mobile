@@ -5,7 +5,7 @@ FRONTEND_DIR := frontend
 JAVA_OPTS := -Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8
 DEV_BACKEND_PORT ?= 8080
 DEV_FRONTEND_PORT ?= 5500
-SEED_DB_CONTAINER ?= scada-mobile-postgres
+SEED_DB_CONTAINER ?= postgres
 SEED_DB_NAME ?= scada_mobile
 SEED_DB_USER ?= scada_user
 SEED_DB_PASSWORD ?= scada_password

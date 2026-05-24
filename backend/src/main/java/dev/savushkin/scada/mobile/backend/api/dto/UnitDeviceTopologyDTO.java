@@ -16,7 +16,7 @@ package dev.savushkin.scada.mobile.backend.api.dto;
  */
 public record UnitDeviceTopologyDTO(
         String unitId,
-        String workshopId,
+        long workshopId,
         String unit,
         DeviceGroupsDTO devices
 ) {

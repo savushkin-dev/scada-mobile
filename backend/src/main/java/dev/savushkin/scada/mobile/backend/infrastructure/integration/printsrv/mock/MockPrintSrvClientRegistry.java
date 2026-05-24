@@ -1,6 +1,7 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.mock;
 
-import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
+import dev.savushkin.scada.mobile.backend.application.ports.PrintSrvTopologyRepository;
+import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.client.PrintSrvClient;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.client.PrintSrvClientRegistry;
 import jakarta.annotation.PostConstruct;
@@ -15,12 +16,12 @@ import java.util.*;
  * Реализация {@link PrintSrvClientRegistry} для профиля {@code dev}.
  *
  * <p>При старте контекста создаёт по одному {@link MockPrintSrvClient} для каждого
- * инстанса из {@code printsrv.instances} и инициализирует их seed-состояние,
+ * активного инстанса из {@link PrintSrvTopologyRepository} и инициализирует их seed-состояние,
  * загружая XML-файлы через {@link XmlSnapshotLoader}.
  *
  * <h3>Последовательность инициализации</h3>
  * <ol>
- *   <li>Считать список инстансов из {@link PrintSrvProperties}</li>
+ *   <li>Считать список инстансов из {@link PrintSrvTopologyRepository}</li>
  *   <li>Определить множество «offline»-инстансов из {@link MockPrintSrvProperties}</li>
  *   <li>Для каждого инстанса создать {@link MockInstanceState}</li>
  *   <li>Для каждого устройства из конфигурации инстанса вызвать
@@ -28,9 +29,8 @@ import java.util.*;
  *   <li>Обернуть состояние в {@link MockPrintSrvClient} с флагом offline</li>
  * </ol>
  *
- * <p>Если в {@code printsrv.instances} нет ни одного элемента, Registry стартует
- * пустым и логирует предупреждение — это помогает при первоначальной настройке,
- * когда YAML ещё не полностью заполнен.
+ * <p>Если в БД нет ни одного инстанса, Registry стартует
+ * пустым и логирует предупреждение.
  */
 @Component
 @Profile("dev")
@@ -38,22 +38,22 @@ public class MockPrintSrvClientRegistry implements PrintSrvClientRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(MockPrintSrvClientRegistry.class);
 
-    private final PrintSrvProperties printsrvProperties;
+    private final PrintSrvTopologyRepository topologyRepo;
     private final MockPrintSrvProperties mockProperties;
     private final XmlSnapshotLoader snapshotLoader;
 
     /**
-     * Именно {@code LinkedHashMap} — чтобы порядок итерации соответствовал порядку в YAML.
+     * Именно {@code LinkedHashMap} — чтобы порядок итерации соответствовал порядку в БД.
      * Не менять на HashMap: в логах и UI порядок должен быть предсказуемым.
      */
     private final Map<String, MockPrintSrvClient> clients = new LinkedHashMap<>();
 
     public MockPrintSrvClientRegistry(
-            PrintSrvProperties printsrvProperties,
+            PrintSrvTopologyRepository topologyRepo,
             MockPrintSrvProperties mockProperties,
             XmlSnapshotLoader snapshotLoader
     ) {
-        this.printsrvProperties = printsrvProperties;
+        this.topologyRepo = topologyRepo;
         this.mockProperties = mockProperties;
         this.snapshotLoader = snapshotLoader;
     }
@@ -62,10 +62,10 @@ public class MockPrintSrvClientRegistry implements PrintSrvClientRegistry {
 
     @PostConstruct
     void init() {
-        var instances = printsrvProperties.getInstances();
+        var instances = topologyRepo.findAllActiveInstances();
         if (instances.isEmpty()) {
-            log.warn("MockPrintSrvClientRegistry: printsrv.instances is empty — " +
-                     "no mock clients created. Check application-dev.yaml.");
+            log.warn("MockPrintSrvClientRegistry: no active instances found in DB — " +
+                     "no mock clients created. Check units table.");
             return;
         }
 
@@ -73,14 +73,14 @@ public class MockPrintSrvClientRegistry implements PrintSrvClientRegistry {
         String baseDir = mockProperties.getSnapshotBaseDir();
 
         for (var inst : instances) {
-            String id = inst.getId();
+            String id = inst.instanceId();
             boolean isOffline = offline.contains(id);
 
             // --- создаём изолированное состояние для инстанса ---
             MockInstanceState state = new MockInstanceState(id);
 
             // --- загружаем seed из XML для каждого устройства данного инстанса ---
-            for (String device : inst.getAllDeviceNames()) {
+            for (String device : inst.deviceNames()) {
                 Map<String, String> props = snapshotLoader.loadForDevice(device, baseDir, id);
                 state.initDevice(device, props);
             }
@@ -89,7 +89,7 @@ public class MockPrintSrvClientRegistry implements PrintSrvClientRegistry {
             clients.put(id, client);
 
             log.info("MockPrintSrv: registered instance '{}' (displayName='{}', offline={})",
-                     id, inst.getDisplayName(), isOffline);
+                     id, inst.displayName(), isOffline);
         }
 
         log.info("MockPrintSrvClientRegistry: {} client(s) ready ({} offline)",

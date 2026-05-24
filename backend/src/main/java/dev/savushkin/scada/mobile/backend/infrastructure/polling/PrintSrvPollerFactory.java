@@ -1,7 +1,8 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.polling;
 
 import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepository;
-import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
+import dev.savushkin.scada.mobile.backend.application.ports.PrintSrvTopologyRepository;
+import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.PrintSrvMapper;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.client.PrintSrvClient;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.client.PrintSrvClientRegistry;
@@ -36,29 +37,24 @@ public class PrintSrvPollerFactory {
     private final PrintSrvClientRegistry registry;
     private final PrintSrvMapper mapper;
     private final InstanceSnapshotRepository snapshotRepo;
-    private final Map<String, PrintSrvProperties.InstanceProperties> instancesById;
+    private final PrintSrvTopologyRepository topologyRepo;
 
     public PrintSrvPollerFactory(
             PrintSrvClientRegistry registry,
             PrintSrvMapper mapper,
             InstanceSnapshotRepository snapshotRepo,
-            PrintSrvProperties printSrvProperties
+            PrintSrvTopologyRepository topologyRepo
     ) {
         this.registry = registry;
         this.mapper = mapper;
         this.snapshotRepo = snapshotRepo;
-        this.instancesById = printSrvProperties.getInstances().stream()
-                .collect(LinkedHashMap::new,
-                        (map, inst) -> map.put(inst.getId(), inst),
-                        Map::putAll);
+        this.topologyRepo = topologyRepo;
     }
 
     /**
      * Создаёт список поллеров для всех зарегистрированных инстансов.
      *
      * <p>Порядок следует порядку, возвращяемому {@link PrintSrvClientRegistry#getAll()}.
-     * Оба реестра ({@code MockPrintSrvClientRegistry} и {@code TcpPrintSrvClientRegistry})
-     * используют {@code LinkedHashMap}, поэтому порядок соответствует порядку в YAML.
      *
      * @return неизменяемый список поллеров (по одному на инстанс)
      */
@@ -81,15 +77,15 @@ public class PrintSrvPollerFactory {
      */
     public PrintSrvInstancePoller createFor(@NonNull PrintSrvClient client) {
         log.debug("PrintSrvPollerFactory: creating poller for instance '{}'", client.getInstanceId());
-        PrintSrvProperties.InstanceProperties inst = instancesById.get(client.getInstanceId());
+        PrintSrvInstance inst = topologyRepo.findByInstanceId(client.getInstanceId()).orElse(null);
         if (inst == null) {
-            // Этот путь теоретически недостижим: registry создаёт клиентов только для
-            // инстансов из конфигурации, которые есть и в instancesById. Если он всё же
-            // достигнут — это ошибка инициализации контекста, а не штатная ситуация.
             throw new IllegalStateException(
-                    "PrintSrvPollerFactory: InstanceProperties not found for instanceId='%s'. Known ids: %s"
-                            .formatted(client.getInstanceId(), instancesById.keySet()));
+                    "PrintSrvPollerFactory: PrintSrvInstance not found for instanceId='%s'. Known ids: %s"
+                            .formatted(client.getInstanceId(),
+                                    topologyRepo.findAllActiveInstances().stream()
+                                            .map(PrintSrvInstance::instanceId)
+                                            .toList()));
         }
-        return new PrintSrvInstancePoller(client, mapper, snapshotRepo, inst.getAllDeviceNames());
+        return new PrintSrvInstancePoller(client, mapper, snapshotRepo, inst.deviceNames());
     }
 }

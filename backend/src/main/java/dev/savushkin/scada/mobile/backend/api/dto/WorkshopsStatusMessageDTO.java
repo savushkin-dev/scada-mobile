@@ -15,8 +15,8 @@ import java.util.List;
  * {
  *   "type": "WORKSHOPS_STATUS",
  *   "payload": [
- *     {"workshopId": "dess", "problemUnits": 2},
- *     {"workshopId": "cheese", "problemUnits": 0}
+ *     {"workshopId": 1, "problemUnits": 2},
+ *     {"workshopId": 2, "problemUnits": 0}
  *   ]
  * }
  * </pre>

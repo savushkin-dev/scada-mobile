@@ -114,12 +114,12 @@ type Action =
   | { type: 'SET_SIGNAL_STATE'; slot: SignalSlot; signalState: SignalState }
   // Topology
   | { type: 'SET_WORKSHOP_TOPOLOGY'; topology: WorkshopTopology[] }
-  | { type: 'SET_UNIT_TOPOLOGY'; workshopId: string; topology: UnitTopology[] }
+  | { type: 'SET_UNIT_TOPOLOGY'; workshopId: number; topology: UnitTopology[] }
   | { type: 'SET_DEVICES_TOPOLOGY'; unitId: string; topology: DevicesTopology }
   | { type: 'SET_TOPOLOGY_ETAG'; etag: string }
   // Live status (from WebSocket)
   | { type: 'SET_ALERT_SNAPSHOT'; alerts: AlertWsMessage[] }
-  | { type: 'PATCH_UNITS_STATUS'; workshopId: string; statuses: UnitStatus[] };
+  | { type: 'PATCH_UNITS_STATUS'; workshopId: number; statuses: UnitStatus[] };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -275,7 +275,7 @@ interface AppContextValue {
   clearHeaderError: (slot: HeaderErrorSlot) => void;
   // Topology actions (вызываются один раз при загрузке)
   setWorkshopTopology: (topology: WorkshopTopology[]) => void;
-  setUnitTopology: (workshopId: string, topology: UnitTopology[]) => void;
+  setUnitTopology: (workshopId: number, topology: UnitTopology[]) => void;
   /** Сохраняет топологию устройств аппарата (принтеры, камеры). */
   setDevicesTopology: (unitId: string, topology: DevicesTopology) => void;
   /** Сохраняет ETag, полученный от topology-эндпоинтов. */
@@ -283,7 +283,7 @@ interface AppContextValue {
   // Status actions (вызываются из WS-хуков)
   /** Применяет начальный снапшот алёртов, полученный при подключении к /ws/live */
   setAlertSnapshot: (alerts: AlertWsMessage[]) => void;
-  patchUnitsStatus: (workshopId: string, statuses: UnitStatus[]) => void;
+  patchUnitsStatus: (workshopId: number, statuses: UnitStatus[]) => void;
   // Notifications (user-triggered production notifications)
   handleNotification: (msg: NotificationWsMessage) => void;
   setNotificationSnapshot: (notifications: NotificationWsMessage[]) => void;
@@ -317,7 +317,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     []
   );
   const setUnitTopology = useCallback(
-    (workshopId: string, topology: UnitTopology[]) =>
+    (workshopId: number, topology: UnitTopology[]) =>
       dispatch({ type: 'SET_UNIT_TOPOLOGY', workshopId, topology }),
     []
   );
@@ -335,7 +335,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     []
   );
   const patchUnitsStatus = useCallback(
-    (workshopId: string, statuses: UnitStatus[]) =>
+    (workshopId: number, statuses: UnitStatus[]) =>
       dispatch({ type: 'PATCH_UNITS_STATUS', workshopId, statuses }),
     []
   );

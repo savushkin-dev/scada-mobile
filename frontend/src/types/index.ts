@@ -58,7 +58,7 @@ export interface AlertData {
   /** Детализированные ошибки аппарата. */
   errors: AlertError[];
   timestamp: string;
-  workshopId: string;
+  workshopId: number;
 }
 
 /**
@@ -82,7 +82,7 @@ export interface NotificationData {
 
 /** Полные данные цеха для UI — topology + статус объединённые */
 export interface Workshop {
-  id: string;
+  id: number;
   name: string;
   totalUnits: number;
   problemUnits: number;
@@ -92,7 +92,7 @@ export interface Workshop {
 /** Полные данные аппарата для UI — topology + статус объединённые */
 export interface Unit {
   id: string;
-  workshopId: string;
+  workshopId: number;
   unit: string;
   event: string;
   /**
@@ -128,5 +128,5 @@ export interface DevicesStatusPayload {
 
 /** Действия, отправляемые клиентом на сервер через /ws/live */
 export type LiveWsClientAction =
-  | { action: 'SUBSCRIBE_WORKSHOP'; workshopId: string }
+  | { action: 'SUBSCRIBE_WORKSHOP'; workshopId: number }
   | { action: 'UNSUBSCRIBE_WORKSHOP' };

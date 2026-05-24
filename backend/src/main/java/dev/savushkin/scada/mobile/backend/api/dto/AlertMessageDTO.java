@@ -38,7 +38,7 @@ import java.util.List;
  */
 public record AlertMessageDTO(
         String type,
-        String workshopId,
+        long workshopId,
         String unitId,
         String unitName,
         String severity,
@@ -51,7 +51,7 @@ public record AlertMessageDTO(
      */
     @Contract("_, _, _, _, _, _ -> new")
     public static @NonNull AlertMessageDTO active(
-            String workshopId,
+            long workshopId,
             String unitId,
             String unitName,
             String severity,

@@ -2,11 +2,13 @@ package dev.savushkin.scada.mobile.backend.services;
 
 import dev.savushkin.scada.mobile.backend.api.dto.*;
 import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepository;
-import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
+import dev.savushkin.scada.mobile.backend.application.ports.PrintSrvTopologyRepository;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceComposition;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceError;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
+import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitSnapshot;
+import dev.savushkin.scada.mobile.backend.domain.model.Workshop;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.UnitErrorStore;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -14,21 +16,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.stream.Collectors;
 
 /**
  * Сервис для формирования данных REST API цехов и аппаратов.
  * <p>
- * Объединяет статическую конфигурацию из YAML (список цехов и аппаратов)
+ * Объединяет статическую конфигурацию из БД (список цехов и аппаратов)
  * с live-данными из {@link InstanceSnapshotRepository} (текущее состояние).
  * <p>
  * Данные разделены на два слоя:
  * <ul>
- *   <li><b>Topology</b> — статика из конфига, меняется крайне редко.
+ *   <li><b>Topology</b> — статика из БД, меняется крайне редко.
  *       Возвращается REST-эндпоинтами с поддержкой ETag-кэширования.</li>
  *   <li><b>Status</b> — live-данные из snapshot store.
  *       Рассылается по WebSocket по мере готовности конкретных аппаратов.</li>
@@ -39,82 +38,32 @@ public class WorkshopService {
 
     private static final Logger log = LoggerFactory.getLogger(WorkshopService.class);
 
-    private final PrintSrvProperties config;
+    private final PrintSrvTopologyRepository topologyRepo;
     private final InstanceSnapshotRepository snapshotRepo;
     private final DeviceCompositionService deviceCompositionService;
     private final UnitErrorStore unitErrorStore;
 
-    /** Быстрый lookup: workshopId → список инстансов. */
-    private final Map<String, List<PrintSrvProperties.InstanceProperties>> instancesByWorkshop;
-    /**
-     * Быстрый lookup: instanceId → конфиг инстанса.
-     */
-    private final Map<String, PrintSrvProperties.InstanceProperties> instancesById;
-
-    /**
-     * ETag для topology-эндпоинтов. Вычисляется один раз при старте
-     * как SHA-256 от конфигурации цехов и инстансов.
-     * Контроллер проверяет {@code If-None-Match} против этого значения
-     * и возвращает {@code 304 Not Modified} при совпадении.
-     */
-    private final String configETag;
-
-    public WorkshopService(PrintSrvProperties config,
+    public WorkshopService(PrintSrvTopologyRepository topologyRepo,
                            InstanceSnapshotRepository snapshotRepo,
                            DeviceCompositionService deviceCompositionService,
                            UnitErrorStore unitErrorStore) {
-        this.config = config;
+        this.topologyRepo = topologyRepo;
         this.snapshotRepo = snapshotRepo;
         this.deviceCompositionService = deviceCompositionService;
         this.unitErrorStore = unitErrorStore;
-        this.instancesByWorkshop = config.getInstances().stream()
-                .collect(Collectors.groupingBy(
-                        PrintSrvProperties.InstanceProperties::getWorkshopId,
-                        LinkedHashMap::new,
-                        Collectors.toList()));
-        this.instancesById = config.getInstances().stream()
-                .collect(Collectors.toMap(
-                        PrintSrvProperties.InstanceProperties::getId,
-                        inst -> inst,
-                        (left, right) -> left,
-                        LinkedHashMap::new
-                ));
-        this.configETag = computeConfigETag(config);
-        log.info("WorkshopService initialized: {} workshops, {} instances, ETag={}",
-                config.getWorkshops().size(), config.getInstances().size(), configETag);
+        log.info("WorkshopService initialized");
     }
 
     // ─── Topology (статика, кэшируется на клиенте) ────────────────────────────
 
     /**
-     * Вычисляет SHA-256 хэш конфигурации топологии при инициализации сервиса.
+     * Возвращает предвычисленный ETag конфигурации топологии.
      * <p>
-     * Входные данные: отсортированный список "workshopId:displayName" + "instanceId:workshopId:displayName".
-     * Сортировка гарантирует детерминированный результат при любом порядке в YAML.
-     * <p>
-     * Формат результата: hex-строка без кавычек (кавычки добавит контроллер для заголовка ETag).
+     * Значение — SHA-256-хэш в формате {@code "hex-string"},
+     * готовый для вставки в заголовок {@code ETag}.
      */
-    private static @NonNull String computeConfigETag(@NonNull PrintSrvProperties config) {
-        try {
-            StringBuilder sb = new StringBuilder();
-            config.getWorkshops().stream()
-                    .sorted(Comparator.comparing(PrintSrvProperties.WorkshopProperties::getId))
-                    .forEach(ws -> sb.append("w:").append(ws.getId()).append(':').append(ws.getDisplayName()).append(';'));
-            config.getInstances().stream()
-                    .sorted(Comparator.comparing(PrintSrvProperties.InstanceProperties::getId))
-                    .forEach(inst -> sb.append("i:").append(inst.getId()).append(':')
-                            .append(inst.getWorkshopId()).append(':').append(inst.getDisplayName()).append(':')
-                            .append(String.join(",", inst.getAllDeviceNames())).append(';'));
-
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(sb.toString().getBytes(StandardCharsets.UTF_8));
-            StringBuilder hex = new StringBuilder(hash.length * 2);
-            for (byte b : hash) hex.append(String.format("%02x", b));
-            return hex.toString();
-        } catch (NoSuchAlgorithmException e) {
-            // SHA-256 гарантированно доступен в JDK — этот путь не достижим
-            throw new IllegalStateException("SHA-256 not available", e);
-        }
+    public String getConfigETag() {
+        return topologyRepo.getConfigETag();
     }
 
     /**
@@ -122,11 +71,17 @@ public class WorkshopService {
      * Не содержит live-данных — пригоден для длительного кэширования.
      */
     public List<WorkshopTopologyDTO> getWorkshopsTopology() {
-        return config.getWorkshops().stream()
+        Map<Long, List<PrintSrvInstance>> instancesByWorkshop = topologyRepo.findAllActiveInstances().stream()
+                .collect(Collectors.groupingBy(
+                        PrintSrvInstance::workshopId,
+                        LinkedHashMap::new,
+                        Collectors.toList()));
+
+        return topologyRepo.findAllActiveWorkshops().stream()
                 .map(ws -> new WorkshopTopologyDTO(
-                        ws.getId(),
-                        ws.getDisplayName(),
-                        instancesByWorkshop.getOrDefault(ws.getId(), Collections.emptyList()).size()
+                        ws.id(),
+                        ws.displayName(),
+                        instancesByWorkshop.getOrDefault(ws.id(), Collections.emptyList()).size()
                 ))
                 .toList();
     }
@@ -139,10 +94,10 @@ public class WorkshopService {
      * @param workshopId идентификатор цеха
      * @return список аппаратов или пустой список, если цех не найден
      */
-    public List<UnitTopologyDTO> getUnitsTopology(String workshopId) {
-        return instancesByWorkshop.getOrDefault(workshopId, Collections.emptyList())
-                .stream()
-                .map(inst -> new UnitTopologyDTO(inst.getId(), inst.getWorkshopId(), resolveUnitName(inst)))
+    public List<UnitTopologyDTO> getUnitsTopology(long workshopId) {
+        return topologyRepo.findAllActiveInstances().stream()
+                .filter(inst -> inst.workshopId() == workshopId)
+                .map(inst -> new UnitTopologyDTO(inst.instanceId(), inst.workshopId(), resolveUnitName(inst)))
                 .toList();
     }
 
@@ -150,7 +105,7 @@ public class WorkshopService {
      * Возвращает топологию устройств конкретного аппарата.
      * <p>
      * Источник данных: runtime-discovery из снапшота Line (если доступен),
-     * иначе — YAML-конфиг как fallback.
+     * иначе — БД как fallback.
      * <p>
      * Дополнительно проверяет принадлежность аппарата указанному цеху:
      * если {@code instanceId} существует, но относится к другому цеху,
@@ -160,16 +115,16 @@ public class WorkshopService {
      * @param instanceId идентификатор аппарата
      * @return DTO с группами устройств, или {@link Optional#empty()} если не найден
      */
-    public Optional<UnitDeviceTopologyDTO> getUnitDeviceTopology(String workshopId, String instanceId) {
-        PrintSrvProperties.InstanceProperties inst = instancesById.get(instanceId);
-        if (inst == null || !inst.getWorkshopId().equals(workshopId)) {
+    public Optional<UnitDeviceTopologyDTO> getUnitDeviceTopology(long workshopId, String instanceId) {
+        PrintSrvInstance inst = topologyRepo.findByInstanceId(instanceId).orElse(null);
+        if (inst == null || inst.workshopId() != workshopId) {
             return Optional.empty();
         }
         DeviceComposition composition = deviceCompositionService.getComposition(instanceId);
         return Optional.of(new UnitDeviceTopologyDTO(
-                inst.getId(),
-                inst.getWorkshopId(),
-            resolveUnitName(inst),
+                inst.instanceId(),
+                inst.workshopId(),
+                resolveUnitName(inst),
                 new DeviceGroupsDTO(
                         composition.printers(),
                         composition.aggregationCams(),
@@ -184,13 +139,13 @@ public class WorkshopService {
      *
      * @param workshopId идентификатор цеха
      */
-    public List<UnitStatusDTO> getUnitsStatus(String workshopId) {
-        return instancesByWorkshop.getOrDefault(workshopId, Collections.emptyList())
-                .stream()
+    public List<UnitStatusDTO> getUnitsStatus(long workshopId) {
+        return topologyRepo.findAllActiveInstances().stream()
+                .filter(inst -> inst.workshopId() == workshopId)
                 .map(inst -> new UnitStatusDTO(
-                        inst.getId(),
-                        inst.getWorkshopId(),
-                        deriveEvent(inst.getId())
+                        inst.instanceId(),
+                        inst.workshopId(),
+                        deriveEvent(inst.instanceId())
                 ))
                 .toList();
     }
@@ -199,54 +154,45 @@ public class WorkshopService {
      * Возвращает live-статус только одного аппарата.
      */
     public Optional<UnitStatusDTO> getUnitStatus(String instanceId) {
-        PrintSrvProperties.InstanceProperties inst = instancesById.get(instanceId);
+        PrintSrvInstance inst = topologyRepo.findByInstanceId(instanceId).orElse(null);
         if (inst == null) {
             return Optional.empty();
         }
 
         return Optional.of(new UnitStatusDTO(
-                inst.getId(),
-                inst.getWorkshopId(),
-                deriveEvent(inst.getId())
+                inst.instanceId(),
+                inst.workshopId(),
+                deriveEvent(inst.instanceId())
         ));
     }
 
     /**
      * Проверяет, существует ли цех с заданным id.
      */
-    public boolean workshopExists(String workshopId) {
-        return config.getWorkshops().stream()
-                .anyMatch(ws -> ws.getId().equals(workshopId));
+    public boolean workshopExists(long workshopId) {
+        return topologyRepo.findAllActiveWorkshops().stream()
+                .anyMatch(ws -> ws.id() == workshopId);
     }
 
-    public Optional<String> getWorkshopIdForInstance(String instanceId) {
-        return Optional.ofNullable(instancesById.get(instanceId))
-                .map(PrintSrvProperties.InstanceProperties::getWorkshopId);
+    public Optional<Long> getWorkshopIdForInstance(String instanceId) {
+        return topologyRepo.findByInstanceId(instanceId)
+                .map(PrintSrvInstance::workshopId);
     }
 
-    // ─── Внутренние методы формирования live-данных ───────────────────────────
-
-    /**
-     * Возвращает предвычисленный ETag конфигурации топологии.
-     * Значение — SHA-256-хэш в формате {@code "hex-string"},
-     * готовый для вставки в заголовок {@code ETag}.
-     */
-    public String getConfigETag() {
-        return configETag;
-    }
+    // ─── Внутренние методы формирования live-данных ─────────────────────────
 
     /**
      * Определяет, есть ли активная ошибка на инстансе.
-        * Проверяет наличие ошибок в {@link UnitErrorStore}.
+     * Проверяет наличие ошибок в {@link UnitErrorStore}.
      */
     private boolean hasActiveError(String instanceId) {
         return unitErrorStore.hasErrors(instanceId);
     }
 
-    private int countProblemUnits(@NonNull List<PrintSrvProperties.InstanceProperties> instances) {
+    private int countProblemUnits(@NonNull List<PrintSrvInstance> instances) {
         int count = 0;
-        for (PrintSrvProperties.InstanceProperties inst : instances) {
-            if (hasActiveError(inst.getId())) {
+        for (PrintSrvInstance inst : instances) {
+            if (hasActiveError(inst.instanceId())) {
                 count++;
             }
         }
@@ -254,9 +200,9 @@ public class WorkshopService {
     }
 
     /**
-        * Формирует текстовое описание текущего события для аппарата.
-        * При наличии ошибок возвращает список "DEVICE: message".
-        * При отсутствии ошибок возвращает curItem.
+     * Формирует текстовое описание текущего события для аппарата.
+     * При наличии ошибок возвращает список "DEVICE: message".
+     * При отсутствии ошибок возвращает curItem.
      */
     private @NonNull String deriveEvent(String instanceId) {
         List<DeviceError> errors = unitErrorStore.getErrors(instanceId);
@@ -269,7 +215,12 @@ public class WorkshopService {
     }
 
     private @Nullable String resolveCurItem(@NonNull String instanceId) {
-        DeviceSnapshot lineSnapshot = findSnapshotByDeviceName(instanceId, getLineDeviceName(instanceId));
+        PrintSrvInstance inst = topologyRepo.findByInstanceId(instanceId).orElse(null);
+        if (inst == null) {
+            return null;
+        }
+
+        DeviceSnapshot lineSnapshot = findSnapshotByDeviceName(instanceId, inst.lineDeviceName());
         String lineCurItem = extractCurItem(lineSnapshot);
         if (lineCurItem != null) {
             return lineCurItem;
@@ -320,8 +271,8 @@ public class WorkshopService {
     }
 
     private @NonNull String getLineDeviceName(@NonNull String instanceId) {
-        return Optional.ofNullable(instancesById.get(instanceId))
-                .map(inst -> inst.getDevices().getLine())
+        return topologyRepo.findByInstanceId(instanceId)
+                .map(PrintSrvInstance::lineDeviceName)
                 .orElse("Line");
     }
 
@@ -345,12 +296,12 @@ public class WorkshopService {
 
     /**
      * Защитный fallback для API-контракта topology:
-     * если displayName не задан в конфиге, отдаем id, а не null.
+     * если displayName не задан, отдаем id.
      */
-    private @NonNull String resolveUnitName(PrintSrvProperties.InstanceProperties inst) {
-        String displayName = inst.getDisplayName();
+    private @NonNull String resolveUnitName(PrintSrvInstance inst) {
+        String displayName = inst.displayName();
         if (displayName == null || displayName.isBlank()) {
-            return inst.getId();
+            return inst.instanceId();
         }
         return displayName;
     }

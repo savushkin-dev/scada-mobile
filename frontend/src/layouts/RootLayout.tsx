@@ -12,7 +12,7 @@ import type { AlertWsMessage, NotificationWsMessage, UnitsStatusMessage } from '
 
 type AlertRouteScope =
   | { kind: 'dashboard' }
-  | { kind: 'workshop'; workshopId: string }
+  | { kind: 'workshop'; workshopId: number }
   | { kind: 'unit'; unitId: string }
   | { kind: 'other' };
 
@@ -20,7 +20,7 @@ function resolveAlertRouteScope(pathname: string): AlertRouteScope {
   const segments = pathname.split('/').filter(Boolean);
   if (segments.length === 0) return { kind: 'dashboard' };
   if (segments[0] !== 'workshops') return { kind: 'other' };
-  if (segments.length === 2) return { kind: 'workshop', workshopId: segments[1] };
+  if (segments.length === 2) return { kind: 'workshop', workshopId: Number(segments[1]) || 0 };
   if (segments.length >= 4 && segments[2] === 'units') {
     return { kind: 'unit', unitId: segments[3] };
   }
@@ -80,7 +80,9 @@ function RootLayoutInner() {
   // На странице деталей аппарата (/units/:unitId) используется отдельный useUnitWs.
   // Это воспроизводит оригинальное поведение: WS-подписка только на WorkshopPage.
   const workshopExact = useMatch('/workshops/:workshopId');
-  const subscribedWorkshopId = workshopExact?.params.workshopId ?? null;
+  const subscribedWorkshopId = workshopExact?.params.workshopId
+    ? Number(workshopExact.params.workshopId) || null
+    : null;
 
   const handleAlertSnapshot = useCallback(
     (alerts: AlertWsMessage[]) => setAlertSnapshot(alerts),

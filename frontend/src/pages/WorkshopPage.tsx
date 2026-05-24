@@ -32,7 +32,8 @@ const UnitCard = lazy(async () => {
 
 export function WorkshopPage() {
   const { state, unitsByWorkshop, setUnitTopology, setTopologyETag } = useAppContext();
-  const { workshopId = '' } = useParams<{ workshopId: string }>();
+  const { workshopId: workshopIdParam = '' } = useParams<{ workshopId: string }>();
+  const workshopId = Number(workshopIdParam) || 0;
   const navigate = useNavigate();
   const location = useLocation();
   const liveSignal = state.signalStates.live;

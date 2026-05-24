@@ -16,7 +16,13 @@ import java.util.Set;
 public interface UnitJpaRepository extends JpaRepository<UnitEntity, Long> {
 
     @RestResource(exported = false)
-    @NonNull Optional<UnitEntity> findByPrintsrvInstanceId(@NonNull String printsrvInstanceId);
+    @Query("""
+            select u
+            from UnitEntity u
+            join fetch u.workshop
+            where u.printsrvInstanceId = :printsrvInstanceId
+            """)
+    @NonNull Optional<UnitEntity> findByPrintsrvInstanceId(@NonNull @Param("printsrvInstanceId") String printsrvInstanceId);
 
     @RestResource(exported = false)
     @Query("""
@@ -33,6 +39,15 @@ public interface UnitJpaRepository extends JpaRepository<UnitEntity, Long> {
             where u.id = :unitId
             """)
     @NonNull Optional<String> findPrintsrvInstanceIdById(@Param("unitId") Long unitId);
+
+    @RestResource(exported = false)
+    @Query("""
+            select u
+            from UnitEntity u
+            join fetch u.workshop
+            where u.active = true and u.printsrvInstanceId is not null
+            """)
+    @NonNull List<UnitEntity> findByActiveTrueAndPrintsrvInstanceIdIsNotNull();
 
     @RestResource(exported = false)
     @Query("""

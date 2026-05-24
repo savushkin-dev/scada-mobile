@@ -103,10 +103,11 @@ export function DetailsLayout() {
   } = useAppContext();
   const { userId } = useAuth();
   const { canUseUnitAction } = useAccessControl();
-  const { workshopId = '', unitId = '' } = useParams<{
+  const { workshopId: workshopIdParam = '', unitId = '' } = useParams<{
     workshopId: string;
     unitId: string;
   }>();
+  const workshopId = Number(workshopIdParam) || 0;
   const navigate = useNavigate();
   const location = useLocation();
 

@@ -38,8 +38,8 @@ import java.util.concurrent.CopyOnWriteArraySet;
  *
  * <h3>Протокол клиент → сервер</h3>
  * <pre>
- * { "action": "SUBSCRIBE_WORKSHOP",   "workshopId": "apparatniy" }
- * { "action": "UNSUBSCRIBE_WORKSHOP", "workshopId": "apparatniy" }
+ * { "action": "SUBSCRIBE_WORKSHOP",   "workshopId": 1 }
+ * { "action": "UNSUBSCRIBE_WORKSHOP", "workshopId": 1 }
  * </pre>
  *
  * <h3>Протокол сервер → клиент</h3>
@@ -86,7 +86,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
     /**
      * workshopId → активные сессии — для адресной рассылки UNITS_STATUS
      */
-    private final Map<String, Set<WebSocketSession>> sessionsByWorkshop = new ConcurrentHashMap<>();
+    private final Map<Long, Set<WebSocketSession>> sessionsByWorkshop = new ConcurrentHashMap<>();
 
     public LiveWsHandler(
             ActiveAlertStore alertStore,
@@ -151,8 +151,8 @@ public class LiveWsHandler extends TextWebSocketHandler {
         // Сначала отписываемся от предыдущего цеха (если был)
         handleUnsubscribeWorkshop(session);
 
-        String workshopId = node.path("workshopId").asText(null);
-        if (workshopId == null || workshopId.isBlank()) {
+        Long workshopId = node.path("workshopId").asLong(0L);
+        if (workshopId == 0L) {
             log.warn("WS /live: SUBSCRIBE_WORKSHOP missing workshopId, id={}", session.getId());
             return;
         }
@@ -170,7 +170,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
     }
 
     private void handleUnsubscribeWorkshop(@NonNull WebSocketSession session) {
-        String prev = (String) session.getAttributes().remove(ATTR_SUBSCRIBED_WORKSHOP);
+        Long prev = (Long) session.getAttributes().remove(ATTR_SUBSCRIBED_WORKSHOP);
         if (prev == null) return;
 
         Set<WebSocketSession> set = sessionsByWorkshop.get(prev);
@@ -189,7 +189,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
      * @param workshopId ID цеха
      * @param json       сериализованный {@link dev.savushkin.scada.mobile.backend.api.dto.UnitsStatusMessageDTO}
      */
-    public void broadcastToWorkshop(String workshopId, String json) {
+    public void broadcastToWorkshop(long workshopId, String json) {
         Set<WebSocketSession> sessions = sessionsByWorkshop.get(workshopId);
         if (sessions == null || sessions.isEmpty()) return;
         sendToSessions(sessions, json);
@@ -246,7 +246,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
      * Идентификаторы цехов, у которых есть хотя бы один активный подписчик.
      * Используется {@code StatusBroadcaster} для адресной рассылки {@code UNITS_STATUS}.
      */
-    public Set<String> getSubscribedWorkshopIds() {
+    public Set<Long> getSubscribedWorkshopIds() {
         return sessionsByWorkshop.keySet();
     }
 
@@ -281,7 +281,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
      * <p>Это устраняет окно до следующего polling-обновления: после SUBSCRIBE_WORKSHOP
      * клиент сразу получает актуальный статус аппаратов из памяти сервера.
      */
-    private void sendUnitsStatusSnapshot(WebSocketSession session, String workshopId) {
+    private void sendUnitsStatusSnapshot(WebSocketSession session, long workshopId) {
         try {
             var status = workshopService.getUnitsStatus(workshopId);
             var message = UnitsStatusMessageDTO.of(workshopId, status);

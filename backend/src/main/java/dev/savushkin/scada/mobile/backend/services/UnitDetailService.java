@@ -5,11 +5,11 @@ import dev.savushkin.scada.mobile.backend.api.dto.ErrorsMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.LineStatusMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.QueueMessageDTO;
 import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepository;
-import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
-import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties.InstanceProperties;
+import dev.savushkin.scada.mobile.backend.application.ports.PrintSrvTopologyRepository;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceComposition;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceError;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
+import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitSnapshot;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.UnitErrorStore;
 import org.jspecify.annotations.NonNull;
@@ -22,7 +22,6 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Сервис формирования четырёх типов WS-сообщений для канала {@code /ws/unit/{unitId}}.
@@ -80,38 +79,31 @@ public class UnitDetailService {
             "Error",      "Общая ошибка устройства"
     );
 
-    private final PrintSrvProperties config;
+    private final PrintSrvTopologyRepository topologyRepo;
     private final InstanceSnapshotRepository snapshotRepo;
     private final UnitErrorStore unitErrorStore;
     private final DeviceCompositionService deviceCompositionService;
-    private final Map<String, InstanceProperties> instancesById;
 
-    public UnitDetailService(PrintSrvProperties config,
+    public UnitDetailService(PrintSrvTopologyRepository topologyRepo,
                              InstanceSnapshotRepository snapshotRepo,
                              UnitErrorStore unitErrorStore,
                              DeviceCompositionService deviceCompositionService) {
-        this.config = config;
+        this.topologyRepo = topologyRepo;
         this.snapshotRepo = snapshotRepo;
         this.unitErrorStore = unitErrorStore;
         this.deviceCompositionService = deviceCompositionService;
-        this.instancesById = config.getInstances().stream()
-                .collect(Collectors.toUnmodifiableMap(
-                        InstanceProperties::getId,
-                        inst -> inst,
-                        (left, right) -> left
-                ));
     }
 
     // ─── Public API ───────────────────────────────────────────────────────────
 
     /**
-     * Проверяет, существует ли инстанс с данным ID в конфигурации.
+     * Проверяет, существует ли инстанс с данным ID в БД.
      *
      * @param instanceId идентификатор аппарата
-     * @return {@code true}, если инстанс зарегистрирован в YAML
+     * @return {@code true}, если инстанс зарегистрирован в БД
      */
     public boolean isKnownInstance(String instanceId) {
-        return instancesById.containsKey(instanceId);
+        return topologyRepo.findByInstanceId(instanceId).isPresent();
     }
 
     /**
@@ -157,11 +149,11 @@ public class UnitDetailService {
      * @return сообщение {@code QUEUE}, или {@code null} если нет снапшота BatchQueue
      */
     public @Nullable QueueMessageDTO buildQueueStatus(String instanceId) {
-        InstanceProperties inst = instancesById.get(instanceId);
+        PrintSrvInstance inst = topologyRepo.findByInstanceId(instanceId).orElse(null);
         if (inst == null) return null;
 
         Map<String, String> bqRaw = firstUnitRawProperties(
-                snapshotRepo.get(instanceId, inst.getDevices().getBatchQueue()));
+                snapshotRepo.get(instanceId, inst.batchQueueDeviceName()));
 
         List<QueueMessageDTO.Item> items = new ArrayList<>();
         for (int i = 1; i <= 10; i++) {
@@ -190,7 +182,7 @@ public class UnitDetailService {
      * @return сообщение {@code LINE_STATUS}, или {@code null} если снапшоты ещё не получены
      */
     public @Nullable LineStatusMessageDTO buildLineStatus(String instanceId) {
-        InstanceProperties inst = instancesById.get(instanceId);
+        PrintSrvInstance inst = topologyRepo.findByInstanceId(instanceId).orElse(null);
         if (inst == null) return null;
 
         DeviceComposition composition = deviceCompositionService.getComposition(instanceId);
@@ -198,16 +190,16 @@ public class UnitDetailService {
 
         Map<String, String> printerRaw = firstUnitRawProperties(snapshotRepo.get(instanceId, firstPrinter));
         Map<String, String> bqRaw = firstUnitRawProperties(
-                snapshotRepo.get(instanceId, inst.getDevices().getBatchQueue()));
+                snapshotRepo.get(instanceId, inst.batchQueueDeviceName()));
 
-        String lineState = getFirstUnit(snapshotRepo.get(instanceId, inst.getDevices().getLine()))
+        String lineState = getFirstUnit(snapshotRepo.get(instanceId, inst.lineDeviceName()))
                 .map(u -> u.properties().getSt().orElse(null))
                 .orElse(null);
 
         // BatchQueue-first: BQ является основным источником данных партии;
         // принтер используется только как fallback когда BQ не содержит поля.
         LineStatusMessageDTO.Payload payload = new LineStatusMessageDTO.Payload(
-                inst.getDisplayName(),
+                inst.displayName(),
                 lineState,
                 coalesce(bqRaw.get("kmc"), printerRaw.get("kmc")),
                 coalesce(bqRaw.get("description"), printerRaw.get("descr")),
@@ -244,7 +236,7 @@ public class UnitDetailService {
      * @return сообщение {@code ERRORS}, или {@code null} если аппарат неизвестен
      */
     public @Nullable ErrorsMessageDTO buildErrorsStatus(String instanceId) {
-        if (!instancesById.containsKey(instanceId)) return null;
+        if (!isKnownInstance(instanceId)) return null;
 
         List<ErrorsMessageDTO.DeviceErrorFlag> deviceErrors = unitErrorStore.getErrors(instanceId)
                 .stream()
@@ -275,11 +267,11 @@ public class UnitDetailService {
      * @return сообщение {@code DEVICES_STATUS}, или {@code null} если нет снапшотов
      */
     public @Nullable DevicesStatusMessageDTO buildDevicesStatus(String instanceId) {
-        InstanceProperties inst = instancesById.get(instanceId);
+        PrintSrvInstance inst = topologyRepo.findByInstanceId(instanceId).orElse(null);
         if (inst == null) return null;
 
         Map<String, String> scadaRaw = firstUnitRawProperties(
-                snapshotRepo.get(instanceId, inst.getDevices().getScada()));
+                snapshotRepo.get(instanceId, inst.scadaDeviceName()));
 
         DeviceComposition composition = deviceCompositionService.getComposition(instanceId);
 
@@ -309,13 +301,13 @@ public class UnitDetailService {
      * (printers + cams из {@link DeviceCompositionService}).
      *
      * <p>Результат предназначен для записи в {@code UnitErrorStore}; используется
-     * {@code buildErrorsStatus} и {@code AlertService} как единый источник правды.
+     * {@code buildErrorsStatus} и {@link AlertService} как единый источник правды.
      *
      * @param instanceId идентификатор аппарата
      * @return неизменяемый список активных ошибок (пустой, если ошибок нет)
      */
     public @NonNull List<DeviceError> extractActiveErrors(String instanceId) {
-        InstanceProperties inst = instancesById.get(instanceId);
+        PrintSrvInstance inst = topologyRepo.findByInstanceId(instanceId).orElse(null);
         if (inst == null) return List.of();
 
         DeviceComposition composition = deviceCompositionService.getComposition(instanceId);
@@ -330,7 +322,7 @@ public class UnitDetailService {
         }
 
         Map<String, String> scadaRaw = firstUnitRawProperties(
-                snapshotRepo.get(instanceId, inst.getDevices().getScada()));
+                snapshotRepo.get(instanceId, inst.scadaDeviceName()));
 
         for (Map.Entry<String, String> entry : scadaRaw.entrySet()) {
             String key = entry.getKey();

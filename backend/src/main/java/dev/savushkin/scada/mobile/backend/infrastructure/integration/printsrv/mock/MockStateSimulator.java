@@ -1,6 +1,7 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.mock;
 
-import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
+import dev.savushkin.scada.mobile.backend.application.ports.PrintSrvTopologyRepository;
+import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -9,10 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 /**
  * Генератор симулированных изменений состояния для всех мок-инстансов PrintSrv.
@@ -57,20 +55,17 @@ public class MockStateSimulator {
 
     private final MockPrintSrvClientRegistry registry;
     private final MockPrintSrvProperties mockProperties;
-    private final Map<String, PrintSrvProperties.InstanceProperties> instancesById;
+    private final PrintSrvTopologyRepository topologyRepo;
     private final Random random;
 
     public MockStateSimulator(
             MockPrintSrvClientRegistry registry,
             MockPrintSrvProperties mockProperties,
-            PrintSrvProperties printSrvProperties
+            PrintSrvTopologyRepository topologyRepo
     ) {
         this.registry = registry;
         this.mockProperties = mockProperties;
-        this.instancesById = printSrvProperties.getInstances().stream()
-                .collect(LinkedHashMap::new,
-                        (map, inst) -> map.put(inst.getId(), inst),
-                        Map::putAll);
+        this.topologyRepo = topologyRepo;
         this.random = new Random(mockProperties.getRandomSeed());
     }
 
@@ -116,21 +111,21 @@ public class MockStateSimulator {
     private void tickInstance(MockPrintSrvClient client) {
         MockInstanceState state = client.getState();
         String id = client.getInstanceId();
-        PrintSrvProperties.InstanceProperties inst = instancesById.get(id);
+        PrintSrvInstance inst = topologyRepo.findByInstanceId(id).orElse(null);
         if (inst == null) {
             log.debug("[{}] Simulator: instance config not found, skipping", id);
             return;
         }
 
-        tickLine(state, inst.getDevices().getLine(), id);
+        tickLine(state, inst.lineDeviceName(), id);
 
-        for (String device : inst.getDevices().getAggregationCams()) {
+        for (String device : inst.aggregationCams()) {
             tickCamAggregation(state, device, id);
         }
-        for (String device : inst.getDevices().getAggregationBoxCams()) {
+        for (String device : inst.aggregationBoxCams()) {
             tickCamAggregation(state, device, id);
         }
-        for (String device : inst.getDevices().getPrinters()) {
+        for (String device : inst.printers()) {
             tickPrinter(state, device, id);
         }
 
@@ -284,10 +279,10 @@ public class MockStateSimulator {
      */
     private void tickScada(
             MockInstanceState state,
-            PrintSrvProperties.InstanceProperties inst,
+            PrintSrvInstance inst,
             String instanceId
     ) {
-        String scadaDevice = inst.getDevices().getScada();
+        String scadaDevice = inst.scadaDeviceName();
         Map<String, String> scadaProps = state.getPropertiesCopy(scadaDevice);
         if (scadaProps.isEmpty()) {
             return;
@@ -301,8 +296,8 @@ public class MockStateSimulator {
 
         // Камеры агрегации → Dev041, Dev042, ...
         List<String> allCams = new java.util.ArrayList<>();
-        allCams.addAll(inst.getDevices().getAggregationCams());
-        allCams.addAll(inst.getDevices().getAggregationBoxCams());
+        allCams.addAll(inst.aggregationCams());
+        allCams.addAll(inst.aggregationBoxCams());
         for (int i = 0; i < allCams.size(); i++) {
             String devPrefix = "Dev%03d".formatted(41 + i);
             lineErr |= tickScadaErrorFlags(state, scadaDevice, scadaProps, devPrefix,
@@ -310,7 +305,7 @@ public class MockStateSimulator {
         }
 
         // Принтеры → LineDev011, LineDev021, ...
-        List<String> printers = inst.getDevices().getPrinters();
+        List<String> printers = inst.printers();
         for (int i = 0; i < printers.size(); i++) {
             String devPrefix = "LineDev%03d".formatted(11 + i * 10);
             lineErr |= tickScadaErrorFlags(state, scadaDevice, scadaProps, devPrefix,

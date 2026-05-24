@@ -5,8 +5,8 @@ import dev.savushkin.scada.mobile.backend.api.dto.AlertMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.NotificationMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitStatusDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitsStatusMessageDTO;
-import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
-import dev.savushkin.scada.mobile.backend.domain.model.DeviceError;
+import dev.savushkin.scada.mobile.backend.application.ports.PrintSrvTopologyRepository;
+import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
 import dev.savushkin.scada.mobile.backend.infrastructure.polling.PrintSrvInstancePolledEvent;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveAlertStore;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveNotificationStore;
@@ -55,7 +55,7 @@ public class StatusBroadcaster {
     private final UnitDetailService unitDetailService;
     private final LiveWsHandler liveWsHandler;
     private final UnitWsHandler unitWsHandler;
-    private final PrintSrvProperties printSrvProperties;
+    private final PrintSrvTopologyRepository topologyRepo;
     private final UserProfileService userProfileService;
 
     public StatusBroadcaster(
@@ -67,7 +67,7 @@ public class StatusBroadcaster {
             UnitDetailService unitDetailService,
             LiveWsHandler liveWsHandler,
             UnitWsHandler unitWsHandler,
-            PrintSrvProperties printSrvProperties,
+            PrintSrvTopologyRepository topologyRepo,
             UserProfileService userProfileService
     ) {
         this.workshopService = workshopService;
@@ -78,7 +78,7 @@ public class StatusBroadcaster {
         this.unitDetailService = unitDetailService;
         this.liveWsHandler = liveWsHandler;
         this.unitWsHandler = unitWsHandler;
-        this.printSrvProperties = printSrvProperties;
+        this.topologyRepo = topologyRepo;
         this.userProfileService = userProfileService;
     }
 
@@ -86,7 +86,7 @@ public class StatusBroadcaster {
     public void onInstancePolled(PrintSrvInstancePolledEvent event) {
         // Обновляем единый источник правды перед расчётом дельты алёртов,
         // чтобы AlertService и buildErrorsStatus читали актуальные данные.
-        List<DeviceError> activeErrors = unitDetailService.extractActiveErrors(event.instanceId());
+        List<dev.savushkin.scada.mobile.backend.domain.model.DeviceError> activeErrors = unitDetailService.extractActiveErrors(event.instanceId());
         unitErrorStore.update(event.instanceId(), activeErrors);
         broadcastUnitStatus(event.instanceId());
         broadcastAlertDelta(event.instanceId());
@@ -100,7 +100,7 @@ public class StatusBroadcaster {
             return;
         }
 
-        String workshopId = workshopService.getWorkshopIdForInstance(instanceId).orElse(null);
+        Long workshopId = workshopService.getWorkshopIdForInstance(instanceId).orElse(null);
         if (workshopId == null || !liveWsHandler.getSubscribedWorkshopIds().contains(workshopId)) {
             return;
         }
@@ -183,10 +183,8 @@ public class StatusBroadcaster {
             return;
         }
 
-        String unitName = printSrvProperties.getInstances().stream()
-                .filter(i -> i.getId().equals(event.unitId()))
-                .map(PrintSrvProperties.InstanceProperties::getDisplayName)
-                .findFirst()
+        String unitName = topologyRepo.findByInstanceId(event.unitId())
+                .map(PrintSrvInstance::displayName)
                 .orElse(event.unitId());
 
         String timestamp = java.time.Instant.now()

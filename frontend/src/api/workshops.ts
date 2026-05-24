@@ -47,7 +47,7 @@ export function fetchWorkshopsTopology(
 }
 
 export function fetchUnitsTopology(
-  workshopId: string,
+  workshopId: number,
   signal?: AbortSignal,
   knownETag?: string | null
 ): Promise<TopologyFetchResult<UnitTopology[]>> {
@@ -60,7 +60,7 @@ export function fetchUnitsTopology(
 }
 
 export function fetchDevicesTopology(
-  workshopId: string,
+  workshopId: number,
   unitId: string,
   signal?: AbortSignal,
   knownETag?: string | null

@@ -11,7 +11,7 @@ package dev.savushkin.scada.mobile.backend.api.dto;
  */
 public record UnitStatusDTO(
         String unitId,
-        String workshopId,
+        long workshopId,
         String event
 ) {
 }

@@ -10,7 +10,7 @@ import { z } from 'zod';
 // ── GET /workshops/topology ───────────────────────────────────────────
 
 export const WorkshopTopologySchema = z.object({
-  id: z.string(),
+  id: z.number().int().positive(),
   name: z.string(),
   totalUnits: z.number().int().nonnegative(),
 });
@@ -22,7 +22,7 @@ export const WorkshopsTopologySchema = z.array(WorkshopTopologySchema);
 
 export const UnitTopologySchema = z.object({
   id: z.string(),
-  workshopId: z.string(),
+  workshopId: z.number().int().positive(),
   unit: z.string(),
 });
 
@@ -33,7 +33,7 @@ export const UnitsTopologySchema = z.array(UnitTopologySchema);
 
 export const DevicesTopologySchema = z.object({
   unitId: z.string(),
-  workshopId: z.string(),
+  workshopId: z.number().int().positive(),
   unit: z.string(),
   devices: z.object({
     /** Принтеры маркировки */

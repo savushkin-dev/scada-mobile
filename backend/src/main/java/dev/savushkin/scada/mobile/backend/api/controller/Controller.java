@@ -159,7 +159,7 @@ public class Controller {
     })
     @GetMapping("/workshops/{id}/units/{unitId}/devices/topology")
     public ResponseEntity<UnitDeviceTopologyDTO> getUnitDevicesTopology(
-            @PathVariable @NonNull String id,
+            @PathVariable long id,
             @PathVariable @NonNull String unitId,
             @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
         log.info("Request: GET /workshops/{}/units/{}/devices/topology", id, unitId);
@@ -198,7 +198,7 @@ public class Controller {
     })
     @GetMapping("/workshops/{id}/units/topology")
     public ResponseEntity<List<UnitTopologyDTO>> getUnitsTopology(
-            @PathVariable @NonNull String id,
+            @PathVariable long id,
             @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
         log.info("Request: GET /workshops/{}/units/topology", id);
         if (!workshopService.workshopExists(id)) {

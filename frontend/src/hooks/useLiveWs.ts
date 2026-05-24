@@ -59,7 +59,7 @@ export interface LiveWsCallbacks {
  * @param callbacks            Коллбэки для трёх типов входящих сообщений.
  */
 export function useLiveWs(
-  subscribedWorkshopId: string | null,
+  subscribedWorkshopId: number | null,
   userId: string | null,
   callbacks: LiveWsCallbacks
 ): void {

@@ -38,11 +38,11 @@ public class UnitsStatusWsHandler extends TextWebSocketHandler {
     /**
      * workshopId → активные сессии
      */
-    private final Map<String, Set<WebSocketSession>> sessionsByWorkshop = new ConcurrentHashMap<>();
+    private final Map<Long, Set<WebSocketSession>> sessionsByWorkshop = new ConcurrentHashMap<>();
 
     @Override
     public void afterConnectionEstablished(@NonNull WebSocketSession session) {
-        String workshopId = extractWorkshopId(session);
+        Long workshopId = extractWorkshopId(session);
         if (workshopId == null) {
             log.warn("WS units/status: cannot extract workshopId from URI {}, closing", session.getUri());
             closeQuietly(session);
@@ -57,7 +57,7 @@ public class UnitsStatusWsHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionClosed(@NonNull WebSocketSession session, @NonNull CloseStatus status) {
-        String workshopId = extractWorkshopId(session);
+        Long workshopId = extractWorkshopId(session);
         if (workshopId != null) {
             Set<WebSocketSession> set = sessionsByWorkshop.get(workshopId);
             if (set != null) {
@@ -80,7 +80,7 @@ public class UnitsStatusWsHandler extends TextWebSocketHandler {
      * @param workshopId идентификатор цеха
      * @param json       сериализованное {@link dev.savushkin.scada.mobile.backend.api.dto.UnitsStatusMessageDTO}
      */
-    public void broadcastToWorkshop(String workshopId, String json) {
+    public void broadcastToWorkshop(long workshopId, String json) {
         Set<WebSocketSession> sessions = sessionsByWorkshop.get(workshopId);
         if (sessions == null || sessions.isEmpty()) return;
         TextMessage message = new TextMessage(json);
@@ -103,10 +103,10 @@ public class UnitsStatusWsHandler extends TextWebSocketHandler {
      * Извлекает {@code workshopId} из URI сессии.
      * Ожидаемый формат: {@code /ws/workshops/{workshopId}/units/status}
      */
-    private @Nullable String extractWorkshopId(@NonNull WebSocketSession session) {
+    private @Nullable Long extractWorkshopId(@NonNull WebSocketSession session) {
         URI uri = session.getUri();
         if (uri == null) return null;
-        // Путь вида: /ws/workshops/dess/units/status
+        // Путь вида: /ws/workshops/1/units/status
         String path = uri.getPath();
         if (path == null) return null;
         // Ищем сегмент между /workshops/ и /units/status
@@ -116,7 +116,12 @@ public class UnitsStatusWsHandler extends TextWebSocketHandler {
         int end = path.indexOf(suffix);
         if (start < 0 || end < 0 || end <= start + prefix.length()) return null;
         String id = path.substring(start + prefix.length(), end);
-        return id.isBlank() ? null : id;
+        if (id.isBlank()) return null;
+        try {
+            return Long.parseLong(id);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private void closeQuietly(@NonNull WebSocketSession session) {
@@ -136,7 +141,7 @@ public class UnitsStatusWsHandler extends TextWebSocketHandler {
      * Возвращает набор workshopId, у которых есть хотя бы один подключённый клиент.
      * Используется {@link StatusBroadcaster} для адресной рассылки.
      */
-    public Set<String> getActiveWorkshopIds() {
+    public Set<Long> getActiveWorkshopIds() {
         return sessionsByWorkshop.keySet();
     }
 }

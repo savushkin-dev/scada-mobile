@@ -44,7 +44,7 @@ export type WorkshopStatusLevel = 'critical' | 'warning' | 'none';
  *  3. Нет ни алёртов, ни уведомлений → none (зелёный).
  */
 export function getWorkshopStatusLevel(
-  workshopId: string,
+  workshopId: number,
   alerts: Map<string, AlertData>,
   notifications?: Map<string, NotificationData>,
   unitTopologyByWorkshop?: Record<string, { id: string }[]>
@@ -167,7 +167,7 @@ export function getUnitErrorGroups(unitId: string, alerts: Map<string, AlertData
  * проблемный аппарат. Порядок соответствует порядку вхождений в Map алёртов.
  */
 export function getWorkshopErrorGroups(
-  workshopId: string,
+  workshopId: number,
   alerts: Map<string, AlertData>
 ): ErrorGroup[] {
   const groups: ErrorGroup[] = [];
@@ -197,7 +197,7 @@ export interface NotificationGroup {
  * Возвращает уведомления от мастеров для конкретного цеха.
  */
 export function getWorkshopNotificationGroups(
-  workshopId: string,
+  workshopId: number,
   notifications: Map<string, NotificationData>,
   unitTopologyByWorkshop: Record<string, { id: string; unit: string }[]>
 ): NotificationGroup[] {

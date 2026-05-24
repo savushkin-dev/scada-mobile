@@ -30,7 +30,7 @@ export const AlertErrorSchema = z.object({
 
 export const AlertWsMessageSchema = z.object({
   type: z.literal('ALERT'),
-  workshopId: z.string(),
+  workshopId: z.number().int().positive(),
   unitId: z.union([z.string(), z.number()]),
   /** Читаемое название аппарата (для отображения в карточках). */
   unitName: z.string(),
@@ -43,13 +43,13 @@ export const AlertWsMessageSchema = z.object({
 /** Элемент payload для UNITS_STATUS */
 export const UnitStatusSchema = z.object({
   unitId: z.string(),
-  workshopId: z.string(),
+  workshopId: z.number().int().positive(),
   event: z.string(),
 });
 
 export const UnitsStatusMessageSchema = z.object({
   type: z.literal('UNITS_STATUS'),
-  workshopId: z.string(),
+  workshopId: z.number().int().positive(),
   payload: z.array(UnitStatusSchema),
 });
 

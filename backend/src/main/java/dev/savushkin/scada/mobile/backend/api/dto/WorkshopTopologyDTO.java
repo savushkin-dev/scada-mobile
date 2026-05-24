@@ -15,7 +15,7 @@ package dev.savushkin.scada.mobile.backend.api.dto;
  * @param totalUnits общее число аппаратов/линий
  */
 public record WorkshopTopologyDTO(
-        String id,
+        long id,
         String name,
         int totalUnits
 ) {

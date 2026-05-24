@@ -1,7 +1,10 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.savushkin.scada.mobile.backend.application.ports.PrintSrvTopologyRepository;
 import dev.savushkin.scada.mobile.backend.config.PrintSrvProperties;
+import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
+import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,8 +16,9 @@ import java.util.*;
 /**
  * Реестр реальных TCP-клиентов PrintSrv для prod-профиля.
  * <p>
- * Создаёт по одному {@link TcpPrintSrvClient} на каждый инстанс,
- * описанный в {@code printsrv.instances} (application.yaml).
+ * Создаёт по одному {@link TcpPrintSrvClient} на каждый активный инстанс
+ * из {@link PrintSrvTopologyRepository}. Клиенты создаются лениво в
+ * {@link PostConstruct} после готовности контекста и БД.
  * При shutdown приложения закрывает все TCP-соединения.
  */
 @Component
@@ -23,18 +27,32 @@ public class TcpPrintSrvClientRegistry implements PrintSrvClientRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(TcpPrintSrvClientRegistry.class);
 
-    private final Map<String, TcpPrintSrvClient> clients;
+    private final PrintSrvTopologyRepository topologyRepo;
+    private final PrintSrvProperties props;
+    private final ObjectMapper objectMapper;
+    private Map<String, TcpPrintSrvClient> clients = Map.of();
 
-    public TcpPrintSrvClientRegistry(PrintSrvProperties props, ObjectMapper objectMapper) {
+    public TcpPrintSrvClientRegistry(
+            PrintSrvTopologyRepository topologyRepo,
+            PrintSrvProperties props,
+            ObjectMapper objectMapper
+    ) {
+        this.topologyRepo = topologyRepo;
+        this.props = props;
+        this.objectMapper = objectMapper;
+    }
+
+    @PostConstruct
+    public void init() {
         int connectTimeout = props.getSocket().getConnectTimeoutMs();
         int readTimeout = props.getSocket().getReadTimeoutMs();
 
         Map<String, TcpPrintSrvClient> map = new LinkedHashMap<>();
-        for (PrintSrvProperties.InstanceProperties inst : props.getInstances()) {
+        for (PrintSrvInstance inst : topologyRepo.findAllActiveInstances()) {
             TcpPrintSrvClient client = new TcpPrintSrvClient(
-                    inst.getId(), inst.getHost(), inst.getPort(),
+                    inst.instanceId(), inst.host(), inst.port(),
                     connectTimeout, readTimeout, objectMapper);
-            map.put(inst.getId(), client);
+            map.put(inst.instanceId(), client);
         }
         this.clients = Collections.unmodifiableMap(map);
         log.info("TcpPrintSrvClientRegistry initialized with {} instances", clients.size());
