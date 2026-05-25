@@ -5,11 +5,12 @@ FRONTEND_DIR := frontend
 JAVA_OPTS := -Dfile.encoding=UTF-8 -Dsun.stdout.encoding=UTF-8 -Dsun.stderr.encoding=UTF-8
 DEV_BACKEND_PORT ?= 8080
 DEV_FRONTEND_PORT ?= 5500
-SEED_DB_CONTAINER ?= postgres
+SEED_DB_CONTAINER ?= scada-mobile-postgres
 SEED_DB_NAME ?= scada_mobile
 SEED_DB_USER ?= scada_user
 SEED_DB_PASSWORD ?= scada_password
 SEED_SQL ?= scripts/seed_notifications.sql
+SEED_PROD_SQL ?= scripts/seed_prod_data.sql
 
 ifeq ($(OS),Windows_NT)
 GRADLEW := gradlew.bat
@@ -17,7 +18,7 @@ else
 GRADLEW := ./gradlew
 endif
 
-.PHONY: help back-run back-stop back-run-prod front-install front-dev front-build db-seed
+.PHONY: help back-run back-stop back-run-prod front-install front-dev front-build db-seed db-seed-prod
 .PHONY: bwa-init bwa-build-apk
 .PHONY: docker-prod-up docker-prod-down docker-ps
 
@@ -41,6 +42,7 @@ help:
 	@echo "  make docker-prod-down - stop docker stack (prod mode)"
 	@echo "  make docker-ps        - show container status for the active stack"
 	@echo "  make db-seed          - seed database via docker exec (env: SEED_DB_CONTAINER, SEED_DB_NAME, SEED_DB_USER, SEED_DB_PASSWORD)"
+	@echo "  make db-seed-prod     - seed production reference data (workshops, units, device_types, unit_devices) from env vars"
 	@echo ""
 	@echo "Frontend:"
 	@echo "  make front-install - install frontend dependencies"
@@ -64,6 +66,7 @@ help:
 	@echo "  make docker-prod-down - stop docker stack (prod mode)"
 	@echo "  make docker-ps        - show container status for the active stack"
 	@echo "  make db-seed          - seed database via docker exec (env: SEED_DB_CONTAINER, SEED_DB_NAME, SEED_DB_USER, SEED_DB_PASSWORD)"
+	@echo "  make db-seed-prod     - seed production reference data (workshops, units, device_types, unit_devices) from env vars"
 	@echo ""
 	@echo "Frontend:"
 	@echo "  make front-install - install frontend dependencies"
@@ -87,6 +90,9 @@ back-run-prod:
 
 db-seed:
 	cmd /V:ON /C "set \"SEED_DB_PASSWORD=$(SEED_DB_PASSWORD)\" & if not exist $(SEED_SQL) (echo Missing $(SEED_SQL). & exit /b 1) else if \"!SEED_DB_PASSWORD!\"==\"\" (echo Missing SEED_DB_PASSWORD. & exit /b 1) else (docker exec -i -e PGPASSWORD=!SEED_DB_PASSWORD! $(SEED_DB_CONTAINER) psql -U $(SEED_DB_USER) -d $(SEED_DB_NAME) -v ON_ERROR_STOP=1 -f - < $(SEED_SQL))"
+
+db-seed-prod:
+	powershell -NoProfile -ExecutionPolicy Bypass -File scripts\seed_prod.ps1 -EnvFile '$(PROD_ENV_ACTIVE_FILE)' -SeedSql '$(SEED_PROD_SQL)' -Container '$(SEED_DB_CONTAINER)'
 else
 back-run:
 	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=dev SERVER_PORT='$(DEV_BACKEND_PORT)' SCADA_MOBILE_JWT_ACCESS_SECRET='$(SCADA_MOBILE_JWT_ACCESS_SECRET)' SCADA_MOBILE_JWT_REFRESH_SECRET='$(SCADA_MOBILE_JWT_REFRESH_SECRET)' nohup $(GRADLEW) bootRun > .backend.log 2>&1 & echo $$! > .backend.pid
@@ -127,6 +133,33 @@ db-seed:
 	fi
 	@docker exec -i -e PGPASSWORD="$(SEED_DB_PASSWORD)" "$(SEED_DB_CONTAINER)" \
 		psql -U "$(SEED_DB_USER)" -d "$(SEED_DB_NAME)" -v ON_ERROR_STOP=1 -f - < "$(SEED_SQL)"
+
+db-seed-prod:
+	@if [ ! -f "$(SEED_PROD_SQL)" ]; then \
+		echo "Missing $(SEED_PROD_SQL)."; \
+		exit 1; \
+	fi
+	@if ! docker inspect --format='{{.State.Running}}' "$(SEED_DB_CONTAINER)" >/dev/null 2>&1; then \
+		echo "Container $(SEED_DB_CONTAINER) is not running. Start it first: make docker-prod-up"; \
+		exit 1; \
+	fi
+	@set -a; \
+	. "$(PROD_ENV_ACTIVE_FILE)"; \
+	set +a; \
+	if [ -z "$$SCADA_MOBILE_POSTGRES_DB" ]; then \
+		echo "Missing SCADA_MOBILE_POSTGRES_DB in $(PROD_ENV_ACTIVE_FILE)."; \
+		exit 1; \
+	fi; \
+	if [ -z "$$SCADA_MOBILE_POSTGRES_USER" ]; then \
+		echo "Missing SCADA_MOBILE_POSTGRES_USER in $(PROD_ENV_ACTIVE_FILE)."; \
+		exit 1; \
+	fi; \
+	if [ -z "$$SCADA_MOBILE_DATABASE_PASSWORD" ]; then \
+		echo "Missing SCADA_MOBILE_DATABASE_PASSWORD in $(PROD_ENV_ACTIVE_FILE)."; \
+		exit 1; \
+	fi; \
+	docker exec -i -e PGPASSWORD="$$SCADA_MOBILE_DATABASE_PASSWORD" "$(SEED_DB_CONTAINER)" \
+		psql -U "$$SCADA_MOBILE_POSTGRES_USER" -d "$$SCADA_MOBILE_POSTGRES_DB" -v ON_ERROR_STOP=1 -f - < "$(SEED_PROD_SQL)"
 endif
 
 ifeq ($(OS),Windows_NT)
