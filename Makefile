@@ -143,9 +143,10 @@ db-seed-prod:
 		echo "Container $(SEED_DB_CONTAINER) is not running. Start it first: make docker-prod-up"; \
 		exit 1; \
 	fi
-	@set -a; \
-	. "$(PROD_ENV_ACTIVE_FILE)"; \
-	set +a; \
+	@while IFS='=' read -r key val; do \
+		case "$$key" in \#*|'') continue ;; esac; \
+		export "$$key=$$val"; \
+	done < "$(PROD_ENV_ACTIVE_FILE)"; \
 	if [ -z "$$SCADA_MOBILE_POSTGRES_DB" ]; then \
 		echo "Missing SCADA_MOBILE_POSTGRES_DB in $(PROD_ENV_ACTIVE_FILE)."; \
 		exit 1; \
