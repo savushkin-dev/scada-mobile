@@ -84,40 +84,53 @@ public final class PrintSrvInstancePoller {
      * {@code TRACE} и не прерывают опрос остальных.
      */
     public PollResult poll() {
-        boolean anySuccess = false;
+        String instanceId = client.getInstanceId();
+        int successCount = 0;
+        int failCount = 0;
+
+        PollingLogger.logPollCycleStart(instanceId, devices.size());
 
         for (String device : devices) {
             try {
                 QueryAllResponseDTO dto = client.queryAll(device);
                 DeviceSnapshot snapshot = mapper.toDomainDeviceSnapshot(dto);
-                snapshotRepo.save(client.getInstanceId(), device, snapshot);
-                anySuccess = true;
+                snapshotRepo.save(instanceId, device, snapshot);
+                successCount++;
             } catch (IOException e) {
-                log.trace("[{}] device='{}' unreachable: {}", client.getInstanceId(), device, e.getMessage());
+                log.trace("[{}] device='{}' unreachable: {}", instanceId, device, e.getMessage());
+                PollingLogger.logDeviceUnreachable(instanceId, device, e.getMessage());
+                failCount++;
             }
         }
 
+        boolean anySuccess = successCount > 0;
         boolean availabilityChanged = anySuccess != wasReachable;
 
         if (anySuccess) {
             if (availabilityChanged) {
-                log.info("[{}] PrintSrv connection restored", client.getInstanceId());
+                log.info("[{}] PrintSrv connection restored", instanceId);
+                PollingLogger.logInstanceRestored(instanceId);
             }
             wasReachable = true;
-            log.trace("[{}] poll ok", client.getInstanceId());
+            log.trace("[{}] poll ok", instanceId);
+            PollingLogger.logPollCycleEnd(instanceId, successCount, failCount, true);
             return new PollResult(true, availabilityChanged);
         }
 
         // Недоступно: при первом переходе в unreachable очищаем stale-снапшоты,
         // чтобы API/WS сразу начали отдавать "Нет данных".
         if (availabilityChanged) {
-            snapshotRepo.clearInstance(client.getInstanceId());
+            snapshotRepo.clearInstance(instanceId);
             wasReachable = false;
-            log.warn("[{}] PrintSrv unreachable for all configured devices", client.getInstanceId());
+            log.warn("[{}] PrintSrv unreachable for all configured devices", instanceId);
+            PollingLogger.logInstanceUnreachable(instanceId, devices.size());
+            PollingLogger.logPollCycleEnd(instanceId, successCount, failCount, false);
             return new PollResult(false, true);
         }
 
-        log.trace("[{}] still unreachable", client.getInstanceId());
+        log.trace("[{}] still unreachable", instanceId);
+        PollingLogger.logInstanceStillUnreachable(instanceId);
+        PollingLogger.logPollCycleEnd(instanceId, successCount, failCount, false);
         return new PollResult(false, false);
     }
 

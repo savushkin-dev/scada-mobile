@@ -65,6 +65,7 @@ public class PrintSrvPollerFactory {
                 .toList();
 
         log.info("PrintSrvPollerFactory: created {} instance poller(s)", pollers.size());
+        PollingLogger.logFactoryCreatedPollers(pollers.size());
         return pollers;
     }
 
@@ -76,12 +77,14 @@ public class PrintSrvPollerFactory {
      * @return новый поллер {@link PrintSrvInstancePoller}
      */
     public PrintSrvInstancePoller createFor(@NonNull PrintSrvClient client) {
-        log.debug("PrintSrvPollerFactory: creating poller for instance '{}'", client.getInstanceId());
-        PrintSrvInstance inst = topologyRepo.findByInstanceId(client.getInstanceId()).orElse(null);
+        String instanceId = client.getInstanceId();
+        log.debug("PrintSrvPollerFactory: creating poller for instance '{}'", instanceId);
+        PollingLogger.logFactoryCreatingPoller(instanceId);
+        PrintSrvInstance inst = topologyRepo.findByInstanceId(instanceId).orElse(null);
         if (inst == null) {
             throw new IllegalStateException(
                     "PrintSrvPollerFactory: PrintSrvInstance not found for instanceId='%s'. Known ids: %s"
-                            .formatted(client.getInstanceId(),
+                            .formatted(instanceId,
                                     topologyRepo.findAllActiveInstances().stream()
                                             .map(PrintSrvInstance::instanceId)
                                             .toList()));

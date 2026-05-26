@@ -25,6 +25,8 @@ services:
     restart: no
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    volumes:
+      - ./backend/logs:/app/logs
     environment:
       SPRING_PROFILES_ACTIVE: prod
       SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS: ${SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS}

@@ -49,6 +49,7 @@ public class PrintSrvPollingRuntime implements SmartLifecycle {
                 .sum();
         log.info("PrintSrvPollingRuntime initialized: {} worker(s), {} configured device(s), delay={}ms",
                 pollers.size(), totalDevices, fixedDelayMs);
+        PollingLogger.logRuntimeInitialized(pollers.size(), totalDevices, fixedDelayMs);
     }
 
     @Override
@@ -67,11 +68,13 @@ public class PrintSrvPollingRuntime implements SmartLifecycle {
         }
 
         log.info("PrintSrvPollingRuntime started with {} virtual worker(s)", pollers.size());
+        PollingLogger.logRuntimeStarted(pollers.size());
     }
 
     private void runPollLoop(@NonNull PrintSrvInstancePoller poller) {
         String instanceId = poller.getInstanceId();
         log.debug("[{}] polling worker started", instanceId);
+        PollingLogger.logWorkerStarted(instanceId);
 
         while (running.get() && !Thread.currentThread().isInterrupted()) {
             try {
@@ -81,6 +84,7 @@ public class PrintSrvPollingRuntime implements SmartLifecycle {
                 }
             } catch (Exception ex) {
                 log.error("[{}] unexpected polling worker failure: {}", instanceId, ex.getMessage(), ex);
+                PollingLogger.logWorkerFailure(instanceId, ex);
             }
 
             try {
@@ -92,6 +96,7 @@ public class PrintSrvPollingRuntime implements SmartLifecycle {
         }
 
         log.debug("[{}] polling worker stopped", instanceId);
+        PollingLogger.logWorkerStopped(instanceId);
     }
 
     @Override
@@ -107,6 +112,7 @@ public class PrintSrvPollingRuntime implements SmartLifecycle {
         }
 
         log.info("PrintSrvPollingRuntime stopped");
+        PollingLogger.logRuntimeStopped();
     }
 
     @Override

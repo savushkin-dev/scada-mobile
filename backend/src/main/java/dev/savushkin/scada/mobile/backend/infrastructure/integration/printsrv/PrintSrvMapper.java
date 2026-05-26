@@ -6,6 +6,7 @@ import dev.savushkin.scada.mobile.backend.domain.model.UnitSnapshot;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.PropertiesDTO;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.QueryAllResponseDTO;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.UnitsDTO;
+import dev.savushkin.scada.mobile.backend.infrastructure.polling.PollingLogger;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -47,7 +48,9 @@ public class PrintSrvMapper {
             units.put(unitKey, unitSnapshot);
         }
 
-        return new DeviceSnapshot(dto.deviceName(), units);
+        DeviceSnapshot snapshot = new DeviceSnapshot(dto.deviceName(), units);
+        PollingLogger.logMapSuccess(dto.deviceName(), dto.deviceName(), units.size());
+        return snapshot;
     }
 
     /**

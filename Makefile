@@ -21,6 +21,7 @@ endif
 .PHONY: help back-run back-stop back-run-prod front-install front-dev front-build db-seed db-seed-prod
 .PHONY: bwa-init bwa-build-apk
 .PHONY: docker-prod-up docker-prod-down docker-ps
+.PHONY: fetch-logs
 
 DOCKER_BASE_FILES := -f docker-compose.yml
 DOCKER_PROD_FILES := -f docker-compose.prod.yml
@@ -43,6 +44,7 @@ help:
 	@echo "  make docker-ps        - show container status for the active stack"
 	@echo "  make db-seed          - seed database via docker exec (env: SEED_DB_CONTAINER, SEED_DB_NAME, SEED_DB_USER, SEED_DB_PASSWORD)"
 	@echo "  make db-seed-prod     - seed production reference data (workshops, units, device_types, unit_devices) from env vars"
+	@echo "  make fetch-logs       - archive backend logs and upload to transfer.sh (Linux server only)"
 	@echo ""
 	@echo "Frontend:"
 	@echo "  make front-install - install frontend dependencies"
@@ -67,6 +69,7 @@ help:
 	@echo "  make docker-ps        - show container status for the active stack"
 	@echo "  make db-seed          - seed database via docker exec (env: SEED_DB_CONTAINER, SEED_DB_NAME, SEED_DB_USER, SEED_DB_PASSWORD)"
 	@echo "  make db-seed-prod     - seed production reference data (workshops, units, device_types, unit_devices) from env vars"
+	@echo "  make fetch-logs       - archive backend logs and upload to transfer.sh (Linux server only)"
 	@echo ""
 	@echo "Frontend:"
 	@echo "  make front-install - install frontend dependencies"
@@ -204,6 +207,10 @@ docker-prod-down:
 
 docker-ps:
 	-cmd /C "docker compose --env-file $(PROD_ENV_ACTIVE_FILE) $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) ps"
+
+fetch-logs:
+	@echo "Ошибка: команда fetch-logs доступна только на Linux/macOS (удалённый сервер)."
+	@exit 1
 else
 docker-prod-up:
 	@if [ ! -f "$(PROD_ENV_FILE)" ]; then \
@@ -217,4 +224,23 @@ docker-prod-down:
 
 docker-ps:
 	-docker compose --env-file "$(PROD_ENV_ACTIVE_FILE)" $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) ps
+
+fetch-logs:
+	@if [ ! -d "$(BACKEND_DIR)/logs" ]; then \
+		echo "Ошибка: папка $(BACKEND_DIR)/logs не найдена. Убедитесь, что backend запущен и volume с логами смонтирован."; \
+		exit 1; \
+	fi
+	@if [ -z "$$(ls -A $(BACKEND_DIR)/logs 2>/dev/null)" ]; then \
+		echo "Ошибка: папка $(BACKEND_DIR)/logs существует, но пуста. Подождите минуту-две, пока накопятся логи."; \
+		exit 1; \
+	fi
+	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
+	ARCHIVE="/tmp/scada_mobile_logs_$$TIMESTAMP.tar.gz"; \
+	tar -czf "$$ARCHIVE" -C "$(BACKEND_DIR)" logs/; \
+	URL=$$(curl --silent --upload-file "$$ARCHIVE" "https://transfer.sh/scada_mobile_logs.tar.gz"); \
+	rm -f "$$ARCHIVE"; \
+	echo ""; \
+	echo "$$URL"; \
+	echo ""; \
+	echo "Логи заархивированы и загружены. Ссылка действительна 14 дней."
 endif

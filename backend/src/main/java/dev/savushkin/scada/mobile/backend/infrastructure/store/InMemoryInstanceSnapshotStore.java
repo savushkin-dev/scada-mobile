@@ -2,6 +2,7 @@ package dev.savushkin.scada.mobile.backend.infrastructure.store;
 
 import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepository;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
+import dev.savushkin.scada.mobile.backend.infrastructure.polling.PollingLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -44,6 +45,7 @@ public class InMemoryInstanceSnapshotStore implements InstanceSnapshotRepository
                 .put(deviceName, snapshot);
         log.trace("Snapshot saved: instance='{}', device='{}', units={}",
                 instanceId, deviceName, snapshot.getUnitCount());
+        PollingLogger.logSnapshotSaved(instanceId, deviceName, snapshot.getUnitCount());
     }
 
     @Override
@@ -69,6 +71,7 @@ public class InMemoryInstanceSnapshotStore implements InstanceSnapshotRepository
         ConcurrentHashMap<String, DeviceSnapshot> removed = store.remove(instanceId);
         if (removed != null) {
             log.info("Snapshot store cleared for instance='{}', removedDevices={}", instanceId, removed.size());
+            PollingLogger.logSnapshotStoreCleared(instanceId, removed.size());
         }
     }
 

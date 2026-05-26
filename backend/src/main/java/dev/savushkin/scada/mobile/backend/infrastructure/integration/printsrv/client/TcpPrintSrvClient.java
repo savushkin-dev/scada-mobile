@@ -3,6 +3,7 @@ package dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.c
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.QueryAllRequestDTO;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.QueryAllResponseDTO;
+import dev.savushkin.scada.mobile.backend.infrastructure.polling.PollingLogger;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
@@ -72,8 +73,18 @@ public class TcpPrintSrvClient implements PrintSrvClient {
     public QueryAllResponseDTO queryAll(String deviceName) throws IOException {
         QueryAllRequestDTO request = new QueryAllRequestDTO(deviceName, "QueryAll");
         String json = objectMapper.writeValueAsString(request);
-        String response = sendAndReceive(json);
-        return objectMapper.readValue(response, QueryAllResponseDTO.class);
+        PollingLogger.logRequestSent(instanceId, deviceName, json);
+        String response = sendAndReceive(json, deviceName);
+        PollingLogger.logResponseBody(instanceId, deviceName, response);
+        try {
+            QueryAllResponseDTO dto = objectMapper.readValue(response, QueryAllResponseDTO.class);
+            int unitCount = dto.units() != null ? dto.units().size() : 0;
+            PollingLogger.logParseSuccess(instanceId, deviceName, dto.deviceName(), unitCount);
+            return dto;
+        } catch (IOException e) {
+            PollingLogger.logParseError(instanceId, deviceName, e.getMessage(), response);
+            throw e;
+        }
     }
 
     @Override
@@ -97,8 +108,8 @@ public class TcpPrintSrvClient implements PrintSrvClient {
         }
     }
 
-    @Contract("_ -> new")
-    private synchronized @NonNull String sendAndReceive(@NonNull String json) throws IOException {
+    @Contract("_, _ -> new")
+    private synchronized @NonNull String sendAndReceive(@NonNull String json, String deviceName) throws IOException {
         Socket s = getOrCreateSocket();
         try {
             // Send: MAGIC + length(BE) + body(windows-1251)
@@ -108,23 +119,28 @@ public class TcpPrintSrvClient implements PrintSrvClient {
             out.write(ByteBuffer.allocate(4).putInt(body.length).array());
             out.write(body);
             out.flush();
+            PollingLogger.logRequestBytes(instanceId, MAGIC.length, body.length);
 
             // Receive: MAGIC + length(BE) + body(windows-1251)
             InputStream in = s.getInputStream();
 
             byte[] magic = in.readNBytes(4);
             if (magic.length != 4 || magic[0] != 'P' || magic[1] != '0' || magic[2] != '0' || magic[3] != '1') {
+                PollingLogger.logResponseInvalidMagic(instanceId, deviceName, magic);
                 throw new IOException("Invalid magic header from " + instanceId);
             }
 
             byte[] lenBytes = in.readNBytes(4);
             int length = ByteBuffer.wrap(lenBytes).getInt();
             if (length < 0 || length > MAX_RESPONSE_SIZE) {
+                PollingLogger.logResponseInvalidLength(instanceId, deviceName, length);
                 throw new IOException("Invalid response length from " + instanceId + ": " + length);
             }
 
+            PollingLogger.logResponseHeader(instanceId, deviceName, length);
             return new String(in.readNBytes(length), CHARSET);
         } catch (IOException e) {
+            PollingLogger.logSocketError(instanceId, e.getMessage());
             invalidate();
             throw e;
         }
@@ -132,14 +148,17 @@ public class TcpPrintSrvClient implements PrintSrvClient {
 
     private Socket getOrCreateSocket() throws IOException {
         if (socket != null && !socket.isClosed() && socket.isConnected()) {
+            PollingLogger.logSocketReused(instanceId, host, port);
             return socket;
         }
         log.debug("Connecting to PrintSrv '{}' at {}:{}", instanceId, host, port);
+        PollingLogger.logSocketCreate(instanceId, host, port);
         Socket s = new Socket();
         s.connect(new InetSocketAddress(host, port), connectTimeoutMs);
         s.setSoTimeout(readTimeoutMs);
         socket = s;
         log.debug("Connected to PrintSrv '{}' at {}:{}", instanceId, host, port);
+        PollingLogger.logSocketConnected(instanceId, host, port, connectTimeoutMs, readTimeoutMs);
         return s;
     }
 
@@ -150,6 +169,7 @@ public class TcpPrintSrvClient implements PrintSrvClient {
             } catch (IOException ignored) {
             }
             socket = null;
+            PollingLogger.logSocketClosed(instanceId);
         }
     }
 }
