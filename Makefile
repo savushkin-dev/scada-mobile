@@ -21,7 +21,6 @@ endif
 .PHONY: help back-run back-stop back-run-prod front-install front-dev front-build db-seed db-seed-prod
 .PHONY: bwa-init bwa-build-apk
 .PHONY: docker-prod-up docker-prod-down docker-ps
-.PHONY: fetch-logs
 
 DOCKER_BASE_FILES := -f docker-compose.yml
 DOCKER_PROD_FILES := -f docker-compose.prod.yml
@@ -44,7 +43,6 @@ help:
 	@echo "  make docker-ps        - show container status for the active stack"
 	@echo "  make db-seed          - seed database via docker exec (env: SEED_DB_CONTAINER, SEED_DB_NAME, SEED_DB_USER, SEED_DB_PASSWORD)"
 	@echo "  make db-seed-prod     - seed production reference data (workshops, units, device_types, unit_devices) from env vars"
-	@echo "  make fetch-logs       - archive backend logs and upload to transfer.sh (Linux server only)"
 	@echo ""
 	@echo "Frontend:"
 	@echo "  make front-install - install frontend dependencies"
@@ -69,7 +67,6 @@ help:
 	@echo "  make docker-ps        - show container status for the active stack"
 	@echo "  make db-seed          - seed database via docker exec (env: SEED_DB_CONTAINER, SEED_DB_NAME, SEED_DB_USER, SEED_DB_PASSWORD)"
 	@echo "  make db-seed-prod     - seed production reference data (workshops, units, device_types, unit_devices) from env vars"
-	@echo "  make fetch-logs       - archive backend logs and upload to transfer.sh (Linux server only)"
 	@echo ""
 	@echo "Frontend:"
 	@echo "  make front-install - install frontend dependencies"
@@ -207,10 +204,6 @@ docker-prod-down:
 
 docker-ps:
 	-cmd /C "docker compose --env-file $(PROD_ENV_ACTIVE_FILE) $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) ps"
-
-fetch-logs:
-	@echo "Ошибка: команда fetch-logs доступна только на Linux/macOS (удалённый сервер)."
-	@exit 1
 else
 docker-prod-up:
 	@if [ ! -f "$(PROD_ENV_FILE)" ]; then \
@@ -224,51 +217,4 @@ docker-prod-down:
 
 docker-ps:
 	-docker compose --env-file "$(PROD_ENV_ACTIVE_FILE)" $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) ps
-
-fetch-logs:
-	@if [ ! -d "$(BACKEND_DIR)/logs" ]; then \
-		echo "Ошибка: папка $(BACKEND_DIR)/logs не найдена. Убедитесь, что backend запущен и volume с логами смонтирован."; \
-		exit 1; \
-	fi
-	@if [ -z "$$(ls -A $(BACKEND_DIR)/logs 2>/dev/null)" ]; then \
-		echo "Ошибка: папка $(BACKEND_DIR)/logs существует, но пуста. Подождите минуту-две, пока накопятся логи."; \
-		exit 1; \
-	fi
-	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
-	ARCHIVE="/tmp/scada_mobile_logs_$$TIMESTAMP.tar.gz"; \
-	LOCAL_ARCHIVE="$(BACKEND_DIR)/scada_mobile_logs_$$TIMESTAMP.tar.gz"; \
-	echo "Архивируем логи..."; \
-	tar -czf "$$ARCHIVE" -C "$(BACKEND_DIR)" logs/; \
-	cp "$$ARCHIVE" "$$LOCAL_ARCHIVE"; \
-	echo "Загружаем на transfer.sh..."; \
-	RESPONSE=$$(curl --max-time 30 --silent --show-error --upload-file "$$ARCHIVE" "https://transfer.sh/scada_mobile_logs.tar.gz" 2>&1); \
-	CURL_EXIT=$$?; \
-	rm -f "$$ARCHIVE"; \
-	if [ $$CURL_EXIT -ne 0 ]; then \
-		echo ""; \
-		echo "Ошибка загрузки на transfer.sh: $$RESPONSE"; \
-		echo ""; \
-		echo "Возможные причины:"; \
-		echo "  - transfer.sh заблокирован корпоративным файрволом"; \
-		echo "  - сервис transfer.sh временно недоступен"; \
-		echo ""; \
-		echo "Архив сохранён локально: $$LOCAL_ARCHIVE"; \
-		echo "Передайте его разработчику вручную (scp, email, мессенджер)."; \
-		exit 1; \
-	fi; \
-	if [ -z "$$RESPONSE" ]; then \
-		echo "Ошибка: сервер transfer.sh вернул пустой ответ."; \
-		echo "Архив сохранён локально: $$LOCAL_ARCHIVE"; \
-		exit 1; \
-	fi; \
-	if echo "$$RESPONSE" | grep -q "error\|Error\|ERROR"; then \
-		echo "Ошибка от transfer.sh: $$RESPONSE"; \
-		echo "Архив сохранён локально: $$LOCAL_ARCHIVE"; \
-		exit 1; \
-	fi; \
-	rm -f "$$LOCAL_ARCHIVE"; \
-	echo ""; \
-	echo "$$RESPONSE"; \
-	echo ""; \
-	echo "Логи заархивированы и загружены. Ссылка действительна 14 дней."
 endif
