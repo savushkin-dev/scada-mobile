@@ -210,7 +210,8 @@ docker-prod-up:
 		echo "Missing $(PROD_ENV_FILE). Copy .env.prod.example -> $(PROD_ENV_FILE) and fill values."; \
 		exit 1; \
 	fi
-	docker compose --env-file "$(PROD_ENV_FILE)" $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) up --build -d --build-arg USER_ID=$$(id -u) --build-arg GROUP_ID=$$(id -g)
+	docker compose --env-file "$(PROD_ENV_FILE)" $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) build --build-arg USER_ID=$$(id -u) --build-arg GROUP_ID=$$(id -g) backend && \
+	docker compose --env-file "$(PROD_ENV_FILE)" $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) up -d
 
 docker-prod-down:
 	docker compose --env-file "$(PROD_ENV_ACTIVE_FILE)" $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) down
