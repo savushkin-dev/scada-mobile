@@ -236,24 +236,37 @@ fetch-logs:
 	fi
 	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
 	ARCHIVE="/tmp/scada_mobile_logs_$$TIMESTAMP.tar.gz"; \
+	LOCAL_ARCHIVE="$(BACKEND_DIR)/scada_mobile_logs_$$TIMESTAMP.tar.gz"; \
 	echo "Архивируем логи..."; \
 	tar -czf "$$ARCHIVE" -C "$(BACKEND_DIR)" logs/; \
+	cp "$$ARCHIVE" "$$LOCAL_ARCHIVE"; \
 	echo "Загружаем на transfer.sh..."; \
-	RESPONSE=$$(curl --silent --show-error --upload-file "$$ARCHIVE" "https://transfer.sh/scada_mobile_logs.tar.gz" 2>&1); \
+	RESPONSE=$$(curl --max-time 30 --silent --show-error --upload-file "$$ARCHIVE" "https://transfer.sh/scada_mobile_logs.tar.gz" 2>&1); \
 	CURL_EXIT=$$?; \
 	rm -f "$$ARCHIVE"; \
 	if [ $$CURL_EXIT -ne 0 ]; then \
-		echo "Ошибка загрузки: $$RESPONSE"; \
+		echo ""; \
+		echo "Ошибка загрузки на transfer.sh: $$RESPONSE"; \
+		echo ""; \
+		echo "Возможные причины:"; \
+		echo "  - transfer.sh заблокирован корпоративным файрволом"; \
+		echo "  - сервис transfer.sh временно недоступен"; \
+		echo ""; \
+		echo "Архив сохранён локально: $$LOCAL_ARCHIVE"; \
+		echo "Передайте его разработчику вручную (scp, email, мессенджер)."; \
 		exit 1; \
 	fi; \
 	if [ -z "$$RESPONSE" ]; then \
 		echo "Ошибка: сервер transfer.sh вернул пустой ответ."; \
+		echo "Архив сохранён локально: $$LOCAL_ARCHIVE"; \
 		exit 1; \
 	fi; \
 	if echo "$$RESPONSE" | grep -q "error\|Error\|ERROR"; then \
 		echo "Ошибка от transfer.sh: $$RESPONSE"; \
+		echo "Архив сохранён локально: $$LOCAL_ARCHIVE"; \
 		exit 1; \
 	fi; \
+	rm -f "$$LOCAL_ARCHIVE"; \
 	echo ""; \
 	echo "$$RESPONSE"; \
 	echo ""; \
