@@ -19,12 +19,6 @@ services:
 
   backend:
     image: scada-mobile/backend:0.1.0
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      args:
-        USER_ID: ${USER_ID}
-        GROUP_ID: ${GROUP_ID}
     restart: no
     extra_hosts:
       - "host.docker.internal:host-gateway"

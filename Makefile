@@ -216,6 +216,8 @@ docker-prod-up:
 		echo "Missing $(PROD_ENV_FILE). Copy .env.prod.example -> $(PROD_ENV_FILE) and fill values."; \
 		exit 1; \
 	fi
+	@mkdir -p backend/logs
+	@chown $(SCADA_MOBILE_USER_ID):$(SCADA_MOBILE_GROUP_ID) backend/logs
 	docker build --build-arg USER_ID=$(SCADA_MOBILE_USER_ID) --build-arg GROUP_ID=$(SCADA_MOBILE_GROUP_ID) -t scada-mobile/backend:0.1.0 ./backend && \
 	docker compose --env-file "$(PROD_ENV_FILE)" $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) up -d
 
