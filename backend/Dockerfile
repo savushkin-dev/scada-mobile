@@ -16,14 +16,11 @@ RUN --mount=type=cache,target=/home/gradle/.gradle \
 
 FROM eclipse-temurin:21.0.8_9-jre-alpine AS runtime
 
-RUN addgroup -S app && adduser -S -G app app \
-    && apk add --no-cache wget
+RUN apk add --no-cache wget
 
 WORKDIR /app
 COPY --from=builder /workspace/build/libs/*.jar /app/app.jar
-RUN mkdir -p /app/logs && chown -R app:app /app
-
-USER app
+RUN mkdir -p /app/logs
 
 ENV SPRING_PROFILES_ACTIVE=prod
 ENV JAVA_TOOL_OPTIONS=""
