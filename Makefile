@@ -236,11 +236,26 @@ fetch-logs:
 	fi
 	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
 	ARCHIVE="/tmp/scada_mobile_logs_$$TIMESTAMP.tar.gz"; \
+	echo "Архивируем логи..."; \
 	tar -czf "$$ARCHIVE" -C "$(BACKEND_DIR)" logs/; \
-	URL=$$(curl --silent --upload-file "$$ARCHIVE" "https://transfer.sh/scada_mobile_logs.tar.gz"); \
+	echo "Загружаем на transfer.sh..."; \
+	RESPONSE=$$(curl --silent --show-error --upload-file "$$ARCHIVE" "https://transfer.sh/scada_mobile_logs.tar.gz" 2>&1); \
+	CURL_EXIT=$$?; \
 	rm -f "$$ARCHIVE"; \
+	if [ $$CURL_EXIT -ne 0 ]; then \
+		echo "Ошибка загрузки: $$RESPONSE"; \
+		exit 1; \
+	fi; \
+	if [ -z "$$RESPONSE" ]; then \
+		echo "Ошибка: сервер transfer.sh вернул пустой ответ."; \
+		exit 1; \
+	fi; \
+	if echo "$$RESPONSE" | grep -q "error\|Error\|ERROR"; then \
+		echo "Ошибка от transfer.sh: $$RESPONSE"; \
+		exit 1; \
+	fi; \
 	echo ""; \
-	echo "$$URL"; \
+	echo "$$RESPONSE"; \
 	echo ""; \
 	echo "Логи заархивированы и загружены. Ссылка действительна 14 дней."
 endif
