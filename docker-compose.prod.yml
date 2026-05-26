@@ -22,6 +22,9 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        USER_ID: ${HOST_UID}
+        GROUP_ID: ${HOST_GID}
     restart: no
     extra_hosts:
       - "host.docker.internal:host-gateway"

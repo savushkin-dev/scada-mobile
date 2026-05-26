@@ -16,11 +16,26 @@ RUN --mount=type=cache,target=/home/gradle/.gradle \
 
 FROM eclipse-temurin:21.0.8_9-jre-alpine AS runtime
 
+# Обязательные аргументы: UID/GID пользователя хоста.
+# Сборка завершится ошибкой, если не переданы через --build-arg.
+ARG USER_ID
+ARG GROUP_ID
+
 RUN apk add --no-cache wget
+
+# Создаём группу и пользователя с UID/GID хоста.
+# addgroup/adduser в Alpine: -S = system account, -u/-g = explicit id.
+RUN addgroup -S -g ${GROUP_ID} appgroup && \
+    adduser -S -u ${USER_ID} -G appgroup appuser
 
 WORKDIR /app
 COPY --from=builder /workspace/build/libs/*.jar /app/app.jar
-RUN mkdir -p /app/logs
+
+# Создаём папку для логов и назначаем владельцем non-root пользователя.
+RUN mkdir -p /app/logs && \
+    chown -R appuser:appgroup /app
+
+USER appuser
 
 ENV SPRING_PROFILES_ACTIVE=prod
 ENV JAVA_TOOL_OPTIONS=""
