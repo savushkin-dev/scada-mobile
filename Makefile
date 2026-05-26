@@ -197,7 +197,7 @@ endif
 
 ifeq ($(OS),Windows_NT)
 docker-prod-up:
-	cmd /C "if not exist $(PROD_ENV_FILE) (echo Missing $(PROD_ENV_FILE). Copy .env.prod.example -^> $(PROD_ENV_FILE) and fill values. & exit /b 1) else (docker compose --env-file $(PROD_ENV_FILE) $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) up --build -d)"
+	cmd /C "if not exist $(PROD_ENV_FILE) (echo Missing $(PROD_ENV_FILE). Copy .env.prod.example -^> $(PROD_ENV_FILE) and fill values. & exit /b 1) else (docker compose --env-file $(PROD_ENV_FILE) $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) up --build -d --build-arg USER_ID=$(shell id -u 2>nul || echo 0) --build-arg GROUP_ID=$(shell id -g 2>nul || echo 0))"
 
 docker-prod-down:
 	cmd /C "docker compose --env-file $(PROD_ENV_ACTIVE_FILE) $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) down"
@@ -210,7 +210,7 @@ docker-prod-up:
 		echo "Missing $(PROD_ENV_FILE). Copy .env.prod.example -> $(PROD_ENV_FILE) and fill values."; \
 		exit 1; \
 	fi
-	docker compose --env-file "$(PROD_ENV_FILE)" $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) up --build -d
+	docker compose --env-file "$(PROD_ENV_FILE)" $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) up --build -d --build-arg USER_ID=$$(id -u) --build-arg GROUP_ID=$$(id -g)
 
 docker-prod-down:
 	docker compose --env-file "$(PROD_ENV_ACTIVE_FILE)" $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) down
