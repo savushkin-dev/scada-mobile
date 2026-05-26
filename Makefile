@@ -12,6 +12,7 @@ SEED_DB_PASSWORD ?= scada_password
 SEED_SQL ?= scripts/seed_notifications.sql
 SEED_PROD_SQL ?= scripts/seed_prod_data.sql
 
+
 ifeq ($(OS),Windows_NT)
 GRADLEW := gradlew.bat
 else
@@ -197,7 +198,9 @@ endif
 
 ifeq ($(OS),Windows_NT)
 docker-prod-up:
-	cmd /C "if not exist $(PROD_ENV_FILE) (echo Missing $(PROD_ENV_FILE). Copy .env.prod.example -^> $(PROD_ENV_FILE) and fill values. & exit /b 1) else (docker compose --env-file $(PROD_ENV_FILE) $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) up --build -d --build-arg USER_ID=$(shell id -u 2>nul || echo 0) --build-arg GROUP_ID=$(shell id -g 2>nul || echo 0))"
+	@echo "Ошибка: запуск prod-стека на Windows не поддерживается."
+	@echo "Используйте WSL2 (Ubuntu) или разворачивайте на Linux-сервере."
+	@exit 1
 
 docker-prod-down:
 	cmd /C "docker compose --env-file $(PROD_ENV_ACTIVE_FILE) $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) down"
@@ -205,12 +208,15 @@ docker-prod-down:
 docker-ps:
 	-cmd /C "docker compose --env-file $(PROD_ENV_ACTIVE_FILE) $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) ps"
 else
+SCADA_MOBILE_USER_ID := $(shell id -u)
+SCADA_MOBILE_GROUP_ID := $(shell id -g)
+
 docker-prod-up:
 	@if [ ! -f "$(PROD_ENV_FILE)" ]; then \
 		echo "Missing $(PROD_ENV_FILE). Copy .env.prod.example -> $(PROD_ENV_FILE) and fill values."; \
 		exit 1; \
 	fi
-	docker compose --env-file "$(PROD_ENV_FILE)" $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) build --build-arg USER_ID=$$(id -u) --build-arg GROUP_ID=$$(id -g) backend && \
+	docker build --build-arg USER_ID=$(SCADA_MOBILE_USER_ID) --build-arg GROUP_ID=$(SCADA_MOBILE_GROUP_ID) -t scada-mobile/backend:0.1.0 ./backend && \
 	docker compose --env-file "$(PROD_ENV_FILE)" $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) up -d
 
 docker-prod-down:
