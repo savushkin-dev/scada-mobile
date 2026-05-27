@@ -19,23 +19,20 @@ FROM eclipse-temurin:21.0.8_9-jre-alpine AS runtime
 ARG USER_ID
 ARG GROUP_ID
 
-# Ставим wget для HEALTHCHECK и su-exec для entrypoint
 RUN apk add --no-cache wget su-exec
 
-# Создаём юзера с UID/GID хоста
-RUN addgroup -S -g ${GROUP_ID} appgroup && \
-    adduser -S -u ${USER_ID} -G appgroup appuser
+# Создаём пользователя ТОЛЬКО если не root (UID != 0)
+RUN if [ "${USER_ID}" != "0" ]; then \
+        addgroup -S -g ${GROUP_ID} appgroup && \
+        adduser -S -u ${USER_ID} -G appgroup appuser; \
+    fi
 
 WORKDIR /app
-
-# Копируем jar
 COPY --from=builder /workspace/build/libs/*.jar /app/app.jar
 
-# Копируем entrypoint
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Создаём папку для логов (пока от root)
 RUN mkdir -p /app/logs
 
 ENTRYPOINT ["/entrypoint.sh"]
