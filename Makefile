@@ -23,8 +23,7 @@ endif
 .PHONY: bwa-init bwa-build-apk
 .PHONY: docker-prod-up docker-prod-down docker-ps
 
-DOCKER_BASE_FILES := -f docker-compose.yml
-DOCKER_PROD_FILES := -f docker-compose.prod.yml
+DOCKER_COMPOSE_FILE := -f docker-compose.yml
 PROD_ENV_FILE ?= .env.prod.local
 PROD_ENV_FALLBACK := .env.prod.example
 PROD_ENV_ACTIVE_FILE = $(if $(wildcard $(PROD_ENV_FILE)),$(PROD_ENV_FILE),$(PROD_ENV_FALLBACK))
@@ -203,27 +202,23 @@ docker-prod-up:
 	@exit 1
 
 docker-prod-down:
-	cmd /C "docker compose --env-file $(PROD_ENV_ACTIVE_FILE) $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) down"
+	cmd /C "docker compose --env-file $(PROD_ENV_ACTIVE_FILE) $(DOCKER_COMPOSE_FILE) down"
 
 docker-ps:
-	-cmd /C "docker compose --env-file $(PROD_ENV_ACTIVE_FILE) $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) ps"
+	-cmd /C "docker compose --env-file $(PROD_ENV_ACTIVE_FILE) $(DOCKER_COMPOSE_FILE) ps"
 else
-SCADA_MOBILE_USER_ID := $(shell id -u)
-SCADA_MOBILE_GROUP_ID := $(shell id -g)
 
 docker-prod-up:
 	@if [ ! -f "$(PROD_ENV_FILE)" ]; then \
 		echo "Missing $(PROD_ENV_FILE). Copy .env.prod.example -> $(PROD_ENV_FILE) and fill values."; \
 		exit 1; \
 	fi
-	@mkdir -p backend/logs
-	@chown $(SCADA_MOBILE_USER_ID):$(SCADA_MOBILE_GROUP_ID) backend/logs
-	docker build --build-arg USER_ID=$(SCADA_MOBILE_USER_ID) --build-arg GROUP_ID=$(SCADA_MOBILE_GROUP_ID) -t scada-mobile/backend:0.1.0 ./backend && \
-	docker compose --env-file "$(PROD_ENV_FILE)" $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) up -d
+	USER_ID=$$(id -u) GROUP_ID=$$(id -g) \
+	docker-compose $(DOCKER_COMPOSE_FILE) --env-file "$(PROD_ENV_FILE)" up --build
 
 docker-prod-down:
-	docker compose --env-file "$(PROD_ENV_ACTIVE_FILE)" $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) down
+	docker compose --env-file "$(PROD_ENV_ACTIVE_FILE)" $(DOCKER_COMPOSE_FILE) down
 
 docker-ps:
-	-docker compose --env-file "$(PROD_ENV_ACTIVE_FILE)" $(DOCKER_BASE_FILES) $(DOCKER_PROD_FILES) ps
+	-docker compose --env-file "$(PROD_ENV_ACTIVE_FILE)" $(DOCKER_COMPOSE_FILE) ps
 endif
