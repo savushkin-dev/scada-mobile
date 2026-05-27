@@ -1,16 +1,37 @@
+# === Системные и редакторские файлы ===
 .git
 .github
 .vscode
 .idea
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
 
+# === Сборочные артефакты и кэш Gradle ===
 build
 .gradle
-logs
 bin
+out
 
+# === Локальные логи и runtime-файлы ===
+logs
 **/*.log
 **/*.pid
+**/*.tmp
 
+# === Конфигурация окружения ===
+.env
+.env.*
+!.env.example
+
+# === Документация и служебные файлы ===
 Dockerfile*
+docker-compose*
 README.md
 *.md
+
+# === Тестовые данные, если есть ===
+src/test/resources/*.sql
+scripts/seed_*.sql

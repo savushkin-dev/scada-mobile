@@ -214,7 +214,7 @@ docker-prod-up:
 		exit 1; \
 	fi
 	USER_ID=$$(id -u) GROUP_ID=$$(id -g) \
-	docker-compose $(DOCKER_COMPOSE_FILE) --env-file "$(PROD_ENV_FILE)" up --build
+	docker-compose $(DOCKER_COMPOSE_FILE) --env-file "$(PROD_ENV_FILE)" up -d --build
 
 docker-prod-down:
 	docker compose --env-file "$(PROD_ENV_ACTIVE_FILE)" $(DOCKER_COMPOSE_FILE) down

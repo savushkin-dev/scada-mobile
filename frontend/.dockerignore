@@ -1,15 +1,40 @@
+# === Системные и редакторские файлы ===
 .git
 .github
 .vscode
 .idea
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
 
+# === Зависимости и сборочные артефакты ===
 node_modules
 dist
 coverage
+.vite
 
+# === Локальные логи и кэш ===
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# === Конфигурация окружения ===
 .env
 .env.*
+!.env.example
 
+# === Документация и служебные файлы ===
 Dockerfile*
+docker-compose*
 README.md
+*.md
+
+# === Тестовые артефакты, если используешь Cypress/Playwright ===
+cypress/videos
+cypress/screenshots
+playwright-report
+test-results
