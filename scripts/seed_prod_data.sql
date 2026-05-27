@@ -6,26 +6,28 @@ VALUES (1, 'Цех десертов', true),
 ON CONFLICT (workshop_id) DO UPDATE SET name = EXCLUDED.name,
                                       is_active = EXCLUDED.is_active;
 
-INSERT INTO units (unit_id, workshop_id, name, is_active, printsrv_instance_id)
+INSERT INTO units (unit_id, workshop_id, name, is_active, printsrv_instance_id, printsrv_host, printsrv_port)
 VALUES
-    (1, 1, 'Trepko №1', true, 'trepko1'),
-    (2, 1, 'Trepko №2', true, 'trepko2'),
-    (3, 1, 'Hassia №1', true, 'hassia1'),
-    (4, 1, 'Hassia №2', true, 'hassia2'),
-    (5, 1, 'Hassia №4', true, 'hassia4'),
-    (6, 1, 'Hassia №5', true, 'hassia5'),
-    (7, 1, 'Hassia №6', true, 'hassia6'),
-    (8, 1, 'Hassia №3', true, 'hassia3'),
-    (9, 1, 'Bosch', true, 'bosch'),
-    (10, 1, 'Grunwald №5', true, 'grunwald5'),
-    (11, 1, 'Grunwald №8', true, 'grunwald8'),
-    (12, 2, 'Grunwald №1', true, 'grunwald1'),
-    (13, 2, 'Grunwald №2', true, 'grunwald2'),
-    (14, 2, 'Grunwald №11', true, 'grunwald11')
+    (1, 1, 'Trepko №1', true, 'trepko1', '192.168.1.10', 9100),
+    (2, 1, 'Trepko №2', true, 'trepko2', '192.168.1.11', 9100),
+    (3, 1, 'Hassia №1', true, 'hassia1', '192.168.1.12', 9100),
+    (4, 1, 'Hassia №2', true, 'hassia2', '192.168.1.13', 9100),
+    (5, 1, 'Hassia №4', true, 'hassia4', '192.168.1.14', 9100),
+    (6, 1, 'Hassia №5', true, 'hassia5', '192.168.1.15', 9100),
+    (7, 1, 'Hassia №6', true, 'hassia6', '192.168.1.16', 9100),
+    (8, 1, 'Hassia №3', true, 'hassia3', '192.168.1.17', 9100),
+    (9, 1, 'Bosch', true, 'bosch', '192.168.1.18', 9100),
+    (10, 1, 'Grunwald №5', true, 'grunwald5', '192.168.1.19', 9100),
+    (11, 1, 'Grunwald №8', true, 'grunwald8', '192.168.1.20', 9100),
+    (12, 2, 'Grunwald №1', true, 'grunwald1', '192.168.1.21', 9100),
+    (13, 2, 'Grunwald №2', true, 'grunwald2', '192.168.1.22', 9100),
+    (14, 2, 'Grunwald №11', true, 'grunwald11', '192.168.1.23', 9100)
 ON CONFLICT (unit_id) DO UPDATE SET workshop_id = EXCLUDED.workshop_id,
                                    name = EXCLUDED.name,
                                    is_active = EXCLUDED.is_active,
-                                   printsrv_instance_id = EXCLUDED.printsrv_instance_id;
+                                   printsrv_instance_id = EXCLUDED.printsrv_instance_id,
+                                   printsrv_host = EXCLUDED.printsrv_host,
+                                   printsrv_port = EXCLUDED.printsrv_port;
 
 INSERT INTO device_types (code, name)
 VALUES ('printer', 'Принтер'),
