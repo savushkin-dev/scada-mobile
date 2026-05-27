@@ -1,5 +1,6 @@
 import { Admin, Resource } from 'react-admin';
 import { dataProvider } from './dataProvider';
+import { AdminLayout } from './AdminLayout';
 import { RoleList, RoleEdit, RoleCreate } from './resources/Roles';
 import { WorkshopList, WorkshopEdit, WorkshopCreate } from './resources/Workshops';
 import { DeviceTypeList, DeviceTypeEdit, DeviceTypeCreate } from './resources/DeviceTypes';
@@ -19,7 +20,7 @@ import {
 
 export function AdminApp() {
   return (
-    <Admin dataProvider={dataProvider} basename="/admin">
+    <Admin dataProvider={dataProvider} basename="/admin" layout={AdminLayout}>
       <Resource
         name="roles"
         options={{ label: 'Роли' }}
