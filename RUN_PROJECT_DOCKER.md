@@ -89,10 +89,10 @@ Write-Host "DB_PASS: $env:SCADA_MOBILE_DATABASE_PASSWORD"
 
 **bash / Linux / macOS:**
 ~~~bash
-export SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD=$(openssl rand -base64 7 | cut -c1-10)
 export SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE=$(openssl rand -base64 6 | tr -dc 'A-Z0-9' | cut -c1-8)
-echo "ADMIN_PASS: $SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD"
+export SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD=$(openssl rand -base64 7 | cut -c1-10)
 echo "ADMIN_CODE: $SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE"
+echo "ADMIN_PASS: $SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD"
 ~~~
 
 **PowerShell:**
