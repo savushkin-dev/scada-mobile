@@ -36,7 +36,7 @@ export const UnitList = () => (
 export const UnitEdit = () => (
   <Edit>
     <SimpleForm>
-      <TextInput source="name" label="Название аппарата" />
+      <TextInput source="name" label="Название автомата" />
       <ReferenceInput source="workshopId" reference="workshops">
         <SelectInput optionText="name" label="Цех" />
       </ReferenceInput>
@@ -51,7 +51,7 @@ export const UnitEdit = () => (
 export const UnitCreate = () => (
   <Create>
     <SimpleForm>
-      <TextInput source="name" label="Название аппарата" />
+      <TextInput source="name" label="Название автомата" />
       <ReferenceInput source="workshopId" reference="workshops">
         <SelectInput optionText="name" label="Цех" />
       </ReferenceInput>

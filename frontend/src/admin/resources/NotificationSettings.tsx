@@ -22,7 +22,7 @@ export const NotificationSettingsList = () => (
       <ReferenceField source="userId" reference="users" label="Сотрудник">
         <TextField source="fullName" />
       </ReferenceField>
-      <ReferenceField source="unitId" reference="units" label="Аппарат">
+      <ReferenceField source="unitId" reference="units" label="Автомат">
         <TextField source="name" />
       </ReferenceField>
       <BooleanField source="incidentNotificationsEnabled" label="Тех. сбои" />
@@ -42,7 +42,7 @@ export const NotificationSettingsEdit = () => (
         <SelectInput optionText="fullName" label="Сотрудник" />
       </ReferenceInput>
       <ReferenceInput source="unitId" reference="units">
-        <SelectInput optionText="name" label="Аппарат" />
+        <SelectInput optionText="name" label="Автомат" />
       </ReferenceInput>
       <BooleanInput source="incidentNotificationsEnabled" label="Тех. сбои" />
       <BooleanInput source="androidCallNotificationsEnabled" label="Вызов" />
@@ -58,7 +58,7 @@ export const NotificationSettingsCreate = () => (
         <SelectInput optionText="fullName" label="Сотрудник" />
       </ReferenceInput>
       <ReferenceInput source="unitId" reference="units">
-        <SelectInput optionText="name" label="Аппарат" />
+        <SelectInput optionText="name" label="Автомат" />
       </ReferenceInput>
       <BooleanInput source="incidentNotificationsEnabled" label="Тех. сбои" defaultValue={true} />
       <BooleanInput source="androidCallNotificationsEnabled" label="Вызов" defaultValue={true} />

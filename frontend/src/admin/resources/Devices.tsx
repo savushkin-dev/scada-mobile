@@ -19,7 +19,7 @@ export const DeviceList = () => (
       <TextField source="id" />
       <TextField source="code" label="Код" />
       <TextField source="displayName" label="Отображаемое имя" />
-      <ReferenceField source="unitId" reference="units" label="Аппарат">
+      <ReferenceField source="unitId" reference="units" label="Автомат">
         <TextField source="name" />
       </ReferenceField>
       <ReferenceField source="typeId" reference="device-types" label="Тип">
@@ -37,7 +37,7 @@ export const DeviceEdit = () => (
       <TextInput source="code" label="Код устройства" />
       <TextInput source="displayName" label="Отображаемое имя" />
       <ReferenceInput source="unitId" reference="units">
-        <SelectInput optionText="name" label="Аппарат" />
+        <SelectInput optionText="name" label="Автомат" />
       </ReferenceInput>
       <ReferenceInput source="typeId" reference="device-types">
         <SelectInput optionText="name" label="Тип устройства" />
@@ -52,7 +52,7 @@ export const DeviceCreate = () => (
       <TextInput source="code" label="Код устройства" />
       <TextInput source="displayName" label="Отображаемое имя" />
       <ReferenceInput source="unitId" reference="units">
-        <SelectInput optionText="name" label="Аппарат" />
+        <SelectInput optionText="name" label="Автомат" />
       </ReferenceInput>
       <ReferenceInput source="typeId" reference="device-types">
         <SelectInput optionText="name" label="Тип устройства" />

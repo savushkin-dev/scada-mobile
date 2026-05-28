@@ -44,7 +44,7 @@ export function AdminApp() {
       />
       <Resource
         name="units"
-        options={{ label: 'Аппараты' }}
+        options={{ label: 'Автоматы' }}
         list={UnitList}
         edit={UnitEdit}
         create={UnitCreate}

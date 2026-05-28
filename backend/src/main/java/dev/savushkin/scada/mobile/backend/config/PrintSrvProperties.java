@@ -1,5 +1,7 @@
 package dev.savushkin.scada.mobile.backend.config;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -11,6 +13,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * <p>Активируется через {@link PrintSrvInfrastructureConfig}.
  */
+@Setter
+@Getter
 @ConfigurationProperties(prefix = "printsrv")
 public class PrintSrvProperties {
 
@@ -19,34 +23,25 @@ public class PrintSrvProperties {
 
     // ─── getters / setters ────────────────────────────────────────────────────
 
-    public PollingProperties getPolling() { return polling; }
-    public void setPolling(PollingProperties polling) { this.polling = polling; }
-
-    public SocketProperties getSocket() { return socket; }
-    public void setSocket(SocketProperties socket) { this.socket = socket; }
-
     // ─── Nested: polling ─────────────────────────────────────────────────────
 
+    @Setter
+    @Getter
     public static class PollingProperties {
         /**
          * Задержка между polling-проходами каждого instance worker в мс.
          */
         private long fixedDelayMs = 5000;
 
-        public long getFixedDelayMs() { return fixedDelayMs; }
-        public void setFixedDelayMs(long fixedDelayMs) { this.fixedDelayMs = fixedDelayMs; }
     }
 
     // ─── Nested: socket ──────────────────────────────────────────────────────
 
+    @Setter
+    @Getter
     public static class SocketProperties {
         private int connectTimeoutMs = 5000;
         private int readTimeoutMs = 5000;
 
-        public int getConnectTimeoutMs() { return connectTimeoutMs; }
-        public void setConnectTimeoutMs(int connectTimeoutMs) { this.connectTimeoutMs = connectTimeoutMs; }
-
-        public int getReadTimeoutMs() { return readTimeoutMs; }
-        public void setReadTimeoutMs(int readTimeoutMs) { this.readTimeoutMs = readTimeoutMs; }
     }
 }

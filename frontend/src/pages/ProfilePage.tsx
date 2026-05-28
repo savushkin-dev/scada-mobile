@@ -29,7 +29,7 @@ const PROFILE_COPY = Object.freeze({
   overlayTechHint: '(Автоматика)',
   overlayMasterLabel: 'Вызов',
   overlayMasterHint: '(Оператор)',
-  notificationEmpty: 'Список аппаратов пуст',
+  notificationEmpty: 'Список автоматов пуст',
   updateErrorLabel: 'Не удалось сохранить изменения',
   logoutButtonAriaLabel: 'Выйти из аккаунта',
   logoutOverlayTitle: 'Выйти из аккаунта?',

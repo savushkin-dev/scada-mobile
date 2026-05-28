@@ -22,7 +22,7 @@ export const UserAssignmentList = () => (
       <ReferenceField source="userId" reference="users" label="Сотрудник">
         <TextField source="fullName" />
       </ReferenceField>
-      <ReferenceField source="unitId" reference="units" label="Аппарат">
+      <ReferenceField source="unitId" reference="units" label="Автомат">
         <TextField source="name" />
       </ReferenceField>
       <DateField source="assignedAt" label="Назначен" />
@@ -40,7 +40,7 @@ export const UserAssignmentEdit = () => (
         <SelectInput optionText="fullName" label="Сотрудник" />
       </ReferenceInput>
       <ReferenceInput source="unitId" reference="units">
-        <SelectInput optionText="name" label="Аппарат" />
+        <SelectInput optionText="name" label="Автомат" />
       </ReferenceInput>
       <BooleanInput source="active" label="Активен" />
     </SimpleForm>
@@ -54,7 +54,7 @@ export const UserAssignmentCreate = () => (
         <SelectInput optionText="fullName" label="Сотрудник" />
       </ReferenceInput>
       <ReferenceInput source="unitId" reference="units">
-        <SelectInput optionText="name" label="Аппарат" />
+        <SelectInput optionText="name" label="Автомат" />
       </ReferenceInput>
       <BooleanInput source="active" label="Активен" defaultValue={true} />
     </SimpleForm>
