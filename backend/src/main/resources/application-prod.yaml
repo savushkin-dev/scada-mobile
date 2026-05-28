@@ -1,12 +1,12 @@
 # Prod profile: минимальное логирование, быстрый polling, документация отключена
-# Уровни логов задаются в logback-spring.xml (springProfile name="prod").
+# Уровни логов задаются в logback-spring.xml (springProfile name="prod"): root=WARN, backend=INFO.
 # Переопределить без перезапуска: POST /actuator/loggers/dev.savushkin.scada.mobile.backend
 #   {"configuredLevel": "DEBUG"}  ← включить отладку при инциденте
 #   {"configuredLevel": "INFO"}   ← вернуть обратно
 logging:
   level:
-    root: DEBUG
-    dev.savushkin.scada.mobile.backend: DEBUG
+    root: WARN
+    dev.savushkin.scada.mobile.backend: INFO
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PrintSrv runtime-параметры в prod.

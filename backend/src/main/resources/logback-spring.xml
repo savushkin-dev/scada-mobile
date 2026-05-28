@@ -135,14 +135,24 @@
     </appender>
 
     <!-- =========================================================
-         POLLING DIAGNOSTIC LOGGER (вне зависимости от профиля)
+         POLLING DIAGNOSTIC LOGGER
          Изолированный логгер для детального логирования polling.
          additivity="false" — логи не попадают в root-Appender-ы.
+         Уровень DEBUG в dev, WARN в prod (через springProfile ниже).
          ========================================================= -->
-    <logger name="scada.polling.diagnostic" level="DEBUG" additivity="false">
-        <appender-ref ref="POLLING_JSON"/>
-        <appender-ref ref="POLLING_PLAIN"/>
-    </logger>
+    <springProfile name="dev">
+        <logger name="scada.polling.diagnostic" level="DEBUG" additivity="false">
+            <appender-ref ref="POLLING_JSON"/>
+            <appender-ref ref="POLLING_PLAIN"/>
+        </logger>
+    </springProfile>
+
+    <springProfile name="prod">
+        <logger name="scada.polling.diagnostic" level="WARN" additivity="false">
+            <appender-ref ref="POLLING_JSON"/>
+            <appender-ref ref="POLLING_PLAIN"/>
+        </logger>
+    </springProfile>
 
     <!-- =========================================================
          ПРАВИЛА ДЛЯ DEV ПРОФИЛЯ

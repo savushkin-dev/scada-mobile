@@ -57,6 +57,8 @@ services:
     restart: no
     ports:
       - "${SCADA_MOBILE_FRONTEND_PORT:?SCADA_MOBILE_FRONTEND_PORT is required in prod env}:8080"
+    depends_on:
+      - backend
 
 volumes:
   scada-mobile-postgres-data:
