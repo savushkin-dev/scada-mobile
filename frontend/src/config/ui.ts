@@ -26,28 +26,27 @@ export const UI_COPY = Object.freeze({
   workshopSubtitle: 'Цех',
   workshopTotalUnitsLabel: 'Аппаратов/Линий',
   workshopProblemUnitsLabel: 'Проблемных',
-  queueTitle: '📋 Очередь печати',
+  queueTitle: 'Очередь печати',
   queueEmpty: 'Очередь пуста',
   queueBatchPrefix: 'Партия',
   queueShortCodePrefix: 'Кр. код',
   queueProducedPrefix: 'Выработка',
-  batchTitle: '📦 Текущая партия',
+  batchTitle: 'Текущая партия',
   batchShowMore: 'Показать все свойства ▾',
   batchShowLess: 'Скрыть дополнительные свойства ▴',
   currentBatchLabel: 'Текущая партия',
   statusError: 'Ошибка',
   statusWorking: 'В работе',
   statusStopped: 'Остановлен',
-  activeErrorsTitle: '⚠️ Активные ошибки',
-  activeErrorsEmpty: '✅ Нет активных ошибок',
-  eventLogTitle: '📝 Журнал событий',
+  activeErrorsTitle: 'Активные ошибки',
+  eventLogTitle: 'Журнал событий',
   eventLogEmpty: 'Журнал пуст',
   errorFallbackTitle: 'Что-то пошло не так',
   errorFallbackReload: 'Перезагрузить',
   fabActionLabel: 'Последняя партия',
   fabSentLabel: 'Отправлено!',
   fabAriaLabel: 'Сообщить: партия последняя',
-  fabDefaultIcon: '🔔',
+  fabDefaultIcon: '/assets/bell.svg',
   fabSentIcon: '✅',
   backIcon: '←',
   retryIcon: '⚠',
@@ -59,10 +58,10 @@ export const UI_COPY = Object.freeze({
   profileButtonAriaLabel: 'Профиль',
   notificationButtonAriaLabel: 'Уведомления',
   // Вкладка «Устройства» — заголовки групп устройств и статусы
-  devicesGroupPrinters: '🖨️ Принтеры',
-  devicesGroupAggrCams: '📷 Камеры агрегации',
-  devicesGroupAggrBoxCams: '📷 Камеры агрегации (короб)',
-  devicesGroupCheckerCams: '🔍 Камеры проверки',
+  devicesGroupPrinters: 'Принтеры',
+  devicesGroupAggrCams: 'Камеры агрегации',
+  devicesGroupAggrBoxCams: 'Камеры агрегации (короб)',
+  devicesGroupCheckerCams: 'Камеры проверки',
   /** Статус карточки устройства пока WS не подключён. */
   devicesPending: 'Нет данных',
   /** Отображается, если топология загружена, но все списки устройств пусты. */
@@ -118,10 +117,10 @@ export const DETAIL_TABS = Object.freeze({
 export const DEFAULT_DETAIL_TAB: TabId = DETAIL_TABS.batch;
 
 export const BOTTOM_NAV_ITEMS: ReadonlyArray<NavItemConfig> = [
-  { tab: DETAIL_TABS.batch, icon: '📦', label: 'Партия' },
-  { tab: DETAIL_TABS.devices, icon: '⚙️', label: 'Устройства' },
-  { tab: DETAIL_TABS.queue, icon: '📋', label: 'Очередь' },
-  { tab: DETAIL_TABS.logs, icon: '⚠️', label: 'Журнал' },
+  { tab: DETAIL_TABS.batch, icon: '/assets/box.svg', label: 'Партия' },
+  { tab: DETAIL_TABS.devices, icon: '/assets/gear.svg', label: 'Устройства' },
+  { tab: DETAIL_TABS.queue, icon: '/assets/list.svg', label: 'Очередь' },
+  { tab: DETAIL_TABS.logs, icon: '/assets/warning.svg', label: 'Журнал' },
 ];
 
 export const VALID_DETAIL_TABS = new Set<TabId>(BOTTOM_NAV_ITEMS.map(({ tab }) => tab));

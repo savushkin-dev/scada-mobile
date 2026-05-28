@@ -270,7 +270,6 @@ export function ProfilePage() {
                     onClick={() => setSettingsOpen(true)}
                     className="flex flex-1 items-center justify-center gap-2 rounded-[18px] bg-[#111827] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(15,23,42,0.32)]"
                   >
-                    <span aria-hidden="true">🔔</span>
                     <span>{PROFILE_COPY.notificationButton}</span>
                   </button>
                   <button
@@ -293,7 +292,6 @@ export function ProfilePage() {
                     onClick={() => navigate('/admin')}
                     className="flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#0b5da4] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(11,93,164,0.32)]"
                   >
-                    <span aria-hidden="true">⚙️</span>
                     <span>Админ-панель</span>
                   </button>
                 )}

@@ -22,7 +22,10 @@ export function QueueTab() {
   return (
     <TabContentState isLoading={isLoading} error={error} skeleton={<QueueTabSkeleton />}>
       <div className="card p-5 card-static mb-4">
-        <div className="card-title">{UI_COPY.queueTitle}</div>
+        <div className="card-title flex items-center gap-2">
+          <img src="/assets/list.svg" alt="" aria-hidden="true" className="h-5 w-5" />
+          {UI_COPY.queueTitle}
+        </div>
         {!queueData?.items?.length ? (
           <p className="text-center text-[#74777F] py-5 text-[0.88rem]">{UI_COPY.queueEmpty}</p>
         ) : (

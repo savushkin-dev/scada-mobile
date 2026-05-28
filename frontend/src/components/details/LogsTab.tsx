@@ -39,11 +39,24 @@ export function LogsTab() {
     <TabContentState isLoading={isLoading} error={error} skeleton={<LogsTabSkeleton />}>
       <>
         <div className="card p-5 card-static mb-4">
-          <div className="card-title" style={LOGS_ACTIVE_TITLE_STYLE}>
+          <div className="card-title flex items-center gap-2" style={LOGS_ACTIVE_TITLE_STYLE}>
+            <img src="/assets/warning.svg" alt="" aria-hidden="true" className="h-5 w-5" />
             {UI_COPY.activeErrorsTitle}
           </div>
           {activeErrors.length === 0 ? (
-            <p style={LOGS_EMPTY_SUCCESS_STYLE}>{UI_COPY.activeErrorsEmpty}</p>
+            <p style={LOGS_EMPTY_SUCCESS_STYLE} className="flex items-center gap-1.5">
+              <img
+                src="/assets/check-circle.svg"
+                alt=""
+                aria-hidden="true"
+                className="h-5 w-5"
+                style={{
+                  filter:
+                    'invert(48%) sepia(95%) saturate(378%) hue-rotate(88deg) brightness(95%) contrast(92%)',
+                }}
+              />
+              Нет активных ошибок
+            </p>
           ) : (
             activeErrors.map((err, i) => (
               <div key={i} className="error-item">
@@ -58,7 +71,10 @@ export function LogsTab() {
         </div>
 
         <div className="card p-5 card-static mb-4">
-          <div className="card-title">{UI_COPY.eventLogTitle}</div>
+          <div className="card-title flex items-center gap-2">
+            <img src="/assets/pencil.svg" alt="" aria-hidden="true" className="h-5 w-5" />
+            {UI_COPY.eventLogTitle}
+          </div>
           {!errorsData?.logs?.length ? (
             <p className="text-center text-[#74777F] py-2.5 text-[0.88rem]">
               {UI_COPY.eventLogEmpty}

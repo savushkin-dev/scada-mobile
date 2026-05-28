@@ -26,27 +26,37 @@ import type { DevicesStatusPayload, DevicesTopology } from '../../types';
 interface GroupConfig {
   key: keyof DevicesTopology['devices'];
   title: string;
+  icon: string;
   showBatch: boolean;
   showStats: boolean;
 }
 
 const DEVICE_GROUPS: GroupConfig[] = [
-  { key: 'printers', title: UI_COPY.devicesGroupPrinters, showBatch: true, showStats: false },
+  {
+    key: 'printers',
+    title: UI_COPY.devicesGroupPrinters,
+    icon: '/assets/printer.svg',
+    showBatch: true,
+    showStats: false,
+  },
   {
     key: 'aggregationCams',
     title: UI_COPY.devicesGroupAggrCams,
+    icon: '/assets/camera.svg',
     showBatch: false,
     showStats: true,
   },
   {
     key: 'aggregationBoxCams',
     title: UI_COPY.devicesGroupAggrBoxCams,
+    icon: '/assets/camera.svg',
     showBatch: false,
     showStats: true,
   },
   {
     key: 'checkerCams',
     title: UI_COPY.devicesGroupCheckerCams,
+    icon: '/assets/search.svg',
     showBatch: false,
     showStats: true,
   },
@@ -152,12 +162,15 @@ export function DevicesTab() {
             {UI_COPY.devicesNoneConfigured}
           </div>
         ) : (
-          DEVICE_GROUPS.map(({ key, title, showBatch, showStats }) => {
+          DEVICE_GROUPS.map(({ key, title, icon, showBatch, showStats }) => {
             const names = topology?.devices[key] ?? [];
             if (names.length === 0) return null;
             return (
               <section key={key} className="mb-2">
-                <h2 className="section-header mb-2">{title}</h2>
+                <h2 className="section-header mb-2 flex items-center gap-2">
+                  <img src={icon} alt="" aria-hidden="true" className="h-5 w-5" />
+                  {title}
+                </h2>
                 {names.map((name) => (
                   <DeviceCard
                     key={name}

@@ -177,11 +177,20 @@ export function Fab({ visible, unitId, scrollContainer, notification }: Props) {
   // Визуальное состояние кнопки после toggle
   const showToggleFeedback = sent && toggleResult !== 'idle';
 
+  /** CSS filter для перекраски bell.svg / bell-off.svg в белый цвет. */
+  const BELL_WHITE_FILTER =
+    'brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%)';
+
   // Определяем label и icon
-  let icon: string;
+  let iconSrc: string | null;
   let label: string;
   if (showToggleFeedback) {
-    icon = toggleResult === 'activated' ? '🔔' : toggleResult === 'deactivated' ? '🔕' : '⏳';
+    iconSrc =
+      toggleResult === 'activated'
+        ? '/assets/bell.svg'
+        : toggleResult === 'deactivated'
+          ? '/assets/bell-off.svg'
+          : null;
     label =
       toggleResult === 'activated'
         ? 'Уведомление создано!'
@@ -189,13 +198,13 @@ export function Fab({ visible, unitId, scrollContainer, notification }: Props) {
           ? 'Уведомление снято!'
           : `Активно от ${notification?.creatorId ?? '?'}`;
   } else if (isActiveByOther) {
-    icon = '⏳';
+    iconSrc = null;
     label = `Уведомление от ${notification!.creatorId}`;
   } else if (isActiveByMe) {
-    icon = '🔕';
+    iconSrc = '/assets/bell-off.svg';
     label = 'Снять уведомление';
   } else {
-    icon = UI_COPY.fabDefaultIcon;
+    iconSrc = '/assets/bell.svg';
     label = UI_COPY.fabActionLabel;
   }
 
@@ -211,7 +220,27 @@ export function Fab({ visible, unitId, scrollContainer, notification }: Props) {
         style={buttonStyle}
       >
         <span style={FAB_ICON_STYLE}>
-          {sent ? (showToggleFeedback ? icon : UI_COPY.fabSentIcon) : icon}
+          {sent ? (
+            showToggleFeedback && iconSrc ? (
+              <img
+                src={iconSrc}
+                alt=""
+                aria-hidden="true"
+                style={{ width: '1.15rem', height: '1.15rem', filter: BELL_WHITE_FILTER }}
+              />
+            ) : (
+              UI_COPY.fabSentIcon
+            )
+          ) : iconSrc ? (
+            <img
+              src={iconSrc}
+              alt=""
+              aria-hidden="true"
+              style={{ width: '1.15rem', height: '1.15rem', filter: BELL_WHITE_FILTER }}
+            />
+          ) : (
+            '⏳'
+          )}
         </span>
         <span style={labelStyle}>
           {sent ? (showToggleFeedback ? label : UI_COPY.fabSentLabel) : label}

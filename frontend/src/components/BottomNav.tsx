@@ -21,7 +21,7 @@ export function BottomNav({ activeTab, onTabChange, errorCount, className }: Pro
             onClick={() => onTabChange(tab)}
           >
             <span className="nav-icon">
-              {icon}
+              <img src={icon} alt="" aria-hidden="true" className="h-5 w-5" />
               {isLogsTab && errorCount > UI_BEHAVIOR.emptyCollectionSize && (
                 <span className="nav-badge">{errorCount}</span>
               )}

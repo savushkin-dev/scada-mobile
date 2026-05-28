@@ -53,7 +53,10 @@ export function BatchTab() {
   return (
     <TabContentState isLoading={isLoading} error={error} skeleton={<BatchTabSkeleton />}>
       <div className="card p-5 card-static mb-4">
-        <div className="card-title">{UI_COPY.batchTitle}</div>
+        <div className="card-title flex items-center gap-2">
+          <img src="/assets/box.svg" alt="" aria-hidden="true" className="h-5 w-5" />
+          {UI_COPY.batchTitle}
+        </div>
 
         {BATCH_PRIMARY_FIELDS.map(({ key, label, format }) => (
           <div key={key} className="kv-row">

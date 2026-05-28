@@ -158,7 +158,7 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
               style={{ width: `${SWIPE_MAX_PX}px`, flexShrink: 0 }}
             >
               <img
-                src="/assets/bell.svg"
+                src={isActiveByMe ? '/assets/bell-off.svg' : '/assets/bell.svg'}
                 alt=""
                 aria-hidden="true"
                 className="h-8 w-8"
@@ -203,14 +203,11 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
                   title="Активное уведомление"
                 >
                   <img
-                    src="/assets/bell.svg"
+                    src={isActiveByMe ? '/assets/bell-off.svg' : '/assets/bell.svg'}
                     alt=""
                     aria-hidden="true"
                     className="h-5 w-5"
-                    style={{
-                      filter:
-                        'brightness(0) saturate(100%) invert(58%) sepia(97%) saturate(1319%) hue-rotate(5deg) brightness(101%) contrast(96%)',
-                    }}
+                    style={{ filter: BELL_WHITE_FILTER }}
                   />
                 </span>
               )}
@@ -246,5 +243,4 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
   );
 }
 
- 
 export default UnitCard;
