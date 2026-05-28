@@ -10,6 +10,7 @@ import {
 import type { NotificationData } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { apiFetch } from '../api/client';
+import { ConfirmationOverlay } from './ConfirmationOverlay';
 
 /**
  * FAB для action "последняя партия" / toggle notification на детальной странице аппарата.
@@ -19,7 +20,7 @@ import { apiFetch } from '../api/client';
  * - runtime-порог сворачивания: {@link ../config/runtime.ts}.
  *
  * POST /api/line/{unitId}/last-batch → toggle notification (activate / deactivate).
- * Заголовок X-User-Id передаётся для идентификации работника.
+ * Заголовок Authorization передаётся через apiFetch.
  */
 
 interface Props {
@@ -49,6 +50,7 @@ export function Fab({ visible, unitId, scrollContainer, notification }: Props) {
   const [toggleResult, setToggleResult] = useState<
     'idle' | 'activated' | 'deactivated' | 'already_active'
   >('idle');
+  const [overlayOpen, setOverlayOpen] = useState(false);
   const lastScrollY = useRef(0);
   const targetCollapseProgressRef = useRef(0);
   const animatedCollapseProgressRef = useRef(0);
@@ -144,7 +146,7 @@ export function Fab({ visible, unitId, scrollContainer, notification }: Props) {
     };
   }, [stopCollapseAnimation]);
 
-  async function handleClick() {
+  async function handleConfirm() {
     if (!unitId || sending) return;
     setSending(true);
     try {
@@ -201,18 +203,38 @@ export function Fab({ visible, unitId, scrollContainer, notification }: Props) {
   const labelStyle = getFabLabelStyle(collapseProgress, viewportWidth);
 
   return (
-    <button
-      aria-label={UI_COPY.fabAriaLabel}
-      disabled={sending || isActiveByOther}
-      onClick={handleClick}
-      style={buttonStyle}
-    >
-      <span style={FAB_ICON_STYLE}>
-        {sent ? (showToggleFeedback ? icon : UI_COPY.fabSentIcon) : icon}
-      </span>
-      <span style={labelStyle}>
-        {sent ? (showToggleFeedback ? label : UI_COPY.fabSentLabel) : label}
-      </span>
-    </button>
+    <>
+      <button
+        aria-label={UI_COPY.fabAriaLabel}
+        disabled={sending || isActiveByOther}
+        onClick={() => setOverlayOpen(true)}
+        style={buttonStyle}
+      >
+        <span style={FAB_ICON_STYLE}>
+          {sent ? (showToggleFeedback ? icon : UI_COPY.fabSentIcon) : icon}
+        </span>
+        <span style={labelStyle}>
+          {sent ? (showToggleFeedback ? label : UI_COPY.fabSentLabel) : label}
+        </span>
+      </button>
+
+      <ConfirmationOverlay
+        open={overlayOpen}
+        title={isActiveByMe ? 'Снять уведомление?' : 'Отправить последнюю партию?'}
+        subtitle={
+          isActiveByMe
+            ? 'Уведомление о последней партии будет снято'
+            : 'Данные будут направлены ответственным сотрудникам'
+        }
+        confirmLabel={isActiveByMe ? 'Снять' : 'Отправить'}
+        cancelLabel="Отмена"
+        onConfirm={() => {
+          setOverlayOpen(false);
+          void handleConfirm();
+        }}
+        onCancel={() => setOverlayOpen(false)}
+        confirmColor="blue"
+      />
+    </>
   );
 }

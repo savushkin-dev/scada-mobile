@@ -283,10 +283,10 @@ export function getFabButtonStyle(
     padding: `0 ${horizontalPaddingPx}px`,
     borderRadius: '26px',
     justifyContent: 'center',
-    background: sent ? UI_PALETTE.success : UI_PALETTE.fabIdle,
+    background: sent ? UI_PALETTE.success : '#3B82F6',
     boxShadow: sent
       ? '0 4px 20px rgba(52,168,83,0.4)'
-      : `0 4px ${shadowBlurPx}px rgba(249,115,22,${shadowOpacity})`,
+      : `0 4px ${shadowBlurPx}px rgba(59,130,246,${shadowOpacity})`,
     zIndex: 9,
     display: 'flex',
     alignItems: 'center',
