@@ -24,6 +24,14 @@ export const DETAILS_PAGE_STYLE: CSSProperties = {
   flex: 1,
   overflow: 'hidden',
   animation: UI_ANIMATION.fadeInDefault,
+  /**
+   * DetailsLayout должен занимать всю высоту родителя.
+   * Родитель (#root) — flex column, поэтому height: 100% работает корректно.
+   */
+  height: '100%',
+  minHeight: 0,
+  display: 'flex',
+  flexDirection: 'column',
 };
 
 export const BACK_BUTTON_STYLE: CSSProperties = {
@@ -43,8 +51,14 @@ export const BACK_BUTTON_STYLE: CSSProperties = {
 export const DETAILS_SCROLL_SECTION_STYLE: CSSProperties = {
   flex: 1,
   overflowY: 'auto',
+  overflowX: 'hidden',
   padding: '0 16px',
   paddingBottom: `calc(${UI_BEHAVIOR.detailsBottomPaddingPx ?? 80}px + var(--bottom-safe-offset, 0px))`,
+  /**
+   * Важно: minHeight: 0 позволяет flex-элементу сжиматься ниже контентной высоты,
+   * иначе overflowY: auto не сработает внутри flex-контейнера.
+   */
+  minHeight: 0,
 };
 
 export const CARD_TITLE_BETWEEN_STYLE: CSSProperties = {

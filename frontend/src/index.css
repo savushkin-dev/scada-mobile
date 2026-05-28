@@ -390,6 +390,11 @@
     max-width: 100%;
   }
 
+  /* DetailsLayout: на десктопе переключаем в строку — sidebar слева, контент справа */
+  .details-layout-root {
+    flex-direction: row !important;
+  }
+
   /* DetailsPage: bottom-nav трансформируется в боковую панель */
   .details-nav {
     order: -1;
@@ -431,5 +436,55 @@
   .details-content {
     padding-bottom: 24px !important;
     padding-inline: 24px !important;
+  }
+
+  /* AdminApp: растягиваем на всю высоту */
+  .admin-app-root {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+}
+
+/* ── Admin panel mobile adaptation ──────────────────────── */
+/* На мобильных (< lg) sidebar react-admin превращается в горизонтальное меню */
+@media (max-width: 1023px) {
+  .admin-app-root .RaSidebar-root {
+    position: relative !important;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 56px;
+    transform: none !important;
+    box-shadow: none !important;
+    border-bottom: 1px solid var(--clr-divider);
+    border-right: none !important;
+    flex-shrink: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .admin-app-root .RaSidebar-drawerPaper {
+    position: relative !important;
+    width: 100% !important;
+    transform: none !important;
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .admin-app-root .RaMenuItemLink-icon {
+    min-width: auto;
+  }
+
+  /* Меню react-admin в строку */
+  .admin-app-root .RaMenuItemLink-root {
+    display: inline-flex;
+    white-space: nowrap;
+    padding: 8px 12px;
+    font-size: 0.8rem;
   }
 }

@@ -312,28 +312,26 @@ export function DetailsLayout() {
   );
 
   return (
-    <div className="flex flex-col lg:flex-row" style={DETAILS_PAGE_STYLE}>
-      <div className="flex flex-col flex-1 overflow-hidden min-w-0">
-        <section
-          ref={(el) => {
-            scrollRef.current = el;
-          }}
-          data-scroll
-          className="details-content"
-          style={DETAILS_SCROLL_SECTION_STYLE}
-        >
-          <DetailsProvider value={detailsValue}>
-            <Outlet />
-          </DetailsProvider>
-        </section>
+    <div className="details-layout-root" style={DETAILS_PAGE_STYLE}>
+      <section
+        ref={(el) => {
+          scrollRef.current = el;
+        }}
+        data-scroll
+        className="details-content"
+        style={DETAILS_SCROLL_SECTION_STYLE}
+      >
+        <DetailsProvider value={detailsValue}>
+          <Outlet />
+        </DetailsProvider>
+      </section>
 
-        <Fab
-          visible={canUseLastBatch}
-          unitId={unitId || null}
-          scrollContainer={scrollRef.current}
-          notification={state.notifications.get(unitId ?? '') ?? null}
-        />
-      </div>
+      <Fab
+        visible={canUseLastBatch}
+        unitId={unitId || null}
+        scrollContainer={scrollRef.current}
+        notification={state.notifications.get(unitId ?? '') ?? null}
+      />
 
       <BottomNav
         activeTab={activeTab}

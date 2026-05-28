@@ -1,4 +1,5 @@
 import { Layout, type LayoutProps } from 'react-admin';
+import { AdminAppBar } from './AdminAppBar';
 
 /**
  * Кастомный Layout для react-admin.
@@ -18,7 +19,7 @@ export function AdminLayout(props: LayoutProps) {
   return (
     <Layout
       {...props}
-      appBar={() => null}
+      appBar={AdminAppBar}
       sx={{
         // Корневой layout — занимает всю высоту, не даём расти за пределы viewport
         minHeight: '100%',
