@@ -173,7 +173,9 @@ function RootLayoutInner() {
         variant={config.variant}
         onBack={config.onBack}
       />
-      <Outlet />
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <Outlet />
+      </div>
     </>
   );
 }

@@ -1,7 +1,6 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.integration.database.adapter;
 
 import dev.savushkin.scada.mobile.backend.application.ports.PrintSrvTopologyRepository;
-import dev.savushkin.scada.mobile.backend.config.PrintSrvHostProperties;
 import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
 import dev.savushkin.scada.mobile.backend.domain.model.Workshop;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceEntity;
@@ -18,7 +17,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * JPA-адаптер порта {@link PrintSrvTopologyRepository}.
@@ -40,20 +38,17 @@ public class PrintSrvTopologyJpaAdapter implements PrintSrvTopologyRepository {
     private final UnitJpaRepository unitRepository;
     private final WorkshopJpaRepository workshopRepository;
     private final DeviceJpaRepository deviceRepository;
-    private final PrintSrvHostProperties hostProperties;
 
     private volatile String cachedETag = null;
 
     public PrintSrvTopologyJpaAdapter(
             UnitJpaRepository unitRepository,
             WorkshopJpaRepository workshopRepository,
-            DeviceJpaRepository deviceRepository,
-            PrintSrvHostProperties hostProperties
+            DeviceJpaRepository deviceRepository
     ) {
         this.unitRepository = unitRepository;
         this.workshopRepository = workshopRepository;
         this.deviceRepository = deviceRepository;
-        this.hostProperties = hostProperties;
     }
 
     @Override
@@ -111,8 +106,8 @@ public class PrintSrvTopologyJpaAdapter implements PrintSrvTopologyRepository {
 
         long workshopId = unit.getWorkshop() != null ? unit.getWorkshop().getId() : 0L;
 
-        String host = hostProperties.getHost(instanceId);
-        int port = hostProperties.getPort(instanceId);
+        String host = unit.getPrintsrvHost() != null ? unit.getPrintsrvHost() : "";
+        int port = unit.getPrintsrvPort() != null ? unit.getPrintsrvPort() : 0;
 
         List<DeviceEntity> devices = deviceRepository.findByUnit_PrintsrvInstanceId(instanceId);
 

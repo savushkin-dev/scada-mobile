@@ -1,5 +1,6 @@
 package dev.savushkin.scada.mobile.backend.api.controller.admin;
 
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.adapter.PrintSrvTopologyJpaAdapter;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UnitEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.WorkshopEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UnitJpaRepository;
@@ -24,11 +25,14 @@ public class AdminUnitController {
 
     private final UnitJpaRepository unitRepository;
     private final WorkshopJpaRepository workshopRepository;
+    private final PrintSrvTopologyJpaAdapter topologyJpaAdapter;
 
     public AdminUnitController(UnitJpaRepository unitRepository,
-                               WorkshopJpaRepository workshopRepository) {
+                               WorkshopJpaRepository workshopRepository,
+                               PrintSrvTopologyJpaAdapter topologyJpaAdapter) {
         this.unitRepository = unitRepository;
         this.workshopRepository = workshopRepository;
+        this.topologyJpaAdapter = topologyJpaAdapter;
     }
 
     @PostMapping
@@ -40,9 +44,12 @@ public class AdminUnitController {
         unit.setName(request.name());
         unit.setWorkshop(workshop);
         unit.setPrintsrvInstanceId(request.printsrvInstanceId());
+        unit.setPrintsrvHost(request.printsrvHost());
+        unit.setPrintsrvPort(request.printsrvPort());
         unit.setActive(request.active());
 
         UnitEntity saved = unitRepository.save(unit);
+        topologyJpaAdapter.invalidateETag();
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
@@ -58,9 +65,12 @@ public class AdminUnitController {
         unit.setName(request.name());
         unit.setWorkshop(workshop);
         unit.setPrintsrvInstanceId(request.printsrvInstanceId());
+        unit.setPrintsrvHost(request.printsrvHost());
+        unit.setPrintsrvPort(request.printsrvPort());
         unit.setActive(request.active());
 
         UnitEntity saved = unitRepository.save(unit);
+        topologyJpaAdapter.invalidateETag();
         return ResponseEntity.ok(saved);
     }
 
@@ -70,6 +80,7 @@ public class AdminUnitController {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Аппарат не найден");
         }
         unitRepository.deleteById(id);
+        topologyJpaAdapter.invalidateETag();
         return ResponseEntity.noContent().build();
     }
 
@@ -77,6 +88,8 @@ public class AdminUnitController {
             @NotBlank String name,
             @NotNull Long workshopId,
             String printsrvInstanceId,
+            String printsrvHost,
+            Integer printsrvPort,
             boolean active
     ) {
     }

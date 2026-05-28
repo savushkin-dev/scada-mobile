@@ -27,6 +27,12 @@ public class UnitEntity {
     @Column(name = "printsrv_instance_id")
     private String printsrvInstanceId;
 
+    @Column(name = "printsrv_host")
+    private String printsrvHost;
+
+    @Column(name = "printsrv_port")
+    private Integer printsrvPort;
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 

@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
  * изолированно через {@code @SpringBootTest(classes = PrintSrvInfrastructureConfig.class)}.
  */
 @Configuration
-@EnableConfigurationProperties({PrintSrvProperties.class, PrintSrvHostProperties.class})
+@EnableConfigurationProperties({PrintSrvProperties.class})
 public class PrintSrvInfrastructureConfig {
     // Этот класс — только декларация; логики здесь нет.
 }
