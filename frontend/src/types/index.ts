@@ -103,6 +103,8 @@ export interface Unit {
    * чтобы карточка оставалась в нейтральном состоянии до первого live-статуса.
    */
   statusReady: boolean;
+  cameraRead: string | null;
+  cameraUnread: string | null;
 }
 
 // ── Внутренняя нормализованная форма устройств (не WS wire format) ────

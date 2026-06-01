@@ -142,11 +142,17 @@ public class WorkshopService {
     public List<UnitStatusDTO> getUnitsStatus(long workshopId) {
         return topologyRepo.findAllActiveInstances().stream()
                 .filter(inst -> inst.workshopId() == workshopId)
-                .map(inst -> new UnitStatusDTO(
-                        inst.instanceId(),
-                        inst.workshopId(),
-                        deriveEvent(inst.instanceId())
-                ))
+                .map(inst -> {
+                    String instanceId = inst.instanceId();
+                    CameraCounters counters = resolveCameraCounters(instanceId);
+                    return new UnitStatusDTO(
+                            instanceId,
+                            inst.workshopId(),
+                            deriveEvent(instanceId),
+                            counters.read(),
+                            counters.unread()
+                    );
+                })
                 .toList();
     }
 
@@ -159,10 +165,13 @@ public class WorkshopService {
             return Optional.empty();
         }
 
+        CameraCounters counters = resolveCameraCounters(instanceId);
         return Optional.of(new UnitStatusDTO(
                 inst.instanceId(),
                 inst.workshopId(),
-                deriveEvent(inst.instanceId())
+                deriveEvent(inst.instanceId()),
+                counters.read(),
+                counters.unread()
         ));
     }
 
@@ -268,6 +277,32 @@ public class WorkshopService {
             return null;
         }
         return value;
+    }
+
+    /**
+     * Счётчики камеры проверки (checker cam) для отображения на карточке аппарата.
+     * Берётся первая обычная checker-камера (CamChecker, CamBatch, CamPacker, …) — не EAN-чекер.
+     */
+    private CameraCounters resolveCameraCounters(String instanceId) {
+        DeviceComposition composition = deviceCompositionService.getComposition(instanceId);
+        for (String camName : composition.checkerCams()) {
+            if (ScadaKeyMapper.isEanChecker(camName)) {
+                continue;
+            }
+            DeviceSnapshot snapshot = findSnapshotByDeviceName(instanceId, camName);
+            if (snapshot == null || snapshot.units().isEmpty()) {
+                continue;
+            }
+            UnitSnapshot unit = snapshot.units().values().iterator().next();
+            Map<String, String> raw = unit.properties().getRawProperties();
+            String read = nullIfBlank(raw.get("Total"));
+            String unread = nullIfBlank(raw.get("Failed"));
+            return new CameraCounters(read, unread);
+        }
+        return new CameraCounters(null, null);
+    }
+
+    private record CameraCounters(@Nullable String read, @Nullable String unread) {
     }
 
     private @NonNull String getLineDeviceName(@NonNull String instanceId) {

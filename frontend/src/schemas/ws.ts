@@ -45,6 +45,8 @@ export const UnitStatusSchema = z.object({
   unitId: z.string(),
   workshopId: z.number().int().positive(),
   event: z.string(),
+  cameraRead: z.string().nullish(),
+  cameraUnread: z.string().nullish(),
 });
 
 export const UnitsStatusMessageSchema = z.object({
@@ -121,6 +123,8 @@ export const LineStatusPayloadSchema = z.object({
   region: z.string().nullish(),
   design: z.string().nullish(),
   printDM: z.string().nullish(),
+  cameraRead: z.string().nullish(),
+  cameraUnread: z.string().nullish(),
 });
 
 export const DevicesStatusWsPrinterSchema = z.object({

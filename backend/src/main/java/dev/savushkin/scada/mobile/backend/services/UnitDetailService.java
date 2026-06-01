@@ -198,6 +198,28 @@ public class UnitDetailService {
 
         // BatchQueue-first: BQ является основным источником данных партии;
         // принтер используется только как fallback когда BQ не содержит поля.
+
+        // Счётчики камеры проверки (checker cam): берём первую обычную checker-камеру
+        // (CamChecker, CamBatch, CamPacker, …) — не EAN-чекер.
+        String cameraRead = null;
+        String cameraUnread = null;
+        for (String camName : composition.checkerCams()) {
+            if (ScadaKeyMapper.isEanChecker(camName)) {
+                continue;
+            }
+            Map<String, String> camRaw = firstUnitRawProperties(snapshotRepo.get(instanceId, camName));
+            String read = camRaw.get("Total");
+            String unread = camRaw.get("Failed");
+            if (read != null && !read.isBlank()) {
+                cameraRead = read;
+            }
+            if (unread != null && !unread.isBlank()) {
+                cameraUnread = unread;
+            }
+            // Берём данные с первой подходящей камеры
+            break;
+        }
+
         LineStatusMessageDTO.Payload payload = new LineStatusMessageDTO.Payload(
                 inst.displayName(),
                 lineState,
@@ -219,7 +241,9 @@ public class UnitDetailService {
                 bqRaw.get("frozen"),
                 bqRaw.get("region"),
                 coalesce(bqRaw.get("designe"), printerRaw.get("designe")),
-                coalesce(bqRaw.get("printdm"), printerRaw.get("printdm"))
+                coalesce(bqRaw.get("printdm"), printerRaw.get("printdm")),
+                cameraRead,
+                cameraUnread
         );
 
         return LineStatusMessageDTO.of(instanceId, nowUtc(), payload);

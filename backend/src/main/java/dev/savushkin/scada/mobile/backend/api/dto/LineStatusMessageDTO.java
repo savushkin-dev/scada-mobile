@@ -61,6 +61,8 @@ public record LineStatusMessageDTO(
      * @param region          код региона
      * @param design          ID дизайна этикетки
      * @param printDM         печать DataMatrix ({@code "1"}/{@code "0"})
+     * @param cameraRead      считано марок камерой проверки (Total)
+     * @param cameraUnread    несчитано марок камерой проверки (Failed)
      */
     public record Payload(
             @Nullable String lineName,
@@ -81,6 +83,8 @@ public record LineStatusMessageDTO(
             @Nullable String freeze,
             @Nullable String region,
             @Nullable String design,
-            @Nullable String printDM
+            @Nullable String printDM,
+            @Nullable String cameraRead,
+            @Nullable String cameraUnread
     ) {}
 }

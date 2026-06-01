@@ -168,6 +168,8 @@ export const BATCH_ADDITIONAL_FIELDS: ReadonlyArray<BatchFieldConfig> = [
   { key: 'region', label: 'Регион' },
   { key: 'design', label: 'Дизайн' },
   { key: 'printDM', label: 'Печать DM', format: 'boolean' },
+  { key: 'cameraRead', label: 'Считано (камера)' },
+  { key: 'cameraUnread', label: 'Несчитано (камера)' },
 ];
 
 export const ERROR_MESSAGES = Object.freeze({

@@ -374,15 +374,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const result: Record<string, Unit[]> = {};
     for (const [workshopId, topologies] of Object.entries(state.unitTopologyByWorkshop)) {
       const statusMap = state.unitStatusByWorkshop[workshopId] ?? {};
-      result[workshopId] = topologies.map((t) => ({
-        id: t.id,
-        workshopId: t.workshopId,
-        unit: t.unit,
-        event: statusMap[t.id]?.event ?? DOMAIN_DEFAULTS.noDataEvent,
-        // statusReady = false пока UNITS_STATUS от WS ещё не пришёл для этого аппарата.
-        // Позволяет UnitCard показывать серый цвет вместо жёлтого при старте.
-        statusReady: t.id in statusMap,
-      }));
+      result[workshopId] = topologies.map((t) => {
+        const status = statusMap[t.id];
+        return {
+          id: t.id,
+          workshopId: t.workshopId,
+          unit: t.unit,
+          event: status?.event ?? DOMAIN_DEFAULTS.noDataEvent,
+          // statusReady = false пока UNITS_STATUS от WS ещё не пришёл для этого аппарата.
+          // Позволяет UnitCard показывать серый цвет вместо жёлтого при старте.
+          statusReady: t.id in statusMap,
+          cameraRead: status?.cameraRead ?? null,
+          cameraUnread: status?.cameraUnread ?? null,
+        };
+      });
     }
     return result;
   }, [state.unitTopologyByWorkshop, state.unitStatusByWorkshop]);

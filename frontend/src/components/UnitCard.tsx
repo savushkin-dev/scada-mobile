@@ -220,6 +220,12 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
               className={`text-sm mb-3 italic ${isPending || isOffline ? 'text-gray-400' : 'text-gray-500'}`}
             >
               {unit.event}
+              {unit.cameraRead != null && unit.cameraUnread != null && (
+                <>
+                  {' • '}
+                  {unit.cameraRead} / {unit.cameraUnread}
+                </>
+              )}
             </p>
           )}
         </div>
