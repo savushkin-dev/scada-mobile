@@ -91,9 +91,6 @@ export function NotificationsPage() {
             <NotificationsSkeleton />
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-16">
-              <span className="text-4xl" aria-hidden="true">
-                🔔
-              </span>
               <p className="text-center text-sm font-medium text-[#74777F]">
                 {NOTIFICATIONS_COPY.empty}
               </p>

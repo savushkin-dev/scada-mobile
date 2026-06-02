@@ -43,6 +43,10 @@ const SWIPE_MAX_PX = 140;
 const BELL_WHITE_FILTER =
   'brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%)';
 
+/** CSS filter для перекраски bell.svg в цвет toggle (#F59E0B). */
+const BELL_AMBER_FILTER =
+  'brightness(0) saturate(100%) invert(59%) sepia(97%) saturate(1214%) hue-rotate(359deg) brightness(101%) contrast(96%)';
+
 export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
   const { userId } = useAuth();
   const { isAssignedUnit } = useAccessControl();
@@ -203,11 +207,11 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
                   title="Активное уведомление"
                 >
                   <img
-                    src={isActiveByMe ? '/assets/bell-off.svg' : '/assets/bell.svg'}
+                    src={isActiveByMe ? '/assets/bell.svg' : '/assets/bell-off.svg'}
                     alt=""
                     aria-hidden="true"
                     className="h-5 w-5"
-                    style={{ filter: BELL_WHITE_FILTER }}
+                    style={{ filter: BELL_AMBER_FILTER }}
                   />
                 </span>
               )}
