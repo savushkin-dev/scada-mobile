@@ -280,26 +280,98 @@ public class WorkshopService {
     }
 
     /**
-     * Счётчики камеры проверки (checker cam) для отображения на карточке аппарата.
-     * Берётся первая обычная checker-камера (CamChecker, CamBatch, CamPacker, …) — не EAN-чекер.
+     * Счётчики камер для отображения на карточке аппарата.
+     * <p>
+     * Алгоритм (приоритет cameraRead, затем cameraUnread):
+     * <ol>
+     *   <li>Собираем все камеры: aggregationCams + aggregationBoxCams + checkerCams (кроме EAN-чекеров).</li>
+     *   <li>Фаза 1 — ищем первую камеру с ненулевым cameraRead (Total ≠ 0). Если нашли — возвращаем (read, unread) этой камеры.</li>
+     *   <li>Фаза 2 — если все read = 0, ищем первую камеру с ненулевым cameraUnread (Failed ≠ 0). Если нашли — возвращаем (read, unread) этой камеры.</li>
+     *   <li>Fallback — если все значения нулевые или камер нет — возвращаем ("0", "0").</li>
+     * </ol>
      */
     private CameraCounters resolveCameraCounters(String instanceId) {
         DeviceComposition composition = deviceCompositionService.getComposition(instanceId);
-        for (String camName : composition.checkerCams()) {
+
+        List<String> allCameras = new ArrayList<>();
+        allCameras.addAll(composition.aggregationCams());
+        allCameras.addAll(composition.aggregationBoxCams());
+        allCameras.addAll(composition.checkerCams());
+
+        CameraCounters fallbackZero = new CameraCounters("0", "0");
+
+        if (allCameras.isEmpty()) {
+            return fallbackZero;
+        }
+
+        // Фаза 1: ищем первую камеру с ненулевым cameraRead (Total)
+        for (String camName : allCameras) {
             if (ScadaKeyMapper.isEanChecker(camName)) {
                 continue;
             }
-            DeviceSnapshot snapshot = findSnapshotByDeviceName(instanceId, camName);
-            if (snapshot == null || snapshot.units().isEmpty()) {
+            CameraCounters counters = readCameraCounters(instanceId, camName);
+            if (counters != null && isNonZero(counters.read())) {
+                return counters;
+            }
+        }
+
+        // Фаза 2: все read = 0 — ищем первую камеру с ненулевым cameraUnread (Failed)
+        for (String camName : allCameras) {
+            if (ScadaKeyMapper.isEanChecker(camName)) {
                 continue;
             }
-            UnitSnapshot unit = snapshot.units().values().iterator().next();
-            Map<String, String> raw = unit.properties().getRawProperties();
-            String read = nullIfBlank(raw.get("Total"));
-            String unread = nullIfBlank(raw.get("Failed"));
-            return new CameraCounters(read, unread);
+            CameraCounters counters = readCameraCounters(instanceId, camName);
+            if (counters != null && isNonZero(counters.unread())) {
+                return counters;
+            }
         }
-        return new CameraCounters(null, null);
+
+        // Фаза 3: fallback — все значения нулевые, берём первую доступную камеру или ("0", "0")
+        for (String camName : allCameras) {
+            if (ScadaKeyMapper.isEanChecker(camName)) {
+                continue;
+            }
+            CameraCounters counters = readCameraCounters(instanceId, camName);
+            if (counters != null) {
+                return counters;
+            }
+        }
+
+        return fallbackZero;
+    }
+
+    /**
+     * Читает счётчики (Total/Failed) из снапшота конкретной камеры.
+     * Возвращает null, если снапшот недоступен.
+     */
+    private @Nullable CameraCounters readCameraCounters(String instanceId, String camName) {
+        DeviceSnapshot snapshot = findSnapshotByDeviceName(instanceId, camName);
+        if (snapshot == null || snapshot.units().isEmpty()) {
+            return null;
+        }
+        UnitSnapshot unit = snapshot.units().values().iterator().next();
+        Map<String, String> raw = unit.properties().getRawProperties();
+        String read = nullIfBlank(raw.get("Total"));
+        String unread = nullIfBlank(raw.get("Failed"));
+        return new CameraCounters(read, unread);
+    }
+
+    /**
+     * Проверяет, что строковое значение счётчика не null, не пустое и не равно нулю.
+     * Учитывает форматы "0", "0.0", "0,0".
+     */
+    private static boolean isNonZero(@Nullable String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String normalized = value.trim().replace(',', '.');
+        try {
+            double d = Double.parseDouble(normalized);
+            return d != 0.0;
+        } catch (NumberFormatException e) {
+            // Нечисловое значение считаем ненулевым (например, ошибочная строка)
+            return true;
+        }
     }
 
     private record CameraCounters(@Nullable String read, @Nullable String unread) {
