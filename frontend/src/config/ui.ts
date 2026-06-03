@@ -83,6 +83,9 @@ export const AUTH_COPY = Object.freeze({
   requiredWorkerCode: 'Введите код работника',
   requiredPassword: 'Введите пароль',
   notFound: 'Пользователь не найден, проверьте правильность введенных данных',
+  blocked: 'Пользователь заблокирован',
+  serverError: 'Ошибка сервера. Повторите попытку позже',
+  networkError: 'Нет связи с сервером. Проверьте подключение',
   workerCodePlaceholder: 'Введите код',
   passwordPlaceholder: 'Введите пароль',
 });

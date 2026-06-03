@@ -52,8 +52,26 @@ export function LoginPage() {
         });
         login(result.userId, result.role, result.accessToken, result.refreshToken);
         navigate(fromPath, { replace: true });
-      } catch {
-        setFormError(AUTH_COPY.notFound);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : '';
+        const statusMatch = message.match(/^(\d+)\|/);
+        const status = statusMatch ? parseInt(statusMatch[1], 10) : null;
+
+        if (status === 403) {
+          setFormError(AUTH_COPY.blocked);
+        } else if (status === 401) {
+          setFormError(AUTH_COPY.notFound);
+        } else if (status != null && status >= 500) {
+          setFormError(AUTH_COPY.serverError);
+        } else if (
+          err instanceof TypeError ||
+          message.toLowerCase().includes('fetch') ||
+          message.toLowerCase().includes('network')
+        ) {
+          setFormError(AUTH_COPY.networkError);
+        } else {
+          setFormError(AUTH_COPY.notFound);
+        }
       } finally {
         setSubmitting(false);
       }

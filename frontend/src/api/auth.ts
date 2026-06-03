@@ -23,7 +23,9 @@ export async function loginUser(payload: LoginPayload): Promise<LoginResponse> {
   });
 
   if (!resp.ok) {
-    throw new Error(`HTTP ${resp.status}`);
+    const errorBody = (await resp.json().catch(() => null)) as { message?: string } | null;
+    const message = errorBody?.message ?? `HTTP ${resp.status}`;
+    throw new Error(`${resp.status}|${message}`);
   }
 
   const raw: unknown = await resp.json();
