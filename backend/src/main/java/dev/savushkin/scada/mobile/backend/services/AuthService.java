@@ -3,6 +3,7 @@ package dev.savushkin.scada.mobile.backend.services;
 import dev.savushkin.scada.mobile.backend.application.ports.RefreshTokenRepository;
 import dev.savushkin.scada.mobile.backend.application.ports.UserAuthRepository;
 import dev.savushkin.scada.mobile.backend.application.ports.UserAuthRepository.AuthUserWithPassword;
+import dev.savushkin.scada.mobile.backend.config.jwt.JwtProperties;
 import dev.savushkin.scada.mobile.backend.config.jwt.JwtTokenProvider;
 import dev.savushkin.scada.mobile.backend.domain.model.AuthUser;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.RefreshTokenEntity;
@@ -23,17 +24,20 @@ public class AuthService {
     private final UserJpaRepository userJpaRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtTokenProvider jwtTokenProvider;
+    private final JwtProperties jwtProperties;
     private final PasswordEncoder passwordEncoder;
 
     public AuthService(UserAuthRepository userAuthRepository,
                        UserJpaRepository userJpaRepository,
                        RefreshTokenRepository refreshTokenRepository,
                        JwtTokenProvider jwtTokenProvider,
+                       JwtProperties jwtProperties,
                        PasswordEncoder passwordEncoder) {
         this.userAuthRepository = userAuthRepository;
         this.userJpaRepository = userJpaRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.jwtTokenProvider = jwtTokenProvider;
+        this.jwtProperties = jwtProperties;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -81,7 +85,7 @@ public class AuthService {
         entity.setUser(userEntity);
         entity.setTokenHash(refreshHash);
         entity.setCreatedAt(Instant.now());
-        entity.setExpiresAt(Instant.now().plus(7, ChronoUnit.DAYS));
+        entity.setExpiresAt(Instant.now().plus(jwtProperties.getRefreshExpirationDays(), ChronoUnit.DAYS));
         entity.setRevoked(false);
         refreshTokenRepository.save(entity);
 
@@ -119,7 +123,7 @@ public class AuthService {
         newEntity.setUser(user);
         newEntity.setTokenHash(newRefreshHash);
         newEntity.setCreatedAt(Instant.now());
-        newEntity.setExpiresAt(Instant.now().plus(7, ChronoUnit.DAYS));
+        newEntity.setExpiresAt(Instant.now().plus(jwtProperties.getRefreshExpirationDays(), ChronoUnit.DAYS));
         newEntity.setRevoked(false);
         refreshTokenRepository.save(newEntity);
 

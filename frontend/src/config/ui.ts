@@ -186,6 +186,7 @@ export const ERROR_MESSAGES = Object.freeze({
   serverError: 'Ошибка сервера. Повторите попытку',
   unexpectedError: 'Произошла непредвиденная ошибка',
   unknownError: 'Неизвестная ошибка',
+  sessionExpired: 'Сессия истекла. Войдите заново.',
   requestError: (status: number) => `Ошибка запроса (${status})`,
   unexpectedServerResponse: (status: number) => `Неожиданный ответ сервера (${status})`,
 });

@@ -1,6 +1,7 @@
 import { HTTP_REQUEST } from '../config';
 import { getAccessToken, clearAllAuthData } from '../auth/session';
 import { refreshAccessToken } from './auth';
+import { AuthSessionExpiredError } from '../errors/AppError';
 
 let isRefreshing = false;
 let refreshSubscribers: Array<(token: string | null) => void> = [];
@@ -30,7 +31,7 @@ function logRequest(method: string, url: string, status?: number): void {
  * Централизованный fetch с автоматическим:
  * - Добавлением Authorization: Bearer <accessToken>
  * - Обработкой 401 → попытка refresh → retry запроса
- * - Если refresh не удался — возвращает 401 вызывающему
+ * - Если refresh не удался — выбрасывает AuthSessionExpiredError
  */
 export async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const token = getAccessToken();
@@ -60,10 +61,10 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
   // 401 — пробуем refresh
   if (isRefreshing) {
     // Ждём завершения текущего refresh
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       subscribeToRefresh((newToken) => {
         if (!newToken) {
-          resolve(resp);
+          reject(new AuthSessionExpiredError());
           return;
         }
         const retryHeaders = new Headers(options.headers);
@@ -80,10 +81,9 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
 
   if (!newToken) {
     // Refresh не удался — токены протухли или инвалидированы.
-    // Очищаем auth-данные и редиректим на логин.
+    // Очищаем auth-данные и сигнализируем об истечении сессии.
     clearAllAuthData();
-    window.location.href = '/login';
-    return resp;
+    throw new AuthSessionExpiredError();
   }
 
   // Retry с новым токеном

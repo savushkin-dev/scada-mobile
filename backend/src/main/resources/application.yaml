@@ -63,7 +63,7 @@ cors:
 jwt:
   access-secret: "${SCADA_MOBILE_JWT_ACCESS_SECRET:}"
   refresh-secret: "${SCADA_MOBILE_JWT_REFRESH_SECRET:}"
-  access-expiration-minutes: 15
+  access-expiration-minutes: 1440
   refresh-expiration-days: 7
 
 # Логирование — конфигурация в src/main/resources/logback-spring.xml

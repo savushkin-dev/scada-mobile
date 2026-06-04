@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { WS_BASE } from '../config';
 import { getAccessToken } from '../auth/session';
+import { isTokenExpired } from '../auth/token';
+import { refreshAccessToken } from '../api/auth';
 import { classifyError } from '../errors/classifyError';
 import type { AppError } from '../errors/AppError';
 import { createManagedWs, type ManagedWsConnection } from '../lib/createManagedWs';
@@ -93,6 +95,19 @@ export function useLiveWs(
       onReconnecting: () => callbacksRef.current.onReconnecting?.(),
       onError: (error) => callbacksRef.current.onError?.(error),
       onRecovered: () => callbacksRef.current.onRecovered?.(),
+
+      // onBeforeConnect вызывается перед каждой попыткой подключения.
+      // Позволяет обновить токен, если он истёк, избегая infinite reconnect loop.
+      onBeforeConnect: async () => {
+        const currentToken = getAccessToken();
+        if (currentToken && isTokenExpired(currentToken)) {
+          const newToken = await refreshAccessToken();
+          if (!newToken) {
+            // Refresh не удался — прерываем попытку подключения
+            throw new Error('Token refresh failed');
+          }
+        }
+      },
 
       // onOpen вызывается при каждом успешном подключении (в т.ч. после реконнекта).
       // Восстанавливаем подписку на цех, если она была активна в момент обрыва.

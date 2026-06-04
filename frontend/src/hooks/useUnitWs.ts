@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { WS_BASE } from '../config';
 import { getAccessToken } from '../auth/session';
+import { isTokenExpired } from '../auth/token';
+import { refreshAccessToken } from '../api/auth';
 import { classifyError } from '../errors/classifyError';
 import type { AppError } from '../errors/AppError';
 import { createManagedWs } from '../lib/createManagedWs';
@@ -48,6 +50,19 @@ export function useUnitWs(
       onReconnecting: () => callbacksRef.current?.onReconnecting?.(),
       onError: (error) => callbacksRef.current?.onError?.(error),
       onRecovered: () => callbacksRef.current?.onRecovered?.(),
+
+      // onBeforeConnect вызывается перед каждой попыткой подключения.
+      // Позволяет обновить токен, если он истёк, избегая infinite reconnect loop.
+      onBeforeConnect: async () => {
+        const currentToken = getAccessToken();
+        if (currentToken && isTokenExpired(currentToken)) {
+          const newToken = await refreshAccessToken();
+          if (!newToken) {
+            throw new Error('Token refresh failed');
+          }
+        }
+      },
+
       onMessage: (e) => {
         let raw: unknown;
         try {

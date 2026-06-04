@@ -13,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -39,7 +40,7 @@ public class UserProfileController {
         log.info("Request: GET /users/me");
         Long userId = JwtPrincipalUtil.getCurrentUserId();
         if (userId == null) {
-            throw new IllegalArgumentException("Отсутствует аутентификация");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Отсутствует аутентификация");
         }
         UserProfileService.ProfileSnapshot snapshot = profileService.getProfileSnapshot(userId);
 

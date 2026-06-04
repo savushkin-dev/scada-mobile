@@ -56,6 +56,7 @@ export type AppErrorCode =
   | 'parse_error' // SyntaxError при разборе JSON
   | 'validation_error' // ZodError — ответ не соответствует ожидаемой схеме
   | 'render_crash' // React ErrorBoundary
+  | 'session_expired' // JWT истёк, refresh не удался
   | 'unknown'; // Всё остальное
 
 // ── Основной тип ───────────────────────────────────────────────────────
@@ -101,6 +102,7 @@ export const ERROR_BODY_LABELS = Object.freeze({
   parse_error: 'Некорректный ответ сервера',
   validation_error: 'Некорректный формат данных',
   render_crash: 'Ошибка отображения',
+  session_expired: 'Сессия истекла. Войдите заново.',
   unknown: 'Произошла ошибка',
 } as const satisfies Record<AppErrorCode, string>);
 
@@ -131,5 +133,17 @@ export class HttpError extends Error {
   ) {
     super(message);
     this.name = 'HttpError';
+  }
+}
+
+/**
+ * Ошибка истечения сессии аутентификации.
+ * Выбрасывается когда refresh-токен тоже истёк или инвалидирован.
+ * Глобальный обработчик должен перенаправить пользователя на /login.
+ */
+export class AuthSessionExpiredError extends Error {
+  constructor(message = 'Сессия истекла') {
+    super(message);
+    this.name = 'AuthSessionExpiredError';
   }
 }
