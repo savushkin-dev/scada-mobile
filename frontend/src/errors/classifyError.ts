@@ -27,7 +27,7 @@
 import { ZodError } from 'zod';
 import { ERROR_MESSAGES, HTTP_STATUS } from '../config';
 import type { AppError, AppErrorCode, AppErrorSeverity, AppErrorSource } from './AppError';
-import { HttpError } from './AppError';
+import { AuthSessionExpiredError, HttpError } from './AppError';
 
 // Внутренний тип: всё, что не зависит от источника.
 type ErrorResolution = Omit<AppError, 'source' | 'raw'>;
@@ -57,6 +57,16 @@ export function classifyError(raw: unknown, source: AppErrorSource): AppError {
  * Порядок имеет значение: от специфичных типов — к общим.
  */
 function resolveHandler(error: unknown): ErrorResolution {
+  // ── @ExceptionHandler(AuthSessionExpiredError.class) ─────────────────
+  // Сессия истекла, refresh не удался — нужен редирект на логин.
+  if (error instanceof AuthSessionExpiredError) {
+    return {
+      code: 'session_expired',
+      message: ERROR_MESSAGES.sessionExpired,
+      severity: 'critical',
+      retryable: false,
+    };
+  }
   // ── @ExceptionHandler(HttpError.class) ───────────────────────────────
   // HttpError — наш явный тип из api-слоя. Несёт статус-код числом.
   if (error instanceof HttpError) {

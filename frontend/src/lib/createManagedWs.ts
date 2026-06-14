@@ -41,6 +41,12 @@ export interface ManagedWsOptions {
   /** Источник ошибки для общей классификации. */
   source?: AppErrorSource;
   /**
+   * Вызывается асинхронно перед каждой попыткой подключения.
+   * Идеальное место для обновления токена, если он истёк.
+   * Если выбросит ошибку — попытка прерывается и считается неудачной.
+   */
+  onBeforeConnect?: () => Promise<void>;
+  /**
    * Вызывается при каждом успешном открытии соединения (включая реконнекты).
    * Идеальное место для восстановления подписок после обрыва.
    * Принимает свежий WebSocket-объект — можно сразу вызвать ws.send().
@@ -156,14 +162,18 @@ export function createManagedWs(options: ManagedWsOptions): ManagedWsConnection 
 
   // ── Основной connect-цикл ───────────────────────────────────────────
 
-  function connect(): void {
+  async function connect(): Promise<void> {
     if (destroyed) return;
 
     try {
+      // onBeforeConnect позволяет обновить токен перед подключением
+      if (options.onBeforeConnect) {
+        await options.onBeforeConnect();
+      }
+
       const url = typeof options.url === 'function' ? options.url() : options.url;
 
       if (import.meta.env.DEV) {
-         
         console.log(`[ws] connecting → ${url.replace(/\?token=.*/, '?token=***')}`);
       }
 
@@ -172,7 +182,6 @@ export function createManagedWs(options: ManagedWsOptions): ManagedWsConnection 
 
       ws.onopen = () => {
         if (import.meta.env.DEV) {
-           
           console.log(`[ws] open ← ${url.replace(/\?token=.*/, '?token=***')}`);
         }
         // Успешное подключение: сбрасываем счётчик неудач и задержку
@@ -186,7 +195,6 @@ export function createManagedWs(options: ManagedWsOptions): ManagedWsConnection 
 
       ws.onclose = () => {
         if (import.meta.env.DEV) {
-           
           console.log(`[ws] close ← ${url.replace(/\?token=.*/, '?token=***')}`);
         }
         handleFailure();
@@ -198,9 +206,9 @@ export function createManagedWs(options: ManagedWsOptions): ManagedWsConnection 
       ws.onerror = () => ws.close();
     } catch {
       // WebSocket-конструктор выбросил исключение (невалидный URL и т.п.)
+      // или onBeforeConnect выбросил ошибку (token refresh failed)
       if (import.meta.env.DEV) {
-         
-        console.error('[ws] constructor failed');
+        console.error('[ws] connection failed');
       }
       handleFailure();
       scheduleReconnect();
@@ -208,7 +216,7 @@ export function createManagedWs(options: ManagedWsOptions): ManagedWsConnection 
   }
 
   // ── Старт ──────────────────────────────────────────────────────────
-  connect();
+  void connect();
 
   // ── Публичный API ──────────────────────────────────────────────────
   return {

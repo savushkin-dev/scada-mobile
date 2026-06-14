@@ -3,6 +3,8 @@ package dev.savushkin.scada.mobile.backend.config;
 import dev.savushkin.scada.mobile.backend.config.jwt.AudienceValidator;
 import dev.savushkin.scada.mobile.backend.config.jwt.JwtProperties;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.web.access.AccessDeniedHandler;
 import org.jspecify.annotations.NonNull;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -54,9 +56,15 @@ public class SecurityConfig {
     private static final String JWT_AUDIENCE = "scada-mobile-api";
 
     private final JwtProperties jwtProperties;
+    private final AuthenticationEntryPoint authenticationEntryPoint;
+    private final AccessDeniedHandler accessDeniedHandler;
 
-    public SecurityConfig(JwtProperties jwtProperties) {
+    public SecurityConfig(JwtProperties jwtProperties,
+                          AuthenticationEntryPoint authenticationEntryPoint,
+                          AccessDeniedHandler accessDeniedHandler) {
         this.jwtProperties = jwtProperties;
+        this.authenticationEntryPoint = authenticationEntryPoint;
+        this.accessDeniedHandler = accessDeniedHandler;
     }
 
     @Bean
@@ -93,6 +101,8 @@ public class SecurityConfig {
                     .decoder(jwtDecoder(jwtProperties))
                     .jwtAuthenticationConverter(jwtAuthenticationConverter())
                 )
+                .authenticationEntryPoint(authenticationEntryPoint)
+                .accessDeniedHandler(accessDeniedHandler)
             );
 
         return http.build();
