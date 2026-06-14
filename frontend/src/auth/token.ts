@@ -5,7 +5,7 @@
  * Используется только для proactive-проверки срока действия.
  */
 
-const TOKEN_EXPIRY_MARGIN_SECONDS = 300; // 5 минут запаса
+const TOKEN_EXPIRY_MARGIN_SECONDS = 60; // 1 минута запаса
 
 interface JwtPayload {
   exp?: number;
@@ -31,7 +31,7 @@ function decodeJwtPayload(token: string): JwtPayload | null {
 }
 
 /**
- * Возвращает true, если токен истёк или истекает в ближайшие 5 минут.
+ * Возвращает true, если токен истёк или истекает в ближайшие 1 минуту.
  */
 export function isTokenExpired(token: string | null): boolean {
   if (!token) return true;

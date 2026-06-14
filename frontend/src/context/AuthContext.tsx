@@ -18,7 +18,7 @@ import {
   setTokens,
   subscribeToAuthSync,
 } from '../auth/session';
-import { isTokenExpired, getTokenTimeRemaining } from '../auth/token';
+import { isTokenExpired, isTokenFullyExpired, getTokenTimeRemaining } from '../auth/token';
 import { refreshAccessToken } from '../api/auth';
 
 interface AuthContextValue {
@@ -178,7 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const accessToken = getAccessToken();
-  const isTokenValid = Boolean(accessToken) && !isTokenExpired(accessToken);
+  const isTokenValid = Boolean(accessToken) && !isTokenFullyExpired(accessToken);
   const isAuthenticated = isTokenValid && Boolean(userId);
   const isAdmin = role === 'ADMIN';
 
