@@ -1,13 +1,18 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.mock;
 
+import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepository;
 import dev.savushkin.scada.mobile.backend.application.ports.PrintSrvTopologyRepository;
+import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.PrintSrvMapper;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.QueryAllResponseDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -56,16 +61,22 @@ public class MockStateSimulator {
     private final MockPrintSrvClientRegistry registry;
     private final MockPrintSrvProperties mockProperties;
     private final PrintSrvTopologyRepository topologyRepo;
+    private final InstanceSnapshotRepository snapshotRepo;
+    private final PrintSrvMapper mapper;
     private final Random random;
 
     public MockStateSimulator(
             MockPrintSrvClientRegistry registry,
             MockPrintSrvProperties mockProperties,
-            PrintSrvTopologyRepository topologyRepo
+            PrintSrvTopologyRepository topologyRepo,
+            InstanceSnapshotRepository snapshotRepo,
+            PrintSrvMapper mapper
     ) {
         this.registry = registry;
         this.mockProperties = mockProperties;
         this.topologyRepo = topologyRepo;
+        this.snapshotRepo = snapshotRepo;
+        this.mapper = mapper;
         this.random = new Random(mockProperties.getRandomSeed());
     }
 
@@ -99,6 +110,7 @@ public class MockStateSimulator {
             }
             try {
                 tickInstance(client);
+                updateSnapshots(client);
             } catch (Exception ex) {
                 // Не прерываем весь цикл из-за одного неудачного инстанса
                 log.error("[{}] Simulator tick failed: {}", client.getInstanceId(), ex.getMessage(), ex);
@@ -117,19 +129,71 @@ public class MockStateSimulator {
             return;
         }
 
-        tickLine(state, inst.lineDeviceName(), id);
+        for (String device : state.getDeviceNames()) {
+            if ("Line".equals(device)) {
+                tickLine(state, device, id);
+            } else if (device.startsWith("CamAgregationBox")) {
+                tickCamAggregation(state, device, id);
+            } else if (device.startsWith("CamAgregation")) {
+                tickCamAggregation(state, device, id);
+            } else if (device.startsWith("Cam")) {
+                tickCamChecker(state, device, id);
+            } else if (device.startsWith("Printer")) {
+                tickPrinter(state, device, id);
+            } else if ("scada".equals(device)) {
+                tickScada(state, inst, id);
+            }
+            // BatchQueue и прочие системные устройства не тикаются
+        }
+    }
 
-        for (String device : inst.aggregationCams()) {
-            tickCamAggregation(state, device, id);
-        }
-        for (String device : inst.aggregationBoxCams()) {
-            tickCamAggregation(state, device, id);
-        }
-        for (String device : inst.printers()) {
-            tickPrinter(state, device, id);
+    /**
+     * Симулирует работу checker-камеры (CamChecker, CamBatch, CamPacker и т.д.).
+     *
+     * <p>Логика идентична {@link #tickCamAggregation}: если активна (ST=1),
+     * инкрементирует Total/Succeeded; с вероятностью ошибки — Failed/BatchFailed.
+     */
+    private void tickCamChecker(MockInstanceState state, String device, String instanceId) {
+        Map<String, String> props = state.getPropertiesCopy(device);
+        if (props.isEmpty()) {
+            return;
         }
 
-        tickScada(state, inst, id);
+        String st = props.getOrDefault("ST", "0");
+        if (!"1".equals(st)) {
+            return;
+        }
+
+        int increment = 1 + random.nextInt(5);
+        state.incrementInt(device, "Total", increment);
+        state.incrementInt(device, "Succeeded", increment);
+
+        if (shouldErrorAppear()) {
+            int failed = 1 + random.nextInt(2);
+            state.incrementInt(device, "Failed", failed);
+            state.incrementInt(device, "BatchFailed", 1);
+            log.trace("[{}] {} — {} failed codes this tick", instanceId, device, failed);
+        }
+    }
+
+    /**
+     * Обновляет снапшоты в {@link InstanceSnapshotRepository} для всех устройств инстанса.
+     *
+     * <p>Гарантирует, что {@link WorkshopService} и {@link UnitDetailService}
+     * видят актуальные данные даже если polling-поллер не опрашивает
+     * устройства (например, когда в БД нет записей для камер/принтеров).
+     */
+    private void updateSnapshots(MockPrintSrvClient client) {
+        String instanceId = client.getInstanceId();
+        for (String device : client.getDeviceNames()) {
+            try {
+                QueryAllResponseDTO dto = client.queryAll(device);
+                DeviceSnapshot snapshot = mapper.toDomainDeviceSnapshot(dto);
+                snapshotRepo.save(instanceId, device, snapshot);
+            } catch (IOException e) {
+                log.trace("[{}] Snapshot update failed for {}: {}", instanceId, device, e.getMessage());
+            }
+        }
     }
 
     // ─── CamAgregation / CamAgregationBox ──────────────────────────────────
@@ -294,22 +358,35 @@ public class MockStateSimulator {
 
         boolean lineErr = false;
 
-        // Камеры агрегации → Dev041, Dev042, ...
-        List<String> allCams = new java.util.ArrayList<>();
-        allCams.addAll(inst.aggregationCams());
-        allCams.addAll(inst.aggregationBoxCams());
-        for (int i = 0; i < allCams.size(); i++) {
-            String devPrefix = "Dev%03d".formatted(41 + i);
-            lineErr |= tickScadaErrorFlags(state, scadaDevice, scadaProps, devPrefix,
-                    CAM_ERROR_SUFFIXES, instanceId, activeErrorCount);
-        }
+        // Собираем устройства из state и сортируем для детерминированности
+        List<String> deviceNames = new ArrayList<>(state.getDeviceNames());
+        Collections.sort(deviceNames);
 
-        // Принтеры → LineDev011, LineDev021, ...
-        List<String> printers = inst.printers();
-        for (int i = 0; i < printers.size(); i++) {
-            String devPrefix = "LineDev%03d".formatted(11 + i * 10);
-            lineErr |= tickScadaErrorFlags(state, scadaDevice, scadaProps, devPrefix,
-                    LINE_DEV_ERROR_SUFFIXES, instanceId, activeErrorCount);
+        int camIndex = 0;
+        int boxCamIndex = 0;
+
+        for (String device : deviceNames) {
+            if (device.startsWith("CamAgregationBox")) {
+                String devPrefix = "Dev%03d".formatted(42 + boxCamIndex * 2);
+                lineErr |= tickScadaErrorFlags(state, scadaDevice, scadaProps, devPrefix,
+                        CAM_ERROR_SUFFIXES, instanceId, activeErrorCount);
+                boxCamIndex++;
+            } else if (device.startsWith("CamAgregation")) {
+                String devPrefix = "Dev%03d".formatted(41 + camIndex * 2);
+                lineErr |= tickScadaErrorFlags(state, scadaDevice, scadaProps, devPrefix,
+                        CAM_ERROR_SUFFIXES, instanceId, activeErrorCount);
+                camIndex++;
+            } else if (device.startsWith("Printer")) {
+                String suffix = device.substring("Printer".length());
+                try {
+                    int num = Integer.parseInt(suffix);
+                    String devPrefix = "LineDev%03d".formatted(num);
+                    lineErr |= tickScadaErrorFlags(state, scadaDevice, scadaProps, devPrefix,
+                            LINE_DEV_ERROR_SUFFIXES, instanceId, activeErrorCount);
+                } catch (NumberFormatException e) {
+                    // ignore non-numeric printer names
+                }
+            }
         }
 
         state.setProperty(scadaDevice, "lineerr", lineErr ? "1" : "0");

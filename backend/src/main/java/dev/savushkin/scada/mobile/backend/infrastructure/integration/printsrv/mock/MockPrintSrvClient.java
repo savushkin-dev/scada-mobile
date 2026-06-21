@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Мок-реализация {@link PrintSrvClient} для одного инстанса PrintSrv.
@@ -80,6 +81,13 @@ public class MockPrintSrvClient implements PrintSrvClient {
     @Override
     public boolean isAlive() {
         return !offline;
+    }
+
+    /**
+     * Возвращает список имён устройств, зарегистрированных в состоянии инстанса.
+     */
+    public Set<String> getDeviceNames() {
+        return state.getDeviceNames();
     }
 
     // ─── Package-private helpers used by MockStateSimulator ──────────────────

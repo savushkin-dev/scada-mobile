@@ -8,8 +8,13 @@ import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 
 /**
@@ -48,6 +53,8 @@ public class MockPrintSrvClientRegistry implements PrintSrvClientRegistry {
      */
     private final Map<String, MockPrintSrvClient> clients = new LinkedHashMap<>();
 
+    private final PathMatchingResourcePatternResolver resourceResolver = new PathMatchingResourcePatternResolver();
+
     public MockPrintSrvClientRegistry(
             PrintSrvTopologyRepository topologyRepo,
             MockPrintSrvProperties mockProperties,
@@ -85,11 +92,20 @@ public class MockPrintSrvClientRegistry implements PrintSrvClientRegistry {
                 state.initDevice(device, props);
             }
 
+            // --- загружаем дополнительные устройства, найденные в XML-файлах ---
+            Set<String> extraDevices = discoverExtraDevices(id, baseDir);
+            for (String device : extraDevices) {
+                if (!state.hasDevice(device)) {
+                    Map<String, String> props = snapshotLoader.loadForDevice(device, baseDir, id);
+                    state.initDevice(device, props);
+                }
+            }
+
             MockPrintSrvClient client = new MockPrintSrvClient(id, state, isOffline);
             clients.put(id, client);
 
-            log.info("MockPrintSrv: registered instance '{}' (displayName='{}', offline={})",
-                     id, inst.displayName(), isOffline);
+            log.info("MockPrintSrv: registered instance '{}' (displayName='{}', offline={}, devices={})",
+                     id, inst.displayName(), isOffline, state.getDeviceNames());
         }
 
         log.info("MockPrintSrvClientRegistry: {} client(s) ready ({} offline)",
@@ -140,5 +156,58 @@ public class MockPrintSrvClientRegistry implements PrintSrvClientRegistry {
      */
     Optional<MockPrintSrvClient> getMock(String instanceId) {
         return Optional.ofNullable(clients.get(instanceId));
+    }
+
+    // ─── Private helpers ───────────────────────────────────────────────────
+
+    /**
+     * Находит все устройства, для которых есть XML-файлы в classpath/fs,
+     * но которых нет в {@link PrintSrvInstance#deviceNames()} (например, если в БД
+     * не прописаны устройства, а XML-файлы есть).
+     */
+    private Set<String> discoverExtraDevices(String instanceId, String baseDir) {
+        Set<String> result = new LinkedHashSet<>();
+
+        // 1) Classpath default
+        result.addAll(discoverDevicesFromClasspath("mock-snapshots/default/"));
+
+        // 2) Classpath per-instance
+        result.addAll(discoverDevicesFromClasspath("mock-snapshots/" + instanceId + "/"));
+
+        // 3) Filesystem (если baseDir задан)
+        if (baseDir != null) {
+            Path fsDir = Path.of(baseDir, instanceId);
+            if (Files.exists(fsDir) && Files.isDirectory(fsDir)) {
+                try (var stream = Files.list(fsDir)) {
+                    stream.filter(p -> p.getFileName().toString().endsWith("___Unit0.xml"))
+                          .forEach(p -> {
+                              String filename = p.getFileName().toString();
+                              String device = filename.substring(0, filename.length() - "___Unit0.xml".length());
+                              result.add(device);
+                          });
+                } catch (IOException e) {
+                    log.warn("[{}] Cannot list filesystem directory {}: {}", instanceId, fsDir, e.getMessage());
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private Set<String> discoverDevicesFromClasspath(String classpathDir) {
+        Set<String> result = new LinkedHashSet<>();
+        try {
+            Resource[] resources = resourceResolver.getResources("classpath:" + classpathDir + "*___Unit0.xml");
+            for (Resource resource : resources) {
+                String filename = resource.getFilename();
+                if (filename != null && filename.endsWith("___Unit0.xml")) {
+                    String device = filename.substring(0, filename.length() - "___Unit0.xml".length());
+                    result.add(device);
+                }
+            }
+        } catch (IOException e) {
+            log.debug("Cannot discover devices from classpath:{} — {}", classpathDir, e.getMessage());
+        }
+        return result;
     }
 }

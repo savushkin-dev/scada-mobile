@@ -25,7 +25,7 @@ printsrv:
 
     # Интервал между тиками симуляции (мс). Увеличьте при отладке, чтобы
     # состояние менялось реже.
-    tick-interval-ms: 2000
+    tick-interval-ms: 1000
 
     # Список instanceId, которые должны стартовать как «offline» (имитация обрыва TCP).
     # Пример: offline-instances: [grunwald8, bosch]
