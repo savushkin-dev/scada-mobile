@@ -108,6 +108,7 @@ public class UnitDetailService {
 
     /**
      * Строит статус камеры, используя как device-поля, так и scada-ключ.
+     * Поле {@code st} берётся из поля {@code ST} снапшота устройства (0 — нет ошибки, 1 — ошибка).
      */
     private static DevicesStatusMessageDTO.CameraStatus buildSingleCamStatus(
             String camName,
@@ -117,13 +118,14 @@ public class UnitDetailService {
     ) {
         String read = coalesce(camRaw.get("Total"), scadaRaw.get(devKey + "CounterGeneral"));
         String unread = coalesce(camRaw.get("Failed"), scadaRaw.get(devKey + "CounterMissing"));
-        String state = coalesce(camRaw.get("ST"), scadaRaw.get(devKey + "Work"));
+        String st = coalesce(camRaw.get("ST"), scadaRaw.get(devKey + "ST"));
         String error = coalesce(camRaw.get("Error"), scadaRaw.get(devKey + "Error"));
-        return new DevicesStatusMessageDTO.CameraStatus(camName, read, unread, state, error);
+        return new DevicesStatusMessageDTO.CameraStatus(camName, read, unread, st, error);
     }
 
     /**
      * Строит статус камеры только из прямых device-полей снапшота (без scada).
+     * Поле {@code st} берётся из поля {@code ST} снапшота устройства.
      */
     private static DevicesStatusMessageDTO.CameraStatus buildSingleCamStatusDirect(
             String camName,
@@ -364,7 +366,7 @@ public class UnitDetailService {
         for (String printerName : printerNames) {
             DeviceSnapshot snap = snapshotRepo.get(instanceId, printerName);
 
-            String state = getFirstUnit(snap)
+            String st = getFirstUnit(snap)
                     .map(u -> u.properties().getSt().orElse(null))
                     .orElse(null);
             String error = getFirstUnit(snap)
@@ -374,18 +376,18 @@ public class UnitDetailService {
                     .map(u -> u.properties().getCurItem().orElse(null))
                     .orElse(null);
 
-            // Fallback из scada: LineDev0{NN}Error → ошибка принтера по имени устройства
-            // Пример: Printer11 → LineDev011Error, Printer12 → LineDev012Error
-            if (error == null && !scadaRaw.isEmpty()) {
+            // Fallback из scada: LineDev0{NN}ST → ошибка принтера по имени устройства
+            // Пример: Printer11 → LineDev011ST, Printer12 → LineDev012ST
+            if (st == null && !scadaRaw.isEmpty()) {
                 for (String scadaPrefix : ScadaKeyMapper.printerScadaPrefixes(printerName)) {
-                    error = scadaRaw.get(scadaPrefix + "Error");
-                    if (error != null) {
+                    st = scadaRaw.get(scadaPrefix + "ST");
+                    if (st != null) {
                         break;
                     }
                 }
             }
 
-            result.add(new DevicesStatusMessageDTO.PrinterStatus(printerName, state, error, batch));
+            result.add(new DevicesStatusMessageDTO.PrinterStatus(printerName, st, error, batch));
         }
         return result;
     }

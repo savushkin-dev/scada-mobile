@@ -19,7 +19,7 @@
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>ST</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>LastRead</d2p1:Key>
@@ -111,19 +111,19 @@
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>enableErrors</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>enableErrorConnection</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>enableErrorFail</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>enableErrorDublicate</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>enableErrorDiffEan13</d2p1:Key>
@@ -171,7 +171,7 @@
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>CamID</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>LineElementID</d2p1:Key>
@@ -195,7 +195,7 @@
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>batchTransit</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>devBatchTransit</d2p1:Key>

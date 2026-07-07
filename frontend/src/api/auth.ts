@@ -74,35 +74,33 @@ export async function logoutUser(): Promise<void> {
 /**
  * Обновление access-токена через refresh-токен.
  * При успехе сохраняет новую пару токенов.
+ * При сетевой ошибке — бросает исключение (не возвращает null),
+ * чтобы caller мог отличить "сервер недоступен" от "токен невалиден".
  */
 export async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
 
-  try {
-    const resp = await fetch(`${API_BASE}/api/v1.0.0/auth/refresh`, {
-      method: HTTP_REQUEST.post,
-      headers: {
-        'Content-Type': HTTP_REQUEST.jsonContentType,
-      },
-      body: JSON.stringify({ refreshToken }),
-    });
+  const resp = await fetch(`${API_BASE}/api/v1.0.0/auth/refresh`, {
+    method: HTTP_REQUEST.post,
+    headers: {
+      'Content-Type': HTTP_REQUEST.jsonContentType,
+    },
+    body: JSON.stringify({ refreshToken }),
+  });
 
-    if (!resp.ok) return null;
+  if (!resp.ok) return null;
 
-    const raw: unknown = await resp.json();
-    const rawObj = raw as {
-      accessToken?: string;
-      refreshToken?: string;
-    } | null;
+  const raw: unknown = await resp.json();
+  const rawObj = raw as {
+    accessToken?: string;
+    refreshToken?: string;
+  } | null;
 
-    if (!rawObj?.accessToken || !rawObj?.refreshToken) {
-      return null;
-    }
-
-    setTokens(rawObj.accessToken, rawObj.refreshToken);
-    return rawObj.accessToken;
-  } catch {
+  if (!rawObj?.accessToken || !rawObj?.refreshToken) {
     return null;
   }
+
+  setTokens(rawObj.accessToken, rawObj.refreshToken);
+  return rawObj.accessToken;
 }

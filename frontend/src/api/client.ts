@@ -75,13 +75,27 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
   }
 
   isRefreshing = true;
-  const newToken = await refreshAccessToken();
+  let newToken: string | null = null;
+  let refreshError: unknown = null;
+
+  try {
+    newToken = await refreshAccessToken();
+  } catch (e) {
+    refreshError = e;
+  }
+
   isRefreshing = false;
   notifySubscribers(newToken);
 
   if (!newToken) {
-    // Refresh не удался — токены протухли или инвалидированы.
-    // Очищаем auth-данные и сигнализируем об истечении сессии.
+    // Refresh не удался. Различаем причину:
+    // - Сетевая ошибка → сервер недоступен, токены валидны, не выгоняем пользователя
+    // - HTTP-ошибка (4xx/5xx) → токены протухли/инвалидированы → logout
+    if (refreshError && isNetworkError(refreshError)) {
+      // Сервер недоступен — не чистим auth, прокидываем сетевую ошибку
+      throw refreshError;
+    }
+    // Refresh не удался по HTTP-причине — токены протухли или инвалидированы
     clearAllAuthData();
     throw new AuthSessionExpiredError();
   }

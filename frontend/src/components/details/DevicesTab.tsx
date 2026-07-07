@@ -1,9 +1,5 @@
 import { CARD_TITLE_BETWEEN_STYLE, DOMAIN_DEFAULTS, UI_COPY } from '../../config';
-import {
-  DEVICE_STATUS_CLASS,
-  DeviceStatusLevel,
-  getDeviceStatusLevel,
-} from '../../constants/statusUtils';
+import { DEVICE_STATUS_CLASS, getDeviceStatusLevel } from '../../constants/statusUtils';
 import { useDetailsContext } from '../../context/DetailsContext';
 import { TabContentState } from '../TabContentState';
 import { DevicesTabSkeleton } from '../skeleton/DevicesTabSkeleton';
@@ -66,22 +62,6 @@ const DEVICE_GROUPS: GroupConfig[] = [
 // Единый источник правды: status level → badge variant + label.
 // Аналогично UNIT_STATUS_CLASS в statusUtils, но для display-слоя.
 
-type BadgeVariant = 'success' | 'danger' | 'neutral';
-
-const DEVICE_BADGE_VARIANT: Record<DeviceStatusLevel, BadgeVariant> = {
-  pending: 'neutral',
-  error: 'danger',
-  working: 'success',
-  stopped: 'neutral',
-};
-
-const DEVICE_BADGE_LABEL: Record<DeviceStatusLevel, string> = {
-  pending: UI_COPY.devicesPending,
-  error: UI_COPY.statusError,
-  working: UI_COPY.statusWorking,
-  stopped: UI_COPY.statusStopped,
-};
-
 function val(v: string | number | undefined | null): string {
   return v === null || v === undefined ? DOMAIN_DEFAULTS.emptyValue : String(v);
 }
@@ -106,9 +86,6 @@ function DeviceCard({
     <div className={`card p-4 card-static mb-3 ${statusClass}`}>
       <div className="card-title" style={CARD_TITLE_BETWEEN_STYLE}>
         <span>{name}</span>
-        <span className={`badge ${DEVICE_BADGE_VARIANT[statusLevel]}`}>
-          {DEVICE_BADGE_LABEL[statusLevel]}
-        </span>
       </div>
       {showBatch && (
         <div className="kv-row mt-2">

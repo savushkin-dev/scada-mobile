@@ -15,7 +15,7 @@
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>CurItem</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>Item01</d2p1:Key>
@@ -59,7 +59,7 @@
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>Item01Selected</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>Item02Selected</d2p1:Key>
@@ -123,7 +123,7 @@
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>begincounter</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>owner</d2p1:Key>
@@ -139,7 +139,7 @@
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>printdm</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>message</d2p1:Key>
@@ -203,7 +203,7 @@
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>frozen</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>itf</d2p1:Key>
@@ -215,7 +215,7 @@
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>designe</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
   </properties>
 </DeviceUnit>

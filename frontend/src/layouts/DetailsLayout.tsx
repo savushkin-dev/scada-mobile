@@ -58,7 +58,7 @@ function normalizeDevicesStatus(raw: DevicesStatusWsPayload): DevicesStatusPaylo
 
   for (const p of raw.printers ?? []) {
     result[p.deviceName] = {
-      state: toNum(p.state),
+      st: toNum(p.st),
       error: toNum(p.error),
       batch: p.batch ?? undefined,
     };
@@ -71,7 +71,7 @@ function normalizeDevicesStatus(raw: DevicesStatusWsPayload): DevicesStatusPaylo
   ];
   for (const c of cams) {
     result[c.deviceName] = {
-      state: toNum(c.state),
+      st: toNum(c.st),
       error: toNum(c.error),
       read: toNum(c.read),
       unread: toNum(c.unread),

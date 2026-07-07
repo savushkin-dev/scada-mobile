@@ -12,7 +12,7 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>ST</d2p1:Key>
-            <d2p1:Value>1</d2p1:Value>
+            <d2p1:Value>0</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>LastRead</d2p1:Key>
@@ -58,7 +58,7 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>BatchFailed</d2p1:Key>
-            <d2p1:Value>1</d2p1:Value>
+            <d2p1:Value>0</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>BatchSucceeded</d2p1:Key>
@@ -66,7 +66,7 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>SameCodeInRow</d2p1:Key>
-            <d2p1:Value>1</d2p1:Value>
+            <d2p1:Value>0</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>FailedInRow</d2p1:Key>
@@ -114,7 +114,7 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>enableErrors</d2p1:Key>
-            <d2p1:Value>1</d2p1:Value>
+            <d2p1:Value>0</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
     </properties>
 </DeviceUnit>

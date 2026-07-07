@@ -110,7 +110,7 @@ export interface Unit {
 // ── Внутренняя нормализованная форма устройств (не WS wire format) ────
 
 export interface DeviceInfo {
-  state?: number;
+  st?: number;
   error?: number;
   read?: number;
   unread?: number;

@@ -51,7 +51,7 @@
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>printdm</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>load</d2p1:Key>
@@ -95,11 +95,11 @@
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>ST</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>enableErrors</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>MachineID</d2p1:Key>
@@ -119,7 +119,7 @@
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>begincounter</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>kmc</d2p1:Key>
@@ -135,11 +135,11 @@
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>LevelID</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>designe</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>kolm</d2p1:Key>
@@ -171,7 +171,7 @@
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>enableErrorConnection</d2p1:Key>
-      <d2p1:Value>1</d2p1:Value>
+      <d2p1:Value>0</d2p1:Value>
     </d2p1:KeyValueOfstringstring>
     <d2p1:KeyValueOfstringstring>
       <d2p1:Key>enableErrorFail</d2p1:Key>

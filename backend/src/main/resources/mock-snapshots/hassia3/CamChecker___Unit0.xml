@@ -12,7 +12,7 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>ST</d2p1:Key>
-            <d2p1:Value>1</d2p1:Value>
+            <d2p1:Value>0</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>LastRead</d2p1:Key>
@@ -50,7 +50,7 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Failed</d2p1:Key>
-            <d2p1:Value>1</d2p1:Value>
+            <d2p1:Value>0</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Succeeded</d2p1:Key>

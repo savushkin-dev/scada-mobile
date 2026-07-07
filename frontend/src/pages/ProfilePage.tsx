@@ -326,14 +326,24 @@ export function ProfilePage() {
             <div className="px-5 py-4">
               <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-[11px] font-semibold text-[#374151] shadow-sm">
                 <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#0b5da4] text-white">
-                  ⚡
+                  <img
+                    src="/assets/lightning.svg"
+                    alt=""
+                    aria-hidden="true"
+                    className="h-4 w-4 invert"
+                  />
                 </span>
                 <span>{PROFILE_COPY.overlayTechLabel}</span>
                 <span className="text-[#7b8190]">{PROFILE_COPY.overlayTechHint}</span>
               </div>
               <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-[11px] font-semibold text-[#374151] shadow-sm">
                 <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#0b5da4] text-white">
-                  💬
+                  <img
+                    src="/assets/message.svg"
+                    alt=""
+                    aria-hidden="true"
+                    className="h-4 w-4 invert"
+                  />
                 </span>
                 <span>{PROFILE_COPY.overlayMasterLabel}</span>
                 <span className="text-[#7b8190]">{PROFILE_COPY.overlayMasterHint}</span>
@@ -369,7 +379,7 @@ export function ProfilePage() {
                     const isAssigned = assignedUnitIds.has(item.unitId);
 
                     const buttonBase =
-                      'flex h-11 w-11 items-center justify-center rounded-2xl border text-base font-semibold transition';
+                      'flex h-11 w-11 items-center justify-center rounded-full border text-base font-semibold transition';
 
                     const techClass = techActive
                       ? 'border-[#0b5da4] bg-[#0b5da4] text-white'
@@ -402,7 +412,12 @@ export function ProfilePage() {
                               isPending ? 'opacity-60' : ''
                             }`}
                           >
-                            ⚡
+                            <img
+                              src="/assets/lightning.svg"
+                              alt=""
+                              aria-hidden="true"
+                              className="h-5 w-5 invert"
+                            />
                           </button>
                           <button
                             type="button"
@@ -413,7 +428,12 @@ export function ProfilePage() {
                               isPending ? 'opacity-60' : ''
                             }`}
                           >
-                            💬
+                            <img
+                              src="/assets/message.svg"
+                              alt=""
+                              aria-hidden="true"
+                              className="h-5 w-5 invert"
+                            />
                           </button>
                         </div>
                       </div>

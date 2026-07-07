@@ -16,7 +16,7 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>CurItem</d2p1:Key>
-            <d2p1:Value>1</d2p1:Value>
+            <d2p1:Value>0</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Item01</d2p1:Key>
@@ -60,7 +60,7 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Item01Selected</d2p1:Key>
-            <d2p1:Value>1</d2p1:Value>
+            <d2p1:Value>0</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Item02Selected</d2p1:Key>
@@ -124,7 +124,7 @@
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>ST</d2p1:Key>
-            <d2p1:Value>1</d2p1:Value>
+            <d2p1:Value>0</d2p1:Value>
         </d2p1:KeyValueOfstringstring>
         <d2p1:KeyValueOfstringstring>
             <d2p1:Key>Error</d2p1:Key>

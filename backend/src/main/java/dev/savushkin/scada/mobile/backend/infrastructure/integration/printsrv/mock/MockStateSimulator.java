@@ -150,17 +150,12 @@ public class MockStateSimulator {
     /**
      * Симулирует работу checker-камеры (CamChecker, CamBatch, CamPacker и т.д.).
      *
-     * <p>Логика идентична {@link #tickCamAggregation}: если активна (ST=1),
-     * инкрементирует Total/Succeeded; с вероятностью ошибки — Failed/BatchFailed.
+     * <p>Инкрементирует Total/Succeeded независимо от ST;
+     * с вероятностью ошибки — Failed/BatchFailed.
      */
     private void tickCamChecker(MockInstanceState state, String device, String instanceId) {
         Map<String, String> props = state.getPropertiesCopy(device);
         if (props.isEmpty()) {
-            return;
-        }
-
-        String st = props.getOrDefault("ST", "0");
-        if (!"1".equals(st)) {
             return;
         }
 
@@ -218,17 +213,12 @@ public class MockStateSimulator {
      *
      * <p>За один тик камера «читает» от 1 до 5 пачек.
      * С вероятностью {@code errorFlipProbability} одна из них «бракуется».
+     * Работает независимо от поля ST.
      */
     private void tickCamAggregation(MockInstanceState state, String device, String instanceId) {
         Map<String, String> props = state.getPropertiesCopy(device);
         if (props.isEmpty()) {
             return; // устройство не инициализировано для данного инстанса
-        }
-
-        // Только если устройство активно
-        String st = props.getOrDefault("ST", "0");
-        if (!"1".equals(st)) {
-            return;
         }
 
         int increment = 1 + random.nextInt(5); // 1-5 пачек за тик
@@ -247,16 +237,11 @@ public class MockStateSimulator {
     // ─── Printers ──────────────────────────────────────────────────────────
 
     /**
-     * Симулирует принтер маркировки: если активен — инкрементирует CurItem.
+     * Симулирует принтер маркировки: инкрементирует CurItem.
      */
     private void tickPrinter(MockInstanceState state, String device, String instanceId) {
         Map<String, String> props = state.getPropertiesCopy(device);
         if (props.isEmpty()) {
-            return;
-        }
-
-        String st = props.getOrDefault("ST", "0");
-        if (!"1".equals(st)) {
             return;
         }
 

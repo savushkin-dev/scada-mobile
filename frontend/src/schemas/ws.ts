@@ -129,7 +129,7 @@ export const LineStatusPayloadSchema = z.object({
 
 export const DevicesStatusWsPrinterSchema = z.object({
   deviceName: z.string(),
-  state: z.string().nullable(),
+  st: z.string().nullable(),
   error: z.string().nullable(),
   batch: z.string().nullable(),
 });
@@ -138,7 +138,7 @@ export const DevicesStatusWsCameraSchema = z.object({
   deviceName: z.string(),
   read: z.string().nullable(),
   unread: z.string().nullable(),
-  state: z.string().nullable(),
+  st: z.string().nullable(),
   error: z.string().nullable(),
 });
 

@@ -63,13 +63,13 @@ public record DevicesStatusMessageDTO(
      * Статус одного принтера.
      *
      * @param deviceName имя устройства (例 {@code "Printer11"})
-     * @param state      состояние: {@code "1"} — работа, {@code "0"} — стоп
+     * @param st         {@code "0"} — ошибки нет, {@code "1"} — ошибка есть
      * @param error      код ошибки ({@code "0"} — нет ошибки)
      * @param batch      текущая позиция (маркировка | партия | дата)
      */
     public record PrinterStatus(
             String deviceName,
-            @Nullable String state,
+            @Nullable String st,
             @Nullable String error,
             @Nullable String batch
     ) {}
@@ -80,14 +80,14 @@ public record DevicesStatusMessageDTO(
      * @param deviceName имя устройства (例 {@code "CamAgregation"})
      * @param read       количество успешно считанных кодов
      * @param unread     количество несчитанных / ошибочных кодов
-     * @param state      состояние (счётчик рабочего времени из Dev0xxWork)
+     * @param st         {@code "0"} — ошибки нет, {@code "1"} — ошибка есть
      * @param error      код ошибки ({@code "0"} — нет ошибки)
      */
     public record CameraStatus(
             String deviceName,
             @Nullable String read,
             @Nullable String unread,
-            @Nullable String state,
+            @Nullable String st,
             @Nullable String error
     ) {}
 }
