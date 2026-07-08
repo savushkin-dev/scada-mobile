@@ -25,5 +25,5 @@ public class DeviceTypeEntity {
 
     @OneToMany(mappedBy = "type")
     @JsonIgnore
-    private Set<DeviceEntity> devices;
+    private Set<DeviceCatalogEntity> catalogItems;
 }
