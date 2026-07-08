@@ -4,11 +4,12 @@ import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.en
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 import org.springframework.data.rest.core.annotation.RestResource;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
+
 
 public interface UserAssignmentJpaRepository extends JpaRepository<UserAssignmentEntity, Long> {
 
@@ -47,11 +48,4 @@ public interface UserAssignmentJpaRepository extends JpaRepository<UserAssignmen
               and u.active = true
             """)
     List<AssignedUnitProjection> findActiveAssignedUnitsByUserId(@Param("userId") Long userId);
-
-    List<UserAssignmentEntity> findByUser_Id(Long userId);
-
-    void deleteByUser_Id(Long userId);
-
-    @RestResource(exported = false)
-    Optional<UserAssignmentEntity> findByUnit_IdAndActiveTrue(Long unitId);
 }

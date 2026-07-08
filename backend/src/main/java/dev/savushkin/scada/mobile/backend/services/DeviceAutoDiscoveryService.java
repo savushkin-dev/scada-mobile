@@ -1,10 +1,10 @@
 package dev.savushkin.scada.mobile.backend.services;
 
 import dev.savushkin.scada.mobile.backend.domain.model.CompositionDiff;
-import dev.savushkin.scada.mobile.backend.domain.model.DeviceCatalogEntity;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceCatalogEntity;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceCompositionChangedEvent;
-import dev.savushkin.scada.mobile.backend.domain.model.DeviceEntity;
-import dev.savushkin.scada.mobile.backend.domain.model.UnitEntity;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceEntity;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UnitEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.adapter.PrintSrvTopologyJpaAdapter;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.DeviceCatalogJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.DeviceJpaRepository;
@@ -89,7 +89,7 @@ public class DeviceAutoDiscoveryService {
                     .orElseGet(() -> createUnconfiguredCatalog(deviceCode));
 
             // Проверить, есть ли уже связь unit→catalog
-            boolean alreadyLinked = deviceRepository.existsByUnitIdAndCatalogId(unit.getId(), catalog.getId());
+            boolean alreadyLinked = deviceRepository.existsByUnit_IdAndCatalog_Id(unit.getId(), catalog.getId());
             if (!alreadyLinked) {
                 DeviceEntity device = new DeviceEntity();
                 device.setUnit(unit);

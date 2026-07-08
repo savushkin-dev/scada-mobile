@@ -61,6 +61,7 @@ function normalizeDevicesStatus(raw: DevicesStatusWsPayload): DevicesStatusPaylo
       st: toNum(p.st),
       error: toNum(p.error),
       batch: p.batch ?? undefined,
+      disconnected: p.disconnected ?? false,
     };
   }
 
@@ -75,6 +76,7 @@ function normalizeDevicesStatus(raw: DevicesStatusWsPayload): DevicesStatusPaylo
       error: toNum(c.error),
       read: toNum(c.read),
       unread: toNum(c.unread),
+      disconnected: c.disconnected ?? false,
     };
   }
 

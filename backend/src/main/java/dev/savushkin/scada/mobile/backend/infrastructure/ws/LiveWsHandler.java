@@ -211,7 +211,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
      * Аналог {@link #broadcastAlert(String)} — используется {@code StatusBroadcaster}
      * для немедленной рассылки при toggle-событии.
      *
-     * @param json сериализованный {@link dev.savushkin.scada.mobile.backend.api.dto.NotificationMessageDTO}
+     * @param notification сериализованный {@link dev.savushkin.scada.mobile.backend.api.dto.NotificationMessageDTO}
      */
     public void broadcastNotification(@NonNull NotificationMessageDTO notification) {
         if (allSessions.isEmpty()) return;
@@ -255,6 +255,16 @@ public class LiveWsHandler extends TextWebSocketHandler {
      */
     public int getTotalSessionCount() {
         return allSessions.size();
+    }
+
+    /**
+     * Рассылает {@code ADMIN_NOTIFICATION} всем подключённым клиентам.
+     *
+     * @param json сериализованный {@link dev.savushkin.scada.mobile.backend.api.dto.AdminNotificationMessageDTO}
+     */
+    public void broadcastAdminNotification(String json) {
+        if (allSessions.isEmpty()) return;
+        sendToSessions(allSessions, json);
     }
 
     // ─── Private helpers ─────────────────────────────────────────────────────

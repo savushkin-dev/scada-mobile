@@ -19,8 +19,14 @@ public class DeviceEntity {
     private UnitEntity unit;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "catalog_id", nullable = false)
-    private DeviceCatalogEntity catalog;
+    @JoinColumn(name = "type_id", nullable = false)
+    private DeviceTypeEntity type;
+
+    @Column(name = "code", nullable = false)
+    private String code;
+
+    @Column(name = "display_name", nullable = false)
+    private String displayName;
 
     /**
      * Возвращает ID аппарата для сериализации JSON (React Admin ожидает unitId).
@@ -30,26 +36,9 @@ public class DeviceEntity {
     }
 
     /**
-     * Возвращает ID каталога для сериализации JSON (React Admin ожидает catalogId).
+     * Возвращает ID типа устройства для сериализации JSON (React Admin ожидает typeId).
      */
-    public Long getCatalogId() {
-        return catalog != null ? catalog.getId() : null;
-    }
-
-    // Делегирующие методы для обратной совместимости
-    public String getCode() {
-        return catalog != null ? catalog.getCode() : null;
-    }
-
-    public String getDisplayName() {
-        return catalog != null ? catalog.getDisplayName() : null;
-    }
-
-    public DeviceTypeEntity getType() {
-        return catalog != null ? catalog.getType() : null;
-    }
-
     public Long getTypeId() {
-        return catalog != null ? catalog.getTypeId() : null;
+        return type != null ? type.getId() : null;
     }
 }

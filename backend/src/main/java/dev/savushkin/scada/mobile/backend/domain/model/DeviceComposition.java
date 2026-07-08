@@ -3,9 +3,6 @@ package dev.savushkin.scada.mobile.backend.domain.model;
 import org.jspecify.annotations.NonNull;
 
 import java.util.List;
-import java.util.Set;
-import java.util.HashSet;
-import java.util.Collections;
 
 /**
  * Состав устройств аппарата — результат runtime-discovery из снапшота Line
@@ -25,16 +22,5 @@ public record DeviceComposition(
      */
     public static DeviceComposition empty() {
         return new DeviceComposition(List.of(), List.of(), List.of(), List.of());
-    }
-
-    /**
-     * Возвращает множество всех имён устройств (всех групп).
-     */
-    public @NonNull Set<String> allDevices() {
-        Set<String> all = new java.util.HashSet<>(printers);
-        all.addAll(aggregationCams);
-        all.addAll(aggregationBoxCams);
-        all.addAll(checkerCams);
-        return java.util.Collections.unmodifiableSet(all);
     }
 }

@@ -1,7 +1,5 @@
 package dev.savushkin.scada.mobile.backend.services;
 
-import dev.savushkin.scada.mobile.backend.domain.model.CompositionDiff;
-
 import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepository;
 import dev.savushkin.scada.mobile.backend.application.ports.PrintSrvTopologyRepository;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceComposition;
@@ -61,6 +59,21 @@ public class DeviceCompositionService {
                 List.copyOf(inst.aggregationBoxCams()),
                 List.copyOf(inst.checkerCams())
         );
+    }
+
+    /**
+     * Возвращает runtime-состав устройств из снапшота Line.
+     * Возвращает {@code null}, если снапшот недоступен или не содержит нужных полей.
+     *
+     * @param instanceId идентификатор аппарата
+     * @return runtime-состав или null
+     */
+    public @Nullable DeviceComposition getRuntimeComposition(@NonNull String instanceId) {
+        PrintSrvInstance inst = topologyRepo.findByInstanceId(instanceId).orElse(null);
+        if (inst == null) {
+            return null;
+        }
+        return fromLineSnapshot(instanceId, inst);
     }
 
     // ─── Private helpers ──────────────────────────────────────────────────────
@@ -125,29 +138,15 @@ public class DeviceCompositionService {
         if (inst == null) {
             return DeviceComposition.empty();
         }
-        return fromDb(inst);
-    }
 
-    /**
-     * Сравнивает состав устройств из БД с runtime-снапшотом Line.
-     * Возвращает разницу (added/removed) или пустой diff если снапшот недоступен.
-     *
-     * @param instanceId идентификатор аппарата
-     * @return разница между БД и runtime (никогда null)
-     */
-    public @NonNull CompositionDiff compareWithRuntime(@NonNull String instanceId) {
-        PrintSrvInstance inst = topologyRepo.findByInstanceId(instanceId).orElse(null);
-        if (inst == null) {
-            return CompositionDiff.empty();
-        }
-
-        DeviceComposition db = fromDb(inst);
         DeviceComposition runtime = fromLineSnapshot(instanceId, inst);
-        if (runtime == null) {
-            return CompositionDiff.empty();
+        if (runtime != null) {
+            return runtime;
         }
 
-        return CompositionDiff.of(db, runtime);
+        log.debug("[{}] Line snapshot not yet available — using DB config for device composition",
+                instanceId);
+        return fromDb(inst);
     }
 
     /**

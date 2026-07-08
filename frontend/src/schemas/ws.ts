@@ -132,6 +132,7 @@ export const DevicesStatusWsPrinterSchema = z.object({
   st: z.string().nullable(),
   error: z.string().nullable(),
   batch: z.string().nullable(),
+  disconnected: z.boolean().optional(),
 });
 
 export const DevicesStatusWsCameraSchema = z.object({
@@ -140,6 +141,7 @@ export const DevicesStatusWsCameraSchema = z.object({
   unread: z.string().nullable(),
   st: z.string().nullable(),
   error: z.string().nullable(),
+  disconnected: z.boolean().optional(),
 });
 
 export const DevicesStatusWsPayloadSchema = z.object({

@@ -92,15 +92,16 @@ export const WORKSHOP_STATUS_CLASS: Record<WorkshopStatusLevel, string> = {
  * - `'error'`   — устройство сообщило об ошибке (st === 1). Карточка красная.
  * - `'ok'`      — ошибок нет (st === 0). Карточка зелёная.
  */
-export type DeviceStatusLevel = 'pending' | 'error' | 'ok';
+export type DeviceStatusLevel = 'pending' | 'error' | 'ok' | 'disconnected';
 
 /**
  * Определяет уровень статуса устройства по имени и текущим WS-данным.
  *
- * Если `wsData === null` — WS ещё не прислал ни одного `DEVICES_STATUS` → `pending`.
- * Если устройство не нашлось в пейлоаде → считаем `pending`.
- * Если `st === 1` → `error` (красная).
- * Иначе → `ok` (зелёная).
+ * Приоритет:
+ * 1. `wsData === null` — WS ещё не прислал ни одного `DEVICES_STATUS` → `pending`.
+ * 2. `info.disconnected === true` → `disconnected` (серый, бейдж "Отключено").
+ * 3. `info.st === 1` → `error` (красная).
+ * 4. Иначе → `ok` (зелёная).
  */
 export function getDeviceStatusLevel(
   wsData: DevicesStatusPayload | null,
@@ -109,6 +110,7 @@ export function getDeviceStatusLevel(
   if (wsData === null) return 'pending';
   const info = wsData[name];
   if (!info) return 'pending';
+  if (info.disconnected) return 'disconnected';
   if (info.st === DOMAIN_FLAGS.active) return 'error';
   return 'ok';
 }
@@ -116,6 +118,7 @@ export function getDeviceStatusLevel(
 /** CSS-класс карточки устройства по уровню статуса. */
 export const DEVICE_STATUS_CLASS: Record<DeviceStatusLevel, string> = {
   pending: 'status-pending', // серый — WS ещё не ответил
+  disconnected: 'status-pending', // серый — устройство отключено
   error: 'status-critical', // красный — ошибка устройства
   ok: 'status-normal', // зелёный — всё в порядке
 };

@@ -10,7 +10,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -123,15 +122,7 @@ public class AdminReadController {
     // ── Devices ───────────────────────────────────────────────────────────
 
     @GetMapping("/devices")
-    public ResponseEntity<Page<DeviceEntity>> listDevices(@RequestParam(required = false) Long unitId, Pageable pageable) {
-        if (unitId != null) {
-            Page<DeviceEntity> page = new org.springframework.data.domain.PageImpl<>(
-                    deviceRepository.findByUnit_Id(unitId),
-                    pageable,
-                    deviceRepository.findByUnit_Id(unitId).size()
-            );
-            return pageResponse(page, "devices");
-        }
+    public ResponseEntity<Page<DeviceEntity>> listDevices(Pageable pageable) {
         return pageResponse(deviceRepository.findAll(pageable), "devices");
     }
 
@@ -159,15 +150,7 @@ public class AdminReadController {
     // ── User Assignments ──────────────────────────────────────────────────
 
     @GetMapping("/user-assignments")
-    public ResponseEntity<Page<UserAssignmentEntity>> listAssignments(@RequestParam(required = false) Long userId, Pageable pageable) {
-        if (userId != null) {
-            Page<UserAssignmentEntity> page = new org.springframework.data.domain.PageImpl<>(
-                    assignmentRepository.findByUser_Id(userId),
-                    pageable,
-                    assignmentRepository.findByUser_Id(userId).size()
-            );
-            return pageResponse(page, "user-assignments");
-        }
+    public ResponseEntity<Page<UserAssignmentEntity>> listAssignments(Pageable pageable) {
         return pageResponse(assignmentRepository.findAll(pageable), "user-assignments");
     }
 

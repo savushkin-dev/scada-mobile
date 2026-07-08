@@ -81,19 +81,25 @@ function DeviceCard({
   const statusLevel = getDeviceStatusLevel(wsData, name);
   const statusClass = DEVICE_STATUS_CLASS[statusLevel];
   const info = wsData?.[name];
+  const isDisconnected = statusLevel === 'disconnected';
 
   return (
-    <div className={`card p-4 card-static mb-3 ${statusClass}`}>
+    <div
+      className={`card p-4 card-static mb-3 ${statusClass} ${isDisconnected ? 'opacity-60' : ''}`}
+    >
       <div className="card-title" style={CARD_TITLE_BETWEEN_STYLE}>
         <span>{name}</span>
+        {isDisconnected && (
+          <span className="badge badge-secondary">{UI_COPY.deviceDisconnectedLabel}</span>
+        )}
       </div>
-      {showBatch && (
+      {showBatch && !isDisconnected && (
         <div className="kv-row mt-2">
           <div className="kv-key">{UI_COPY.currentBatchLabel}</div>
           <div className="kv-val">{val(info?.batch)}</div>
         </div>
       )}
-      {showStats && (
+      {showStats && !isDisconnected && (
         <div className="device-stats mt-2">
           <div className="stat-box">
             <div className="stat-val">{info?.read ?? DOMAIN_DEFAULTS.zeroCount}</div>
@@ -104,6 +110,9 @@ function DeviceCard({
             <div className="stat-label">{UI_COPY.devicesStatUnread}</div>
           </div>
         </div>
+      )}
+      {isDisconnected && (
+        <div className="kv-row mt-2 text-secondary">{UI_COPY.deviceDisconnectedHint}</div>
       )}
     </div>
   );

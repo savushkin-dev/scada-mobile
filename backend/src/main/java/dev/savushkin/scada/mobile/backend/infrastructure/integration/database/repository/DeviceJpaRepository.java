@@ -4,9 +4,11 @@ import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.en
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 import org.springframework.data.rest.core.annotation.RestResource;
 
 import java.util.List;
+
 
 public interface DeviceJpaRepository extends JpaRepository<DeviceEntity, Long> {
 
@@ -14,11 +16,13 @@ public interface DeviceJpaRepository extends JpaRepository<DeviceEntity, Long> {
     List<DeviceEntity> findByUnit_Id(Long unitId);
 
     @RestResource(exported = false)
+    boolean existsByUnit_IdAndCatalog_Id(Long unitId, Long catalogId);
+
+    @RestResource(exported = false)
     @Query("""
             select d
             from DeviceEntity d
-            join fetch d.catalog c
-            join fetch c.type
+            join fetch d.type
             where d.unit.printsrvInstanceId = :printsrvInstanceId
             """)
     List<DeviceEntity> findByUnit_PrintsrvInstanceId(@Param("printsrvInstanceId") String printsrvInstanceId);
