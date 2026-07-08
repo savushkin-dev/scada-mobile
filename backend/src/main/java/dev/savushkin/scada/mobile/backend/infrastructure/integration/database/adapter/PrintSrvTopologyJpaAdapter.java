@@ -3,6 +3,7 @@ package dev.savushkin.scada.mobile.backend.infrastructure.integration.database.a
 import dev.savushkin.scada.mobile.backend.application.ports.PrintSrvTopologyRepository;
 import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
 import dev.savushkin.scada.mobile.backend.domain.model.Workshop;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceCatalogEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UnitEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.DeviceJpaRepository;
@@ -117,8 +118,12 @@ public class PrintSrvTopologyJpaAdapter implements PrintSrvTopologyRepository {
         List<String> checkerCams = new ArrayList<>();
 
         for (DeviceEntity device : devices) {
-            String typeCode = device.getType() != null ? device.getType().getCode() : null;
-            String code = device.getCode();
+            DeviceCatalogEntity catalog = device.getCatalog();
+            if (catalog == null || !catalog.isActive() || catalog.getType() == null) {
+                continue; // Пропускаем неактивные и неполностью сконфигурированные
+            }
+            String typeCode = catalog.getType().getCode();
+            String code = catalog.getCode();
             if (typeCode == null || code == null) {
                 continue;
             }

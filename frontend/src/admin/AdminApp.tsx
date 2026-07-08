@@ -5,13 +5,7 @@ import { RoleList, RoleEdit, RoleCreate } from './resources/Roles';
 import { WorkshopList, WorkshopEdit, WorkshopCreate } from './resources/Workshops';
 import { DeviceTypeList, DeviceTypeEdit, DeviceTypeCreate } from './resources/DeviceTypes';
 import { UnitList, UnitEdit, UnitCreate } from './resources/Units';
-import { DeviceList, DeviceEdit, DeviceCreate } from './resources/Devices';
 import { UserList, UserEdit, UserCreate } from './resources/Users';
-import {
-  UserAssignmentList,
-  UserAssignmentEdit,
-  UserAssignmentCreate,
-} from './resources/UserAssignments';
 import {
   NotificationSettingsList,
   NotificationSettingsEdit,
@@ -51,25 +45,11 @@ export function AdminApp() {
           create={UnitCreate}
         />
         <Resource
-          name="devices"
-          options={{ label: 'Устройства' }}
-          list={DeviceList}
-          edit={DeviceEdit}
-          create={DeviceCreate}
-        />
-        <Resource
           name="users"
           options={{ label: 'Сотрудники' }}
           list={UserList}
           edit={UserEdit}
           create={UserCreate}
-        />
-        <Resource
-          name="user-assignments"
-          options={{ label: 'Назначения' }}
-          list={UserAssignmentList}
-          edit={UserAssignmentEdit}
-          create={UserAssignmentCreate}
         />
         <Resource
           name="user-notification-settings"

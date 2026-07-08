@@ -29,6 +29,7 @@ public class RestConfig {
                         dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.WorkshopEntity.class,
                         dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UnitEntity.class,
                         dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceTypeEntity.class,
+                        dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceCatalogEntity.class,
                         dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceEntity.class,
                         dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserEntity.class,
                         dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserAssignmentEntity.class,

@@ -33,7 +33,7 @@ const httpClient = (url: string, options: RequestInit = {}) => {
  *   - delete:     DELETE /{resource}/{id}
  */
 export const dataProvider: DataProvider = {
-  getList: (resource, params) => {
+  getList: async (resource, params) => {
     const { page, perPage } = params.pagination || { page: 1, perPage: 10 };
     const { field, order } = params.sort || { field: 'id', order: 'ASC' };
 
@@ -44,29 +44,71 @@ export const dataProvider: DataProvider = {
 
     const url = `${baseUrl}/${resource}?${query.toString()}`;
 
-    return httpClient(url, {
+    const { headers, json } = await httpClient(url, {
       headers: new Headers({
         Range: `${resource}=${(page - 1) * perPage}-${page * perPage - 1}`,
       }),
-    }).then(({ headers, json }) => {
-      if (!headers.has('content-range')) {
-        throw new Error(
-          'The Content-Range header is missing in the HTTP Response. ' +
-            'If you are using CORS, did you declare Content-Range in the Access-Control-Expose-Headers header?'
-        );
-      }
-      const contentRange = headers.get('content-range')!;
-      const total = parseInt(contentRange.split('/').pop() || '0', 10);
-      return {
-        data: json.content ?? json,
-        total,
-      };
     });
+
+    let data = json.content ?? json;
+    let total = 0;
+
+    if (headers.has('content-range')) {
+      const contentRange = headers.get('content-range')!;
+      total = parseInt(contentRange.split('/').pop() || '0', 10);
+    } else {
+      // Fallback для ручных контроллеров, которые не возвращают Content-Range
+      total = json.totalElements ?? data.length ?? 0;
+    }
+
+    if (resource === 'users') {
+      const [assignmentsRes, unitsRes] = await Promise.all([
+        httpClient(`${baseUrl}/user-assignments?page=0&size=1000&sort=id,asc`),
+        httpClient(`${baseUrl}/units?page=0&size=1000&sort=id,asc`),
+      ]);
+      const assignments = assignmentsRes.json.content ?? [];
+      const units = unitsRes.json.content ?? [];
+
+      data = data.map((user: any) => {
+        const userAssignments = assignments.filter((a: any) => a.userId === user.id && a.active);
+        const unitNames = userAssignments
+          .map((a: any) => {
+            const unit = units.find((u: any) => u.id === a.unitId);
+            return unit?.name ?? a.unitId;
+          })
+          .join(', ');
+
+        return {
+          ...user,
+          assignments: userAssignments,
+          unitNames,
+        };
+      });
+    }
+
+    return { data, total };
   },
 
   getOne: (resource, params) => {
     const url = `${baseUrl}/${resource}/${encodeURIComponent(params.id)}`;
-    return httpClient(url).then(({ json }) => ({ data: json }));
+    return httpClient(url).then(async ({ json }) => {
+      const data = json;
+      if (resource === 'units') {
+        const devicesUrl = `${baseUrl}/devices?unitId=${params.id}&page=0&size=1000&sort=id,asc`;
+        const devicesRes = await httpClient(devicesUrl);
+        const devices = devicesRes.json.content ?? [];
+        data.catalogIds = devices.map((d: any) => d.catalogId);
+      }
+      if (resource === 'users') {
+        const assignmentsUrl = `${baseUrl}/user-assignments?userId=${params.id}&page=0&size=1000&sort=id,asc`;
+        const assignmentsRes = await httpClient(assignmentsUrl);
+        const assignments = assignmentsRes.json.content ?? [];
+        data.unitIds = assignments
+          .filter((a: any) => a.active && a.userId === params.id)
+          .map((a: any) => a.unitId);
+      }
+      return { data };
+    });
   },
 
   getMany: (resource, params) => {
