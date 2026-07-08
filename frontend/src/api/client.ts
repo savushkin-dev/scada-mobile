@@ -91,7 +91,7 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
     // Refresh не удался. Различаем причину:
     // - Сетевая ошибка → сервер недоступен, токены валидны, не выгоняем пользователя
     // - HTTP-ошибка (4xx/5xx) → токены протухли/инвалидированы → logout
-    if (refreshError && isNetworkError(refreshError)) {
+    if (refreshError && refreshError instanceof TypeError) {
       // Сервер недоступен — не чистим auth, прокидываем сетевую ошибку
       throw refreshError;
     }
