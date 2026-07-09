@@ -16,6 +16,7 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -50,6 +51,7 @@ public class AdminUnitController {
     }
 
     @PostMapping
+    @Transactional
     public ResponseEntity<UnitEntity> create(@Valid @RequestBody UnitRequest request) {
         WorkshopEntity workshop = workshopRepository.findById(request.workshopId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Цех не найден"));
@@ -69,6 +71,7 @@ public class AdminUnitController {
     }
 
     @PutMapping("/{id}")
+    @Transactional
     public ResponseEntity<UnitEntity> update(@PathVariable @NonNull Long id,
                                              @Valid @RequestBody UnitRequest request) {
         UnitEntity unit = unitRepository.findById(id)
@@ -91,6 +94,7 @@ public class AdminUnitController {
     }
 
     @DeleteMapping("/{id}")
+    @Transactional
     public ResponseEntity<Void> delete(@PathVariable @NonNull Long id) {
         if (!unitRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Аппарат не найден");
@@ -107,6 +111,7 @@ public class AdminUnitController {
      * @param unit        автомат
      * @param catalogIds  желаемый список ID из device_catalog (null — не менять)
      */
+    @Transactional
     private void syncDevices(UnitEntity unit, List<Long> catalogIds) {
         if (catalogIds == null) {
             return;

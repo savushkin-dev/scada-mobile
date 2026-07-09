@@ -92,19 +92,15 @@ function UnitAssignmentArrayInput({ source }: { source: string }) {
     <SelectArrayInput
       source={source}
       choices={choices}
-      optionText={(choice: UnitChoice) => (
-        <span className={choice.isAssignedToOther ? 'text-secondary' : ''}>
-          {choice.name}
-          {choice.assignedUserName && (
-            <span
-              className="ml-2 text-xs"
-              style={{ color: choice.isAssignedToOther ? '#888' : 'inherit' }}
-            >
-              {choice.isAssignedToOther ? `закреплён за ${choice.assignedUserName}` : `(ваш)`}
-            </span>
-          )}
-        </span>
-      )}
+      optionText={(choice: UnitChoice) =>
+        `${choice.name}${
+          choice.assignedUserName
+            ? choice.isAssignedToOther
+              ? ` (закреплён за ${choice.assignedUserName})`
+              : ' (ваш)'
+            : ''
+        }`
+      }
       optionValue="id"
       label="Автоматы"
     />
@@ -144,7 +140,7 @@ export const UserList = () => (
 );
 
 export const UserEdit = () => (
-  <Edit>
+  <Edit mutationMode="pessimistic">
     <SimpleForm>
       <TextInput source="code" label="Код сотрудника" />
       <TextInput source="fullName" label="ФИО" />

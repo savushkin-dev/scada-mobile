@@ -1,5 +1,6 @@
 package dev.savushkin.scada.mobile.backend.api.controller.admin;
 
+import dev.savushkin.scada.mobile.backend.exception.UnitAssignmentConflictException;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.RoleEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UnitEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserAssignmentEntity;
@@ -17,6 +18,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -56,6 +58,7 @@ public class AdminUserController {
     }
 
     @PostMapping
+    @Transactional
     public ResponseEntity<UserEntity> create(@Valid @RequestBody UserRequest request) {
         RoleEntity role = roleRepository.findById(request.roleId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Роль не найдена"));
@@ -81,6 +84,7 @@ public class AdminUserController {
     }
 
     @PutMapping("/{id}")
+    @Transactional
     public ResponseEntity<UserEntity> update(@PathVariable @NonNull Long id,
                                              @Valid @RequestBody UserRequest request) {
         UserEntity user = userRepository.findById(id)
@@ -108,6 +112,7 @@ public class AdminUserController {
     }
 
     @DeleteMapping("/{id}")
+    @Transactional
     public ResponseEntity<Void> delete(@PathVariable @NonNull Long id) {
         if (!userRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Пользователь не найден");
@@ -125,6 +130,7 @@ public class AdminUserController {
      * @param currentUserId ID текущего пользователя для исключения при проверке конфликтов
      *                        (null для create)
      */
+    @Transactional
     private void syncAssignments(UserEntity user, List<Long> unitIds, Long currentUserId) {
         if (unitIds == null) {
             return;
@@ -137,7 +143,7 @@ public class AdminUserController {
             assignmentRepository.findByUnit_IdAndActiveTrue(unitId).ifPresent(existing -> {
                 Long assignedUserId = existing.getUser().getId();
                 if (currentUserId == null || !assignedUserId.equals(currentUserId)) {
-                    throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    throw new UnitAssignmentConflictException("unitIds",
                             "Автомат уже закреплён за другим сотрудником");
                 }
             });
