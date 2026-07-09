@@ -10,6 +10,14 @@ function subscribeToRefresh(callback: (token: string | null) => void): void {
   refreshSubscribers.push(callback);
 }
 
+/**
+ * Определяет, является ли ошибка сетевой (сервер недоступен, CORS, разрыв соединения).
+ * Fetch бросает TypeError при сетевых сбоях.
+ */
+function isNetworkError(error: unknown): boolean {
+  return error instanceof TypeError;
+}
+
 function notifySubscribers(token: string | null): void {
   refreshSubscribers.forEach((cb) => cb(token));
   refreshSubscribers = [];
