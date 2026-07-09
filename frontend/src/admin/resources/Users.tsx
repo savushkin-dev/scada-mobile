@@ -18,6 +18,7 @@ import {
   useRecordContext,
   FunctionField,
 } from 'react-admin';
+import { TruncatedChipList } from '../components/TruncatedChipList';
 
 interface AdminUnit {
   id: number;
@@ -121,7 +122,9 @@ export const UserList = () => (
       <BooleanField source="active" label="Активен" />
       <FunctionField
         label="Автоматы"
-        render={(record: { unitNames?: string }) => record.unitNames ?? '—'}
+        render={(record: { unitNames?: string[] }) => (
+          <TruncatedChipList items={record.unitNames} />
+        )}
       />
       <EditButton />
       <DeleteButton />

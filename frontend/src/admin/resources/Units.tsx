@@ -15,7 +15,9 @@ import {
   SelectArrayInput,
   Create,
   DeleteButton,
+  FunctionField,
 } from 'react-admin';
+import { TruncatedChipList } from '../components/TruncatedChipList';
 
 export const UnitList = () => (
   <List>
@@ -29,6 +31,12 @@ export const UnitList = () => (
       <TextField source="printsrvHost" label="Хост" />
       <TextField source="printsrvPort" label="Порт" />
       <BooleanField source="active" label="Активен" />
+      <FunctionField
+        label="Устройства"
+        render={(record: { deviceNames?: string[] }) => (
+          <TruncatedChipList items={record.deviceNames} />
+        )}
+      />
       <EditButton />
       <DeleteButton />
     </Datagrid>

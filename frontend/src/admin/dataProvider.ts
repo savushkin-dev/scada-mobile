@@ -75,17 +75,39 @@ export const dataProvider: DataProvider = {
 
         data = data.map((user: any) => {
           const userAssignments = assignments.filter((a: any) => a.userId === user.id && a.active);
-          const unitNames = userAssignments
-            .map((a: any) => {
-              const unit = units.find((u: any) => u.id === a.unitId);
-              return unit?.name ?? a.unitId;
-            })
-            .join(', ');
+          const unitNames = userAssignments.map((a: any) => {
+            const unit = units.find((u: any) => u.id === a.unitId);
+            return unit?.name ?? String(a.unitId);
+          });
 
           return {
             ...user,
             assignments: userAssignments,
             unitNames,
+          };
+        });
+      }
+
+      if (resource === 'units') {
+        const [devicesRes, catalogRes] = await Promise.all([
+          httpClient(`${baseUrl}/devices?page=0&size=1000&sort=id,asc`),
+          httpClient(`${baseUrl}/device-catalog?page=0&size=1000&sort=id,asc`),
+        ]);
+        const devices = devicesRes.json.content ?? [];
+        const catalogs = catalogRes.json.content ?? [];
+
+        data = data.map((unit: any) => {
+          const unitCatalogIds = devices
+            .filter((d: any) => d.unitId === unit.id)
+            .map((d: any) => d.catalogId);
+          const deviceNames = unitCatalogIds.map((catalogId: any) => {
+            const catalog = catalogs.find((c: any) => c.id === catalogId);
+            return catalog?.displayName ?? catalog?.code ?? String(catalogId);
+          });
+
+          return {
+            ...unit,
+            deviceNames,
           };
         });
       }
