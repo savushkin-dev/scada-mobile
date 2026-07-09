@@ -1,176 +1,236 @@
-import {
-  List,
-  Datagrid,
-  TextField,
-  ReferenceField,
-  BooleanField,
-  EditButton,
-  Edit,
-  SimpleForm,
-  TextInput,
-  ReferenceInput,
-  SelectInput,
-  BooleanInput,
-  Create,
-  DeleteButton,
-  SelectArrayInput,
-  useGetList,
-  useRecordContext,
-  FunctionField,
-} from 'react-admin';
-import { TruncatedChipList } from '../components/TruncatedChipList';
+import { useNavigate } from 'react-router-dom';
+import { useListContext } from 'react-admin';
+import { AdminListContainer } from '../ui/AdminListContainer';
+import { MobileCardList } from '../ui/MobileCardList';
+import { DesktopDataTable } from '../ui/DesktopDataTable';
+import { AdminEditForm } from '../ui/AdminEditForm';
+import { AdminCreateForm } from '../ui/AdminCreateForm';
+import { RoundedInput } from '../ui/RoundedInput';
+import { IOSSwitch } from '../ui/IOSSwitch';
+import { StatusPill } from '../ui/StatusPill';
+import { AdminChip } from '../ui/AdminChip';
+import { ReferenceSelect } from '../ui/ReferenceSelect';
+import { UnitAssignmentSelect } from '../ui/UnitAssignmentSelect';
+import { PillButton } from '../ui/PillButton';
+import { useNameMap } from '../ui/useNameMap';
+import { IconPencil, IconTrash } from '../ui/icons';
 import { UserNotificationSettingsEditor } from '../components/UserNotificationSettingsEditor';
 
-interface AdminUnit {
+interface User {
   id: number;
-  name: string;
-}
-
-interface UserAssignment {
-  id: number;
-  userId: number;
-  unitId: number;
-  active: boolean;
-}
-
-interface AdminUser {
-  id: number;
+  code: string;
   fullName: string;
+  roleId: number;
+  active: boolean;
+  unitNames?: string[];
+  incidentNotificationsCount?: number;
+  callNotificationsCount?: number;
 }
 
-interface UnitChoice extends AdminUnit {
-  assignedUserName: string | null;
-  isAssignedToOther: boolean;
-}
-
-/**
- * Кастомный multi-select автоматов с индикацией занятости.
- *
- * - Свободные автоматы — обычным цветом.
- * - Закреплённые за другими сотрудниками — тусклее, с badge'ом справа
- *   с фамилией сотрудника, за которым закреплён.
- */
-function UnitAssignmentArrayInput({ source }: { source: string }) {
-  const record = useRecordContext<AdminUser>();
-  const currentUserId = record?.id;
-
-  const { data: units, isLoading: unitsLoading } = useGetList<AdminUnit>('units', {
-    pagination: { page: 1, perPage: 1000 },
-    sort: { field: 'name', order: 'ASC' },
-  });
-  const { data: assignments, isLoading: assignmentsLoading } = useGetList<UserAssignment>(
-    'user-assignments',
-    {
-      pagination: { page: 1, perPage: 1000 },
-      sort: { field: 'id', order: 'ASC' },
-    }
-  );
-  const { data: users, isLoading: usersLoading } = useGetList<AdminUser>('users', {
-    pagination: { page: 1, perPage: 1000 },
-    sort: { field: 'fullName', order: 'ASC' },
-  });
-
-  if (unitsLoading || assignmentsLoading || usersLoading) {
-    return <div className="text-secondary p-2">Загрузка автоматов...</div>;
-  }
-
-  const choices: UnitChoice[] = (units ?? []).map((unit) => {
-    const assignment = (assignments ?? []).find((a) => a.unitId === unit.id && a.active);
-    const assignedUser = assignment ? (users ?? []).find((u) => u.id === assignment.userId) : null;
-    const assignedUserName = assignedUser?.fullName ?? null;
-    const isAssignedToOther =
-      assignedUserName != null && assignedUser != null && assignedUser.id !== currentUserId;
-
-    return {
-      ...unit,
-      assignedUserName,
-      isAssignedToOther,
-    };
-  });
+export const UserList = () => {
+  const navigate = useNavigate();
+  const { data } = useListContext<User>();
+  const records = data ?? [];
 
   return (
-    <SelectArrayInput
-      source={source}
-      choices={choices}
-      optionText={(choice: UnitChoice) =>
-        `${choice.name}${
-          choice.assignedUserName
-            ? choice.isAssignedToOther
-              ? ` (закреплён за ${choice.assignedUserName})`
-              : ' (ваш)'
-            : ''
-        }`
-      }
-      optionValue="id"
-      label="Автоматы"
-    />
+    <AdminListContainer title="Сотрудники">
+      <MobileCardList
+        records={records}
+        renderCard={(user) => (
+          <div className="rounded-[20px] bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-base font-bold text-[#1a1c1e]">{user.fullName}</span>
+              <StatusPill variant={user.active ? 'active' : 'inactive'}>
+                {user.active ? 'Активен' : 'Неактивен'}
+              </StatusPill>
+            </div>
+            <div className="mb-3 space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-[#74777f]">Код</span>
+                <span className="text-[#1a1c1e]">{user.code}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#74777f]">Роль</span>
+                <RoleName id={user.roleId} />
+              </div>
+            </div>
+            {user.unitNames && user.unitNames.length > 0 && (
+              <div className="mb-3 flex flex-wrap gap-1">
+                {user.unitNames.slice(0, 2).map((name) => (
+                  <AdminChip key={name}>{name}</AdminChip>
+                ))}
+                {user.unitNames.length > 2 && <AdminChip>+{user.unitNames.length - 2}</AdminChip>}
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-2">
+              <PillButton
+                variant="secondary"
+                icon={<IconPencil size={16} />}
+                onClick={() => navigate(user.id.toString())}
+                className="h-9 px-3 text-xs"
+              >
+                Изменить
+              </PillButton>
+              <PillButton
+                variant="danger"
+                icon={<IconTrash size={16} />}
+                onClick={() => navigate(user.id.toString())}
+                className="h-9 px-3 text-xs"
+              >
+                Удалить
+              </PillButton>
+            </div>
+          </div>
+        )}
+      />
+      <DesktopDataTable
+        records={records}
+        keyExtractor={(user) => user.id}
+        columns={[
+          { key: 'id', header: 'ID', render: (user) => user.id, className: 'w-12' },
+          { key: 'code', header: 'Код сотрудника', render: (user) => user.code },
+          { key: 'fullName', header: 'ФИО', render: (user) => user.fullName },
+          {
+            key: 'role',
+            header: 'Роль',
+            render: (user) => <RoleName id={user.roleId} />,
+          },
+          {
+            key: 'active',
+            header: 'Активен',
+            render: (user) => (
+              <StatusPill variant={user.active ? 'active' : 'inactive'}>
+                {user.active ? 'Активен' : 'Неактивен'}
+              </StatusPill>
+            ),
+          },
+          {
+            key: 'units',
+            header: 'Автоматы',
+            render: (user) => (
+              <div className="flex flex-wrap gap-1">
+                {user.unitNames?.slice(0, 2).map((name) => (
+                  <AdminChip key={name}>{name}</AdminChip>
+                ))}
+                {(user.unitNames?.length ?? 0) > 2 && (
+                  <AdminChip>+{(user.unitNames?.length ?? 0) - 2}</AdminChip>
+                )}
+              </div>
+            ),
+          },
+          {
+            key: 'incidents',
+            header: 'Тех. сбои',
+            render: (user) => user.incidentNotificationsCount ?? 0,
+            className: 'w-20',
+          },
+          {
+            key: 'calls',
+            header: 'Вызов',
+            render: (user) => user.callNotificationsCount ?? 0,
+            className: 'w-16',
+          },
+          {
+            key: 'actions',
+            header: '',
+            render: (user) => (
+              <div className="flex items-center justify-end gap-2">
+                <PillButton
+                  variant="secondary"
+                  icon={<IconPencil size={16} />}
+                  onClick={() => navigate(user.id.toString())}
+                  className="h-9 px-3 text-xs"
+                >
+                  Изменить
+                </PillButton>
+                <PillButton
+                  variant="danger"
+                  icon={<IconTrash size={16} />}
+                  onClick={() => navigate(user.id.toString())}
+                  className="h-9 px-3 text-xs"
+                >
+                  Удалить
+                </PillButton>
+              </div>
+            ),
+          },
+        ]}
+      />
+    </AdminListContainer>
+  );
+};
+
+function RoleName({ id }: { id: number }) {
+  const getName = useNameMap('roles');
+  return <span className="text-[#4285f4]">{getName(id)}</span>;
+}
+
+function UserFormFields({
+  record,
+  onChange,
+  isCreate,
+}: {
+  record: Record<string, unknown>;
+  onChange: (field: string, value: unknown) => void;
+  isCreate: boolean;
+}) {
+  return (
+    <div className="space-y-5">
+      <RoundedInput
+        label="Код сотрудника"
+        value={(record.code as string) ?? ''}
+        onChange={(e) => onChange('code', e.target.value)}
+        required
+      />
+      <RoundedInput
+        label="ФИО"
+        value={(record.fullName as string) ?? ''}
+        onChange={(e) => onChange('fullName', e.target.value)}
+        required
+      />
+      <RoundedInput
+        label={isCreate ? 'Пароль' : 'Пароль (оставьте пустым, чтобы не менять)'}
+        type="password"
+        value={(record.password as string) ?? ''}
+        onChange={(e) => onChange('password', e.target.value)}
+        required={isCreate}
+      />
+      <ReferenceSelect
+        label="Роль"
+        reference="roles"
+        optionText="name"
+        value={(record.roleId as number) ?? null}
+        onChange={(v) => onChange('roleId', v)}
+        placeholder="Выберите роль"
+      />
+      <label className="flex items-center justify-between">
+        <span className="text-sm font-medium text-[#1a1c1e]">Активен</span>
+        <IOSSwitch
+          checked={!!record.active}
+          onChange={(e) => onChange('active', e.target.checked)}
+        />
+      </label>
+      <UnitAssignmentSelect
+        value={(record.unitIds as number[]) ?? []}
+        onChange={(v) => onChange('unitIds', v)}
+      />
+    </div>
   );
 }
 
-export const UserList = () => (
-  <List>
-    <Datagrid rowClick="edit">
-      <TextField source="id" />
-      <TextField source="code" label="Код сотрудника" />
-      <TextField source="fullName" label="ФИО" />
-      <ReferenceField source="roleId" reference="roles" label="Роль">
-        <TextField source="name" />
-      </ReferenceField>
-      <BooleanField source="active" label="Активен" />
-      <FunctionField
-        label="Автоматы"
-        render={(record: { unitNames?: string[] }) => (
-          <TruncatedChipList items={record.unitNames} />
-        )}
-      />
-      <FunctionField
-        label="Тех. сбои"
-        render={(record: { incidentNotificationsCount?: number }) =>
-          record.incidentNotificationsCount ?? 0
-        }
-      />
-      <FunctionField
-        label="Вызов"
-        render={(record: { callNotificationsCount?: number }) => record.callNotificationsCount ?? 0}
-      />
-      <EditButton />
-      <DeleteButton />
-    </Datagrid>
-  </List>
-);
-
 export const UserEdit = () => (
-  <Edit mutationMode="pessimistic">
-    <SimpleForm>
-      <TextInput source="code" label="Код сотрудника" />
-      <TextInput source="fullName" label="ФИО" />
-      <TextInput
-        source="password"
-        label="Пароль (оставьте пустым, чтобы не менять)"
-        type="password"
-      />
-      <ReferenceInput source="roleId" reference="roles">
-        <SelectInput optionText="name" label="Роль" />
-      </ReferenceInput>
-      <BooleanInput source="active" label="Активен" />
-      <UnitAssignmentArrayInput source="unitIds" />
-      <UserNotificationSettingsEditor />
-    </SimpleForm>
-  </Edit>
+  <AdminEditForm title="Редактирование сотрудника">
+    {({ record, onChange }) => (
+      <div className="space-y-6">
+        <UserFormFields record={record} onChange={onChange} isCreate={false} />
+        <UserNotificationSettingsEditor />
+      </div>
+    )}
+  </AdminEditForm>
 );
 
 export const UserCreate = () => (
-  <Create>
-    <SimpleForm>
-      <TextInput source="code" label="Код сотрудника" />
-      <TextInput source="fullName" label="ФИО" />
-      <TextInput source="password" label="Пароль" type="password" />
-      <ReferenceInput source="roleId" reference="roles">
-        <SelectInput optionText="name" label="Роль" />
-      </ReferenceInput>
-      <BooleanInput source="active" label="Активен" defaultValue={true} />
-      <UnitAssignmentArrayInput source="unitIds" />
-      <UserNotificationSettingsEditor />
-    </SimpleForm>
-  </Create>
+  <AdminCreateForm title="Новый сотрудник" defaultValues={{ active: true, unitIds: [] }}>
+    {({ record, onChange }) => <UserFormFields record={record} onChange={onChange} isCreate />}
+  </AdminCreateForm>
 );

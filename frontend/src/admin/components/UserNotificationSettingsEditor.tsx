@@ -7,6 +7,11 @@ import {
   useDelete,
   useNotify,
 } from 'react-admin';
+import { AdminCard } from '../ui/AdminCard';
+import { IOSSwitch } from '../ui/IOSSwitch';
+import { PillButton } from '../ui/PillButton';
+import { SearchableSelect } from '../ui/SearchableSelect';
+import { IconBell, IconPlus } from '../ui/icons';
 
 interface NotificationSetting {
   id: number;
@@ -23,20 +28,12 @@ interface Unit {
   name: string;
 }
 
-/**
- * Inline-редактор настроек уведомлений внутри карточки сотрудника.
- *
- * Показывает таблицу настроек (автомат + флаги) и позволяет:
- * - переключать "Тех. сбои" / "Вызов" / "Активны";
- * - удалять настройку;
- * - добавлять настройку для ещё не выбранного автомата.
- */
 export function UserNotificationSettingsEditor() {
   const record = useRecordContext();
   const userId = record?.id as number | undefined;
   const notify = useNotify();
 
-  const [selectedUnitId, setSelectedUnitId] = useState('');
+  const [selectedUnitId, setSelectedUnitId] = useState<string>('');
 
   const {
     data: settings,
@@ -58,7 +55,11 @@ export function UserNotificationSettingsEditor() {
   const [deleteOne] = useDelete();
 
   if (settingsLoading || unitsLoading) {
-    return <div className="text-secondary p-2">Загрузка настроек уведомлений...</div>;
+    return (
+      <AdminCard title="Настройки уведомлений" icon={<IconBell size={20} />}>
+        <div className="py-4 text-sm text-[#74777f]">Загрузка настроек уведомлений...</div>
+      </AdminCard>
+    );
   }
 
   const settingsList = settings ?? [];
@@ -79,7 +80,7 @@ export function UserNotificationSettingsEditor() {
       },
       {
         onSuccess: () => {
-          notify('Настройка сохранена');
+          notify('Настройка сохранена', { type: 'info' });
           refetch();
         },
         onError: () => notify('Ошибка сохранения', { type: 'error' }),
@@ -104,7 +105,7 @@ export function UserNotificationSettingsEditor() {
       },
       {
         onSuccess: () => {
-          notify('Настройка добавлена');
+          notify('Настройка добавлена', { type: 'info' });
           setSelectedUnitId('');
           refetch();
         },
@@ -119,7 +120,7 @@ export function UserNotificationSettingsEditor() {
       { id },
       {
         onSuccess: () => {
-          notify('Настройка удалена');
+          notify('Настройка удалена', { type: 'info' });
           refetch();
         },
         onError: () => notify('Ошибка удаления', { type: 'error' }),
@@ -128,86 +129,154 @@ export function UserNotificationSettingsEditor() {
   };
 
   return (
-    <div className="mt-6 rounded border border-gray-200 p-4">
-      <h3 className="mb-3 text-lg font-medium">Настройки уведомлений</h3>
-
+    <AdminCard
+      title="Настройки уведомлений"
+      subtitle="Per-unit notification preferences"
+      icon={<IconBell size={20} />}
+    >
       {settingsList.length === 0 ? (
-        <p className="text-secondary mb-3">Нет настроек уведомлений</p>
+        <p className="py-2 text-sm text-[#74777f]">Нет настроек уведомлений</p>
       ) : (
-        <table className="w-full text-left text-sm">
-          <thead className="border-b text-gray-600">
-            <tr>
-              <th className="pb-2 font-medium">Автомат</th>
-              <th className="pb-2 font-medium">Тех. сбои</th>
-              <th className="pb-2 font-medium">Вызов</th>
-              <th className="pb-2 font-medium">Активны</th>
-              <th className="pb-2 font-medium"></th>
-            </tr>
-          </thead>
-          <tbody>
+        <>
+          {/* Desktop table */}
+          <div className="hidden overflow-x-auto lg:block">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-[#f0f0f0]">
+                  <th className="pb-3 text-left text-xs font-semibold uppercase tracking-[0.05em] text-[#74777f]">
+                    Автомат
+                  </th>
+                  <th className="pb-3 text-left text-xs font-semibold uppercase tracking-[0.05em] text-[#74777f]">
+                    Тех. сбои
+                  </th>
+                  <th className="pb-3 text-left text-xs font-semibold uppercase tracking-[0.05em] text-[#74777f]">
+                    Вызов
+                  </th>
+                  <th className="pb-3 text-left text-xs font-semibold uppercase tracking-[0.05em] text-[#74777f]">
+                    Активны
+                  </th>
+                  <th className="pb-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {settingsList.map((setting) => (
+                  <tr key={setting.id} className="border-b border-[#f0f0f0] last:border-b-0">
+                    <td className="py-3 pr-4 text-sm font-medium text-[#1a1c1e]">
+                      {unitName(setting.unitId)}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <IOSSwitch
+                        scale="compact"
+                        checked={setting.incidentNotificationsEnabled}
+                        onChange={() => handleToggle(setting, 'incidentNotificationsEnabled')}
+                      />
+                    </td>
+                    <td className="py-3 pr-4">
+                      <IOSSwitch
+                        scale="compact"
+                        checked={setting.androidCallNotificationsEnabled}
+                        onChange={() => handleToggle(setting, 'androidCallNotificationsEnabled')}
+                      />
+                    </td>
+                    <td className="py-3 pr-4">
+                      <IOSSwitch
+                        scale="compact"
+                        checked={setting.active}
+                        onChange={() => handleToggle(setting, 'active')}
+                      />
+                    </td>
+                    <td className="py-3 text-right">
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(setting.id)}
+                        className="text-sm font-medium text-[#ea4335] hover:underline"
+                      >
+                        Удалить
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="flex flex-col gap-3 lg:hidden">
             {settingsList.map((setting) => (
-              <tr key={setting.id} className="border-b last:border-0">
-                <td className="py-2 pr-4">{unitName(setting.unitId)}</td>
-                <td className="py-2 pr-4">
-                  <input
-                    type="checkbox"
-                    checked={setting.incidentNotificationsEnabled}
-                    onChange={() => handleToggle(setting, 'incidentNotificationsEnabled')}
-                  />
-                </td>
-                <td className="py-2 pr-4">
-                  <input
-                    type="checkbox"
-                    checked={setting.androidCallNotificationsEnabled}
-                    onChange={() => handleToggle(setting, 'androidCallNotificationsEnabled')}
-                  />
-                </td>
-                <td className="py-2 pr-4">
-                  <input
-                    type="checkbox"
-                    checked={setting.active}
-                    onChange={() => handleToggle(setting, 'active')}
-                  />
-                </td>
-                <td className="py-2">
+              <div key={setting.id} className="rounded-[16px] border border-[#f0f0f0] p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="font-semibold text-[#1a1c1e]">{unitName(setting.unitId)}</span>
                   <button
                     type="button"
-                    className="text-red-600 hover:underline"
                     onClick={() => handleDelete(setting.id)}
+                    className="text-sm font-medium text-[#ea4335]"
                   >
                     Удалить
                   </button>
-                </td>
-              </tr>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <ToggleItem
+                    label="Тех. сбои"
+                    checked={setting.incidentNotificationsEnabled}
+                    onChange={() => handleToggle(setting, 'incidentNotificationsEnabled')}
+                  />
+                  <ToggleItem
+                    label="Вызов"
+                    checked={setting.androidCallNotificationsEnabled}
+                    onChange={() => handleToggle(setting, 'androidCallNotificationsEnabled')}
+                  />
+                  <ToggleItem
+                    label="Активны"
+                    checked={setting.active}
+                    onChange={() => handleToggle(setting, 'active')}
+                  />
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        </>
       )}
 
       {availableUnits.length > 0 && (
-        <div className="mt-3 flex items-center gap-2">
-          <select
-            className="rounded border border-gray-300 px-2 py-1 text-sm"
-            value={selectedUnitId}
-            onChange={(e) => setSelectedUnitId(e.target.value)}
-          >
-            <option value="">Выберите автомат...</option>
-            {availableUnits.map((unit) => (
-              <option key={unit.id} value={unit.id}>
-                {unit.name}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="rounded bg-blue-600 px-3 py-1 text-sm text-white disabled:opacity-50"
-            disabled={!selectedUnitId}
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+          <div className="flex-1">
+            <SearchableSelect
+              label="Добавить автомат"
+              options={availableUnits.map((u) => ({ id: u.id, label: u.name }))}
+              value={selectedUnitId ? Number(selectedUnitId) : null}
+              onChange={(v) => setSelectedUnitId(v != null ? String(v) : '')}
+              placeholder="Выберите автомат"
+            />
+          </div>
+          <PillButton
+            icon={<IconPlus size={16} />}
             onClick={handleAdd}
+            disabled={!selectedUnitId}
+            className="h-10"
           >
             Добавить
-          </button>
+          </PillButton>
         </div>
       )}
-    </div>
+    </AdminCard>
+  );
+}
+
+function ToggleItem({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <label className="flex flex-col items-center gap-1.5 rounded-[12px] bg-[#f8f9fa] py-2">
+      <span className="text-[11px] font-medium uppercase tracking-wide text-[#74777f]">
+        {label}
+      </span>
+      <IOSSwitch scale="compact" checked={checked} onChange={onChange} />
+    </label>
   );
 }

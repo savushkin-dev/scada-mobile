@@ -10,7 +10,7 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "preview": "vite preview",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc -b --noEmit",
     "prepare": "cd .. && husky frontend/.husky"
   },
   "lint-staged": {

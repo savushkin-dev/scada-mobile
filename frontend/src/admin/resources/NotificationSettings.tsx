@@ -1,68 +1,49 @@
-import {
-  List,
-  Datagrid,
-  TextField,
-  ReferenceField,
-  BooleanField,
-  DateField,
-  EditButton,
-  Edit,
-  SimpleForm,
-  ReferenceInput,
-  SelectInput,
-  BooleanInput,
-  Create,
-  DeleteButton,
-} from 'react-admin';
-
-export const NotificationSettingsList = () => (
-  <List>
-    <Datagrid rowClick="edit">
-      <TextField source="id" />
-      <ReferenceField source="userId" reference="users" label="Сотрудник">
-        <TextField source="fullName" />
-      </ReferenceField>
-      <ReferenceField source="unitId" reference="units" label="Автомат">
-        <TextField source="name" />
-      </ReferenceField>
-      <BooleanField source="incidentNotificationsEnabled" label="Тех. сбои" />
-      <BooleanField source="androidCallNotificationsEnabled" label="Вызов" />
-      <BooleanField source="active" label="Активны" />
-      <DateField source="updatedAt" label="Обновлено" />
-      <EditButton />
-      <DeleteButton />
-    </Datagrid>
-  </List>
-);
+import { AdminEditForm } from '../ui/AdminEditForm';
+import { ReferenceSelect } from '../ui/ReferenceSelect';
+import { IOSSwitch } from '../ui/IOSSwitch';
 
 export const NotificationSettingsEdit = () => (
-  <Edit>
-    <SimpleForm>
-      <ReferenceInput source="userId" reference="users">
-        <SelectInput optionText="fullName" label="Сотрудник" />
-      </ReferenceInput>
-      <ReferenceInput source="unitId" reference="units">
-        <SelectInput optionText="name" label="Автомат" />
-      </ReferenceInput>
-      <BooleanInput source="incidentNotificationsEnabled" label="Тех. сбои" />
-      <BooleanInput source="androidCallNotificationsEnabled" label="Вызов" />
-      <BooleanInput source="active" label="Активны" />
-    </SimpleForm>
-  </Edit>
-);
-
-export const NotificationSettingsCreate = () => (
-  <Create>
-    <SimpleForm>
-      <ReferenceInput source="userId" reference="users">
-        <SelectInput optionText="fullName" label="Сотрудник" />
-      </ReferenceInput>
-      <ReferenceInput source="unitId" reference="units">
-        <SelectInput optionText="name" label="Автомат" />
-      </ReferenceInput>
-      <BooleanInput source="incidentNotificationsEnabled" label="Тех. сбои" defaultValue={true} />
-      <BooleanInput source="androidCallNotificationsEnabled" label="Вызов" defaultValue={true} />
-      <BooleanInput source="active" label="Активны" defaultValue={true} />
-    </SimpleForm>
-  </Create>
+  <AdminEditForm title="Редактирование настройки уведомлений">
+    {({ record, onChange }) => (
+      <div className="space-y-5">
+        <ReferenceSelect
+          label="Сотрудник"
+          reference="users"
+          optionText="fullName"
+          value={(record.userId as number) ?? null}
+          onChange={(v) => onChange('userId', v)}
+          placeholder="Выберите сотрудника"
+        />
+        <ReferenceSelect
+          label="Автомат"
+          reference="units"
+          optionText="name"
+          value={(record.unitId as number) ?? null}
+          onChange={(v) => onChange('unitId', v)}
+          placeholder="Выберите автомат"
+        />
+        <label className="flex items-center justify-between">
+          <span className="text-sm font-medium text-[#1a1c1e]">Тех. сбои</span>
+          <IOSSwitch
+            checked={!!record.incidentNotificationsEnabled}
+            onChange={(e) => onChange('incidentNotificationsEnabled', e.target.checked)}
+          />
+        </label>
+        <label className="flex items-center justify-between">
+          <span className="text-sm font-medium text-[#1a1c1e]">Вызов</span>
+          <IOSSwitch
+            checked={!!record.androidCallNotificationsEnabled}
+            onChange={(e) => onChange('androidCallNotificationsEnabled', e.target.checked)}
+          />
+        </label>
+        <label className="flex items-center justify-between">
+          <span className="text-sm font-medium text-[#1a1c1e]">Активны</span>
+          <IOSSwitch
+            checked={!!record.active}
+            onChange={(e) => onChange('active', e.target.checked)}
+          />
+        </label>
+      </div>
+    )}
+  </AdminEditForm>
 );

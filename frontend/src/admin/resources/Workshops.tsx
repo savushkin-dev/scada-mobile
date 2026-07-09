@@ -1,43 +1,145 @@
-import {
-  List,
-  Datagrid,
-  TextField,
-  BooleanField,
-  EditButton,
-  Edit,
-  SimpleForm,
-  TextInput,
-  BooleanInput,
-  Create,
-  DeleteButton,
-} from 'react-admin';
+import { useNavigate } from 'react-router-dom';
+import { useListContext } from 'react-admin';
+import { AdminListContainer } from '../ui/AdminListContainer';
+import { MobileCardList } from '../ui/MobileCardList';
+import { DesktopDataTable } from '../ui/DesktopDataTable';
+import { AdminEditForm } from '../ui/AdminEditForm';
+import { AdminCreateForm } from '../ui/AdminCreateForm';
+import { RoundedInput } from '../ui/RoundedInput';
+import { IOSSwitch } from '../ui/IOSSwitch';
+import { StatusPill } from '../ui/StatusPill';
+import { PillButton } from '../ui/PillButton';
+import { IconPencil, IconTrash } from '../ui/icons';
 
-export const WorkshopList = () => (
-  <List>
-    <Datagrid rowClick="edit">
-      <TextField source="id" />
-      <TextField source="name" label="Название" />
-      <BooleanField source="active" label="Активен" />
-      <EditButton />
-      <DeleteButton />
-    </Datagrid>
-  </List>
-);
+interface Workshop {
+  id: number;
+  name: string;
+  active: boolean;
+}
+
+export const WorkshopList = () => {
+  const navigate = useNavigate();
+  const { data } = useListContext<Workshop>();
+  const records = data ?? [];
+
+  return (
+    <AdminListContainer title="Цеха">
+      <MobileCardList
+        records={records}
+        renderCard={(workshop) => (
+          <div className="rounded-[20px] bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-base font-bold text-[#1a1c1e]">{workshop.name}</span>
+              <StatusPill variant={workshop.active ? 'active' : 'inactive'}>
+                {workshop.active ? 'Активен' : 'Неактивен'}
+              </StatusPill>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <PillButton
+                variant="secondary"
+                icon={<IconPencil size={16} />}
+                onClick={() => navigate(workshop.id.toString())}
+                className="h-9 px-3 text-xs"
+              >
+                Изменить
+              </PillButton>
+              <PillButton
+                variant="danger"
+                icon={<IconTrash size={16} />}
+                onClick={() => navigate(workshop.id.toString())}
+                className="h-9 px-3 text-xs"
+              >
+                Удалить
+              </PillButton>
+            </div>
+          </div>
+        )}
+      />
+      <DesktopDataTable
+        records={records}
+        keyExtractor={(workshop) => workshop.id}
+        columns={[
+          { key: 'id', header: 'ID', render: (workshop) => workshop.id, className: 'w-16' },
+          { key: 'name', header: 'Название', render: (workshop) => workshop.name },
+          {
+            key: 'active',
+            header: 'Активен',
+            render: (workshop) => (
+              <StatusPill variant={workshop.active ? 'active' : 'inactive'}>
+                {workshop.active ? 'Активен' : 'Неактивен'}
+              </StatusPill>
+            ),
+          },
+          {
+            key: 'actions',
+            header: '',
+            render: (workshop) => (
+              <div className="flex items-center justify-end gap-2">
+                <PillButton
+                  variant="secondary"
+                  icon={<IconPencil size={16} />}
+                  onClick={() => navigate(workshop.id.toString())}
+                  className="h-9 px-3 text-xs"
+                >
+                  Изменить
+                </PillButton>
+                <PillButton
+                  variant="danger"
+                  icon={<IconTrash size={16} />}
+                  onClick={() => navigate(workshop.id.toString())}
+                  className="h-9 px-3 text-xs"
+                >
+                  Удалить
+                </PillButton>
+              </div>
+            ),
+          },
+        ]}
+      />
+    </AdminListContainer>
+  );
+};
 
 export const WorkshopEdit = () => (
-  <Edit>
-    <SimpleForm>
-      <TextInput source="name" label="Название цеха" />
-      <BooleanInput source="active" label="Активен" />
-    </SimpleForm>
-  </Edit>
+  <AdminEditForm title="Редактирование цеха">
+    {({ record, onChange }) => (
+      <div className="space-y-5">
+        <RoundedInput
+          label="Название цеха"
+          value={(record.name as string) ?? ''}
+          onChange={(e) => onChange('name', e.target.value)}
+          required
+        />
+        <label className="flex items-center justify-between">
+          <span className="text-sm font-medium text-[#1a1c1e]">Активен</span>
+          <IOSSwitch
+            checked={!!record.active}
+            onChange={(e) => onChange('active', e.target.checked)}
+          />
+        </label>
+      </div>
+    )}
+  </AdminEditForm>
 );
 
 export const WorkshopCreate = () => (
-  <Create>
-    <SimpleForm>
-      <TextInput source="name" label="Название цеха" />
-      <BooleanInput source="active" label="Активен" defaultValue={true} />
-    </SimpleForm>
-  </Create>
+  <AdminCreateForm title="Новый цех" defaultValues={{ active: true }}>
+    {({ record, onChange }) => (
+      <div className="space-y-5">
+        <RoundedInput
+          label="Название цеха"
+          value={(record.name as string) ?? ''}
+          onChange={(e) => onChange('name', e.target.value)}
+          required
+        />
+        <label className="flex items-center justify-between">
+          <span className="text-sm font-medium text-[#1a1c1e]">Активен</span>
+          <IOSSwitch
+            checked={!!record.active}
+            onChange={(e) => onChange('active', e.target.checked)}
+          />
+        </label>
+      </div>
+    )}
+  </AdminCreateForm>
 );
