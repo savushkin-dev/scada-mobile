@@ -14,6 +14,9 @@ public interface DeviceJpaRepository extends JpaRepository<DeviceEntity, Long> {
     List<DeviceEntity> findByUnit_Id(Long unitId);
 
     @RestResource(exported = false)
+    void deleteByUnit_Id(Long unitId);
+
+    @RestResource(exported = false)
     boolean existsByUnit_IdAndCatalog_Id(Long unitId, Long catalogId);
 
     @RestResource(exported = false)

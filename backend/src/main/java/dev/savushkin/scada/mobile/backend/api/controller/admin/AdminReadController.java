@@ -10,7 +10,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * Единый read-only контроллер для админ-панели.
@@ -122,7 +125,15 @@ public class AdminReadController {
     // ── Devices ───────────────────────────────────────────────────────────
 
     @GetMapping("/devices")
-    public ResponseEntity<Page<DeviceEntity>> listDevices(Pageable pageable) {
+    public ResponseEntity<Page<DeviceEntity>> listDevices(
+            @RequestParam(required = false) Long unitId,
+            Pageable pageable
+    ) {
+        if (unitId != null) {
+            List<DeviceEntity> devices = deviceRepository.findByUnit_Id(unitId);
+            Page<DeviceEntity> page = new org.springframework.data.domain.PageImpl<>(devices, pageable, devices.size());
+            return pageResponse(page, "devices");
+        }
         return pageResponse(deviceRepository.findAll(pageable), "devices");
     }
 

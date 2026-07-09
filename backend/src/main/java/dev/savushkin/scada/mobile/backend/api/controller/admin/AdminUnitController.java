@@ -1,8 +1,12 @@
 package dev.savushkin.scada.mobile.backend.api.controller.admin;
 
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.adapter.PrintSrvTopologyJpaAdapter;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceCatalogEntity;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UnitEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.WorkshopEntity;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.DeviceCatalogJpaRepository;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.DeviceJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UnitJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.WorkshopJpaRepository;
 import jakarta.validation.Valid;
@@ -15,6 +19,10 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 /**
  * Ручной CRUD-контроллер для управления unit (аппаратами/линиями).
  */
@@ -25,13 +33,19 @@ public class AdminUnitController {
 
     private final UnitJpaRepository unitRepository;
     private final WorkshopJpaRepository workshopRepository;
+    private final DeviceJpaRepository deviceRepository;
+    private final DeviceCatalogJpaRepository catalogRepository;
     private final PrintSrvTopologyJpaAdapter topologyJpaAdapter;
 
     public AdminUnitController(UnitJpaRepository unitRepository,
                                WorkshopJpaRepository workshopRepository,
+                               DeviceJpaRepository deviceRepository,
+                               DeviceCatalogJpaRepository catalogRepository,
                                PrintSrvTopologyJpaAdapter topologyJpaAdapter) {
         this.unitRepository = unitRepository;
         this.workshopRepository = workshopRepository;
+        this.deviceRepository = deviceRepository;
+        this.catalogRepository = catalogRepository;
         this.topologyJpaAdapter = topologyJpaAdapter;
     }
 
@@ -49,6 +63,7 @@ public class AdminUnitController {
         unit.setActive(request.active());
 
         UnitEntity saved = unitRepository.save(unit);
+        syncDevices(saved, request.catalogIds());
         topologyJpaAdapter.invalidateETag();
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
@@ -70,6 +85,7 @@ public class AdminUnitController {
         unit.setActive(request.active());
 
         UnitEntity saved = unitRepository.save(unit);
+        syncDevices(saved, request.catalogIds());
         topologyJpaAdapter.invalidateETag();
         return ResponseEntity.ok(saved);
     }
@@ -79,9 +95,50 @@ public class AdminUnitController {
         if (!unitRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Аппарат не найден");
         }
+        deviceRepository.deleteByUnit_Id(id);
         unitRepository.deleteById(id);
         topologyJpaAdapter.invalidateETag();
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Синхронизирует связи автомата со справочником устройств.
+     *
+     * @param unit        автомат
+     * @param catalogIds  желаемый список ID из device_catalog (null — не менять)
+     */
+    private void syncDevices(UnitEntity unit, List<Long> catalogIds) {
+        if (catalogIds == null) {
+            return;
+        }
+
+        Set<Long> newCatalogIds = new HashSet<>(catalogIds);
+        List<DeviceEntity> currentDevices = deviceRepository.findByUnit_Id(unit.getId());
+        Set<Long> currentCatalogIds = new HashSet<>();
+        for (DeviceEntity device : currentDevices) {
+            currentCatalogIds.add(device.getCatalog().getId());
+        }
+
+        // Удалить лишние связи
+        for (DeviceEntity device : currentDevices) {
+            if (!newCatalogIds.contains(device.getCatalog().getId())) {
+                deviceRepository.delete(device);
+            }
+        }
+
+        // Добавить новые связи
+        for (Long catalogId : newCatalogIds) {
+            if (currentCatalogIds.contains(catalogId)) {
+                continue;
+            }
+            DeviceCatalogEntity catalog = catalogRepository.findById(catalogId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Устройство не найдено в справочнике: " + catalogId));
+            DeviceEntity device = new DeviceEntity();
+            device.setUnit(unit);
+            device.setCatalog(catalog);
+            deviceRepository.save(device);
+        }
     }
 
     public record UnitRequest(
@@ -90,7 +147,8 @@ public class AdminUnitController {
             String printsrvInstanceId,
             String printsrvHost,
             Integer printsrvPort,
-            boolean active
+            boolean active,
+            List<Long> catalogIds
     ) {
     }
 }

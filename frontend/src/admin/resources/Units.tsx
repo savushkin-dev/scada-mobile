@@ -11,6 +11,8 @@ import {
   ReferenceInput,
   SelectInput,
   BooleanInput,
+  ReferenceArrayInput,
+  SelectArrayInput,
   Create,
   DeleteButton,
 } from 'react-admin';
@@ -44,6 +46,9 @@ export const UnitEdit = () => (
       <TextInput source="printsrvHost" label="Хост" />
       <TextInput source="printsrvPort" label="Порт" />
       <BooleanInput source="active" label="Активен" />
+      <ReferenceArrayInput source="catalogIds" reference="device-catalog">
+        <SelectArrayInput optionText="displayName" label="Устройства" />
+      </ReferenceArrayInput>
     </SimpleForm>
   </Edit>
 );
@@ -59,6 +64,9 @@ export const UnitCreate = () => (
       <TextInput source="printsrvHost" label="PrintSrv хост" />
       <TextInput source="printsrvPort" label="PrintSrv порт" />
       <BooleanInput source="active" label="Активен" defaultValue={true} />
+      <ReferenceArrayInput source="catalogIds" reference="device-catalog">
+        <SelectArrayInput optionText="displayName" label="Устройства" />
+      </ReferenceArrayInput>
     </SimpleForm>
   </Create>
 );

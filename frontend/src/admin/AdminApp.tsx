@@ -10,14 +10,8 @@ import {
   DeviceCatalogEdit,
   DeviceCatalogCreate,
 } from './resources/DeviceCatalog';
-import { DeviceList, DeviceEdit, DeviceCreate } from './resources/Devices';
 import { UserList, UserEdit, UserCreate } from './resources/Users';
 import { NotificationList } from './resources/Notifications';
-import {
-  UserAssignmentList,
-  UserAssignmentEdit,
-  UserAssignmentCreate,
-} from './resources/UserAssignments';
 import {
   NotificationSettingsList,
   NotificationSettingsEdit,
@@ -64,25 +58,11 @@ export function AdminApp() {
           create={DeviceCatalogCreate}
         />
         <Resource
-          name="devices"
-          options={{ label: 'Устройства автоматов' }}
-          list={DeviceList}
-          edit={DeviceEdit}
-          create={DeviceCreate}
-        />
-        <Resource
           name="users"
           options={{ label: 'Сотрудники' }}
           list={UserList}
           edit={UserEdit}
           create={UserCreate}
-        />
-        <Resource
-          name="user-assignments"
-          options={{ label: 'Назначения' }}
-          list={UserAssignmentList}
-          edit={UserAssignmentEdit}
-          create={UserAssignmentCreate}
         />
         <Resource
           name="user-notification-settings"

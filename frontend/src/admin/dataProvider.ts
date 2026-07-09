@@ -96,7 +96,45 @@ export const dataProvider: DataProvider = {
 
   getOne: (resource, params) => {
     const url = `${baseUrl}/${resource}/${encodeURIComponent(params.id)}`;
-    return httpClient(url).then(({ json }) => ({ data: json }));
+    return httpClient(url).then(async ({ json }) => {
+      let data = json;
+
+      if (resource === 'users') {
+        const [assignmentsRes, unitsRes] = await Promise.all([
+          httpClient(`${baseUrl}/user-assignments?page=0&size=1000&sort=id,asc`),
+          httpClient(`${baseUrl}/units?page=0&size=1000&sort=id,asc`),
+        ]);
+        const assignments = assignmentsRes.json.content ?? [];
+        const units = unitsRes.json.content ?? [];
+
+        const userAssignments = assignments.filter((a: any) => a.userId === data.id && a.active);
+        const unitNames = userAssignments
+          .map((a: any) => {
+            const unit = units.find((u: any) => u.id === a.unitId);
+            return unit?.name ?? a.unitId;
+          })
+          .join(', ');
+
+        data = {
+          ...data,
+          unitIds: userAssignments.map((a: any) => a.unitId),
+          unitNames,
+        };
+      }
+
+      if (resource === 'units') {
+        const devicesRes = await httpClient(
+          `${baseUrl}/devices?unitId=${params.id}&page=0&size=1000&sort=id,asc`
+        );
+        const devices = devicesRes.json.content ?? [];
+        data = {
+          ...data,
+          catalogIds: devices.map((d: any) => d.catalogId),
+        };
+      }
+
+      return { data };
+    });
   },
 
   getMany: (resource, params) => {
