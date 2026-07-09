@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { API_BASE } from '../config';
 import { apiFetch } from '../api/client';
+import { HttpError } from 'react-admin';
 import type { DataProvider } from 'react-admin';
 
 const baseUrl = `${API_BASE}/api/v1.0.0/admin`;
@@ -14,6 +15,12 @@ const httpClient = (url: string, options: RequestInit = {}) => {
   return apiFetch(url, options).then(async (response) => {
     const text = await response.text();
     const json = text ? JSON.parse(text) : null;
+
+    if (!response.ok) {
+      const message = json?.message || json?.error || `HTTP ${response.status}`;
+      throw new HttpError(message, response.status, json);
+    }
+
     return {
       headers: response.headers,
       json,

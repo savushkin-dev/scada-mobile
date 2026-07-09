@@ -28,6 +28,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import java.io.IOException;
 import java.net.SocketException;
 import java.util.Comparator;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -324,6 +325,29 @@ public class GlobalExceptionHandler {
     ) {
         log.warn("Validation error: {}", e.getMessage());
         return buildErrorResponse(HttpStatus.BAD_REQUEST, "Ошибка валидации входных данных", request);
+    }
+
+    /**
+     * Обрабатывает конфликт закрепления автомата за сотрудником.
+     * <p>
+     * Возвращает HTTP 409 (Conflict) с картой ошибок по полям формы,
+     * чтобы React Admin мог отобразить сообщение рядом с соответствующим полем.
+     */
+    @ExceptionHandler(UnitAssignmentConflictException.class)
+    public ResponseEntity<ErrorResponseDTO> handleUnitAssignmentConflict(
+            @NonNull UnitAssignmentConflictException e,
+            @NonNull WebRequest request
+    ) {
+        log.warn("Unit assignment conflict: {}", e.getMessage());
+        String path = extractPath(request);
+        Map<String, String> errors = Map.of(e.getField(), e.getMessage());
+        ErrorResponseDTO error = new ErrorResponseDTO(
+                HttpStatus.CONFLICT.value(),
+                e.getMessage(),
+                path,
+                errors
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
     /**

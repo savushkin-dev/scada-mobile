@@ -44,7 +44,7 @@ export const UnitList = () => (
 );
 
 export const UnitEdit = () => (
-  <Edit>
+  <Edit mutationMode="pessimistic">
     <SimpleForm>
       <TextInput source="name" label="Название автомата" />
       <ReferenceInput source="workshopId" reference="workshops">
