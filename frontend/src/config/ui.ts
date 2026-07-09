@@ -70,6 +70,10 @@ export const UI_COPY = Object.freeze({
   devicesNoTopology: 'Не удалось загрузить список устройств',
   devicesStatRead: 'Считано',
   devicesStatUnread: 'Несчитано',
+  /** Бейдж на карточке отключённого устройства. */
+  deviceDisconnectedLabel: 'Отключено',
+  /** Подсказка под статусом отключённого устройства. */
+  deviceDisconnectedHint: 'Устройство отсутствует в текущей конфигурации оборудования',
 });
 
 export const AUTH_COPY = Object.freeze({

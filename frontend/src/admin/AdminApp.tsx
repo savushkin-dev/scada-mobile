@@ -5,8 +5,14 @@ import { RoleList, RoleEdit, RoleCreate } from './resources/Roles';
 import { WorkshopList, WorkshopEdit, WorkshopCreate } from './resources/Workshops';
 import { DeviceTypeList, DeviceTypeEdit, DeviceTypeCreate } from './resources/DeviceTypes';
 import { UnitList, UnitEdit, UnitCreate } from './resources/Units';
+import {
+  DeviceCatalogList,
+  DeviceCatalogEdit,
+  DeviceCatalogCreate,
+} from './resources/DeviceCatalog';
 import { DeviceList, DeviceEdit, DeviceCreate } from './resources/Devices';
 import { UserList, UserEdit, UserCreate } from './resources/Users';
+import { NotificationList } from './resources/Notifications';
 import {
   UserAssignmentList,
   UserAssignmentEdit,
@@ -51,8 +57,15 @@ export function AdminApp() {
           create={UnitCreate}
         />
         <Resource
+          name="device-catalog"
+          options={{ label: 'Справочник устройств' }}
+          list={DeviceCatalogList}
+          edit={DeviceCatalogEdit}
+          create={DeviceCatalogCreate}
+        />
+        <Resource
           name="devices"
-          options={{ label: 'Устройства' }}
+          options={{ label: 'Устройства автоматов' }}
           list={DeviceList}
           edit={DeviceEdit}
           create={DeviceCreate}
@@ -78,6 +91,7 @@ export function AdminApp() {
           edit={NotificationSettingsEdit}
           create={NotificationSettingsCreate}
         />
+        <Resource name="notifications" options={{ label: 'Уведомления' }} list={NotificationList} />
       </Admin>
     </div>
   );

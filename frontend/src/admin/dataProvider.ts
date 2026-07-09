@@ -48,19 +48,49 @@ export const dataProvider: DataProvider = {
       headers: new Headers({
         Range: `${resource}=${(page - 1) * perPage}-${page * perPage - 1}`,
       }),
-    }).then(({ headers, json }) => {
-      if (!headers.has('content-range')) {
-        throw new Error(
-          'The Content-Range header is missing in the HTTP Response. ' +
-            'If you are using CORS, did you declare Content-Range in the Access-Control-Expose-Headers header?'
-        );
+    }).then(async ({ headers, json }) => {
+      let data = json.content ?? json;
+      let total: number;
+
+      const contentRange = headers.get('content-range');
+      if (contentRange) {
+        total = parseInt(contentRange.split('/').pop() || '0', 10);
+      } else {
+        // Fallback для ручных контроллеров, которые не возвращают Content-Range
+        total = json.totalElements ?? data.length ?? 0;
       }
-      const contentRange = headers.get('content-range')!;
-      const total = parseInt(contentRange.split('/').pop() || '0', 10);
-      return {
-        data: json.content ?? json,
-        total,
-      };
+
+      if (resource === 'notifications') {
+        // /admin/notifications возвращает плоский массив непрочитанных уведомлений
+        return { data, total: data.length };
+      }
+
+      if (resource === 'users') {
+        const [assignmentsRes, unitsRes] = await Promise.all([
+          httpClient(`${baseUrl}/user-assignments?page=0&size=1000&sort=id,asc`),
+          httpClient(`${baseUrl}/units?page=0&size=1000&sort=id,asc`),
+        ]);
+        const assignments = assignmentsRes.json.content ?? [];
+        const units = unitsRes.json.content ?? [];
+
+        data = data.map((user: any) => {
+          const userAssignments = assignments.filter((a: any) => a.userId === user.id && a.active);
+          const unitNames = userAssignments
+            .map((a: any) => {
+              const unit = units.find((u: any) => u.id === a.unitId);
+              return unit?.name ?? a.unitId;
+            })
+            .join(', ');
+
+          return {
+            ...user,
+            assignments: userAssignments,
+            unitNames,
+          };
+        });
+      }
+
+      return { data, total };
     });
   },
 
@@ -119,6 +149,17 @@ export const dataProvider: DataProvider = {
   },
 
   update: (resource, params) => {
+    if (resource === 'notifications') {
+      if (params.id === 'read-all') {
+        // Отметить все уведомления прочитанными
+        const url = `${baseUrl}/${resource}/read-all`;
+        return httpClient(url, { method: 'POST' }).then(() => ({ data: { id: 'read-all' } }));
+      }
+      // /admin/notifications/{id}/read — отметить уведомление прочитанным
+      const url = `${baseUrl}/${resource}/${encodeURIComponent(params.id)}/read`;
+      return httpClient(url, { method: 'POST' }).then(() => ({ data: { id: params.id } }));
+    }
+
     const url = `${baseUrl}/${resource}/${encodeURIComponent(params.id)}`;
     return httpClient(url, {
       method: 'PUT',

@@ -62,32 +62,36 @@ public record DevicesStatusMessageDTO(
     /**
      * Статус одного принтера.
      *
-     * @param deviceName имя устройства (例 {@code "Printer11"})
-     * @param st         {@code "0"} — ошибки нет, {@code "1"} — ошибка есть
-     * @param error      код ошибки ({@code "0"} — нет ошибки)
-     * @param batch      текущая позиция (маркировка | партия | дата)
+     * @param deviceName  имя устройства (例 {@code "Printer11"})
+     * @param st          {@code "0"} — ошибки нет, {@code "1"} — ошибка есть
+     * @param error       код ошибки ({@code "0"} — нет ошибки)
+     * @param batch       текущая позиция (маркировка | партия | дата)
+     * @param disconnected {@code true} — устройство есть в БД, но отсутствует в runtime
      */
     public record PrinterStatus(
             String deviceName,
             @Nullable String st,
             @Nullable String error,
-            @Nullable String batch
+            @Nullable String batch,
+            boolean disconnected
     ) {}
 
     /**
      * Статус одной камеры.
      *
-     * @param deviceName имя устройства (例 {@code "CamAgregation"})
-     * @param read       количество успешно считанных кодов
-     * @param unread     количество несчитанных / ошибочных кодов
-     * @param st         {@code "0"} — ошибки нет, {@code "1"} — ошибка есть
-     * @param error      код ошибки ({@code "0"} — нет ошибки)
+     * @param deviceName   имя устройства (例 {@code "CamAgregation"})
+     * @param read         количество успешно считанных кодов
+     * @param unread       количество несчитанных / ошибочных кодов
+     * @param st           {@code "0"} — ошибки нет, {@code "1"} — ошибка есть
+     * @param error        код ошибки ({@code "0"} — нет ошибки)
+     * @param disconnected {@code true} — устройство есть в БД, но отсутствует в runtime
      */
     public record CameraStatus(
             String deviceName,
             @Nullable String read,
             @Nullable String unread,
             @Nullable String st,
-            @Nullable String error
+            @Nullable String error,
+            boolean disconnected
     ) {}
 }

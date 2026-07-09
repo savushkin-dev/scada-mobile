@@ -115,6 +115,7 @@ export interface DeviceInfo {
   read?: number;
   unread?: number;
   batch?: string;
+  disconnected?: boolean;
 }
 
 /**

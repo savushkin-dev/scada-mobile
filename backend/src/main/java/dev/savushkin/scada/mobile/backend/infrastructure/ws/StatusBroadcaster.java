@@ -1,10 +1,12 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.ws;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import dev.savushkin.scada.mobile.backend.api.dto.AdminNotificationMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.AlertMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.NotificationMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitStatusDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitsStatusMessageDTO;
+import dev.savushkin.scada.mobile.backend.domain.model.DeviceCompositionChangedEvent;
 import dev.savushkin.scada.mobile.backend.application.ports.PrintSrvTopologyRepository;
 import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
 import dev.savushkin.scada.mobile.backend.infrastructure.polling.PrintSrvInstancePolledEvent;
@@ -12,6 +14,8 @@ import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveAlertStore;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveNotificationStore;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.UnitErrorStore;
 import dev.savushkin.scada.mobile.backend.services.AlertService;
+import dev.savushkin.scada.mobile.backend.services.AdminNotificationService;
+import dev.savushkin.scada.mobile.backend.services.DeviceAutoDiscoveryService;
 import dev.savushkin.scada.mobile.backend.services.NotificationStateChangedEvent;
 import dev.savushkin.scada.mobile.backend.services.UnitDetailService;
 import dev.savushkin.scada.mobile.backend.services.UserProfileService;
@@ -57,6 +61,8 @@ public class StatusBroadcaster {
     private final UnitWsHandler unitWsHandler;
     private final PrintSrvTopologyRepository topologyRepo;
     private final UserProfileService userProfileService;
+    private final DeviceAutoDiscoveryService deviceAutoDiscoveryService;
+    private final AdminNotificationService adminNotificationService;
 
     public StatusBroadcaster(
             WorkshopService workshopService,
@@ -68,7 +74,9 @@ public class StatusBroadcaster {
             LiveWsHandler liveWsHandler,
             UnitWsHandler unitWsHandler,
             PrintSrvTopologyRepository topologyRepo,
-            UserProfileService userProfileService
+            UserProfileService userProfileService,
+            DeviceAutoDiscoveryService deviceAutoDiscoveryService,
+            AdminNotificationService adminNotificationService
     ) {
         this.workshopService = workshopService;
         this.alertService = alertService;
@@ -80,6 +88,8 @@ public class StatusBroadcaster {
         this.unitWsHandler = unitWsHandler;
         this.topologyRepo = topologyRepo;
         this.userProfileService = userProfileService;
+        this.deviceAutoDiscoveryService = deviceAutoDiscoveryService;
+        this.adminNotificationService = adminNotificationService;
     }
 
     @EventListener
@@ -88,6 +98,10 @@ public class StatusBroadcaster {
         // чтобы AlertService и buildErrorsStatus читали актуальные данные.
         List<dev.savushkin.scada.mobile.backend.domain.model.DeviceError> activeErrors = unitDetailService.extractActiveErrors(event.instanceId());
         unitErrorStore.update(event.instanceId(), activeErrors);
+
+        // Авто-обнаружение новых устройств из runtime
+        deviceAutoDiscoveryService.syncRuntimeDevices(event.instanceId());
+
         broadcastUnitStatus(event.instanceId());
         broadcastAlertDelta(event.instanceId());
         broadcastUnitDetails(event.instanceId());
@@ -223,5 +237,30 @@ public class StatusBroadcaster {
 
     private void sendNotification(NotificationMessageDTO notification) {
         liveWsHandler.broadcastNotification(notification);
+    }
+
+    // ─── Admin notification events ───────────────────────────────────────────
+
+    @EventListener
+    public void onDeviceCompositionChanged(DeviceCompositionChangedEvent event) {
+        for (String deviceCode : event.addedDevices()) {
+            adminNotificationService.createDeviceDiscoveredNotification(event.instanceId(), deviceCode);
+        }
+        for (String deviceCode : event.removedDevices()) {
+            adminNotificationService.createDeviceDisconnectedNotification(event.instanceId(), deviceCode);
+        }
+    }
+
+    @EventListener
+    public void onAdminNotification(dev.savushkin.scada.mobile.backend.domain.model.AdminNotificationEvent event) {
+        if (liveWsHandler.getTotalSessionCount() == 0) {
+            return;
+        }
+        AdminNotificationMessageDTO dto = AdminNotificationMessageDTO.from(event.notification());
+        try {
+            liveWsHandler.broadcastAdminNotification(liveWsHandler.toJson(dto));
+        } catch (JsonProcessingException e) {
+            log.error("StatusBroadcaster: failed to serialize ADMIN_NOTIFICATION", e);
+        }
     }
 }

@@ -120,7 +120,7 @@ public class UnitDetailService {
         String unread = coalesce(camRaw.get("Failed"), scadaRaw.get(devKey + "CounterMissing"));
         String st = coalesce(camRaw.get("ST"), scadaRaw.get(devKey + "ST"));
         String error = coalesce(camRaw.get("Error"), scadaRaw.get(devKey + "Error"));
-        return new DevicesStatusMessageDTO.CameraStatus(camName, read, unread, st, error);
+        return new DevicesStatusMessageDTO.CameraStatus(camName, read, unread, st, error, false);
     }
 
     /**
@@ -136,7 +136,8 @@ public class UnitDetailService {
                 camRaw.get("Total"),
                 camRaw.get("Failed"),
                 camRaw.get("ST"),
-                camRaw.get("Error")
+                camRaw.get("Error"),
+                false
         );
     }
 
@@ -275,8 +276,11 @@ public class UnitDetailService {
      * Состояние камер берётся из собственного снапшота камеры (rawProperties)
      * или из устройства {@code scada} по ключу {@code Dev0XX*} — в качестве fallback.
      *
+     * <p>Устройства, которые есть в БД, но отсутствуют в runtime, передаются
+     * с флагом {@code disconnected=true}. Фронтенд отображает их как "Отключено".
+     *
      * @param instanceId идентификатор аппарата
-     * @return сообщение {@code DEVICES_STATUS}, или {@code null} если нет снапшотов
+     * @return сообщение {@code DEVICES_STATUS}, или {@code null} если аппарат неизвестен
      */
     public @Nullable DevicesStatusMessageDTO buildDevicesStatus(String instanceId) {
         PrintSrvInstance inst = topologyRepo.findByInstanceId(instanceId).orElse(null);
@@ -286,18 +290,20 @@ public class UnitDetailService {
                 snapshotRepo.get(instanceId, inst.scadaDeviceName()));
 
         DeviceComposition composition = deviceCompositionService.getComposition(instanceId);
+        DeviceComposition runtimeComposition = deviceCompositionService.getRuntimeComposition(instanceId);
+        Set<String> runtimeDevices = runtimeComposition != null ? runtimeComposition.allDevices() : Set.of();
 
         List<DevicesStatusMessageDTO.PrinterStatus> printers = buildPrinterStatuses(
-                instanceId, composition.printers(), scadaRaw);
+                instanceId, composition.printers(), scadaRaw, runtimeDevices);
 
         List<DevicesStatusMessageDTO.CameraStatus> aggregationCams = buildAggregationCamStatuses(
-                instanceId, composition.aggregationCams(), scadaRaw);
+                instanceId, composition.aggregationCams(), scadaRaw, runtimeDevices);
 
         List<DevicesStatusMessageDTO.CameraStatus> aggregationBoxCams = buildAggregationBoxCamStatuses(
-                instanceId, composition.aggregationBoxCams(), scadaRaw);
+                instanceId, composition.aggregationBoxCams(), scadaRaw, runtimeDevices);
 
         List<DevicesStatusMessageDTO.CameraStatus> checkerCams = buildCheckerCamStatuses(
-                instanceId, composition.checkerCams(), scadaRaw);
+                instanceId, composition.checkerCams(), scadaRaw, runtimeDevices);
 
         DevicesStatusMessageDTO.Payload payload = new DevicesStatusMessageDTO.Payload(
                 printers, aggregationCams, aggregationBoxCams, checkerCams);
@@ -360,10 +366,18 @@ public class UnitDetailService {
     private @NonNull List<DevicesStatusMessageDTO.PrinterStatus> buildPrinterStatuses(
             String instanceId,
             List<String> printerNames,
-            Map<String, String> scadaRaw
+            Map<String, String> scadaRaw,
+            Set<String> runtimeDevices
     ) {
         List<DevicesStatusMessageDTO.PrinterStatus> result = new ArrayList<>(printerNames.size());
         for (String printerName : printerNames) {
+            boolean disconnected = !runtimeDevices.contains(printerName);
+
+            if (disconnected) {
+                result.add(new DevicesStatusMessageDTO.PrinterStatus(printerName, null, null, null, true));
+                continue;
+            }
+
             DeviceSnapshot snap = snapshotRepo.get(instanceId, printerName);
 
             String st = getFirstUnit(snap)
@@ -387,7 +401,7 @@ public class UnitDetailService {
                 }
             }
 
-            result.add(new DevicesStatusMessageDTO.PrinterStatus(printerName, st, error, batch));
+            result.add(new DevicesStatusMessageDTO.PrinterStatus(printerName, st, error, batch, false));
         }
         return result;
     }
@@ -399,11 +413,16 @@ public class UnitDetailService {
     private @NonNull List<DevicesStatusMessageDTO.CameraStatus> buildAggregationCamStatuses(
             String instanceId,
             List<String> camNames,
-            Map<String, String> scadaRaw
+            Map<String, String> scadaRaw,
+            Set<String> runtimeDevices
     ) {
         List<DevicesStatusMessageDTO.CameraStatus> result = new ArrayList<>(camNames.size());
         for (int i = 0; i < camNames.size(); i++) {
             String camName = camNames.get(i);
+            if (!runtimeDevices.contains(camName)) {
+                result.add(new DevicesStatusMessageDTO.CameraStatus(camName, null, null, null, null, true));
+                continue;
+            }
             Map<String, String> camRaw = firstUnitRawProperties(snapshotRepo.get(instanceId, camName));
             String devKey = ScadaKeyMapper.aggregationCamScadaPrefix(i);
             result.add(buildSingleCamStatus(camName, camRaw, devKey, scadaRaw));
@@ -418,11 +437,16 @@ public class UnitDetailService {
     private @NonNull List<DevicesStatusMessageDTO.CameraStatus> buildAggregationBoxCamStatuses(
             String instanceId,
             List<String> camNames,
-            Map<String, String> scadaRaw
+            Map<String, String> scadaRaw,
+            Set<String> runtimeDevices
     ) {
         List<DevicesStatusMessageDTO.CameraStatus> result = new ArrayList<>(camNames.size());
         for (int i = 0; i < camNames.size(); i++) {
             String camName = camNames.get(i);
+            if (!runtimeDevices.contains(camName)) {
+                result.add(new DevicesStatusMessageDTO.CameraStatus(camName, null, null, null, null, true));
+                continue;
+            }
             Map<String, String> camRaw = firstUnitRawProperties(snapshotRepo.get(instanceId, camName));
             String devKey = ScadaKeyMapper.aggregationBoxCamScadaPrefix(i);
             result.add(buildSingleCamStatus(camName, camRaw, devKey, scadaRaw));
@@ -440,10 +464,16 @@ public class UnitDetailService {
     private @NonNull List<DevicesStatusMessageDTO.CameraStatus> buildCheckerCamStatuses(
             String instanceId,
             List<String> camNames,
-            Map<String, String> scadaRaw
+            Map<String, String> scadaRaw,
+            Set<String> runtimeDevices
     ) {
         List<DevicesStatusMessageDTO.CameraStatus> result = new ArrayList<>(camNames.size());
         for (String camName : camNames) {
+            if (!runtimeDevices.contains(camName)) {
+                result.add(new DevicesStatusMessageDTO.CameraStatus(camName, null, null, null, null, true));
+                continue;
+            }
+
             Map<String, String> camRaw = firstUnitRawProperties(snapshotRepo.get(instanceId, camName));
             if (ScadaKeyMapper.isEanChecker(camName)) {
                 String devKey = ScadaKeyMapper.eanCheckerScadaPrefix(camName);
