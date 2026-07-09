@@ -12,11 +12,7 @@ import {
 } from './resources/DeviceCatalog';
 import { UserList, UserEdit, UserCreate } from './resources/Users';
 import { NotificationList } from './resources/Notifications';
-import {
-  NotificationSettingsList,
-  NotificationSettingsEdit,
-  NotificationSettingsCreate,
-} from './resources/NotificationSettings';
+import { NotificationSettingsEdit } from './resources/NotificationSettings';
 
 export function AdminApp() {
   return (
@@ -64,13 +60,7 @@ export function AdminApp() {
           edit={UserEdit}
           create={UserCreate}
         />
-        <Resource
-          name="user-notification-settings"
-          options={{ label: 'Настройки уведомлений' }}
-          list={NotificationSettingsList}
-          edit={NotificationSettingsEdit}
-          create={NotificationSettingsCreate}
-        />
+        <Resource name="user-notification-settings" edit={NotificationSettingsEdit} />
         <Resource name="notifications" options={{ label: 'Уведомления' }} list={NotificationList} />
       </Admin>
     </div>

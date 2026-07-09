@@ -2,6 +2,8 @@ package dev.savushkin.scada.mobile.backend.infrastructure.integration.database.r
 
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserNotificationSettingsEntity;
 import org.jspecify.annotations.NonNull;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,6 +19,12 @@ public interface UserNotificationSettingsJpaRepository extends JpaRepository<Use
 
     @RestResource(exported = false)
     @NonNull Optional<UserNotificationSettingsEntity> findByUser_IdAndUnit_Id(Long userId, Long unitId);
+
+    @RestResource(exported = false)
+    @NonNull Page<UserNotificationSettingsEntity> findByUser_Id(Long userId, Pageable pageable);
+
+    @RestResource(exported = false)
+    @NonNull Page<UserNotificationSettingsEntity> findByUnit_Id(Long unitId, Pageable pageable);
 
     @RestResource(exported = false)
     @Query("""

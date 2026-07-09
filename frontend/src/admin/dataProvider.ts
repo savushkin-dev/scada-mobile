@@ -42,6 +42,15 @@ export const dataProvider: DataProvider = {
     query.set('size', String(perPage));
     query.set('sort', `${field},${order.toLowerCase() === 'desc' ? 'desc' : 'asc'}`);
 
+    // Пробрасываем простые фильтры react-admin в query-параметры Spring
+    if (params.filter) {
+      Object.entries(params.filter).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          query.set(key, String(value));
+        }
+      });
+    }
+
     const url = `${baseUrl}/${resource}?${query.toString()}`;
 
     return httpClient(url, {
@@ -66,12 +75,14 @@ export const dataProvider: DataProvider = {
       }
 
       if (resource === 'users') {
-        const [assignmentsRes, unitsRes] = await Promise.all([
+        const [assignmentsRes, unitsRes, settingsRes] = await Promise.all([
           httpClient(`${baseUrl}/user-assignments?page=0&size=1000&sort=id,asc`),
           httpClient(`${baseUrl}/units?page=0&size=1000&sort=id,asc`),
+          httpClient(`${baseUrl}/user-notification-settings?page=0&size=1000&sort=id,asc`),
         ]);
         const assignments = assignmentsRes.json.content ?? [];
         const units = unitsRes.json.content ?? [];
+        const settings = settingsRes.json.content ?? [];
 
         data = data.map((user: any) => {
           const userAssignments = assignments.filter((a: any) => a.userId === user.id && a.active);
@@ -80,10 +91,21 @@ export const dataProvider: DataProvider = {
             return unit?.name ?? String(a.unitId);
           });
 
+          const userSettings = settings.filter((s: any) => s.userId === user.id && s.active);
+          const incidentCount = userSettings.filter(
+            (s: any) => s.incidentNotificationsEnabled
+          ).length;
+          const callCount = userSettings.filter(
+            (s: any) => s.androidCallNotificationsEnabled
+          ).length;
+
           return {
             ...user,
             assignments: userAssignments,
             unitNames,
+            notificationSettingsCount: userSettings.length,
+            incidentNotificationsCount: incidentCount,
+            callNotificationsCount: callCount,
           };
         });
       }

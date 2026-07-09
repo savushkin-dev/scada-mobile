@@ -175,7 +175,17 @@ public class AdminReadController {
     // ── Notification Settings ─────────────────────────────────────────────
 
     @GetMapping("/user-notification-settings")
-    public ResponseEntity<Page<UserNotificationSettingsEntity>> listSettings(Pageable pageable) {
+    public ResponseEntity<Page<UserNotificationSettingsEntity>> listSettings(
+            @RequestParam(required = false) Long userId,
+            @RequestParam(required = false) Long unitId,
+            Pageable pageable
+    ) {
+        if (userId != null) {
+            return pageResponse(settingsRepository.findByUser_Id(userId, pageable), "user-notification-settings");
+        }
+        if (unitId != null) {
+            return pageResponse(settingsRepository.findByUnit_Id(unitId, pageable), "user-notification-settings");
+        }
         return pageResponse(settingsRepository.findAll(pageable), "user-notification-settings");
     }
 

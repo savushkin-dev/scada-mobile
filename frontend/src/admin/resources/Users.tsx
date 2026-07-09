@@ -19,6 +19,7 @@ import {
   FunctionField,
 } from 'react-admin';
 import { TruncatedChipList } from '../components/TruncatedChipList';
+import { UserNotificationSettingsEditor } from '../components/UserNotificationSettingsEditor';
 
 interface AdminUnit {
   id: number;
@@ -126,6 +127,16 @@ export const UserList = () => (
           <TruncatedChipList items={record.unitNames} />
         )}
       />
+      <FunctionField
+        label="Тех. сбои"
+        render={(record: { incidentNotificationsCount?: number }) =>
+          record.incidentNotificationsCount ?? 0
+        }
+      />
+      <FunctionField
+        label="Вызов"
+        render={(record: { callNotificationsCount?: number }) => record.callNotificationsCount ?? 0}
+      />
       <EditButton />
       <DeleteButton />
     </Datagrid>
@@ -147,6 +158,7 @@ export const UserEdit = () => (
       </ReferenceInput>
       <BooleanInput source="active" label="Активен" />
       <UnitAssignmentArrayInput source="unitIds" />
+      <UserNotificationSettingsEditor />
     </SimpleForm>
   </Edit>
 );
@@ -162,6 +174,7 @@ export const UserCreate = () => (
       </ReferenceInput>
       <BooleanInput source="active" label="Активен" defaultValue={true} />
       <UnitAssignmentArrayInput source="unitIds" />
+      <UserNotificationSettingsEditor />
     </SimpleForm>
   </Create>
 );
