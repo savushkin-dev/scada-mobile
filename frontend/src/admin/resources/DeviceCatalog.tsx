@@ -10,7 +10,9 @@ import { IOSSwitch } from '../ui/IOSSwitch';
 import { StatusPill } from '../ui/StatusPill';
 import { ReferenceSelect } from '../ui/ReferenceSelect';
 import { PillButton } from '../ui/PillButton';
-import { IconPencil, IconTrash } from '../ui/icons';
+import { AdminDeleteButton } from '../ui/AdminDeleteButton';
+import { formatEmpty } from '../ui/formatEmpty';
+import { IconPencil } from '../ui/icons';
 import { useNameMap } from '../ui/useNameMap';
 
 interface DeviceCatalogItem {
@@ -32,16 +34,18 @@ export const DeviceCatalogList = () => {
       <MobileCardList
         records={records}
         renderCard={(item) => (
-          <div className="rounded-[20px] bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
+          <div className="rounded-[20px] bg-white p-4">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-base font-bold text-[#1a1c1e]">{item.displayName}</span>
+              <span className="text-base font-bold text-[#1a1c1e]">
+                {formatEmpty(item.displayName)}
+              </span>
               <StatusPill variant={item.active ? 'active' : 'inactive'}>
                 {item.active ? 'Активно' : 'Неактивно'}
               </StatusPill>
             </div>
-            <div className="mb-3 text-sm text-[#74777f]">{item.code}</div>
+            <div className="mb-3 text-sm text-[#74777f]">{formatEmpty(item.code)}</div>
             <div className="mb-3 text-sm text-[#74777f]">
-              {item.typeId ? getDeviceTypeName(item.typeId) : '—'}
+              {formatEmpty(item.typeId ? getDeviceTypeName(item.typeId) : null)}
             </div>
             <div className="flex items-center justify-between gap-2">
               <PillButton
@@ -52,14 +56,7 @@ export const DeviceCatalogList = () => {
               >
                 Изменить
               </PillButton>
-              <PillButton
-                variant="danger"
-                icon={<IconTrash size={16} />}
-                onClick={() => navigate(item.id.toString())}
-                className="h-9 px-3 text-xs"
-              >
-                Удалить
-              </PillButton>
+              <AdminDeleteButton record={item} size="small" />
             </div>
           </div>
         )}
@@ -74,12 +71,11 @@ export const DeviceCatalogList = () => {
           {
             key: 'type',
             header: 'Тип',
-            render: (item) =>
-              item.typeId ? (
-                <span className="text-[#4285f4]">{getDeviceTypeName(item.typeId)}</span>
-              ) : (
-                '—'
-              ),
+            render: (item) => (
+              <span className="text-[#1a1c1e]">
+                {formatEmpty(item.typeId ? getDeviceTypeName(item.typeId) : null)}
+              </span>
+            ),
           },
           {
             key: 'state',
@@ -105,14 +101,7 @@ export const DeviceCatalogList = () => {
                 >
                   Изменить
                 </PillButton>
-                <PillButton
-                  variant="danger"
-                  icon={<IconTrash size={16} />}
-                  onClick={() => navigate(item.id.toString())}
-                  className="h-9 px-3 text-xs"
-                >
-                  Удалить
-                </PillButton>
+                <AdminDeleteButton record={item} size="small" />
               </div>
             ),
           },

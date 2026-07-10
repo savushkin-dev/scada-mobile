@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { IconChevronLeft, IconChevronRight } from './icons';
 
 interface PaginationPillsProps {
@@ -8,6 +9,8 @@ interface PaginationPillsProps {
 }
 
 export function PaginationPills({ page, perPage, total, onPageChange }: PaginationPillsProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
   if (total <= perPage) return null;
 
   const totalPages = Math.ceil(total / perPage);
@@ -16,8 +19,18 @@ export function PaginationPills({ page, perPage, total, onPageChange }: Paginati
 
   const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
 
+  const handlePageChange = (nextPage: number) => {
+    onPageChange(nextPage);
+    requestAnimationFrame(() => {
+      containerRef.current?.scrollIntoView({ block: 'end', behavior: 'auto' });
+    });
+  };
+
   return (
-    <div className="flex flex-col items-center gap-3 pt-4 sm:flex-row sm:justify-between">
+    <div
+      ref={containerRef}
+      className="flex flex-col items-center gap-3 pt-4 sm:flex-row sm:justify-between"
+    >
       <span className="text-sm text-[#74777f]">
         {start}-{end} of {total}
       </span>
@@ -25,7 +38,7 @@ export function PaginationPills({ page, perPage, total, onPageChange }: Paginati
         <button
           type="button"
           disabled={page <= 1}
-          onClick={() => onPageChange(page - 1)}
+          onClick={() => handlePageChange(page - 1)}
           className="flex h-9 w-9 items-center justify-center rounded-[12px] border border-[#e8eaed] bg-white text-[#1a1c1e] transition-colors hover:bg-[#f8f9fa] disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Предыдущая страница"
         >
@@ -36,7 +49,7 @@ export function PaginationPills({ page, perPage, total, onPageChange }: Paginati
           <button
             key={p}
             type="button"
-            onClick={() => onPageChange(p)}
+            onClick={() => handlePageChange(p)}
             className={
               'flex h-9 min-w-[36px] items-center justify-center rounded-[12px] px-2 text-[13px] font-semibold transition-colors ' +
               (p === page
@@ -51,7 +64,7 @@ export function PaginationPills({ page, perPage, total, onPageChange }: Paginati
         <button
           type="button"
           disabled={page >= totalPages}
-          onClick={() => onPageChange(page + 1)}
+          onClick={() => handlePageChange(page + 1)}
           className="flex h-9 w-9 items-center justify-center rounded-[12px] border border-[#e8eaed] bg-white text-[#1a1c1e] transition-colors hover:bg-[#f8f9fa] disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Следующая страница"
         >

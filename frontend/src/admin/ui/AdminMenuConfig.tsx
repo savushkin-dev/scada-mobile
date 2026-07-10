@@ -4,7 +4,7 @@ import {
   IconDeviceTypes,
   IconUnits,
   IconDevices,
-  IconUsers,
+  IconUserTie,
   IconNotifications,
 } from './icons';
 
@@ -20,6 +20,6 @@ export const adminMenuItems: AdminMenuItem[] = [
   { name: 'device-types', label: 'Типы устройств', icon: <IconDeviceTypes size={20} /> },
   { name: 'units', label: 'Автоматы', icon: <IconUnits size={20} /> },
   { name: 'device-catalog', label: 'Справочник устройств', icon: <IconDevices size={20} /> },
-  { name: 'users', label: 'Сотрудники', icon: <IconUsers size={20} /> },
+  { name: 'users', label: 'Сотрудники', icon: <IconUserTie size={20} /> },
   { name: 'notifications', label: 'Уведомления', icon: <IconNotifications size={20} /> },
 ];

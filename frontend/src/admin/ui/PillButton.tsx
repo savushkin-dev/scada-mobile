@@ -13,9 +13,9 @@ const variantClasses: Record<PillVariant, string> = {
   primary:
     'bg-[#1a1c1e] text-white hover:bg-[#2b2f36] active:bg-[#0d0f11] shadow-[0_2px_8px_rgba(26,28,30,0.12)]',
   danger:
-    'bg-transparent text-[#ea4335] border-[1.5px] border-[#ea4335] hover:bg-[#fff5f5] active:bg-[#fceae9]',
+    'bg-[#ea4335] text-white border-[1.5px] border-[#ea4335] hover:bg-[#c13525] hover:border-[#c13525] active:bg-[#a62d1f] active:border-[#a62d1f]',
   secondary:
-    'bg-[#f8f9fa] text-[#74777f] border border-[#e8eaed] hover:bg-[#edeef0] active:bg-[#e8eaed]',
+    'bg-[#f8f9fa] text-[#1a1c1e] border border-[#d1d5db] hover:bg-[#edeef0] active:bg-[#e8eaed]',
 };
 
 export function PillButton({

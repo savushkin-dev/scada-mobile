@@ -69,11 +69,11 @@ export function IconDevices(props: Omit<AdminIconProps, 'children'>) {
   );
 }
 
-export function IconUsers(props: Omit<AdminIconProps, 'children'>) {
+export function IconUserTie(props: Omit<AdminIconProps, 'children'>) {
   return (
     <AdminIcon {...props}>
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
+      <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
     </AdminIcon>
   );
 }

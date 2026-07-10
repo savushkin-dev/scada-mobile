@@ -15,7 +15,7 @@ interface AdminCreateFormProps {
 }
 
 export function AdminCreateForm({ title, defaultValues = {}, children }: AdminCreateFormProps) {
-  const { save, saving } = useCreateController();
+  const { save, saving } = useCreateController({ redirect: 'list' });
   const [values, setValues] = useState<Record<string, unknown>>(defaultValues);
   const notify = useNotify();
 

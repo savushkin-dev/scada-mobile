@@ -31,7 +31,7 @@ export const DeviceList = () => {
       <MobileCardList
         records={records}
         renderCard={(device) => (
-          <div className="rounded-[20px] bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
+          <div className="rounded-[20px] bg-white p-4">
             <div className="mb-1">
               <span className="text-base font-bold text-[#1a1c1e]">{device.displayName}</span>
             </div>

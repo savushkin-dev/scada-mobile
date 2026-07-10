@@ -147,7 +147,7 @@ export function NotificationList() {
             <MobileCardList
               records={records}
               renderCard={(note) => (
-                <div className="rounded-[20px] bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
+                <div className="rounded-[20px] bg-white p-4">
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-sm font-semibold text-[#1a1c1e]">
                       {typeLabel(note.type)}

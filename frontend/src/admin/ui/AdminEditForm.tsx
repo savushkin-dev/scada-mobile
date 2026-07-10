@@ -1,5 +1,11 @@
-import { useEffect, useState } from 'react';
-import { useEditController, useDeleteController, useNotify } from 'react-admin';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  useEditController,
+  useDelete,
+  useNotify,
+  useRedirect,
+  useResourceContext,
+} from 'react-admin';
 import { AdminCard } from './AdminCard';
 import { PillButton } from './PillButton';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -14,19 +20,27 @@ interface AdminEditFormProps {
   }) => ReactNode;
 }
 
+function isRecordDirty(
+  original: Record<string, unknown> | undefined,
+  current: Record<string, unknown>
+): boolean {
+  if (!original) return true;
+  return Object.entries(current).some(([key, value]) => original[key] !== value);
+}
+
 export function AdminEditForm({ title, children }: AdminEditFormProps) {
-  const { record, save, saving, isLoading } = useEditController();
+  const { record, save, saving, isLoading } = useEditController({
+    redirect: 'list',
+    mutationMode: 'pessimistic',
+  });
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [showDelete, setShowDelete] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const notify = useNotify();
-  const { isPending: deleting, handleDelete } = useDeleteController({
-    record: values as { id: string | number },
+  const redirect = useRedirect();
+  const resource = useResourceContext();
+  const [deleteOne, { isPending: deleting }] = useDelete(undefined, undefined, {
     mutationMode: 'pessimistic',
-    mutationOptions: {
-      onSuccess: () => notify('Удалено', { type: 'info' }),
-      onError: () => notify('Ошибка удаления', { type: 'error' }),
-    },
   });
 
   useEffect(() => {
@@ -40,11 +54,14 @@ export function AdminEditForm({ title, children }: AdminEditFormProps) {
     return () => window.removeEventListener('resize', check);
   }, []);
 
+  const isDirty = useMemo(() => isRecordDirty(record, values), [record, values]);
+
   const handleChange = (field: string, value: unknown) => {
     setValues((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = () => {
+    if (!isDirty) return;
     save?.(values, {
       onSuccess: () => notify('Сохранено', { type: 'info' }),
       onError: () => notify('Ошибка сохранения', { type: 'error' }),
@@ -52,7 +69,18 @@ export function AdminEditForm({ title, children }: AdminEditFormProps) {
   };
 
   const handleConfirmDelete = () => {
-    handleDelete();
+    if (!values.id) return;
+    deleteOne(
+      resource ?? '',
+      { id: values.id, previousData: record },
+      {
+        onSuccess: () => {
+          notify('Удалено', { type: 'info' });
+          redirect('list');
+        },
+        onError: () => notify('Ошибка удаления', { type: 'error' }),
+      }
+    );
     setShowDelete(false);
   };
 
@@ -68,7 +96,11 @@ export function AdminEditForm({ title, children }: AdminEditFormProps) {
     <div className="p-4 lg:p-6">
       <AdminCard title={title}>{children({ record: values, onChange: handleChange })}</AdminCard>
       <div className="mt-4 flex items-center justify-between lg:mt-6">
-        <PillButton icon={<IconSave size={18} />} onClick={handleSave} disabled={saving}>
+        <PillButton
+          icon={<IconSave size={18} />}
+          onClick={handleSave}
+          disabled={!isDirty || saving}
+        >
           {saving ? 'Сохранение...' : 'Сохранить'}
         </PillButton>
         <PillButton

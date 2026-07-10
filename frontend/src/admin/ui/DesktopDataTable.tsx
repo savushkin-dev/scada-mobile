@@ -1,3 +1,4 @@
+import { formatEmpty } from './formatEmpty';
 import type { ReactNode } from 'react';
 
 interface Column<T> {
@@ -37,7 +38,7 @@ export function DesktopDataTable<T>({ columns, records, keyExtractor }: DesktopD
             >
               {columns.map((col) => (
                 <td key={col.key} className={`py-3 pr-4 ${col.className ?? ''}`}>
-                  {col.render(record)}
+                  {formatEmpty(col.render(record))}
                 </td>
               ))}
             </tr>

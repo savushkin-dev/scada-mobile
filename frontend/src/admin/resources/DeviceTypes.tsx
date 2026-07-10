@@ -7,7 +7,9 @@ import { AdminEditForm } from '../ui/AdminEditForm';
 import { AdminCreateForm } from '../ui/AdminCreateForm';
 import { RoundedInput } from '../ui/RoundedInput';
 import { PillButton } from '../ui/PillButton';
-import { IconPencil, IconTrash } from '../ui/icons';
+import { AdminDeleteButton } from '../ui/AdminDeleteButton';
+import { formatEmpty } from '../ui/formatEmpty';
+import { IconPencil } from '../ui/icons';
 
 interface DeviceType {
   id: number;
@@ -25,11 +27,11 @@ export const DeviceTypeList = () => {
       <MobileCardList
         records={records}
         renderCard={(type) => (
-          <div className="rounded-[20px] bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
+          <div className="rounded-[20px] bg-white p-4">
             <div className="mb-1">
-              <span className="text-base font-bold text-[#1a1c1e]">{type.name}</span>
+              <span className="text-base font-bold text-[#1a1c1e]">{formatEmpty(type.name)}</span>
             </div>
-            <div className="mb-3 text-sm text-[#74777f]">{type.code}</div>
+            <div className="mb-3 text-sm text-[#74777f]">{formatEmpty(type.code)}</div>
             <div className="flex items-center justify-between gap-2">
               <PillButton
                 variant="secondary"
@@ -39,14 +41,7 @@ export const DeviceTypeList = () => {
               >
                 Изменить
               </PillButton>
-              <PillButton
-                variant="danger"
-                icon={<IconTrash size={16} />}
-                onClick={() => navigate(type.id.toString())}
-                className="h-9 px-3 text-xs"
-              >
-                Удалить
-              </PillButton>
+              <AdminDeleteButton record={type} size="small" />
             </div>
           </div>
         )}
@@ -71,14 +66,7 @@ export const DeviceTypeList = () => {
                 >
                   Изменить
                 </PillButton>
-                <PillButton
-                  variant="danger"
-                  icon={<IconTrash size={16} />}
-                  onClick={() => navigate(type.id.toString())}
-                  className="h-9 px-3 text-xs"
-                >
-                  Удалить
-                </PillButton>
+                <AdminDeleteButton record={type} size="small" />
               </div>
             ),
           },

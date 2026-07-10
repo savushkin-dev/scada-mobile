@@ -12,8 +12,10 @@ import { AdminChip } from '../ui/AdminChip';
 import { ReferenceSelect } from '../ui/ReferenceSelect';
 import { UnitAssignmentSelect } from '../ui/UnitAssignmentSelect';
 import { PillButton } from '../ui/PillButton';
+import { AdminDeleteButton } from '../ui/AdminDeleteButton';
+import { formatEmpty } from '../ui/formatEmpty';
 import { useNameMap } from '../ui/useNameMap';
-import { IconPencil, IconTrash } from '../ui/icons';
+import { IconPencil } from '../ui/icons';
 import { UserNotificationSettingsEditor } from '../components/UserNotificationSettingsEditor';
 
 interface User {
@@ -37,9 +39,11 @@ export const UserList = () => {
       <MobileCardList
         records={records}
         renderCard={(user) => (
-          <div className="rounded-[20px] bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
+          <div className="rounded-[20px] bg-white p-4">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-base font-bold text-[#1a1c1e]">{user.fullName}</span>
+              <span className="text-base font-bold text-[#1a1c1e]">
+                {formatEmpty(user.fullName)}
+              </span>
               <StatusPill variant={user.active ? 'active' : 'inactive'}>
                 {user.active ? 'Активен' : 'Неактивен'}
               </StatusPill>
@@ -47,7 +51,7 @@ export const UserList = () => {
             <div className="mb-3 space-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-[#74777f]">Код</span>
-                <span className="text-[#1a1c1e]">{user.code}</span>
+                <span className="text-[#1a1c1e]">{formatEmpty(user.code)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[#74777f]">Роль</span>
@@ -71,14 +75,7 @@ export const UserList = () => {
               >
                 Изменить
               </PillButton>
-              <PillButton
-                variant="danger"
-                icon={<IconTrash size={16} />}
-                onClick={() => navigate(user.id.toString())}
-                className="h-9 px-3 text-xs"
-              >
-                Удалить
-              </PillButton>
+              <AdminDeleteButton record={user} size="small" />
             </div>
           </div>
         )}
@@ -143,14 +140,7 @@ export const UserList = () => {
                 >
                   Изменить
                 </PillButton>
-                <PillButton
-                  variant="danger"
-                  icon={<IconTrash size={16} />}
-                  onClick={() => navigate(user.id.toString())}
-                  className="h-9 px-3 text-xs"
-                >
-                  Удалить
-                </PillButton>
+                <AdminDeleteButton record={user} size="small" />
               </div>
             ),
           },
@@ -162,7 +152,7 @@ export const UserList = () => {
 
 function RoleName({ id }: { id: number }) {
   const getName = useNameMap('roles');
-  return <span className="text-[#4285f4]">{getName(id)}</span>;
+  return <span className="text-[#1a1c1e]">{formatEmpty(getName(id))}</span>;
 }
 
 function UserFormFields({

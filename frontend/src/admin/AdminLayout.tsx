@@ -1,4 +1,5 @@
 import { Layout, type LayoutProps } from 'react-admin';
+import { usePageHeader } from '../context/PageHeaderContext';
 import { AdminNavProvider } from './ui/AdminNavContext';
 import { AdminSidebarDesktop } from './ui/AdminSidebarDesktop';
 import { AdminMobileHeader } from './ui/AdminMobileHeader';
@@ -6,6 +7,8 @@ import { AdminBottomSheetMenu } from './ui/AdminBottomSheetMenu';
 import { EmptyAppBar, EmptyMenu, EmptySidebar } from './ui/AdminEmptyLayoutParts';
 
 export function AdminLayout(props: LayoutProps) {
+  usePageHeader('Панель администратора');
+
   return (
     <AdminNavProvider>
       <div className="admin-app-root flex h-full min-h-0 flex-1 overflow-hidden">

@@ -9,7 +9,9 @@ import { RoundedInput } from '../ui/RoundedInput';
 import { IOSSwitch } from '../ui/IOSSwitch';
 import { StatusPill } from '../ui/StatusPill';
 import { PillButton } from '../ui/PillButton';
-import { IconPencil, IconTrash } from '../ui/icons';
+import { AdminDeleteButton } from '../ui/AdminDeleteButton';
+import { formatEmpty } from '../ui/formatEmpty';
+import { IconPencil } from '../ui/icons';
 
 interface Workshop {
   id: number;
@@ -27,9 +29,11 @@ export const WorkshopList = () => {
       <MobileCardList
         records={records}
         renderCard={(workshop) => (
-          <div className="rounded-[20px] bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
+          <div className="rounded-[20px] bg-white p-4">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-base font-bold text-[#1a1c1e]">{workshop.name}</span>
+              <span className="text-base font-bold text-[#1a1c1e]">
+                {formatEmpty(workshop.name)}
+              </span>
               <StatusPill variant={workshop.active ? 'active' : 'inactive'}>
                 {workshop.active ? 'Активен' : 'Неактивен'}
               </StatusPill>
@@ -43,14 +47,7 @@ export const WorkshopList = () => {
               >
                 Изменить
               </PillButton>
-              <PillButton
-                variant="danger"
-                icon={<IconTrash size={16} />}
-                onClick={() => navigate(workshop.id.toString())}
-                className="h-9 px-3 text-xs"
-              >
-                Удалить
-              </PillButton>
+              <AdminDeleteButton record={workshop} size="small" />
             </div>
           </div>
         )}
@@ -83,14 +80,7 @@ export const WorkshopList = () => {
                 >
                   Изменить
                 </PillButton>
-                <PillButton
-                  variant="danger"
-                  icon={<IconTrash size={16} />}
-                  onClick={() => navigate(workshop.id.toString())}
-                  className="h-9 px-3 text-xs"
-                >
-                  Удалить
-                </PillButton>
+                <AdminDeleteButton record={workshop} size="small" />
               </div>
             ),
           },

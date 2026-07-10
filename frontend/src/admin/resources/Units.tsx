@@ -11,8 +11,10 @@ import { StatusPill } from '../ui/StatusPill';
 import { AdminChip } from '../ui/AdminChip';
 import { ReferenceSelect } from '../ui/ReferenceSelect';
 import { PillButton } from '../ui/PillButton';
+import { AdminDeleteButton } from '../ui/AdminDeleteButton';
+import { formatEmpty } from '../ui/formatEmpty';
 import { useNameMap } from '../ui/useNameMap';
-import { IconPencil, IconTrash } from '../ui/icons';
+import { IconPencil } from '../ui/icons';
 
 interface Unit {
   id: number;
@@ -36,9 +38,9 @@ export const UnitList = () => {
       <MobileCardList
         records={records}
         renderCard={(unit) => (
-          <div className="rounded-[20px] bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
+          <div className="rounded-[20px] bg-white p-4">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-base font-bold text-[#1a1c1e]">{unit.name}</span>
+              <span className="text-base font-bold text-[#1a1c1e]">{formatEmpty(unit.name)}</span>
               <StatusPill variant={unit.active ? 'active' : 'inactive'}>
                 {unit.active ? 'Активен' : 'Неактивен'}
               </StatusPill>
@@ -46,15 +48,15 @@ export const UnitList = () => {
             <div className="mb-3 space-y-1 text-sm">
               <div className="flex justify-between">
                 <span className="text-[#74777f]">PrintSrv ID</span>
-                <span className="text-[#1a1c1e]">{unit.printsrvInstanceId}</span>
+                <span className="text-[#1a1c1e]">{formatEmpty(unit.printsrvInstanceId)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[#74777f]">Хост</span>
-                <span className="text-[#1a1c1e]">{unit.printsrvHost}</span>
+                <span className="text-[#1a1c1e]">{formatEmpty(unit.printsrvHost)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[#74777f]">Порт</span>
-                <span className="text-[#1a1c1e]">{unit.printsrvPort}</span>
+                <span className="text-[#1a1c1e]">{formatEmpty(unit.printsrvPort)}</span>
               </div>
             </div>
             {unit.deviceNames && unit.deviceNames.length > 0 && (
@@ -76,14 +78,7 @@ export const UnitList = () => {
               >
                 Изменить
               </PillButton>
-              <PillButton
-                variant="danger"
-                icon={<IconTrash size={16} />}
-                onClick={() => navigate(unit.id.toString())}
-                className="h-9 px-3 text-xs"
-              >
-                Удалить
-              </PillButton>
+              <AdminDeleteButton record={unit} size="small" />
             </div>
           </div>
         )}
@@ -99,7 +94,11 @@ export const UnitList = () => {
             header: 'Цех',
             render: (unit) => <WorkshopName id={unit.workshopId} />,
           },
-          { key: 'printsrv', header: 'PrintSrv ID', render: (unit) => unit.printsrvInstanceId },
+          {
+            key: 'printsrv',
+            header: 'PrintSrv ID',
+            render: (unit) => unit.printsrvInstanceId,
+          },
           { key: 'host', header: 'Хост', render: (unit) => unit.printsrvHost },
           { key: 'port', header: 'Порт', render: (unit) => unit.printsrvPort, className: 'w-16' },
           {
@@ -138,14 +137,7 @@ export const UnitList = () => {
                 >
                   Изменить
                 </PillButton>
-                <PillButton
-                  variant="danger"
-                  icon={<IconTrash size={16} />}
-                  onClick={() => navigate(unit.id.toString())}
-                  className="h-9 px-3 text-xs"
-                >
-                  Удалить
-                </PillButton>
+                <AdminDeleteButton record={unit} size="small" />
               </div>
             ),
           },
@@ -157,7 +149,7 @@ export const UnitList = () => {
 
 function WorkshopName({ id }: { id: number }) {
   const getName = useNameMap('workshops');
-  return <span className="text-[#4285f4]">{getName(id)}</span>;
+  return <span className="text-[#1a1c1e]">{formatEmpty(getName(id))}</span>;
 }
 
 function UnitFormFields({

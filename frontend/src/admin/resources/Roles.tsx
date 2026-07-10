@@ -7,7 +7,9 @@ import { AdminEditForm } from '../ui/AdminEditForm';
 import { AdminCreateForm } from '../ui/AdminCreateForm';
 import { RoundedInput } from '../ui/RoundedInput';
 import { PillButton } from '../ui/PillButton';
-import { IconPencil, IconTrash } from '../ui/icons';
+import { AdminDeleteButton } from '../ui/AdminDeleteButton';
+import { formatEmpty } from '../ui/formatEmpty';
+import { IconPencil } from '../ui/icons';
 
 interface Role {
   id: number;
@@ -24,9 +26,9 @@ export const RoleList = () => {
       <MobileCardList
         records={records}
         renderCard={(role) => (
-          <div className="rounded-[20px] bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
+          <div className="rounded-[20px] bg-white p-4">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-base font-bold text-[#1a1c1e]">{role.name}</span>
+              <span className="text-base font-bold text-[#1a1c1e]">{formatEmpty(role.name)}</span>
             </div>
             <div className="flex items-center justify-between gap-2">
               <PillButton
@@ -37,14 +39,7 @@ export const RoleList = () => {
               >
                 Изменить
               </PillButton>
-              <PillButton
-                variant="danger"
-                icon={<IconTrash size={16} />}
-                onClick={() => navigate(role.id.toString())}
-                className="h-9 px-3 text-xs"
-              >
-                Удалить
-              </PillButton>
+              <AdminDeleteButton record={role} size="small" />
             </div>
           </div>
         )}
@@ -68,14 +63,7 @@ export const RoleList = () => {
                 >
                   Изменить
                 </PillButton>
-                <PillButton
-                  variant="danger"
-                  icon={<IconTrash size={16} />}
-                  onClick={() => navigate(role.id.toString())}
-                  className="h-9 px-3 text-xs"
-                >
-                  Удалить
-                </PillButton>
+                <AdminDeleteButton record={role} size="small" />
               </div>
             ),
           },
