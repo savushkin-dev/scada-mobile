@@ -20,6 +20,8 @@ import {
 } from '../auth/session';
 import { isTokenExpired, isTokenFullyExpired, getTokenTimeRemaining } from '../auth/token';
 import { refreshAccessToken } from '../api/auth';
+import { NetworkUnavailableError, ServerUnavailableError } from '../errors/AppError';
+import { ServerUnavailablePage } from '../pages/ServerUnavailablePage';
 
 interface AuthContextValue {
   userId: string | null;
@@ -27,8 +29,10 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isVerifying: boolean;
+  isServerUnavailable: boolean;
   login: (userId: string, role: string, accessToken: string, refreshToken: string) => void;
   logout: () => void;
+  checkServerAvailability: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -36,11 +40,30 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 /** Интервал проверки токена — каждые 60 секунд. */
 const TOKEN_CHECK_INTERVAL_MS = 60_000;
 
+/**
+ * Определяет, нужно ли считать ошибку refresh признаком недоступности сервера.
+ * При таких ошибках токены не стираются, а приложение показывает заглушку.
+ */
+function isServerUnavailableError(error: unknown): boolean {
+  return error instanceof NetworkUnavailableError || error instanceof ServerUnavailableError;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [userId, setUserId] = useState<string | null>(() => getInitialUserId());
   const [role, setRole] = useState<string | null>(() => getStoredRole());
   const [isVerifying, setIsVerifying] = useState(true);
+  const [isServerUnavailable, setIsServerUnavailable] = useState(false);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSessionExpired = useCallback(() => {
+    if (refreshTimerRef.current) {
+      clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+    clearAllAuthData();
+    setUserId(null);
+    setRole(null);
+  }, []);
 
   // ── Initial verification ───────────────────────────────────────────────
   useEffect(() => {
@@ -61,17 +84,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isTokenExpired(token)) {
       // Токен истёк — пробуем refresh
       refreshAccessToken()
-        .then((newToken) => {
-          if (!newToken) {
-            clearAllAuthData();
-            setUserId(null);
-            setRole(null);
-          }
+        .then(() => {
+          // Refresh успешен — сервер доступен
+          setIsServerUnavailable(false);
         })
-        .catch(() => {
-          clearAllAuthData();
-          setUserId(null);
-          setRole(null);
+        .catch((error) => {
+          if (isServerUnavailableError(error)) {
+            // Сервер недоступен — токены оставляем, показываем заглушку
+            setIsServerUnavailable(true);
+            return;
+          }
+          // 401/403 или другая ошибка аутентификации — logout
+          handleSessionExpired();
         })
         .finally(() => {
           setIsVerifying(false);
@@ -79,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       setIsVerifying(false);
     }
-  }, []);
+  }, [handleSessionExpired]);
 
   // ── Multi-tab synchronization ──────────────────────────────────────────
   useEffect(() => {
@@ -92,6 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         setUserId(null);
         setRole(null);
+        setIsServerUnavailable(false);
         setIsVerifying(false);
       },
       () => {
@@ -116,13 +141,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const remaining = getTokenTimeRemaining(token);
       if (remaining <= 0) {
         // Токен уже истёк — refresh
-        void refreshAccessToken().then((newToken) => {
-          if (!newToken) {
-            clearAllAuthData();
-            setUserId(null);
-            setRole(null);
-          }
-        });
+        void refreshAccessToken()
+          .then(() => {
+            setIsServerUnavailable(false);
+            scheduleNextCheck();
+          })
+          .catch((error) => {
+            if (isServerUnavailableError(error)) {
+              setIsServerUnavailable(true);
+              return;
+            }
+            handleSessionExpired();
+          });
         return;
       }
 
@@ -130,15 +160,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // либо за 10 секунд до истечения (чтобы успеть обновить)
       const delay = Math.min(TOKEN_CHECK_INTERVAL_MS, Math.max(remaining * 1000 - 10_000, 5_000));
       refreshTimerRef.current = setTimeout(() => {
-        void refreshAccessToken().then((newToken) => {
-          if (!newToken) {
-            clearAllAuthData();
-            setUserId(null);
-            setRole(null);
-            return;
-          }
-          scheduleNextCheck();
-        });
+        void refreshAccessToken()
+          .then(() => {
+            setIsServerUnavailable(false);
+            scheduleNextCheck();
+          })
+          .catch((error) => {
+            if (isServerUnavailableError(error)) {
+              setIsServerUnavailable(true);
+              return;
+            }
+            handleSessionExpired();
+          });
       }, delay);
     }
 
@@ -150,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshTimerRef.current = null;
       }
     };
-  }, [userId]);
+  }, [userId, handleSessionExpired]);
 
   const login = useCallback(
     (nextUserId: string, nextRole: string, accessToken: string, refreshToken: string) => {
@@ -161,6 +194,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRole(nextRole);
       setStoredRole(nextRole);
       setTokens(accessToken, refreshToken);
+      setIsServerUnavailable(false);
       setIsVerifying(false);
     },
     []
@@ -173,9 +207,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setUserId(null);
     setRole(null);
+    setIsServerUnavailable(false);
     setIsVerifying(false);
     clearAllAuthData();
   }, []);
+
+  /**
+   * Повторная проверка доступности сервера.
+   * Вызывается из заглушки "сервер недоступен" по кнопке "Повторить".
+   */
+  const checkServerAvailability = useCallback(() => {
+    const token = getAccessToken();
+    if (!token) {
+      handleSessionExpired();
+      return;
+    }
+
+    if (isTokenExpired(token)) {
+      refreshAccessToken()
+        .then(() => {
+          setIsServerUnavailable(false);
+        })
+        .catch((error) => {
+          if (isServerUnavailableError(error)) {
+            setIsServerUnavailable(true);
+            return;
+          }
+          handleSessionExpired();
+        });
+    } else {
+      // Токен ещё валиден — сервер снова доступен
+      setIsServerUnavailable(false);
+    }
+  }, [handleSessionExpired]);
 
   const accessToken = getAccessToken();
   const isTokenValid = Boolean(accessToken) && !isTokenFullyExpired(accessToken);
@@ -189,11 +253,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated,
       isAdmin,
       isVerifying,
+      isServerUnavailable,
       login,
       logout,
+      checkServerAvailability,
     }),
-    [userId, role, isAuthenticated, isAdmin, isVerifying, login, logout]
+    [
+      userId,
+      role,
+      isAuthenticated,
+      isAdmin,
+      isVerifying,
+      isServerUnavailable,
+      login,
+      logout,
+      checkServerAvailability,
+    ]
   );
+
+  if (isServerUnavailable) {
+    return <ServerUnavailablePage onRetry={checkServerAvailability} />;
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -1,21 +1,17 @@
 import { HTTP_REQUEST } from '../config';
 import { getAccessToken, clearAllAuthData } from '../auth/session';
 import { refreshAccessToken } from './auth';
-import { AuthSessionExpiredError } from '../errors/AppError';
+import {
+  AuthSessionExpiredError,
+  NetworkUnavailableError,
+  ServerUnavailableError,
+} from '../errors/AppError';
 
 let isRefreshing = false;
 let refreshSubscribers: Array<(token: string | null) => void> = [];
 
 function subscribeToRefresh(callback: (token: string | null) => void): void {
   refreshSubscribers.push(callback);
-}
-
-/**
- * Определяет, является ли ошибка сетевой (сервер недоступен, CORS, разрыв соединения).
- * Fetch бросает TypeError при сетевых сбоях.
- */
-function isNetworkError(error: unknown): boolean {
-  return error instanceof TypeError;
 }
 
 function notifySubscribers(token: string | null): void {
@@ -39,7 +35,9 @@ function logRequest(method: string, url: string, status?: number): void {
  * Централизованный fetch с автоматическим:
  * - Добавлением Authorization: Bearer <accessToken>
  * - Обработкой 401 → попытка refresh → retry запроса
- * - Если refresh не удался — выбрасывает AuthSessionExpiredError
+ * - При сетевой ошибке или 5xx во время refresh — НЕ чистит токены,
+ *   прокидывает ошибку выше, чтобы AuthContext показал заглушку.
+ * - При 401/403 от refresh — чистит токены и бросает AuthSessionExpiredError.
  */
 export async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const token = getAccessToken();
@@ -97,13 +95,14 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
 
   if (!newToken) {
     // Refresh не удался. Различаем причину:
-    // - Сетевая ошибка → сервер недоступен, токены валидны, не выгоняем пользователя
-    // - HTTP-ошибка (4xx/5xx) → токены протухли/инвалидированы → logout
-    if (refreshError && isNetworkError(refreshError)) {
-      // Сервер недоступен — не чистим auth, прокидываем сетевую ошибку
+    // - Сетевая ошибка / 5xx → сервер недоступен/болен, токены валидны, не выгоняем пользователя
+    // - HTTP 401/403 → токены протухли или инвалидированы → logout
+    if (
+      refreshError instanceof NetworkUnavailableError ||
+      refreshError instanceof ServerUnavailableError
+    ) {
       throw refreshError;
     }
-    // Refresh не удался по HTTP-причине — токены протухли или инвалидированы
     clearAllAuthData();
     throw new AuthSessionExpiredError();
   }
