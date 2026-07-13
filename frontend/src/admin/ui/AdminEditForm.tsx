@@ -1,11 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  useEditController,
-  useDelete,
-  useNotify,
-  useRedirect,
-  useResourceContext,
-} from 'react-admin';
+import { useNavigate } from 'react-router-dom';
+import { useEditController, useDelete, useNotify, useResourceContext } from 'react-admin';
 import { AdminCard } from './AdminCard';
 import { PillButton } from './PillButton';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -40,14 +35,14 @@ function getErrorMessage(error: unknown, fallback: string): string {
 
 export function AdminEditForm({ title, children }: AdminEditFormProps) {
   const { record, save, saving, isLoading } = useEditController({
-    redirect: 'list',
+    redirect: false,
     mutationMode: 'pessimistic',
   });
   const [values, setValues] = useState<Record<string, unknown>>({});
   const [showDelete, setShowDelete] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const notify = useNotify();
-  const redirect = useRedirect();
+  const navigate = useNavigate();
   const resource = useResourceContext();
   const [deleteOne, { isPending: deleting }] = useDelete(undefined, undefined, {
     mutationMode: 'pessimistic',
@@ -75,10 +70,13 @@ export function AdminEditForm({ title, children }: AdminEditFormProps) {
     save?.(values, {
       onSuccess: () => {
         notify('Сохранено', { type: 'info' });
-        redirect('list');
+        navigate('/admin/' + resource);
       },
       onError: (error) => {
-        notify(getErrorMessage(error, 'Ошибка сохранения'), { type: 'error' });
+        notify(getErrorMessage(error, 'Ошибка сохранения'), {
+          type: 'error',
+          autoHideDuration: null,
+        });
       },
     });
   };
@@ -91,10 +89,13 @@ export function AdminEditForm({ title, children }: AdminEditFormProps) {
       {
         onSuccess: () => {
           notify('Удалено', { type: 'info' });
-          redirect('list');
+          navigate('/admin/' + resource);
         },
         onError: (error) => {
-          notify(getErrorMessage(error, 'Ошибка удаления'), { type: 'error' });
+          notify(getErrorMessage(error, 'Ошибка удаления'), {
+            type: 'error',
+            autoHideDuration: null,
+          });
         },
       }
     );

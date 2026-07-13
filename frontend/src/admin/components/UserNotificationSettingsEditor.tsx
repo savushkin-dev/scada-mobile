@@ -83,7 +83,7 @@ export function UserNotificationSettingsEditor() {
           notify('Настройка сохранена', { type: 'info' });
           refetch();
         },
-        onError: () => notify('Ошибка сохранения', { type: 'error' }),
+        onError: () => notify('Ошибка сохранения', { type: 'error', autoHideDuration: null }),
       }
     );
   };
@@ -109,7 +109,7 @@ export function UserNotificationSettingsEditor() {
           setSelectedUnitId('');
           refetch();
         },
-        onError: () => notify('Ошибка добавления', { type: 'error' }),
+        onError: () => notify('Ошибка добавления', { type: 'error', autoHideDuration: null }),
       }
     );
   };
@@ -123,7 +123,7 @@ export function UserNotificationSettingsEditor() {
           notify('Настройка удалена', { type: 'info' });
           refetch();
         },
-        onError: () => notify('Ошибка удаления', { type: 'error' }),
+        onError: () => notify('Ошибка удаления', { type: 'error', autoHideDuration: null }),
       }
     );
   };

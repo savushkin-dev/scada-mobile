@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useCreateController, useNotify, useRedirect } from 'react-admin';
+import { useNavigate } from 'react-router-dom';
+import { useCreateController, useNotify, useResourceContext } from 'react-admin';
 import { AdminCard } from './AdminCard';
 import { PillButton } from './PillButton';
 import { IconSave } from './icons';
@@ -25,10 +26,11 @@ function getErrorMessage(error: unknown, fallback: string): string {
 }
 
 export function AdminCreateForm({ title, defaultValues = {}, children }: AdminCreateFormProps) {
-  const { save, saving } = useCreateController({ redirect: 'list' });
+  const { save, saving } = useCreateController({ redirect: false });
   const [values, setValues] = useState<Record<string, unknown>>(defaultValues);
   const notify = useNotify();
-  const redirect = useRedirect();
+  const navigate = useNavigate();
+  const resource = useResourceContext();
 
   const handleChange = (field: string, value: unknown) => {
     setValues((prev) => ({ ...prev, [field]: value }));
@@ -38,10 +40,13 @@ export function AdminCreateForm({ title, defaultValues = {}, children }: AdminCr
     save?.(values, {
       onSuccess: () => {
         notify('Создано', { type: 'info' });
-        redirect('list');
+        navigate('/admin/' + resource);
       },
       onError: (error) => {
-        notify(getErrorMessage(error, 'Ошибка создания'), { type: 'error' });
+        notify(getErrorMessage(error, 'Ошибка создания'), {
+          type: 'error',
+          autoHideDuration: null,
+        });
       },
     });
   };
