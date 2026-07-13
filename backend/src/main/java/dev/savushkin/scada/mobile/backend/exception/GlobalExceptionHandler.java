@@ -24,6 +24,7 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import java.io.IOException;
 import java.net.SocketException;
@@ -348,6 +349,25 @@ public class GlobalExceptionHandler {
                 errors
         );
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
+    /**
+     * Обрабатывает нарушения уникальности на уровне базы данных.
+     * <p>
+     * Возвращает HTTP 409 (Conflict) с человекочитаемым сообщением.
+     * Используется как fallback, если контроллер не выполнил предварительную проверку.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponseDTO> handleDataIntegrityViolation(
+            @NonNull DataIntegrityViolationException e,
+            @NonNull WebRequest request
+    ) {
+        log.warn("Data integrity violation: {}", e.getMessage());
+        return buildErrorResponse(
+                HttpStatus.CONFLICT,
+                "Запись с такими значениями уже существует",
+                request
+        );
     }
 
     /**

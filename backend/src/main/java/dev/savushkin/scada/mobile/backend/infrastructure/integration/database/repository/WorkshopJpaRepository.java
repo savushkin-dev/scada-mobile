@@ -14,4 +14,7 @@ public interface WorkshopJpaRepository extends JpaRepository<WorkshopEntity, Lon
 
     @RestResource(exported = false)
     @NonNull List<WorkshopEntity> findByActiveTrue();
+
+    @RestResource(exported = false)
+    @NonNull Optional<WorkshopEntity> findByName(@NonNull String name);
 }

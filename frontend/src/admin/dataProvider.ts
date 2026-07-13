@@ -131,7 +131,7 @@ export const dataProvider: DataProvider = {
             .map((d: any) => d.catalogId);
           const deviceNames = unitCatalogIds.map((catalogId: any) => {
             const catalog = catalogs.find((c: any) => c.id === catalogId);
-            return catalog?.displayName ?? catalog?.code ?? String(catalogId);
+            return catalog?.name ?? catalog?.code ?? String(catalogId);
           });
 
           return {

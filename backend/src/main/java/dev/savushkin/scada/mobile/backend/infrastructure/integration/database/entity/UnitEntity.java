@@ -8,7 +8,9 @@ import lombok.Setter;
 import java.util.Set;
 
 @Entity
-@Table(name = "units")
+@Table(name = "units", uniqueConstraints = {
+        @UniqueConstraint(name = "uc_units_name_printsrv", columnNames = {"name", "printsrv_instance_id"})
+})
 @Getter
 @Setter
 public class UnitEntity {

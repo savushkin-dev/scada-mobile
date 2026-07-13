@@ -23,13 +23,13 @@ import java.time.Instant;
  * <p>
  * При обнаружении нового устройства в runtime (которого нет в БД):
  * <ol>
- *   <li>Создаёт запись в {@code device_catalog} с {@code type=null}, {@code active=false}, {@code display_name=code}</li>
+ *   <li>Создаёт запись в {@code device_catalog} с {@code type=null}, {@code active=false}, {@code name=code}</li>
  *   <li>Создаёт связь в {@code unit_devices}</li>
  *   <li>Публикует {@link DeviceCompositionChangedEvent}</li>
  * </ol>
  * <p>
  * Устройство не отображается на странице деталей автомата до тех пор,
- * пока администратор не установит {@code type} и {@code display_name}.
+ * пока администратор не установит {@code type} и {@code name}.
  */
 @Service
 public class DeviceAutoDiscoveryService {
@@ -113,13 +113,13 @@ public class DeviceAutoDiscoveryService {
 
     /**
      * Создаёт неполностью сконфигурированную запись в device_catalog.
-     * Требует ручной настройки администратором (type + display_name).
+     * Требует ручной настройки администратором (type + name).
      */
     private DeviceCatalogEntity createUnconfiguredCatalog(@NonNull String code) {
         log.info("Auto-creating unconfigured catalog entry for code='{}'", code);
         DeviceCatalogEntity catalog = new DeviceCatalogEntity();
         catalog.setCode(code);
-        catalog.setDisplayName(code); // Админ должен изменить
+        catalog.setName(code); // Админ должен изменить
         catalog.setType(null);        // Тип неизвестен, админ должен выбрать
         catalog.setActive(false);     // Не отображается на странице деталей
         return catalogRepository.save(catalog);

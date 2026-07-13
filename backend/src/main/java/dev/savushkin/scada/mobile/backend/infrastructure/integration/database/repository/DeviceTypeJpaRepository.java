@@ -13,4 +13,7 @@ public interface DeviceTypeJpaRepository extends JpaRepository<DeviceTypeEntity,
 
     @RestResource(exported = false)
     @NonNull Optional<DeviceTypeEntity> findByCode(@NonNull String code);
+
+    @RestResource(exported = false)
+    @NonNull Optional<DeviceTypeEntity> findByName(@NonNull String name);
 }

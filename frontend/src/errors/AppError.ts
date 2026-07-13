@@ -147,3 +147,28 @@ export class AuthSessionExpiredError extends Error {
     this.name = 'AuthSessionExpiredError';
   }
 }
+
+/**
+ * Сетевая ошибка — сервер недоступен, нет ответа (fetch бросает TypeError).
+ * Токены не должны стираться; приложение переходит в режим "сервер недоступен".
+ */
+export class NetworkUnavailableError extends Error {
+  constructor(message = 'Сервер недоступен') {
+    super(message);
+    this.name = 'NetworkUnavailableError';
+  }
+}
+
+/**
+ * Ошибка сервера (5xx) при попытке обновления токена.
+ * Бек жив, но не может обработать запрос. Токены сохраняем, показываем заглушку.
+ */
+export class ServerUnavailableError extends Error {
+  constructor(
+    public readonly status: number,
+    message = 'Ошибка сервера'
+  ) {
+    super(message);
+    this.name = 'ServerUnavailableError';
+  }
+}

@@ -27,6 +27,10 @@ public class AdminRoleController {
 
     @PostMapping
     public ResponseEntity<RoleEntity> create(@Valid @RequestBody RoleRequest request) {
+        if (roleRepository.findByName(request.name()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Роль с таким названием уже существует");
+        }
+
         RoleEntity role = new RoleEntity();
         role.setName(request.name());
 
@@ -39,6 +43,10 @@ public class AdminRoleController {
                                              @Valid @RequestBody RoleRequest request) {
         RoleEntity role = roleRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Роль не найдена"));
+
+        if (!role.getName().equals(request.name()) && roleRepository.findByName(request.name()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Роль с таким названием уже существует");
+        }
 
         role.setName(request.name());
 

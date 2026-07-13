@@ -27,6 +27,13 @@ public class AdminDeviceTypeController {
 
     @PostMapping
     public ResponseEntity<DeviceTypeEntity> create(@Valid @RequestBody DeviceTypeRequest request) {
+        if (deviceTypeRepository.findByCode(request.code()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Тип устройства с таким кодом уже существует");
+        }
+        if (deviceTypeRepository.findByName(request.name()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Тип устройства с таким названием уже существует");
+        }
+
         DeviceTypeEntity type = new DeviceTypeEntity();
         type.setCode(request.code());
         type.setName(request.name());
@@ -40,6 +47,13 @@ public class AdminDeviceTypeController {
                                                    @Valid @RequestBody DeviceTypeRequest request) {
         DeviceTypeEntity type = deviceTypeRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Тип устройства не найден"));
+
+        if (!type.getCode().equals(request.code()) && deviceTypeRepository.findByCode(request.code()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Тип устройства с таким кодом уже существует");
+        }
+        if (!type.getName().equals(request.name()) && deviceTypeRepository.findByName(request.name()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Тип устройства с таким названием уже существует");
+        }
 
         type.setCode(request.code());
         type.setName(request.name());

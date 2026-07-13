@@ -10,4 +10,6 @@ import java.util.Optional;
 public interface DeviceCatalogJpaRepository extends JpaRepository<DeviceCatalogEntity, Long> {
 
     @NonNull Optional<DeviceCatalogEntity> findByCode(@NonNull String code);
+
+    @NonNull Optional<DeviceCatalogEntity> findByName(@NonNull String name);
 }

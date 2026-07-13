@@ -1,5 +1,10 @@
 import { API_BASE, HTTP_REQUEST } from '../config';
 import { getRefreshToken, setTokens } from '../auth/session';
+import {
+  AuthSessionExpiredError,
+  NetworkUnavailableError,
+  ServerUnavailableError,
+} from '../errors/AppError';
 
 export interface LoginResponse {
   userId: string;
@@ -73,23 +78,43 @@ export async function logoutUser(): Promise<void> {
 
 /**
  * Обновление access-токена через refresh-токен.
- * При успехе сохраняет новую пару токенов.
- * При сетевой ошибке — бросает исключение (не возвращает null),
- * чтобы caller мог отличить "сервер недоступен" от "токен невалиден".
+ *
+ * Возможные исходы:
+ * - Успех → возвращает новый accessToken, сохраняет пару токенов.
+ * - Сетевая ошибка → бросает NetworkUnavailableError (не трогаем токены).
+ * - 401/403 или некорректный ответ → бросает AuthSessionExpiredError (logout).
+ * - 5xx → бросает ServerUnavailableError (не трогаем токены).
  */
-export async function refreshAccessToken(): Promise<string | null> {
+export async function refreshAccessToken(): Promise<string> {
   const refreshToken = getRefreshToken();
-  if (!refreshToken) return null;
+  if (!refreshToken) {
+    throw new AuthSessionExpiredError('Отсутствует refresh-токен');
+  }
 
-  const resp = await fetch(`${API_BASE}/api/v1.0.0/auth/refresh`, {
-    method: HTTP_REQUEST.post,
-    headers: {
-      'Content-Type': HTTP_REQUEST.jsonContentType,
-    },
-    body: JSON.stringify({ refreshToken }),
-  });
+  let resp: Response;
+  try {
+    resp = await fetch(`${API_BASE}/api/v1.0.0/auth/refresh`, {
+      method: HTTP_REQUEST.post,
+      headers: {
+        'Content-Type': HTTP_REQUEST.jsonContentType,
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+  } catch {
+    // Fetch бросает TypeError при сетевых сбоях (сервер недоступен, CORS, разрыв).
+    throw new NetworkUnavailableError();
+  }
 
-  if (!resp.ok) return null;
+  if (!resp.ok) {
+    if (resp.status === 401 || resp.status === 403) {
+      throw new AuthSessionExpiredError(`HTTP ${resp.status}`);
+    }
+    if (resp.status >= 500) {
+      throw new ServerUnavailableError(resp.status);
+    }
+    // Другие 4xx — тоже считаем истечением сессии, т.к. refresh не должен так отвечать
+    throw new AuthSessionExpiredError(`HTTP ${resp.status}`);
+  }
 
   const raw: unknown = await resp.json();
   const rawObj = raw as {
@@ -98,7 +123,7 @@ export async function refreshAccessToken(): Promise<string | null> {
   } | null;
 
   if (!rawObj?.accessToken || !rawObj?.refreshToken) {
-    return null;
+    throw new AuthSessionExpiredError('Некорректный ответ при обновлении токена');
   }
 
   setTokens(rawObj.accessToken, rawObj.refreshToken);

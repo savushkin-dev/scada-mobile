@@ -19,6 +19,19 @@ public interface UnitJpaRepository extends JpaRepository<UnitEntity, Long> {
     @Query("""
             select u
             from UnitEntity u
+            where u.name = :name
+              and ((:printsrvInstanceId is null and u.printsrvInstanceId is null)
+                   or u.printsrvInstanceId = :printsrvInstanceId)
+            """)
+    @NonNull Optional<UnitEntity> findByNameAndPrintsrvInstanceId(
+            @Param("name") String name,
+            @Param("printsrvInstanceId") String printsrvInstanceId
+    );
+
+    @RestResource(exported = false)
+    @Query("""
+            select u
+            from UnitEntity u
             join fetch u.workshop
             where u.printsrvInstanceId = :printsrvInstanceId
             """)
