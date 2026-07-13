@@ -77,7 +77,7 @@ export const dataProvider: DataProvider = {
       }
 
       if (resource === 'notifications') {
-        // /admin/notifications возвращает плоский массив непрочитанных уведомлений
+        // /admin/notifications возвращает плоский массив всех уведомлений
         return { data, total: data.length };
       }
 

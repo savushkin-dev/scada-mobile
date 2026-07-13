@@ -6,6 +6,7 @@ import dev.savushkin.scada.mobile.backend.domain.model.AdminNotificationSeverity
 import dev.savushkin.scada.mobile.backend.domain.model.AdminNotificationType;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.AdminNotificationJpaRepository;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,16 +32,31 @@ public class AdminNotificationService {
     }
 
     @Transactional
-    public void createDeviceDiscoveredNotification(@NonNull String instanceId, @NonNull String deviceCode) {
+    public void createDeviceDiscoveredNotification(@NonNull String instanceId,
+                                                   @NonNull String deviceCode,
+                                                   @Nullable Long catalogId,
+                                                   boolean newlyCreated) {
+        AdminNotificationSeverity severity = newlyCreated
+                ? AdminNotificationSeverity.WARNING
+                : AdminNotificationSeverity.INFO;
+
+        String message = newlyCreated
+                ? String.format(
+                "Обнаружено новое устройство '%s' на автомате '%s'. " +
+                        "Устройство создано в справочнике в неактивном состоянии — укажите тип и название.",
+                deviceCode, instanceId)
+                : String.format(
+                "Обнаружено известное устройство '%s' на автомате '%s'. " +
+                        "Устройство автоматически подключено к автомату.",
+                deviceCode, instanceId);
+
         AdminNotificationEntity notification = new AdminNotificationEntity();
         notification.setType(AdminNotificationType.DEVICE_DISCOVERED);
-        notification.setSeverity(AdminNotificationSeverity.INFO);
+        notification.setSeverity(severity);
         notification.setInstanceId(instanceId);
         notification.setDeviceCode(deviceCode);
-        notification.setMessage(String.format(
-                "Обнаружено новое устройство '%s' на аппарате '%s'. " +
-                        "Установите тип и отображаемое имя в панели администратора.",
-                deviceCode, instanceId));
+        notification.setCatalogId(catalogId);
+        notification.setMessage(message);
         notification.setRead(false);
 
         notificationRepository.save(notification);
@@ -55,8 +71,8 @@ public class AdminNotificationService {
         notification.setInstanceId(instanceId);
         notification.setDeviceCode(deviceCode);
         notification.setMessage(String.format(
-                "Устройство '%s' на аппарате '%s' отключено (отсутствует в runtime). " +
-                        "Проверьте подключение или удалите устройство из конфигурации.",
+                "Устройство '%s' на автомате '%s' не подключено. " +
+                        "Оно числится в системе, но сейчас физически отсутствует на автомате — проверьте подключение.",
                 deviceCode, instanceId));
         notification.setRead(false);
 
@@ -72,12 +88,17 @@ public class AdminNotificationService {
         notification.setInstanceId(instanceId);
         notification.setDeviceCode(deviceCode);
         notification.setMessage(String.format(
-                "Устройство '%s' на аппарате '%s' снова подключено (появилось в runtime).",
+                "Устройство '%s' на автомате '%s' снова подключено.",
                 deviceCode, instanceId));
         notification.setRead(false);
 
         notificationRepository.save(notification);
         eventPublisher.publishEvent(new AdminNotificationEvent(notification));
+    }
+
+    @NonNull
+    public List<AdminNotificationEntity> getAllNotifications() {
+        return notificationRepository.findAllByOrderByCreatedAtDesc();
     }
 
     @NonNull

@@ -36,6 +36,9 @@ public class AdminNotificationEntity {
     @Column(name = "device_code")
     private String deviceCode;
 
+    @Column(name = "catalog_id")
+    private Long catalogId;
+
     @Column(name = "message", nullable = false)
     private String message;
 

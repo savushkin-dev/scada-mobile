@@ -23,6 +23,7 @@ public record AdminNotificationMessageDTO(
         @NonNull String severity,
         @NonNull String instanceId,
         String deviceCode,
+        Long catalogId,
         @NonNull String message,
         @NonNull String timestamp
 ) {
@@ -34,6 +35,7 @@ public record AdminNotificationMessageDTO(
                 entity.getSeverity().name(),
                 entity.getInstanceId(),
                 entity.getDeviceCode(),
+                entity.getCatalogId(),
                 entity.getMessage(),
                 entity.getCreatedAt().toString()
         );

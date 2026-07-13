@@ -25,8 +25,8 @@ public class AdminNotificationController {
     }
 
     @GetMapping
-    public ResponseEntity<List<AdminNotificationEntity>> listUnread() {
-        return ResponseEntity.ok(notificationService.getUnreadNotifications());
+    public ResponseEntity<List<AdminNotificationEntity>> listAll() {
+        return ResponseEntity.ok(notificationService.getAllNotifications());
     }
 
     @GetMapping("/count")

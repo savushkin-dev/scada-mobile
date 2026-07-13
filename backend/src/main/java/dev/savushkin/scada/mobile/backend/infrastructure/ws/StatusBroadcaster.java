@@ -6,7 +6,6 @@ import dev.savushkin.scada.mobile.backend.api.dto.AlertMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.NotificationMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitStatusDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitsStatusMessageDTO;
-import dev.savushkin.scada.mobile.backend.domain.model.DeviceCompositionChangedEvent;
 import dev.savushkin.scada.mobile.backend.application.ports.PrintSrvTopologyRepository;
 import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
 import dev.savushkin.scada.mobile.backend.infrastructure.polling.PrintSrvInstancePolledEvent;
@@ -240,16 +239,6 @@ public class StatusBroadcaster {
     }
 
     // ─── Admin notification events ───────────────────────────────────────────
-
-    @EventListener
-    public void onDeviceCompositionChanged(DeviceCompositionChangedEvent event) {
-        for (String deviceCode : event.addedDevices()) {
-            adminNotificationService.createDeviceDiscoveredNotification(event.instanceId(), deviceCode);
-        }
-        for (String deviceCode : event.removedDevices()) {
-            adminNotificationService.createDeviceDisconnectedNotification(event.instanceId(), deviceCode);
-        }
-    }
 
     @EventListener
     public void onAdminNotification(dev.savushkin.scada.mobile.backend.domain.model.AdminNotificationEvent event) {

@@ -1,5 +1,6 @@
 import { useListContext, useRefresh, useUpdate } from 'react-admin';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { WS_BASE } from '../../config';
 import { getAccessToken } from '../../auth/session';
 import { AdminCard } from '../ui/AdminCard';
@@ -8,7 +9,8 @@ import { PillButton } from '../ui/PillButton';
 import { StatusPill } from '../ui/StatusPill';
 import { MobileCardList } from '../ui/MobileCardList';
 import { DesktopDataTable } from '../ui/DesktopDataTable';
-import { IconRefresh, IconCheck } from '../ui/icons';
+import { IconRefresh, IconCheck, IconPencil } from '../ui/icons';
+import { useAdminNotificationsCount } from '../ui/AdminNotificationsContext';
 
 interface Notification {
   id: number | string;
@@ -16,9 +18,13 @@ interface Notification {
   severity: string;
   instanceId: string;
   deviceCode?: string;
+  catalogId?: number | null;
   message: string;
+  read: boolean;
   createdAt: string;
 }
+
+type Tab = 'unread' | 'read';
 
 function severityVariant(severity: string): 'warning' | 'error' | 'inactive' {
   switch (severity) {
@@ -43,16 +49,111 @@ function typeLabel(type: string) {
   }
 }
 
+function useMarkAsRead() {
+  const [update, { isPending }] = useUpdate();
+  const refresh = useRefresh();
+  const { refreshCount } = useAdminNotificationsCount();
+
+  const mark = (id: number | string, onSuccess?: () => void) => {
+    update(
+      'notifications',
+      { id, data: {} },
+      {
+        onSuccess: () => {
+          refresh();
+          refreshCount();
+          onSuccess?.();
+        },
+      }
+    );
+  };
+
+  return { mark, isPending };
+}
+
+function MarkAsReadButton({ id }: { id: number | string }) {
+  const { mark, isPending } = useMarkAsRead();
+  return (
+    <PillButton
+      variant="secondary"
+      icon={<IconCheck size={16} />}
+      onClick={() => mark(id)}
+      disabled={isPending}
+      className="h-9 px-3 text-xs"
+    >
+      Прочитано
+    </PillButton>
+  );
+}
+
+function DiscoveredDeviceActions({ note }: { note: Notification }) {
+  const navigate = useNavigate();
+  const { mark, isPending } = useMarkAsRead();
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <PillButton
+        variant="secondary"
+        icon={<IconCheck size={16} />}
+        onClick={() => mark(note.id)}
+        disabled={isPending}
+        className="h-9 px-3 text-xs"
+      >
+        Игнорировать
+      </PillButton>
+      <PillButton
+        variant="primary"
+        icon={<IconPencil size={16} />}
+        onClick={() =>
+          mark(note.id, () => {
+            if (note.catalogId) {
+              navigate(`/admin/device-catalog/${note.catalogId}`);
+            }
+          })
+        }
+        disabled={isPending || !note.catalogId}
+        className="h-9 px-3 text-xs"
+      >
+        Внести
+      </PillButton>
+    </div>
+  );
+}
+
+function NotificationActions({ note }: { note: Notification }) {
+  if (note.read) {
+    return null;
+  }
+
+  const isNewDeviceWarning = note.type === 'DEVICE_DISCOVERED' && note.severity === 'WARNING';
+
+  if (isNewDeviceWarning) {
+    return <DiscoveredDeviceActions note={note} />;
+  }
+
+  return <MarkAsReadButton id={note.id} />;
+}
+
 function MarkAllAsReadButton() {
   const [update, { isPending }] = useUpdate();
   const refresh = useRefresh();
+  const { refreshCount } = useAdminNotificationsCount();
 
   return (
     <PillButton
       variant="secondary"
       icon={<IconCheck size={16} />}
       onClick={() =>
-        update('notifications', { id: 'read-all', data: {} }, { onSuccess: () => refresh() })
+        update(
+          'notifications',
+          { id: 'read-all', data: {} },
+          {
+            onSuccess: () => {
+              refresh();
+              refreshCount();
+            },
+          }
+        )
       }
       disabled={isPending}
       className="h-9 px-3 text-xs"
@@ -62,28 +163,41 @@ function MarkAllAsReadButton() {
   );
 }
 
-function MarkAsReadButton({ id }: { id: number | string }) {
-  const [update, { isPending }] = useUpdate();
-  const refresh = useRefresh();
-
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <PillButton
-      variant="secondary"
-      icon={<IconCheck size={16} />}
-      onClick={() => update('notifications', { id, data: {} }, { onSuccess: () => refresh() })}
-      disabled={isPending}
-      className="h-9 px-3 text-xs"
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        'rounded-full px-4 py-2 text-sm font-semibold transition-colors ' +
+        (active
+          ? 'bg-[#1a1c1e] text-white shadow-[0_2px_8px_rgba(26,28,30,0.12)]'
+          : 'bg-white text-[#74777f] hover:bg-[#f8f9fa] hover:text-[#1a1c1e]')
+      }
     >
-      Прочитано
-    </PillButton>
+      {children}
+    </button>
   );
 }
 
 export function NotificationList() {
   const refresh = useRefresh();
   const [wsConnected, setWsConnected] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>('unread');
   const { data, isLoading } = useListContext<Notification>();
   const records = data ?? [];
+
+  const unread = records.filter((n) => !n.read);
+  const read = records.filter((n) => n.read);
+  const visible = activeTab === 'unread' ? unread : read;
 
   useEffect(() => {
     const token = getAccessToken();
@@ -133,19 +247,30 @@ export function NotificationList() {
           >
             Обновить
           </PillButton>
-          <MarkAllAsReadButton />
+          {activeTab === 'unread' && <MarkAllAsReadButton />}
         </div>
       </div>
 
+      <div className="mb-4 flex items-center gap-2 lg:mb-6">
+        <TabButton active={activeTab === 'unread'} onClick={() => setActiveTab('unread')}>
+          Непрочитанные ({unread.length})
+        </TabButton>
+        <TabButton active={activeTab === 'read'} onClick={() => setActiveTab('read')}>
+          Прочитанные ({read.length})
+        </TabButton>
+      </div>
+
       <AdminCard>
-        {records.length === 0 ? (
+        {visible.length === 0 ? (
           <div className="flex h-64 items-center justify-center text-[#74777f]">
-            Нет уведомлений
+            {activeTab === 'unread'
+              ? 'Нет непрочитанных уведомлений'
+              : 'Нет прочитанных уведомлений'}
           </div>
         ) : (
           <>
             <MobileCardList
-              records={records}
+              records={visible}
               renderCard={(note) => (
                 <div className="rounded-[20px] bg-white p-4">
                   <div className="mb-2 flex items-center justify-between">
@@ -161,12 +286,12 @@ export function NotificationList() {
                     {note.instanceId} {note.deviceCode ? `· ${note.deviceCode}` : ''} ·{' '}
                     {new Date(note.createdAt).toLocaleString('ru-RU')}
                   </div>
-                  <MarkAsReadButton id={note.id} />
+                  <NotificationActions note={note} />
                 </div>
               )}
             />
             <DesktopDataTable
-              records={records}
+              records={visible}
               keyExtractor={(note) => note.id}
               columns={[
                 {
@@ -198,7 +323,7 @@ export function NotificationList() {
                 {
                   key: 'action',
                   header: '',
-                  render: (note) => <MarkAsReadButton id={note.id} />,
+                  render: (note) => <NotificationActions note={note} />,
                 },
               ]}
             />
