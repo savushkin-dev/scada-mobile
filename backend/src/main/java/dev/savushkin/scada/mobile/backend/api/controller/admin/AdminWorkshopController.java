@@ -27,6 +27,10 @@ public class AdminWorkshopController {
 
     @PostMapping
     public ResponseEntity<WorkshopEntity> create(@Valid @RequestBody WorkshopRequest request) {
+        if (workshopRepository.findByName(request.name()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Цех с таким названием уже существует");
+        }
+
         WorkshopEntity workshop = new WorkshopEntity();
         workshop.setName(request.name());
         workshop.setActive(request.active());
@@ -40,6 +44,10 @@ public class AdminWorkshopController {
                                                  @Valid @RequestBody WorkshopRequest request) {
         WorkshopEntity workshop = workshopRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Цех не найден"));
+
+        if (!workshop.getName().equals(request.name()) && workshopRepository.findByName(request.name()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Цех с таким названием уже существует");
+        }
 
         workshop.setName(request.name());
         workshop.setActive(request.active());

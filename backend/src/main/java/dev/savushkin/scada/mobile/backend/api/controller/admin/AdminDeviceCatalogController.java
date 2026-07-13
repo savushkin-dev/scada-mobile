@@ -47,22 +47,24 @@ public class AdminDeviceCatalogController {
 
     @PostMapping
     public ResponseEntity<DeviceCatalogEntity> create(@Valid @RequestBody CatalogRequest request) {
-        DeviceTypeEntity type = null;
-        if (request.typeId() != null) {
-            type = deviceTypeRepository.findById(request.typeId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Тип устройства не найден"));
-        }
+        DeviceTypeEntity type = resolveType(request.typeId());
 
-        // Валидация: нельзя активировать устройство без типа
         if (request.active() && type == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Нельзя активировать устройство без указания типа");
         }
 
+        if (catalogRepository.findByCode(request.code()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Устройство с таким кодом уже существует");
+        }
+        if (catalogRepository.findByName(request.name()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Устройство с таким названием уже существует");
+        }
+
         DeviceCatalogEntity catalog = new DeviceCatalogEntity();
         catalog.setType(type);
         catalog.setCode(request.code());
-        catalog.setDisplayName(request.displayName());
+        catalog.setName(request.name());
         catalog.setActive(request.active());
 
         DeviceCatalogEntity saved = catalogRepository.save(catalog);
@@ -75,21 +77,23 @@ public class AdminDeviceCatalogController {
         DeviceCatalogEntity catalog = catalogRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Устройство не найдено"));
 
-        DeviceTypeEntity type = null;
-        if (request.typeId() != null) {
-            type = deviceTypeRepository.findById(request.typeId())
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Тип устройства не найден"));
-        }
+        DeviceTypeEntity type = resolveType(request.typeId());
 
-        // Валидация: нельзя активировать устройство без типа
         if (request.active() && type == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Нельзя активировать устройство без указания типа");
         }
 
+        if (!catalog.getCode().equals(request.code()) && catalogRepository.findByCode(request.code()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Устройство с таким кодом уже существует");
+        }
+        if (!catalog.getName().equals(request.name()) && catalogRepository.findByName(request.name()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Устройство с таким названием уже существует");
+        }
+
         catalog.setType(type);
         catalog.setCode(request.code());
-        catalog.setDisplayName(request.displayName());
+        catalog.setName(request.name());
         catalog.setActive(request.active());
 
         DeviceCatalogEntity saved = catalogRepository.save(catalog);
@@ -105,10 +109,18 @@ public class AdminDeviceCatalogController {
         return ResponseEntity.noContent().build();
     }
 
+    private DeviceTypeEntity resolveType(Long typeId) {
+        if (typeId == null) {
+            return null;
+        }
+        return deviceTypeRepository.findById(typeId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Тип устройства не найден"));
+    }
+
     public record CatalogRequest(
             Long typeId,
             @NotBlank String code,
-            @NotBlank String displayName,
+            @NotBlank String name,
             boolean active
     ) {
     }

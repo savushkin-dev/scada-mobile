@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useCreateController, useNotify } from 'react-admin';
+import { useCreateController, useNotify, useRedirect } from 'react-admin';
 import { AdminCard } from './AdminCard';
 import { PillButton } from './PillButton';
 import { IconSave } from './icons';
@@ -14,10 +14,21 @@ interface AdminCreateFormProps {
   }) => ReactNode;
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error === 'string') return error || fallback;
+  if (error instanceof Error) return error.message || fallback;
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    return typeof message === 'string' && message ? message : fallback;
+  }
+  return fallback;
+}
+
 export function AdminCreateForm({ title, defaultValues = {}, children }: AdminCreateFormProps) {
   const { save, saving } = useCreateController({ redirect: 'list' });
   const [values, setValues] = useState<Record<string, unknown>>(defaultValues);
   const notify = useNotify();
+  const redirect = useRedirect();
 
   const handleChange = (field: string, value: unknown) => {
     setValues((prev) => ({ ...prev, [field]: value }));
@@ -25,8 +36,13 @@ export function AdminCreateForm({ title, defaultValues = {}, children }: AdminCr
 
   const handleSave = () => {
     save?.(values, {
-      onSuccess: () => notify('Создано', { type: 'info' }),
-      onError: () => notify('Ошибка создания', { type: 'error' }),
+      onSuccess: () => {
+        notify('Создано', { type: 'info' });
+        redirect('list');
+      },
+      onError: (error) => {
+        notify(getErrorMessage(error, 'Ошибка создания'), { type: 'error' });
+      },
     });
   };
 

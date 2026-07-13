@@ -204,7 +204,7 @@ function UnitFormFields({
       <ReferenceSelect
         label="Устройства"
         reference="device-catalog"
-        optionText="displayName"
+        optionText="name"
         multiple
         value={(record.catalogIds as number[]) ?? []}
         onChange={(v) => onChange('catalogIds', v ?? [])}

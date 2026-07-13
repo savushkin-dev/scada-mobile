@@ -8,7 +8,9 @@ import lombok.Setter;
 import java.util.Set;
 
 @Entity
-@Table(name = "device_types")
+@Table(name = "device_types", uniqueConstraints = {
+        @UniqueConstraint(name = "uc_device_types_name", columnNames = {"name"})
+})
 @Getter
 @Setter
 public class DeviceTypeEntity {

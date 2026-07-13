@@ -41,8 +41,12 @@ public class DeviceEntity {
         return catalog != null ? catalog.getCode() : null;
     }
 
+    public String getName() {
+        return catalog != null ? catalog.getName() : null;
+    }
+
     public String getDisplayName() {
-        return catalog != null ? catalog.getDisplayName() : null;
+        return catalog != null ? catalog.getName() : null;
     }
 
     public DeviceTypeEntity getType() {

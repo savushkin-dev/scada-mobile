@@ -18,7 +18,7 @@ import { useNameMap } from '../ui/useNameMap';
 interface DeviceCatalogItem {
   id: number;
   code: string;
-  displayName: string;
+  name: string;
   typeId?: number | null;
   active: boolean;
 }
@@ -36,9 +36,7 @@ export const DeviceCatalogList = () => {
         renderCard={(item) => (
           <div className="rounded-[20px] bg-white p-4">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-base font-bold text-[#1a1c1e]">
-                {formatEmpty(item.displayName)}
-              </span>
+              <span className="text-base font-bold text-[#1a1c1e]">{formatEmpty(item.name)}</span>
               <StatusPill variant={item.active ? 'active' : 'inactive'}>
                 {item.active ? 'Активно' : 'Неактивно'}
               </StatusPill>
@@ -67,7 +65,7 @@ export const DeviceCatalogList = () => {
         columns={[
           { key: 'id', header: 'ID', render: (item) => item.id, className: 'w-12' },
           { key: 'code', header: 'Код', render: (item) => item.code },
-          { key: 'displayName', header: 'Отображаемое имя', render: (item) => item.displayName },
+          { key: 'name', header: 'Название', render: (item) => item.name },
           {
             key: 'type',
             header: 'Тип',
@@ -127,9 +125,9 @@ function DeviceCatalogFormFields({
         required
       />
       <RoundedInput
-        label="Отображаемое имя"
-        value={(record.displayName as string) ?? ''}
-        onChange={(e) => onChange('displayName', e.target.value)}
+        label="Название"
+        value={(record.name as string) ?? ''}
+        onChange={(e) => onChange('name', e.target.value)}
         required
       />
       <ReferenceSelect

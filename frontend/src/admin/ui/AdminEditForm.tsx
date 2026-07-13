@@ -28,6 +28,16 @@ function isRecordDirty(
   return Object.entries(current).some(([key, value]) => original[key] !== value);
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error === 'string') return error || fallback;
+  if (error instanceof Error) return error.message || fallback;
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    return typeof message === 'string' && message ? message : fallback;
+  }
+  return fallback;
+}
+
 export function AdminEditForm({ title, children }: AdminEditFormProps) {
   const { record, save, saving, isLoading } = useEditController({
     redirect: 'list',
@@ -63,8 +73,13 @@ export function AdminEditForm({ title, children }: AdminEditFormProps) {
   const handleSave = () => {
     if (!isDirty) return;
     save?.(values, {
-      onSuccess: () => notify('Сохранено', { type: 'info' }),
-      onError: () => notify('Ошибка сохранения', { type: 'error' }),
+      onSuccess: () => {
+        notify('Сохранено', { type: 'info' });
+        redirect('list');
+      },
+      onError: (error) => {
+        notify(getErrorMessage(error, 'Ошибка сохранения'), { type: 'error' });
+      },
     });
   };
 
@@ -78,7 +93,9 @@ export function AdminEditForm({ title, children }: AdminEditFormProps) {
           notify('Удалено', { type: 'info' });
           redirect('list');
         },
-        onError: () => notify('Ошибка удаления', { type: 'error' }),
+        onError: (error) => {
+          notify(getErrorMessage(error, 'Ошибка удаления'), { type: 'error' });
+        },
       }
     );
     setShowDelete(false);

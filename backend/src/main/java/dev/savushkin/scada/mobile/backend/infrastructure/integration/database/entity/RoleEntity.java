@@ -8,7 +8,9 @@ import lombok.Setter;
 import java.util.Set;
 
 @Entity
-@Table(name = "roles")
+@Table(name = "roles", uniqueConstraints = {
+        @UniqueConstraint(name = "uc_roles_name", columnNames = {"name"})
+})
 @Getter
 @Setter
 public class RoleEntity {

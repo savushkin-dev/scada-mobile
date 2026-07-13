@@ -1,4 +1,5 @@
 import { Layout, type LayoutProps } from 'react-admin';
+import { useNavigate } from 'react-router-dom';
 import { usePageHeader } from '../context/PageHeaderContext';
 import { AdminNavProvider } from './ui/AdminNavContext';
 import { AdminSidebarDesktop } from './ui/AdminSidebarDesktop';
@@ -7,7 +8,8 @@ import { AdminBottomSheetMenu } from './ui/AdminBottomSheetMenu';
 import { EmptyAppBar, EmptyMenu, EmptySidebar } from './ui/AdminEmptyLayoutParts';
 
 export function AdminLayout(props: LayoutProps) {
-  usePageHeader('Панель администратора');
+  const navigate = useNavigate();
+  usePageHeader('Панель администратора', undefined, undefined, () => navigate('/'));
 
   return (
     <AdminNavProvider>

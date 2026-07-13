@@ -56,6 +56,11 @@ public class AdminUnitController {
         WorkshopEntity workshop = workshopRepository.findById(request.workshopId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Цех не найден"));
 
+        if (unitRepository.findByNameAndPrintsrvInstanceId(request.name(), request.printsrvInstanceId()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Аппарат с таким названием и PrintSrv ID уже существует");
+        }
+
         UnitEntity unit = new UnitEntity();
         unit.setName(request.name());
         unit.setWorkshop(workshop);
@@ -79,6 +84,19 @@ public class AdminUnitController {
 
         WorkshopEntity workshop = workshopRepository.findById(request.workshopId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Цех не найден"));
+
+        boolean sameName = unit.getName().equals(request.name());
+        boolean samePrintsrv = (unit.getPrintsrvInstanceId() == null && request.printsrvInstanceId() == null)
+                || (unit.getPrintsrvInstanceId() != null && unit.getPrintsrvInstanceId().equals(request.printsrvInstanceId()));
+        if (!(sameName && samePrintsrv)) {
+            unitRepository.findByNameAndPrintsrvInstanceId(request.name(), request.printsrvInstanceId())
+                    .ifPresent(existing -> {
+                        if (!existing.getId().equals(id)) {
+                            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                                    "Аппарат с таким названием и PrintSrv ID уже существует");
+                        }
+                    });
+        }
 
         unit.setName(request.name());
         unit.setWorkshop(workshop);
