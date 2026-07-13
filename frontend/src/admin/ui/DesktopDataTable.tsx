@@ -34,10 +34,13 @@ export function DesktopDataTable<T>({ columns, records, keyExtractor }: DesktopD
           {records.map((record, index) => (
             <tr
               key={keyExtractor(record, index)}
-              className="border-b border-[#f0f0f0] last:border-b-0 hover:bg-[#fafafa]"
+              className="group border-b border-[#f0f0f0] last:border-b-0"
             >
               {columns.map((col) => (
-                <td key={col.key} className={`py-3 pr-4 ${col.className ?? ''}`}>
+                <td
+                  key={col.key}
+                  className={`py-3 pr-4 transition-colors duration-200 group-hover:bg-[#fafafa] first:rounded-l-[12px] last:rounded-r-[12px] ${col.className ?? ''}`}
+                >
                   {formatEmpty(col.render(record))}
                 </td>
               ))}

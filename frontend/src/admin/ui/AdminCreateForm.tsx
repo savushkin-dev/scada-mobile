@@ -1,8 +1,15 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCreateController, useNotify, useResourceContext } from 'react-admin';
+import {
+  useCreateController,
+  useNotify,
+  useResourceContext,
+  useResourceDefinition,
+} from 'react-admin';
 import { AdminCard } from './AdminCard';
 import { PillButton } from './PillButton';
+import { AdminBreadcrumbs } from './AdminBreadcrumbs';
+import { useFormKeyboardNavigation } from './useFormKeyboardNavigation';
 import { IconSave } from './icons';
 import type { ReactNode } from 'react';
 
@@ -31,6 +38,8 @@ export function AdminCreateForm({ title, defaultValues = {}, children }: AdminCr
   const notify = useNotify();
   const navigate = useNavigate();
   const resource = useResourceContext();
+  const resourceDef = useResourceDefinition();
+  const resourceLabel = (resourceDef.options?.label as string) || resource || '';
 
   const handleChange = (field: string, value: unknown) => {
     setValues((prev) => ({ ...prev, [field]: value }));
@@ -51,14 +60,22 @@ export function AdminCreateForm({ title, defaultValues = {}, children }: AdminCr
     });
   };
 
+  const formRef = useFormKeyboardNavigation(handleSave);
+
   return (
     <div className="p-4 lg:p-6">
-      <AdminCard title={title}>{children({ record: values, onChange: handleChange })}</AdminCard>
-      <div className="mt-4 flex items-center justify-between lg:mt-6">
-        <PillButton icon={<IconSave size={18} />} onClick={handleSave} disabled={saving}>
-          {saving ? 'Создание...' : 'Создать'}
-        </PillButton>
+      <AdminBreadcrumbs resource={resource ?? ''} resourceLabel={resourceLabel} isCreate />
+      <div className="mb-4 flex items-center justify-between lg:mb-6">
+        <h1 className="text-xl font-bold text-[#1a1c1e]">{title}</h1>
       </div>
+      <AdminCard>
+        <div ref={formRef}>{children({ record: values, onChange: handleChange })}</div>
+        <div className="mt-4 flex items-center justify-between lg:mt-6">
+          <PillButton icon={<IconSave size={18} />} onClick={handleSave} disabled={saving}>
+            {saving ? 'Создание...' : 'Создать'}
+          </PillButton>
+        </div>
+      </AdminCard>
     </div>
   );
 }
