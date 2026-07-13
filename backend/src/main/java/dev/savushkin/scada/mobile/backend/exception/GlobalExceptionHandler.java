@@ -352,10 +352,14 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Обрабатывает нарушения уникальности на уровне базы данных.
+     * Обрабатывает нарушения целостности на уровне базы данных.
      * <p>
+     * Различает две типичные ситуации:
+     * <ul>
+     *   <li>нарушение внешнего ключа (23503) — запись используется другими объектами;</li>
+     *   <li>нарушение уникальности (23505) — запись с такими значениями уже существует.</li>
+     * </ul>
      * Возвращает HTTP 409 (Conflict) с человекочитаемым сообщением.
-     * Используется как fallback, если контроллер не выполнил предварительную проверку.
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ErrorResponseDTO> handleDataIntegrityViolation(
@@ -363,11 +367,19 @@ public class GlobalExceptionHandler {
             @NonNull WebRequest request
     ) {
         log.warn("Data integrity violation: {}", e.getMessage());
-        return buildErrorResponse(
-                HttpStatus.CONFLICT,
-                "Запись с такими значениями уже существует",
-                request
-        );
+        String message = isForeignKeyViolation(e)
+                ? "Невозможно удалить запись, так как она используется другими объектами системы"
+                : "Запись с такими значениями уже существует";
+        return buildErrorResponse(HttpStatus.CONFLICT, message, request);
+    }
+
+    private boolean isForeignKeyViolation(@NonNull DataIntegrityViolationException e) {
+        Throwable cause = e.getMostSpecificCause();
+        if (cause instanceof java.sql.SQLException se) {
+            return "23503".equals(se.getSQLState());
+        }
+        String message = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+        return message.contains("foreign key") || message.contains("is still referenced");
     }
 
     /**

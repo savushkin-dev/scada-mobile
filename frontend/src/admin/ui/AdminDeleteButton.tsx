@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useDelete, useRefresh, useResourceContext } from 'react-admin';
+import { useDelete, useNotify, useRefresh, useResourceContext } from 'react-admin';
 import { PillButton } from './PillButton';
 import { ConfirmDialog } from './ConfirmDialog';
 import { IconTrash } from './icons';
@@ -10,6 +10,16 @@ interface AdminDeleteButtonProps {
   size?: 'default' | 'small';
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error === 'string') return error || fallback;
+  if (error instanceof Error) return error.message || fallback;
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    return typeof message === 'string' && message ? message : fallback;
+  }
+  return fallback;
+}
+
 export function AdminDeleteButton({
   record,
   className = '',
@@ -17,6 +27,7 @@ export function AdminDeleteButton({
 }: AdminDeleteButtonProps) {
   const resource = useResourceContext();
   const refresh = useRefresh();
+  const notify = useNotify();
   const [isOpen, setIsOpen] = useState(false);
   const [deleteOne, { isPending }] = useDelete(
     resource,
@@ -27,7 +38,11 @@ export function AdminDeleteButton({
         setIsOpen(false);
         refresh();
       },
-      onError: () => {
+      onError: (error) => {
+        notify(getErrorMessage(error, 'Ошибка удаления'), {
+          type: 'error',
+          autoHideDuration: null,
+        });
         setIsOpen(false);
       },
     }
