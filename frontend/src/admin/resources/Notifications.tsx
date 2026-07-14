@@ -190,7 +190,6 @@ function TabButton({
 
 export function NotificationList() {
   const refresh = useRefresh();
-  const [wsConnected, setWsConnected] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('unread');
   const { data, isLoading } = useListContext<Notification>();
   const records = data ?? [];
@@ -206,7 +205,6 @@ export function NotificationList() {
     const wsUrl = `${WS_BASE}/ws/live?token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(wsUrl);
 
-    ws.onopen = () => setWsConnected(true);
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
@@ -215,8 +213,6 @@ export function NotificationList() {
         // ignore
       }
     };
-    ws.onclose = () => setWsConnected(false);
-
     return () => ws.close();
   }, [refresh]);
 
@@ -233,10 +229,6 @@ export function NotificationList() {
       <div className="mb-4 flex items-center justify-between lg:mb-6">
         <div className="flex items-center gap-2">
           <h1 className="text-xl font-bold text-[#1a1c1e]">Уведомления</h1>
-          <span
-            className={`h-2 w-2 rounded-full ${wsConnected ? 'bg-[#34a853]' : 'bg-[#ea4335]'}`}
-            title={wsConnected ? 'Подключено' : 'Отключено'}
-          />
         </div>
         <div className="flex items-center gap-2">
           <PillButton
