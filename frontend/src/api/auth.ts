@@ -1,5 +1,6 @@
 import { API_BASE, HTTP_REQUEST } from '../config';
 import { getRefreshToken, setTokens } from '../auth/session';
+import { apiFetch } from './client';
 import {
   AuthSessionExpiredError,
   NetworkUnavailableError,
@@ -9,6 +10,7 @@ import {
 export interface LoginResponse {
   userId: string;
   role: string;
+  temporaryPassword: boolean;
   accessToken: string;
   refreshToken: string;
 }
@@ -16,6 +18,10 @@ export interface LoginResponse {
 interface LoginPayload {
   workerCode: string;
   password: string;
+}
+
+interface ChangePasswordPayload {
+  newPassword: string;
 }
 
 export async function loginUser(payload: LoginPayload): Promise<LoginResponse> {
@@ -37,6 +43,7 @@ export async function loginUser(payload: LoginPayload): Promise<LoginResponse> {
   const rawObj = raw as {
     userId?: string | number;
     role?: string;
+    temporaryPassword?: boolean;
     accessToken?: string;
     refreshToken?: string;
   } | null;
@@ -52,6 +59,51 @@ export async function loginUser(payload: LoginPayload): Promise<LoginResponse> {
   return {
     userId: candidate,
     role: rawObj.role ?? '',
+    temporaryPassword: rawObj.temporaryPassword ?? false,
+    accessToken: rawObj.accessToken,
+    refreshToken: rawObj.refreshToken,
+  };
+}
+
+/**
+ * Запрос на смену пароля текущего пользователя.
+ * Требует валидный access-токен. После успешной смены возвращает новую пару токенов.
+ */
+export async function changePassword(payload: ChangePasswordPayload): Promise<LoginResponse> {
+  const resp = await apiFetch(`${API_BASE}/api/v1.0.0/auth/change-password`, {
+    method: HTTP_REQUEST.post,
+    headers: {
+      'Content-Type': HTTP_REQUEST.jsonContentType,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!resp.ok) {
+    const errorBody = (await resp.json().catch(() => null)) as { message?: string } | null;
+    const message = errorBody?.message ?? `HTTP ${resp.status}`;
+    throw new Error(`${resp.status}|${message}`);
+  }
+
+  const raw: unknown = await resp.json();
+  const rawObj = raw as {
+    userId?: string | number;
+    role?: string;
+    temporaryPassword?: boolean;
+    accessToken?: string;
+    refreshToken?: string;
+  } | null;
+
+  const candidate = rawObj?.userId != null ? String(rawObj.userId).trim() : '';
+  if (!candidate || !rawObj?.accessToken || !rawObj?.refreshToken) {
+    throw new Error('Invalid response from change-password endpoint');
+  }
+
+  setTokens(rawObj.accessToken, rawObj.refreshToken);
+
+  return {
+    userId: candidate,
+    role: rawObj.role ?? '',
+    temporaryPassword: rawObj.temporaryPassword ?? false,
     accessToken: rawObj.accessToken,
     refreshToken: rawObj.refreshToken,
   };

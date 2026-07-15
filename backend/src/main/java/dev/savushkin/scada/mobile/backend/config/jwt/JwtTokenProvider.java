@@ -53,19 +53,27 @@ public class JwtTokenProvider {
      * @return подписанный JWT
      */
     public @NonNull String generateAccessToken(long userId, @NonNull String role) {
+        return generateAccessToken(userId, role, false);
+    }
+
+    public @NonNull String generateAccessToken(long userId, @NonNull String role, boolean temporaryPassword) {
         Instant now = Instant.now();
         Instant expiry = now.plus(jwtProperties.getAccessExpirationMinutes(), ChronoUnit.MINUTES);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(Long.toString(userId))
                 .claim("role", role)
                 .id(UUID.randomUUID().toString())
                 .issuer("scada-mobile")
                 .audience().add("scada-mobile-api").and()
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(expiry))
-                .signWith(getAccessKey(), SignatureAlgorithm.HS256)
-                .compact();
+                .expiration(Date.from(expiry));
+
+        if (temporaryPassword) {
+            builder = builder.claim("temporary_password", true);
+        }
+
+        return builder.signWith(getAccessKey(), SignatureAlgorithm.HS256).compact();
     }
 
     /**

@@ -5,6 +5,7 @@ import dev.savushkin.scada.mobile.backend.application.ports.UserAuthRepository;
 import dev.savushkin.scada.mobile.backend.application.ports.UserAuthRepository.AuthUserWithPassword;
 import dev.savushkin.scada.mobile.backend.config.jwt.JwtProperties;
 import dev.savushkin.scada.mobile.backend.config.jwt.JwtTokenProvider;
+import dev.savushkin.scada.mobile.backend.domain.auth.PasswordPolicy;
 import dev.savushkin.scada.mobile.backend.domain.model.AuthUser;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.RefreshTokenEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserEntity;
@@ -63,7 +64,8 @@ public class AuthService {
                 userWithPassword.id(),
                 userWithPassword.code(),
                 userWithPassword.fullName(),
-                userWithPassword.active()
+                userWithPassword.active(),
+                userWithPassword.passwordTemporary()
         );
     }
 
@@ -76,7 +78,7 @@ public class AuthService {
                 .orElseThrow(() -> new InvalidCredentialsException(user.code()));
 
         String role = userEntity.getRole().getName();
-        String accessToken = jwtTokenProvider.generateAccessToken(user.id(), role);
+        String accessToken = jwtTokenProvider.generateAccessToken(user.id(), role, user.passwordTemporary());
 
         String rawRefresh = jwtTokenProvider.generateRefreshToken();
         String refreshHash = jwtTokenProvider.hashRefreshToken(rawRefresh);
@@ -114,7 +116,7 @@ public class AuthService {
         refreshTokenRepository.save(existing);
 
         String role = user.getRole().getName();
-        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), role);
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), role, user.isPasswordTemporary());
 
         String newRawRefresh = jwtTokenProvider.generateRefreshToken();
         String newRefreshHash = jwtTokenProvider.hashRefreshToken(newRawRefresh);
@@ -150,6 +152,50 @@ public class AuthService {
     @Transactional
     public void revokeAllRefreshTokens(long userId) {
         refreshTokenRepository.revokeAllByUserId(userId);
+    }
+
+    /**
+     * Меняет пароль текущего пользователя.
+     * <p>
+     * Новый пароль валидируется по {@link PasswordPolicy}, хеш перезаписывается,
+     * флаг временного пароля снимается, все сессии отзываются и выдаётся новая пара токенов.
+     *
+     * @param userId      ID пользователя
+     * @param newPassword новый пароль
+     * @return новая пара токенов
+     */
+    @Transactional
+    public @NonNull TokenPair changePassword(long userId, @NonNull String newPassword) {
+        PasswordPolicy.validate(newPassword);
+
+        UserEntity user = userJpaRepository.findByIdWithRole(userId)
+                .orElseThrow(() -> new InvalidCredentialsException(""));
+
+        if (!user.isActive()) {
+            throw new UserInactiveException(user.getId(), user.getCode());
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordTemporary(false);
+        userJpaRepository.save(user);
+
+        revokeAllRefreshTokens(userId);
+
+        String role = user.getRole().getName();
+        String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), role, false);
+
+        String newRawRefresh = jwtTokenProvider.generateRefreshToken();
+        String newRefreshHash = jwtTokenProvider.hashRefreshToken(newRawRefresh);
+
+        RefreshTokenEntity newEntity = new RefreshTokenEntity();
+        newEntity.setUser(user);
+        newEntity.setTokenHash(newRefreshHash);
+        newEntity.setCreatedAt(Instant.now());
+        newEntity.setExpiresAt(Instant.now().plus(jwtProperties.getRefreshExpirationDays(), ChronoUnit.DAYS));
+        newEntity.setRevoked(false);
+        refreshTokenRepository.save(newEntity);
+
+        return new TokenPair(accessToken, newRawRefresh);
     }
 
     private String normalize(String value) {

@@ -2,6 +2,7 @@ package dev.savushkin.scada.mobile.backend.config;
 
 import dev.savushkin.scada.mobile.backend.config.jwt.AudienceValidator;
 import dev.savushkin.scada.mobile.backend.config.jwt.JwtProperties;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.access.AccessDeniedHandler;
@@ -58,13 +59,16 @@ public class SecurityConfig {
     private final JwtProperties jwtProperties;
     private final AuthenticationEntryPoint authenticationEntryPoint;
     private final AccessDeniedHandler accessDeniedHandler;
+    private final TemporaryPasswordFilter temporaryPasswordFilter;
 
     public SecurityConfig(JwtProperties jwtProperties,
                           AuthenticationEntryPoint authenticationEntryPoint,
-                          AccessDeniedHandler accessDeniedHandler) {
+                          AccessDeniedHandler accessDeniedHandler,
+                          TemporaryPasswordFilter temporaryPasswordFilter) {
         this.jwtProperties = jwtProperties;
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.accessDeniedHandler = accessDeniedHandler;
+        this.temporaryPasswordFilter = temporaryPasswordFilter;
     }
 
     @Bean
@@ -103,7 +107,10 @@ public class SecurityConfig {
                 )
                 .authenticationEntryPoint(authenticationEntryPoint)
                 .accessDeniedHandler(accessDeniedHandler)
-            );
+            )
+
+            // Блокируем доступ с временным паролем ко всему, кроме смены пароля
+            .addFilterAfter(temporaryPasswordFilter, BearerTokenAuthenticationFilter.class);
 
         return http.build();
     }

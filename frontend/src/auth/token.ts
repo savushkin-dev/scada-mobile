@@ -11,6 +11,7 @@ interface JwtPayload {
   exp?: number;
   sub?: string;
   role?: string;
+  temporary_password?: boolean;
 }
 
 /**
@@ -67,6 +68,16 @@ export function getTokenExpiryDate(token: string | null): Date | null {
  * Возвращает число секунд до истечения токена (с margin).
  * Отрицательное значение = токен уже истёк.
  */
+/**
+ * Возвращает true, если токен помечен как временный пароль
+ * (пользователь обязан сменить пароль перед доступом к приложению).
+ */
+export function isTemporaryPasswordToken(token: string | null): boolean {
+  if (!token) return false;
+  const payload = decodeJwtPayload(token);
+  return payload?.temporary_password === true;
+}
+
 export function getTokenTimeRemaining(token: string | null): number {
   if (!token) return -1;
   const payload = decodeJwtPayload(token);

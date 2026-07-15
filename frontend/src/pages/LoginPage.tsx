@@ -51,7 +51,11 @@ export function LoginPage() {
           password: password.trim(),
         });
         login(result.userId, result.role, result.accessToken, result.refreshToken);
-        navigate(fromPath, { replace: true });
+        if (result.temporaryPassword) {
+          navigate('/change-password', { replace: true });
+        } else {
+          navigate(fromPath, { replace: true });
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : '';
         const statusMatch = message.match(/^(\d+)\|/);
