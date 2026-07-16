@@ -8,11 +8,12 @@ public record AuthLoginResponseDTO(
         @Nullable String code,
         @Nullable String fullName,
         @Nullable String role,
+        boolean temporaryPassword,
         @Nullable String accessToken,
         @Nullable String refreshToken
 ) {
     public static AuthLoginResponseDTO success(String userId, String code, String fullName, String role,
-                                                String accessToken, String refreshToken) {
-        return new AuthLoginResponseDTO("ok", userId, code, fullName, role, accessToken, refreshToken);
+                                                boolean temporaryPassword, String accessToken, String refreshToken) {
+        return new AuthLoginResponseDTO("ok", userId, code, fullName, role, temporaryPassword, accessToken, refreshToken);
     }
 }

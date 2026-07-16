@@ -21,6 +21,8 @@ interface AdminEditFormProps {
     record: Record<string, unknown>;
     onChange: (field: string, value: unknown) => void;
   }) => ReactNode;
+  /** Дополнительные действия рядом с кнопкой "Сохранить". */
+  extraActions?: ReactNode | ((record: Record<string, unknown>) => ReactNode);
 }
 
 function isRecordDirty(
@@ -48,7 +50,7 @@ function getRecordName(record: Record<string, unknown>): string {
   return String(record.id ?? '');
 }
 
-export function AdminEditForm({ title, children }: AdminEditFormProps) {
+export function AdminEditForm({ title, children, extraActions }: AdminEditFormProps) {
   const { record, save, saving, isLoading } = useEditController({
     redirect: false,
     mutationMode: 'pessimistic',
@@ -142,13 +144,16 @@ export function AdminEditForm({ title, children }: AdminEditFormProps) {
       <AdminCard>
         <div ref={formRef}>{children({ record: values, onChange: handleChange })}</div>
         <div className="mt-4 flex items-center justify-between lg:mt-6">
-          <PillButton
-            icon={<IconSave size={18} />}
-            onClick={handleSave}
-            disabled={!isDirty || saving}
-          >
-            {saving ? 'Сохранение...' : 'Сохранить'}
-          </PillButton>
+          <div className="flex items-center gap-2">
+            <PillButton
+              icon={<IconSave size={18} />}
+              onClick={handleSave}
+              disabled={!isDirty || saving}
+            >
+              {saving ? 'Сохранение...' : 'Сохранить'}
+            </PillButton>
+            {typeof extraActions === 'function' ? extraActions(values) : extraActions}
+          </div>
           <PillButton
             variant="danger"
             icon={<IconTrash size={18} />}

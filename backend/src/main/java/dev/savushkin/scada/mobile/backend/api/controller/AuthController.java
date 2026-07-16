@@ -5,6 +5,8 @@ import dev.savushkin.scada.mobile.backend.api.dto.AuthLoginRequestDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.AuthLoginResponseDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.AuthRefreshRequestDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.AuthRefreshResponseDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.ChangePasswordRequestDTO;
+import dev.savushkin.scada.mobile.backend.config.jwt.JwtPrincipalUtil;
 import dev.savushkin.scada.mobile.backend.domain.model.AuthUser;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UserJpaRepository;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import dev.savushkin.scada.mobile.backend.domain.auth.PasswordPolicy;
 
 /**
  * Auth controller для аутентификации работников.
@@ -62,6 +65,7 @@ public class AuthController {
                             user.code(),
                             user.fullName(),
                             role,
+                            user.passwordTemporary(),
                             tokens.accessToken(),
                             tokens.refreshToken()
                     )
@@ -80,6 +84,40 @@ public class AuthController {
             log.warn("Auth login blocked: inactive userId='{}' code='{}'", ex.userId(), ex.code());
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(AuthErrorResponseDTO.error("Пользователь заблокирован"));
+        }
+    }
+
+    @PostMapping("/auth/change-password")
+    public ResponseEntity<?> changePassword(@Valid @RequestBody ChangePasswordRequestDTO request) {
+        log.info("Request: POST /auth/change-password");
+        Long userId = JwtPrincipalUtil.getCurrentUserId();
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(AuthErrorResponseDTO.error("Требуется аутентификация"));
+        }
+
+        try {
+            AuthService.TokenPair tokens = authService.changePassword(userId, request.newPassword());
+            UserEntity userEntity = userJpaRepository.findByIdWithRole(userId).orElseThrow();
+            return ResponseEntity.ok(
+                    AuthLoginResponseDTO.success(
+                            Long.toString(userId),
+                            userEntity.getCode(),
+                            userEntity.getFullName(),
+                            userEntity.getRole().getName(),
+                            false,
+                            tokens.accessToken(),
+                            tokens.refreshToken()
+                    )
+            );
+        } catch (PasswordPolicy.InvalidPasswordException ex) {
+            log.warn("Password change rejected: {}", ex.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(AuthErrorResponseDTO.error(ex.getMessage()));
+        } catch (AuthService.InvalidCredentialsException | AuthService.UserInactiveException ex) {
+            log.warn("Password change blocked for userId='{}'", userId);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(AuthErrorResponseDTO.error("Пользователь не найден или заблокирован"));
         }
     }
 

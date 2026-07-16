@@ -1,5 +1,7 @@
 package dev.savushkin.scada.mobile.backend.api.controller.admin;
 
+import dev.savushkin.scada.mobile.backend.domain.model.ChangeAction;
+import dev.savushkin.scada.mobile.backend.domain.model.UnitChangedEvent;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.adapter.PrintSrvTopologyJpaAdapter;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceCatalogEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceEntity;
@@ -13,6 +15,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.jspecify.annotations.NonNull;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -37,17 +40,20 @@ public class AdminUnitController {
     private final DeviceJpaRepository deviceRepository;
     private final DeviceCatalogJpaRepository catalogRepository;
     private final PrintSrvTopologyJpaAdapter topologyJpaAdapter;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AdminUnitController(UnitJpaRepository unitRepository,
                                WorkshopJpaRepository workshopRepository,
                                DeviceJpaRepository deviceRepository,
                                DeviceCatalogJpaRepository catalogRepository,
-                               PrintSrvTopologyJpaAdapter topologyJpaAdapter) {
+                               PrintSrvTopologyJpaAdapter topologyJpaAdapter,
+                               ApplicationEventPublisher eventPublisher) {
         this.unitRepository = unitRepository;
         this.workshopRepository = workshopRepository;
         this.deviceRepository = deviceRepository;
         this.catalogRepository = catalogRepository;
         this.topologyJpaAdapter = topologyJpaAdapter;
+        this.eventPublisher = eventPublisher;
     }
 
     @PostMapping
@@ -72,6 +78,7 @@ public class AdminUnitController {
         UnitEntity saved = unitRepository.save(unit);
         syncDevices(saved, request.catalogIds());
         topologyJpaAdapter.invalidateETag();
+        eventPublisher.publishEvent(new UnitChangedEvent(saved.getId(), null, null, ChangeAction.CREATE));
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
@@ -108,18 +115,21 @@ public class AdminUnitController {
         UnitEntity saved = unitRepository.save(unit);
         syncDevices(saved, request.catalogIds());
         topologyJpaAdapter.invalidateETag();
+        eventPublisher.publishEvent(new UnitChangedEvent(saved.getId(), null, null, ChangeAction.UPDATE));
         return ResponseEntity.ok(saved);
     }
 
     @DeleteMapping("/{id}")
     @Transactional
     public ResponseEntity<Void> delete(@PathVariable @NonNull Long id) {
-        if (!unitRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Аппарат не найден");
-        }
+        UnitEntity unit = unitRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Аппарат не найден"));
+        String printsrvInstanceId = unit.getPrintsrvInstanceId();
+        Long workshopId = unit.getWorkshopId();
         deviceRepository.deleteByUnit_Id(id);
         unitRepository.deleteById(id);
         topologyJpaAdapter.invalidateETag();
+        eventPublisher.publishEvent(new UnitChangedEvent(id, printsrvInstanceId, workshopId, ChangeAction.DELETE));
         return ResponseEntity.noContent().build();
     }
 

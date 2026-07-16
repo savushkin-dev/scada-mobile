@@ -33,6 +33,9 @@ public class UserEntity {
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
+    @Column(name = "password_temporary", nullable = false)
+    private boolean passwordTemporary = false;
+
     @OneToMany(mappedBy = "user")
     @JsonIgnore
     private Set<UserAssignmentEntity> assignments;

@@ -1,52 +1,55 @@
 package dev.savushkin.scada.mobile.backend.config;
 
-import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.RoleEntity;
-import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserEntity;
-import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.RoleJpaRepository;
+import dev.savushkin.scada.mobile.backend.domain.auth.EmployeeCredentialsGenerator;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UserJpaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.ResourceLoader;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StreamUtils;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Bootstrap-компонент для создания начального администратора.
  * <p>
  * При запуске приложения проверяется, есть ли в БД хотя бы один пользователь
- * с ролью ADMIN. Если нет — создаётся роль ADMIN (если ещё не существует)
- * и пользователь-администратор с кодом и паролем из переменных окружения:
- * <ul>
- *   <li>{@code SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE}</li>
- *   <li>{@code SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD}</li>
- * </ul>
+ * с ролью {@code ADMIN}. Если нет — бэкенд автоматически применяет скрипт
+ * {@code db/bootstrap/bootstrap_admin.sql}, создающий роль {@code ADMIN}
+ * и пользователя-администратора.
  * <p>
- * Если переменные окружения не заданы, bootstrap пропускается.
+ * Код и пароль администратора генерируются автоматически
+ * через {@link EmployeeCredentialsGenerator}. Пароль является временным:
+ * при первом входе администратор должен сменить его через {@code /change-password}.
+ * Сгенерированные учётные данные выводятся в лог (единственный раз).
  */
 @Component
 public class AdminBootstrapConfig implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(AdminBootstrapConfig.class);
     private static final String ADMIN_ROLE_NAME = "ADMIN";
-    private static final String ADMIN_FULL_NAME = "System Administrator";
+    private static final String BOOTSTRAP_SCRIPT = "classpath:db/bootstrap/bootstrap_admin.sql";
 
-    /** Имя переменной окружения для кода (логина) администратора. */
-    public static final String ENV_ADMIN_CODE = "SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE";
-    /** Имя переменной окружения для пароля администратора. */
-    public static final String ENV_ADMIN_PASSWORD = "SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD";
-
-    private final RoleJpaRepository roleRepository;
     private final UserJpaRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JdbcTemplate jdbcTemplate;
+    private final ResourceLoader resourceLoader;
 
-    public AdminBootstrapConfig(RoleJpaRepository roleRepository,
-                                UserJpaRepository userRepository,
-                                PasswordEncoder passwordEncoder) {
-        this.roleRepository = roleRepository;
+    public AdminBootstrapConfig(UserJpaRepository userRepository,
+                                PasswordEncoder passwordEncoder,
+                                JdbcTemplate jdbcTemplate,
+                                ResourceLoader resourceLoader) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jdbcTemplate = jdbcTemplate;
+        this.resourceLoader = resourceLoader;
     }
 
     @Override
@@ -57,42 +60,43 @@ public class AdminBootstrapConfig implements ApplicationRunner {
             return;
         }
 
-        String adminCode = System.getenv(ENV_ADMIN_CODE);
-        String adminPassword = System.getenv(ENV_ADMIN_PASSWORD);
-
-        if (adminCode == null || adminCode.isBlank() || adminPassword == null || adminPassword.isBlank()) {
-            log.warn("Bootstrap: no admin user found, but env variables {} and/or {} are not set. Skipping.",
-                    ENV_ADMIN_CODE, ENV_ADMIN_PASSWORD);
-            return;
-        }
-
-        RoleEntity adminRole = roleRepository.findAll().stream()
-                .filter(r -> ADMIN_ROLE_NAME.equals(r.getName()))
-                .findFirst()
-                .orElseGet(() -> {
-                    RoleEntity role = new RoleEntity();
-                    role.setName(ADMIN_ROLE_NAME);
-                    return roleRepository.save(role);
-                });
-
+        String adminCode = EmployeeCredentialsGenerator.generateCode();
+        String adminPassword = EmployeeCredentialsGenerator.generateTemporaryPassword();
         String passwordHash = passwordEncoder.encode(adminPassword);
 
-        UserEntity admin = new UserEntity();
-        admin.setRole(adminRole);
-        admin.setCode(adminCode);
-        admin.setPassword(passwordHash);
-        admin.setFullName(ADMIN_FULL_NAME);
-        admin.setActive(true);
-        userRepository.save(admin);
+        String sql = loadBootstrapScript(adminCode, passwordHash);
+        for (String statement : sql.split(";")) {
+            String trimmed = statement.trim();
+            if (!trimmed.isEmpty()) {
+                jdbcTemplate.execute(trimmed);
+            }
+        }
 
-        log.info("Bootstrap: initial admin account created (code={})", adminCode);
+        log.warn("""
+                
+                ================================================================================
+                Bootstrap: initial admin account created.
+                Code:     {}
+                Password: {}
+                IMPORTANT: this is a temporary password. The admin must change it on first login.
+                ================================================================================
+                """, adminCode, adminPassword);
     }
 
-    /**
-     * Проверяет, существует ли в БД пользователь с ролью ADMIN.
-     */
     private boolean hasAdminUser() {
         return userRepository.findAll().stream()
                 .anyMatch(u -> u.getRole() != null && ADMIN_ROLE_NAME.equals(u.getRole().getName()));
+    }
+
+    private String loadBootstrapScript(String adminCode, String passwordHash) {
+        Resource resource = resourceLoader.getResource(BOOTSTRAP_SCRIPT);
+        try {
+            String sql = StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8);
+            return sql
+                    .replace("${ADMIN_CODE}", adminCode)
+                    .replace("${PASSWORD_HASH}", passwordHash);
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to load admin bootstrap script: " + BOOTSTRAP_SCRIPT, e);
+        }
     }
 }

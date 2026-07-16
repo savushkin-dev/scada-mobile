@@ -20,6 +20,11 @@ interface AdminCreateFormProps {
     record: Record<string, unknown>;
     onChange: (field: string, value: unknown) => void;
   }) => ReactNode;
+  /**
+   * Если передан, вызывается после успешного создания с данными ответа.
+   * Компонент-родитель берёт на себя навигацию и уведомления.
+   */
+  onSuccessWithData?: (data: Record<string, unknown>) => void;
 }
 
 function getErrorMessage(error: unknown, fallback: string): string {
@@ -32,7 +37,12 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-export function AdminCreateForm({ title, defaultValues = {}, children }: AdminCreateFormProps) {
+export function AdminCreateForm({
+  title,
+  defaultValues = {},
+  children,
+  onSuccessWithData,
+}: AdminCreateFormProps) {
   const { save, saving } = useCreateController({ redirect: false });
   const [values, setValues] = useState<Record<string, unknown>>(defaultValues);
   const notify = useNotify();
@@ -47,7 +57,15 @@ export function AdminCreateForm({ title, defaultValues = {}, children }: AdminCr
 
   const handleSave = () => {
     save?.(values, {
-      onSuccess: () => {
+      onSuccess: (response: unknown) => {
+        if (onSuccessWithData) {
+          const data =
+            response && typeof response === 'object' && 'data' in response
+              ? (response as { data: Record<string, unknown> }).data
+              : (response as Record<string, unknown>);
+          onSuccessWithData(data ?? {});
+          return;
+        }
         notify('Создано', { type: 'info' });
         navigate('/admin/' + resource);
       },

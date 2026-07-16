@@ -1,5 +1,6 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useListContext } from 'react-admin';
+import { useListContext, useNotify } from 'react-admin';
 import { AdminListContainer } from '../ui/AdminListContainer';
 import { MobileCardList } from '../ui/MobileCardList';
 import { DesktopDataTable } from '../ui/DesktopDataTable';
@@ -13,9 +14,13 @@ import { ReferenceSelect } from '../ui/ReferenceSelect';
 import { UnitAssignmentSelect } from '../ui/UnitAssignmentSelect';
 import { PillButton } from '../ui/PillButton';
 import { AdminDeleteButton } from '../ui/AdminDeleteButton';
+import { GeneratedCredentialsDialog } from '../ui/GeneratedCredentialsDialog';
+import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { formatEmpty } from '../ui/formatEmpty';
 import { useNameMap } from '../ui/useNameMap';
-import { IconPencil } from '../ui/icons';
+import { IconPencil, IconKey } from '../ui/icons';
+import { API_BASE } from '../../config';
+import { apiFetchJson } from '../../api/client';
 import { UserNotificationSettingsEditor } from '../components/UserNotificationSettingsEditor';
 
 interface User {
@@ -27,6 +32,12 @@ interface User {
   unitNames?: string[];
   incidentNotificationsCount?: number;
   callNotificationsCount?: number;
+}
+
+interface GeneratedCredentials {
+  fullName: string;
+  code: string;
+  password: string;
 }
 
 export const UserList = () => {
@@ -49,10 +60,6 @@ export const UserList = () => {
               </StatusPill>
             </div>
             <div className="mb-3 space-y-1 text-sm">
-              <div className="flex justify-between">
-                <span className="text-[#74777f]">Код</span>
-                <span className="text-[#1a1c1e]">{formatEmpty(user.code)}</span>
-              </div>
               <div className="flex justify-between">
                 <span className="text-[#74777f]">Роль</span>
                 <RoleName id={user.roleId} />
@@ -85,7 +92,6 @@ export const UserList = () => {
         keyExtractor={(user) => user.id}
         columns={[
           { key: 'id', header: 'ID', render: (user) => user.id, className: 'w-12' },
-          { key: 'code', header: 'Код сотрудника', render: (user) => user.code },
           { key: 'fullName', header: 'ФИО', render: (user) => user.fullName },
           {
             key: 'role',
@@ -166,24 +172,19 @@ function UserFormFields({
 }) {
   return (
     <div className="space-y-5">
-      <RoundedInput
-        label="Код сотрудника"
-        value={(record.code as string) ?? ''}
-        onChange={(e) => onChange('code', e.target.value)}
-        required
-      />
+      {!isCreate && (
+        <RoundedInput
+          label="Код сотрудника"
+          value={(record.code as string) ?? ''}
+          disabled
+          hint="Код генерируется автоматически и не может быть изменён"
+        />
+      )}
       <RoundedInput
         label="ФИО"
         value={(record.fullName as string) ?? ''}
         onChange={(e) => onChange('fullName', e.target.value)}
         required
-      />
-      <RoundedInput
-        label={isCreate ? 'Пароль' : 'Пароль (оставьте пустым, чтобы не менять)'}
-        type="password"
-        value={(record.password as string) ?? ''}
-        onChange={(e) => onChange('password', e.target.value)}
-        required={isCreate}
       />
       <ReferenceSelect
         label="Роль"
@@ -208,19 +209,146 @@ function UserFormFields({
   );
 }
 
-export const UserEdit = () => (
-  <AdminEditForm title="Редактирование сотрудника">
-    {({ record, onChange }) => (
-      <div className="space-y-6">
-        <UserFormFields record={record} onChange={onChange} isCreate={false} />
-        <UserNotificationSettingsEditor />
-      </div>
-    )}
-  </AdminEditForm>
-);
+export const UserEdit = () => {
+  const notify = useNotify();
+  const navigate = useNavigate();
+  const getRoleName = useNameMap('roles');
+  const [credentials, setCredentials] = useState<GeneratedCredentials | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
-export const UserCreate = () => (
-  <AdminCreateForm title="Новый сотрудник" defaultValues={{ active: true, unitIds: [] }}>
-    {({ record, onChange }) => <UserFormFields record={record} onChange={onChange} isCreate />}
-  </AdminCreateForm>
-);
+  const handleResetPassword = async (userId: string | number) => {
+    setResetting(true);
+    try {
+      const response = (await apiFetchJson(
+        `${API_BASE}/api/v1.0.0/admin/users/${encodeURIComponent(userId)}/reset-password`,
+        { method: 'POST' }
+      )) as {
+        code: string;
+        fullName: string;
+        generatedPassword: string;
+      };
+      setCredentials({
+        fullName: response.fullName,
+        code: response.code,
+        password: response.generatedPassword,
+      });
+      notify('Пароль сброшен', { type: 'info' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Ошибка сброса пароля';
+      notify(message, { type: 'error', autoHideDuration: null });
+    } finally {
+      setResetting(false);
+      setShowResetConfirm(false);
+    }
+  };
+
+  return (
+    <AdminEditForm
+      title="Редактирование сотрудника"
+      extraActions={(record) =>
+        getRoleName(record.roleId as number | undefined) === 'ADMIN' ? null : (
+          <PillButton
+            variant="secondary"
+            icon={<IconKey size={18} />}
+            onClick={() => setShowResetConfirm(true)}
+            disabled={resetting}
+          >
+            {resetting ? 'Сброс...' : 'Сбросить пароль'}
+          </PillButton>
+        )
+      }
+    >
+      {({ record, onChange }) => (
+        <div className="space-y-6">
+          <UserFormFields record={record} onChange={onChange} isCreate={false} />
+          <UserNotificationSettingsEditor />
+          <ResetPasswordConfirm
+            isOpen={showResetConfirm}
+            onClose={() => setShowResetConfirm(false)}
+            onConfirm={() => handleResetPassword(record.id as string | number)}
+          />
+          <GeneratedCredentialsDialog
+            isOpen={credentials != null}
+            fullName={credentials?.fullName ?? ''}
+            code={credentials?.code ?? ''}
+            password={credentials?.password ?? ''}
+            onClose={() => {
+              setCredentials(null);
+              navigate('/admin/users');
+            }}
+          />
+        </div>
+      )}
+    </AdminEditForm>
+  );
+};
+
+export const UserCreate = () => {
+  const navigate = useNavigate();
+  const notify = useNotify();
+  const [credentials, setCredentials] = useState<GeneratedCredentials | null>(null);
+
+  const handleSuccess = (data: Record<string, unknown>) => {
+    setCredentials({
+      fullName: String(data.fullName ?? ''),
+      code: String(data.code ?? ''),
+      password: String(data.generatedPassword ?? ''),
+    });
+  };
+
+  return (
+    <>
+      <AdminCreateForm
+        title="Новый сотрудник"
+        defaultValues={{ active: true, unitIds: [] }}
+        onSuccessWithData={handleSuccess}
+      >
+        {({ record, onChange }) => <UserFormFields record={record} onChange={onChange} isCreate />}
+      </AdminCreateForm>
+      <GeneratedCredentialsDialog
+        isOpen={credentials != null}
+        fullName={credentials?.fullName ?? ''}
+        code={credentials?.code ?? ''}
+        password={credentials?.password ?? ''}
+        onClose={() => {
+          setCredentials(null);
+          notify('Создано', { type: 'info' });
+          navigate('/admin/users');
+        }}
+      />
+    </>
+  );
+};
+
+function ResetPasswordConfirm({
+  isOpen,
+  onClose,
+  onConfirm,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 1024);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  return (
+    <ConfirmDialog
+      isOpen={isOpen}
+      onClose={onClose}
+      onConfirm={onConfirm}
+      title="Сбросить пароль?"
+      message="Старый пароль сотрудника сразу перестанет работать. Система сгенерирует новый временный пароль."
+      confirmText="Сбросить"
+      cancelText="Отмена"
+      isMobile={isMobile}
+    />
+  );
+}

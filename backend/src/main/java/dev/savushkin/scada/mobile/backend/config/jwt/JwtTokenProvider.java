@@ -53,19 +53,27 @@ public class JwtTokenProvider {
      * @return подписанный JWT
      */
     public @NonNull String generateAccessToken(long userId, @NonNull String role) {
+        return generateAccessToken(userId, role, false);
+    }
+
+    public @NonNull String generateAccessToken(long userId, @NonNull String role, boolean temporaryPassword) {
         Instant now = Instant.now();
         Instant expiry = now.plus(jwtProperties.getAccessExpirationMinutes(), ChronoUnit.MINUTES);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(Long.toString(userId))
                 .claim("role", role)
                 .id(UUID.randomUUID().toString())
                 .issuer("scada-mobile")
                 .audience().add("scada-mobile-api").and()
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(expiry))
-                .signWith(getAccessKey(), SignatureAlgorithm.HS256)
-                .compact();
+                .expiration(Date.from(expiry));
+
+        if (temporaryPassword) {
+            builder = builder.claim("temporary_password", true);
+        }
+
+        return builder.signWith(getAccessKey(), SignatureAlgorithm.HS256).compact();
     }
 
     /**
@@ -78,13 +86,29 @@ public class JwtTokenProvider {
      * @return userId или null если токен невалиден/истёк
      */
     public @Nullable Long validateAccessToken(@NonNull String token) {
+        Claims claims = validateAccessTokenClaims(token);
+        if (claims == null) {
+            return null;
+        }
+        return parseUserId(claims.getSubject());
+    }
+
+    /**
+     * Валидирует access-токен и возвращает JWT-claims.
+     * <p>
+     * Используется WebSocket handshake для извлечения дополнительных полей
+     * (например, роли) наряду с идентификатором пользователя.
+     *
+     * @param token JWT access-токен
+     * @return claims или null если токен невалиден/истёк
+     */
+    public @Nullable Claims validateAccessTokenClaims(@NonNull String token) {
         try {
-            Claims claims = Jwts.parser()
+            return Jwts.parser()
                     .verifyWith(getAccessKey())
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
-            return parseUserId(claims.getSubject());
         } catch (ExpiredJwtException e) {
             log.debug("Access token expired");
             return null;

@@ -54,6 +54,11 @@ const NotificationsPage = lazy(async () => {
   return { default: module.NotificationsPage };
 });
 
+const ChangePasswordPage = lazy(async () => {
+  const module = await import('./pages/ChangePasswordPage');
+  return { default: module.ChangePasswordPage };
+});
+
 const AdminApp = lazy(async () => {
   const module = await import('./admin/AdminApp');
   return { default: module.AdminApp };
@@ -116,6 +121,10 @@ export const router = createBrowserRouter([
           {
             path: 'notifications',
             element: withSuspense(<NotificationsPage />),
+          },
+          {
+            path: 'change-password',
+            element: withSuspense(<ChangePasswordPage />),
           },
           {
             element: <RequireAdmin />,

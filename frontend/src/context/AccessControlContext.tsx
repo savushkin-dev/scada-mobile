@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from 'react';
 import { fetchUserProfile } from '../api/profile';
 import { useAuth } from './AuthContext';
+import type { UserAssignmentsMessage } from '../types';
 
 export type UnitAction = 'last-batch';
 
@@ -17,6 +18,11 @@ interface AccessContextValue {
   assignedUnitIds: Set<string>;
   status: AccessStatus;
   refreshAssignments: (options?: { silent?: boolean }) => Promise<void>;
+  /**
+   * Обновляет список закреплённых аппаратов из WebSocket-сообщения USER_ASSIGNMENTS.
+   * Не выполняет лишнего HTTP-запроса — использует данные, присланные сервером.
+   */
+  updateAssignedUnitsFromWs: (msg: UserAssignmentsMessage) => void;
   isAssignedUnit: (unitId?: string | null) => boolean;
   canUseUnitAction: (action: UnitAction, unitId?: string | null) => boolean;
 }
@@ -135,15 +141,39 @@ export function AccessControlProvider({ children }: { children: ReactNode }) {
     [userId, isAssignedUnit]
   );
 
+  const updateAssignedUnitsFromWs = useCallback(
+    (msg: UserAssignmentsMessage) => {
+      if (!userId || !msg.payload) return;
+      const unitIds = msg.payload
+        .map((unit) => unit.printsrvInstanceId ?? unit.unitId)
+        .filter((unitId): unitId is string | number => unitId != null)
+        .map((unitId) => String(unitId));
+      const uniqueUnitIds = Array.from(new Set(unitIds));
+
+      setAssignedUnitIds(new Set(uniqueUnitIds));
+      setStatus('ready');
+      writeStoredAssignments(userId, uniqueUnitIds);
+    },
+    [userId]
+  );
+
   const value = useMemo(
     () => ({
       assignedUnitIds,
       status,
       refreshAssignments,
+      updateAssignedUnitsFromWs,
       isAssignedUnit,
       canUseUnitAction,
     }),
-    [assignedUnitIds, status, refreshAssignments, isAssignedUnit, canUseUnitAction]
+    [
+      assignedUnitIds,
+      status,
+      refreshAssignments,
+      updateAssignedUnitsFromWs,
+      isAssignedUnit,
+      canUseUnitAction,
+    ]
   );
 
   return <AccessControlContext.Provider value={value}>{children}</AccessControlContext.Provider>;

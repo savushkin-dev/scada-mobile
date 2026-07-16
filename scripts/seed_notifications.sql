@@ -5,29 +5,23 @@ VALUES (1, 'Master'),
        (2, 'ADMIN')
 ON CONFLICT (role_id) DO UPDATE SET name = EXCLUDED.name;
 
-INSERT INTO users (user_id, role_id, code, password, full_name, is_active)
-VALUES (1, 1, 'USR-000001', '$2a$10$Vl9uNi2cKwgVHNiZfQfTXe.YhvzBL0dEwNhvMxiVXPQYhsuIF8bOC', 'Test User', true)
+INSERT INTO users (user_id, role_id, code, password, full_name, is_active, password_temporary)
+VALUES (1, 1, 'USR-000001', '$2a$10$Vl9uNi2cKwgVHNiZfQfTXe.YhvzBL0dEwNhvMxiVXPQYhsuIF8bOC', 'Test User', true, false)
 ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id,
                                    code = EXCLUDED.code,
                                    password = EXCLUDED.password,
                                    full_name = EXCLUDED.full_name,
-                                   is_active = EXCLUDED.is_active;
+                                   is_active = EXCLUDED.is_active,
+                                   password_temporary = EXCLUDED.password_temporary;
 
-INSERT INTO users (user_id, role_id, code, password, full_name, is_active)
-VALUES (2, 1, 'USR-000002', '$2a$10$Vl9uNi2cKwgVHNiZfQfTXe.YhvzBL0dEwNhvMxiVXPQYhsuIF8bOC', 'Second User', true)
+INSERT INTO users (user_id, role_id, code, password, full_name, is_active, password_temporary)
+VALUES (2, 1, 'USR-000002', '$2a$10$Vl9uNi2cKwgVHNiZfQfTXe.YhvzBL0dEwNhvMxiVXPQYhsuIF8bOC', 'Second User', true, false)
 ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id,
                                    code = EXCLUDED.code,
                                    password = EXCLUDED.password,
                                    full_name = EXCLUDED.full_name,
-                                   is_active = EXCLUDED.is_active;
-
-INSERT INTO users (user_id, role_id, code, password, full_name, is_active)
-VALUES (3, 2, 'ADM-000001', '$2a$10$Vl9uNi2cKwgVHNiZfQfTXe.YhvzBL0dEwNhvMxiVXPQYhsuIF8bOC', 'Admin User', true)
-ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id,
-                                   code = EXCLUDED.code,
-                                   password = EXCLUDED.password,
-                                   full_name = EXCLUDED.full_name,
-                                   is_active = EXCLUDED.is_active;
+                                   is_active = EXCLUDED.is_active,
+                                   password_temporary = EXCLUDED.password_temporary;
 
 INSERT INTO workshops (workshop_id, name, is_active)
 VALUES (1, 'Цех десертов', true),
@@ -65,78 +59,88 @@ VALUES ('printer', 'Принтер'),
        ('checker_cam', 'Камера проверки')
 ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name;
 
-WITH device_rows (printsrv_instance_id, type_code, device_code, display_name) AS (
-    VALUES
-        ('trepko1', 'aggregation_cam', 'CamBatch', 'CamBatch'),
-        ('trepko1', 'aggregation_box_cam', 'CamPacker', 'CamPacker'),
-        ('trepko1', 'aggregation_box_cam', 'CamPackerBox', 'CamPackerBox'),
-        ('trepko1', 'checker_cam', 'CamChecker', 'CamChecker'),
-        ('trepko2', 'aggregation_cam', 'CamBatch', 'CamBatch'),
-        ('trepko2', 'aggregation_box_cam', 'CamPacker', 'CamPacker'),
-        ('trepko2', 'aggregation_box_cam', 'CamPackerBox', 'CamPackerBox'),
-        ('trepko2', 'checker_cam', 'CamChecker', 'CamChecker'),
-        ('hassia4', 'printer', 'Printer11', 'Printer11'),
-        ('hassia4', 'printer', 'Printer12', 'Printer12'),
-        ('hassia4', 'printer', 'Printer2', 'Printer2'),
-        ('hassia5', 'printer', 'Printer11', 'Printer11'),
-        ('hassia5', 'printer', 'Printer12', 'Printer12'),
-        ('hassia6', 'printer', 'Printer11', 'Printer11'),
-        ('hassia6', 'printer', 'Printer12', 'Printer12'),
-        ('hassia3', 'printer', 'Printer11', 'Printer11'),
-        ('hassia3', 'printer', 'Printer12', 'Printer12'),
-        ('bosch', 'printer', 'Printer11', 'Printer11'),
-        ('bosch', 'printer', 'Printer12', 'Printer12'),
-        ('grunwald5', 'printer', 'Printer11', 'Printer11'),
-        ('grunwald5', 'printer', 'Printer12', 'Printer12'),
-        ('grunwald8', 'printer', 'Printer11', 'Printer11'),
-        ('grunwald8', 'printer', 'Printer12', 'Printer12'),
-        ('grunwald1', 'printer', 'Printer11', 'Printer11'),
-        ('grunwald1', 'printer', 'Printer12', 'Printer12'),
-        ('grunwald1', 'checker_cam', 'CamChecker', 'CamChecker'),
-        ('grunwald1', 'checker_cam', 'CamEanChecker1', 'CamEanChecker1'),
-        ('grunwald1', 'checker_cam', 'CamEanChecker2', 'CamEanChecker2'),
-        ('grunwald1', 'checker_cam', 'CamEanChecker3', 'CamEanChecker3'),
-        ('grunwald1', 'checker_cam', 'CamEanChecker4', 'CamEanChecker4'),
-        ('grunwald2', 'printer', 'Printer11', 'Printer11'),
-        ('grunwald2', 'printer', 'Printer12', 'Printer12'),
-        ('grunwald2', 'checker_cam', 'CamChecker', 'CamChecker'),
-        ('grunwald2', 'checker_cam', 'CamEanChecker1', 'CamEanChecker1'),
-        ('grunwald2', 'checker_cam', 'CamEanChecker2', 'CamEanChecker2'),
-        ('grunwald2', 'checker_cam', 'CamEanChecker3', 'CamEanChecker3'),
-        ('grunwald2', 'checker_cam', 'CamEanChecker4', 'CamEanChecker4'),
-        ('grunwald11', 'printer', 'Printer11', 'Printer11'),
-        ('grunwald11', 'printer', 'Printer12', 'Printer12'),
-        ('grunwald11', 'printer', 'Printer13', 'Printer13'),
-        ('grunwald11', 'printer', 'Printer14', 'Printer14'),
-        ('grunwald11', 'aggregation_cam', 'CamAgregation1', 'CamAgregation1'),
-        ('grunwald11', 'aggregation_cam', 'CamAgregation2', 'CamAgregation2'),
-        ('grunwald11', 'aggregation_box_cam', 'CamAgregationBox1', 'CamAgregationBox1'),
-        ('grunwald11', 'aggregation_box_cam', 'CamAgregationBox2', 'CamAgregationBox2'),
-        ('grunwald11', 'checker_cam', 'CamChecker1', 'CamChecker1'),
-        ('grunwald11', 'checker_cam', 'CamChecker2', 'CamChecker2'),
-        ('grunwald11', 'checker_cam', 'CamEanChecker1', 'CamEanChecker1'),
-        ('grunwald11', 'checker_cam', 'CamEanChecker2', 'CamEanChecker2'),
-        ('grunwald11', 'checker_cam', 'CamEanChecker3', 'CamEanChecker3'),
-        ('grunwald11', 'checker_cam', 'CamEanChecker4', 'CamEanChecker4')
-)
-INSERT INTO unit_devices (unit_id, type_id, code, display_name)
-SELECT u.unit_id,
-       dt.type_id,
-       d.device_code,
-       d.display_name
-FROM device_rows d
-JOIN units u ON u.printsrv_instance_id = d.printsrv_instance_id
-JOIN device_types dt ON dt.code = d.type_code
+CREATE TEMP TABLE seed_devices (
+    printsrv_instance_id VARCHAR(255),
+    type_code VARCHAR(255),
+    device_code VARCHAR(255),
+    display_name VARCHAR(255)
+) ON COMMIT DROP;
+
+INSERT INTO seed_devices VALUES
+    ('trepko1', 'aggregation_cam', 'CamBatch', 'CamBatch'),
+    ('trepko1', 'aggregation_box_cam', 'CamPacker', 'CamPacker'),
+    ('trepko1', 'aggregation_box_cam', 'CamPackerBox', 'CamPackerBox'),
+    ('trepko1', 'checker_cam', 'CamChecker', 'CamChecker'),
+    ('trepko2', 'aggregation_cam', 'CamBatch', 'CamBatch'),
+    ('trepko2', 'aggregation_box_cam', 'CamPacker', 'CamPacker'),
+    ('trepko2', 'aggregation_box_cam', 'CamPackerBox', 'CamPackerBox'),
+    ('trepko2', 'checker_cam', 'CamChecker', 'CamChecker'),
+    ('hassia4', 'printer', 'Printer11', 'Printer11'),
+    ('hassia4', 'printer', 'Printer12', 'Printer12'),
+    ('hassia4', 'printer', 'Printer2', 'Printer2'),
+    ('hassia5', 'printer', 'Printer11', 'Printer11'),
+    ('hassia5', 'printer', 'Printer12', 'Printer12'),
+    ('hassia6', 'printer', 'Printer11', 'Printer11'),
+    ('hassia6', 'printer', 'Printer12', 'Printer12'),
+    ('hassia3', 'printer', 'Printer11', 'Printer11'),
+    ('hassia3', 'printer', 'Printer12', 'Printer12'),
+    ('bosch', 'printer', 'Printer11', 'Printer11'),
+    ('bosch', 'printer', 'Printer12', 'Printer12'),
+    ('grunwald5', 'printer', 'Printer11', 'Printer11'),
+    ('grunwald5', 'printer', 'Printer12', 'Printer12'),
+    ('grunwald8', 'printer', 'Printer11', 'Printer11'),
+    ('grunwald8', 'printer', 'Printer12', 'Printer12'),
+    ('grunwald1', 'printer', 'Printer11', 'Printer11'),
+    ('grunwald1', 'printer', 'Printer12', 'Printer12'),
+    ('grunwald1', 'checker_cam', 'CamChecker', 'CamChecker'),
+    ('grunwald1', 'checker_cam', 'CamEanChecker1', 'CamEanChecker1'),
+    ('grunwald1', 'checker_cam', 'CamEanChecker2', 'CamEanChecker2'),
+    ('grunwald1', 'checker_cam', 'CamEanChecker3', 'CamEanChecker3'),
+    ('grunwald1', 'checker_cam', 'CamEanChecker4', 'CamEanChecker4'),
+    ('grunwald2', 'printer', 'Printer11', 'Printer11'),
+    ('grunwald2', 'printer', 'Printer12', 'Printer12'),
+    ('grunwald2', 'checker_cam', 'CamChecker', 'CamChecker'),
+    ('grunwald2', 'checker_cam', 'CamEanChecker1', 'CamEanChecker1'),
+    ('grunwald2', 'checker_cam', 'CamEanChecker2', 'CamEanChecker2'),
+    ('grunwald2', 'checker_cam', 'CamEanChecker3', 'CamEanChecker3'),
+    ('grunwald2', 'checker_cam', 'CamEanChecker4', 'CamEanChecker4'),
+    ('grunwald11', 'printer', 'Printer11', 'Printer11'),
+    ('grunwald11', 'printer', 'Printer12', 'Printer12'),
+    ('grunwald11', 'printer', 'Printer13', 'Printer13'),
+    ('grunwald11', 'printer', 'Printer14', 'Printer14'),
+    ('grunwald11', 'aggregation_cam', 'CamAgregation1', 'CamAgregation1'),
+    ('grunwald11', 'aggregation_cam', 'CamAgregation2', 'CamAgregation2'),
+    ('grunwald11', 'aggregation_box_cam', 'CamAgregationBox1', 'CamAgregationBox1'),
+    ('grunwald11', 'aggregation_box_cam', 'CamAgregationBox2', 'CamAgregationBox2'),
+    ('grunwald11', 'checker_cam', 'CamChecker1', 'CamChecker1'),
+    ('grunwald11', 'checker_cam', 'CamChecker2', 'CamChecker2'),
+    ('grunwald11', 'checker_cam', 'CamEanChecker1', 'CamEanChecker1'),
+    ('grunwald11', 'checker_cam', 'CamEanChecker2', 'CamEanChecker2'),
+    ('grunwald11', 'checker_cam', 'CamEanChecker3', 'CamEanChecker3'),
+    ('grunwald11', 'checker_cam', 'CamEanChecker4', 'CamEanChecker4');
+
+INSERT INTO device_catalog (type_id, code, name)
+SELECT DISTINCT dt.type_id, sd.device_code, sd.display_name
+FROM seed_devices sd
+JOIN device_types dt ON dt.code = sd.type_code
+ON CONFLICT (name) DO UPDATE SET type_id = EXCLUDED.type_id,
+                                 code = EXCLUDED.code;
+
+INSERT INTO unit_devices (unit_id, catalog_id)
+SELECT u.unit_id, dc.catalog_id
+FROM seed_devices sd
+JOIN units u ON u.printsrv_instance_id = sd.printsrv_instance_id
+JOIN device_types dt ON dt.code = sd.type_code
+JOIN device_catalog dc ON dc.name = sd.display_name AND dc.code = sd.device_code
 WHERE NOT EXISTS (
     SELECT 1
     FROM unit_devices ud
     WHERE ud.unit_id = u.unit_id
-      AND ud.type_id = dt.type_id
-      AND ud.code = d.device_code
+      AND ud.catalog_id = dc.catalog_id
 );
 
-DELETE FROM user_unit_assignments WHERE user_id IN (1, 2, 3);
-DELETE FROM user_notification_settings WHERE user_id IN (1, 2, 3);
+DELETE FROM user_unit_assignments WHERE user_id IN (1, 2);
+DELETE FROM user_notification_settings WHERE user_id IN (1, 2);
 
 INSERT INTO user_unit_assignments (user_id, unit_id, assigned_at, is_active)
 VALUES (1, 1, NOW(), true),
@@ -145,9 +149,6 @@ VALUES (1, 1, NOW(), true),
 INSERT INTO user_unit_assignments (user_id, unit_id, assigned_at, is_active)
 VALUES (2, 2, NOW(), true),
        (2, 4, NOW(), true);
-
-INSERT INTO user_unit_assignments (user_id, unit_id, assigned_at, is_active)
-VALUES (3, 1, NOW(), true);
 
 INSERT INTO user_notification_settings
     (user_id, unit_id, incident_notifications_enabled, android_call_notifications_enabled, is_active, updated_at)
@@ -181,27 +182,12 @@ WHERE NOT EXISTS (
       AND uns.unit_id = u.unit_id
 );
 
-INSERT INTO user_notification_settings
-    (user_id, unit_id, incident_notifications_enabled, android_call_notifications_enabled, is_active, updated_at)
-SELECT 3,
-       u.unit_id,
-       true,
-       true,
-       true,
-       NOW()
-FROM units u
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM user_notification_settings uns
-    WHERE uns.user_id = 3
-      AND uns.unit_id = u.unit_id
-);
-
 SELECT setval(pg_get_serial_sequence('roles', 'role_id'), (SELECT COALESCE(MAX(role_id), 1) FROM roles));
 SELECT setval(pg_get_serial_sequence('users', 'user_id'), (SELECT COALESCE(MAX(user_id), 1) FROM users));
 SELECT setval(pg_get_serial_sequence('workshops', 'workshop_id'), (SELECT COALESCE(MAX(workshop_id), 1) FROM workshops));
 SELECT setval(pg_get_serial_sequence('units', 'unit_id'), (SELECT COALESCE(MAX(unit_id), 1) FROM units));
 SELECT setval(pg_get_serial_sequence('device_types', 'type_id'), (SELECT COALESCE(MAX(type_id), 1) FROM device_types));
+SELECT setval(pg_get_serial_sequence('device_catalog', 'catalog_id'), (SELECT COALESCE(MAX(catalog_id), 1) FROM device_catalog));
 SELECT setval(pg_get_serial_sequence('unit_devices', 'device_id'), (SELECT COALESCE(MAX(device_id), 1) FROM unit_devices));
 SELECT setval(pg_get_serial_sequence('user_unit_assignments', 'assignment_id'),
               (SELECT COALESCE(MAX(assignment_id), 1) FROM user_unit_assignments));

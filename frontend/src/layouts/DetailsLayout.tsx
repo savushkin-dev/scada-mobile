@@ -192,7 +192,7 @@ export function DetailsLayout() {
             hasDevicesTopology ? state.topologyETag : null
           )
       : null,
-    [unitId, workshopId],
+    [unitId, workshopId, state.topologyVersion],
     { source: 'topology/devices' }
   );
 

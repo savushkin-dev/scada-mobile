@@ -7,7 +7,21 @@ import { classifyError } from '../errors/classifyError';
 import type { AppError } from '../errors/AppError';
 import { createManagedWs, type ManagedWsConnection } from '../lib/createManagedWs';
 import { LiveWsIncomingMessageSchema } from '../schemas';
-import type { AlertWsMessage, NotificationWsMessage, UnitsStatusMessage } from '../types';
+import type {
+  AlertWsMessage,
+  DeviceCatalogChangedMessage,
+  DeviceChangedMessage,
+  DeviceTypeChangedMessage,
+  EmployeeChangedMessage,
+  ForceLogoutMessage,
+  NotificationWsMessage,
+  RoleChangedMessage,
+  UnitsStatusMessage,
+  UnitChangedMessage,
+  UserAssignmentsMessage,
+  UserNotificationSettingsChangedMessage,
+  WorkshopChangedMessage,
+} from '../types';
 
 /**
  * Коллбэки, вызываемые хуком при получении сообщений от сервера.
@@ -24,6 +38,26 @@ export interface LiveWsCallbacks {
   onAlert: (msg: AlertWsMessage) => void;
   /** NOTIFICATION — дельта изменения уведомления (active true/false) */
   onNotification: (msg: NotificationWsMessage) => void;
+  /** USER_ASSIGNMENTS — актуальный список автоматов, закреплённых за пользователем */
+  onUserAssignments?: (msg: UserAssignmentsMessage) => void;
+  /** EMPLOYEE_CHANGED — изменились данные сотрудника */
+  onEmployeeChanged?: (msg: EmployeeChangedMessage) => void;
+  /** WORKSHOP_CHANGED — изменились данные цеха */
+  onWorkshopChanged?: (msg: WorkshopChangedMessage) => void;
+  /** ROLE_CHANGED — изменилась роль */
+  onRoleChanged?: (msg: RoleChangedMessage) => void;
+  /** UNIT_CHANGED — изменились данные автомата */
+  onUnitChanged?: (msg: UnitChangedMessage) => void;
+  /** DEVICE_CHANGED — изменилась связь устройства с автоматом */
+  onDeviceChanged?: (msg: DeviceChangedMessage) => void;
+  /** DEVICE_CATALOG_CHANGED — изменился справочник устройств */
+  onDeviceCatalogChanged?: (msg: DeviceCatalogChangedMessage) => void;
+  /** DEVICE_TYPE_CHANGED — изменился тип устройства */
+  onDeviceTypeChanged?: (msg: DeviceTypeChangedMessage) => void;
+  /** USER_NOTIFICATION_SETTINGS_CHANGED — изменились настройки уведомлений */
+  onUserNotificationSettingsChanged?: (msg: UserNotificationSettingsChangedMessage) => void;
+  /** FORCE_LOGOUT — принудительный разлогин */
+  onForceLogout?: (msg: ForceLogoutMessage) => void;
   /**
    * Первый разрыв соединения — начало тихого переподключения.
    * UI должен показывать skeleton, но не ошибку в шапке.
@@ -155,6 +189,36 @@ export function useLiveWs(
             break;
           case 'NOTIFICATION':
             cb.onNotification(msg);
+            break;
+          case 'USER_ASSIGNMENTS':
+            cb.onUserAssignments?.(msg);
+            break;
+          case 'EMPLOYEE_CHANGED':
+            cb.onEmployeeChanged?.(msg);
+            break;
+          case 'WORKSHOP_CHANGED':
+            cb.onWorkshopChanged?.(msg);
+            break;
+          case 'ROLE_CHANGED':
+            cb.onRoleChanged?.(msg);
+            break;
+          case 'UNIT_CHANGED':
+            cb.onUnitChanged?.(msg);
+            break;
+          case 'DEVICE_CHANGED':
+            cb.onDeviceChanged?.(msg);
+            break;
+          case 'DEVICE_CATALOG_CHANGED':
+            cb.onDeviceCatalogChanged?.(msg);
+            break;
+          case 'DEVICE_TYPE_CHANGED':
+            cb.onDeviceTypeChanged?.(msg);
+            break;
+          case 'USER_NOTIFICATION_SETTINGS_CHANGED':
+            cb.onUserNotificationSettingsChanged?.(msg);
+            break;
+          case 'FORCE_LOGOUT':
+            cb.onForceLogout?.(msg);
             break;
         }
       },

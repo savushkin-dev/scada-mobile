@@ -4,14 +4,19 @@ import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.en
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserAssignmentEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UnitJpaRepository;
+import dev.savushkin.scada.mobile.backend.domain.model.ChangeAction;
+import dev.savushkin.scada.mobile.backend.domain.model.EmployeeChangedEvent;
+import dev.savushkin.scada.mobile.backend.domain.model.UserAssignmentsChangedEvent;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UserAssignmentJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UserJpaRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.jspecify.annotations.NonNull;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -28,16 +33,20 @@ public class AdminUserAssignmentController {
     private final UserAssignmentJpaRepository assignmentRepository;
     private final UserJpaRepository userRepository;
     private final UnitJpaRepository unitRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AdminUserAssignmentController(UserAssignmentJpaRepository assignmentRepository,
                                          UserJpaRepository userRepository,
-                                         UnitJpaRepository unitRepository) {
+                                         UnitJpaRepository unitRepository,
+                                         ApplicationEventPublisher eventPublisher) {
         this.assignmentRepository = assignmentRepository;
         this.userRepository = userRepository;
         this.unitRepository = unitRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @PostMapping
+    @Transactional
     public ResponseEntity<UserAssignmentEntity> create(@Valid @RequestBody AssignmentRequest request) {
         UserEntity user = userRepository.findById(request.userId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пользователь не найден"));
@@ -51,10 +60,13 @@ public class AdminUserAssignmentController {
         assignment.setActive(request.active());
 
         UserAssignmentEntity saved = assignmentRepository.save(assignment);
+        eventPublisher.publishEvent(new UserAssignmentsChangedEvent(request.userId()));
+        eventPublisher.publishEvent(new EmployeeChangedEvent(request.userId(), ChangeAction.UPDATE));
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
     @PutMapping("/{id}")
+    @Transactional
     public ResponseEntity<UserAssignmentEntity> update(@PathVariable @NonNull Long id,
                                                        @Valid @RequestBody AssignmentRequest request) {
         UserAssignmentEntity assignment = assignmentRepository.findById(id)
@@ -70,15 +82,20 @@ public class AdminUserAssignmentController {
         assignment.setActive(request.active());
 
         UserAssignmentEntity saved = assignmentRepository.save(assignment);
+        eventPublisher.publishEvent(new UserAssignmentsChangedEvent(request.userId()));
+        eventPublisher.publishEvent(new EmployeeChangedEvent(request.userId(), ChangeAction.UPDATE));
         return ResponseEntity.ok(saved);
     }
 
     @DeleteMapping("/{id}")
+    @Transactional
     public ResponseEntity<Void> delete(@PathVariable @NonNull Long id) {
-        if (!assignmentRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Назначение не найдено");
-        }
+        UserAssignmentEntity assignment = assignmentRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Назначение не найдено"));
+        Long userId = assignment.getUser().getId();
         assignmentRepository.deleteById(id);
+        eventPublisher.publishEvent(new UserAssignmentsChangedEvent(userId));
+        eventPublisher.publishEvent(new EmployeeChangedEvent(userId, ChangeAction.UPDATE));
         return ResponseEntity.noContent().build();
     }
 

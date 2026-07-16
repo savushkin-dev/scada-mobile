@@ -6,6 +6,7 @@ import { AdminNotificationsProvider } from './ui/AdminNotificationsContext';
 import { AdminSidebarDesktop } from './ui/AdminSidebarDesktop';
 import { AdminMobileHeader } from './ui/AdminMobileHeader';
 import { AdminBottomSheetMenu } from './ui/AdminBottomSheetMenu';
+import { AdminLiveUpdater } from './AdminLiveUpdater';
 import { EmptyAppBar, EmptyMenu, EmptySidebar } from './ui/AdminEmptyLayoutParts';
 
 export function AdminLayout(props: LayoutProps) {
@@ -15,6 +16,7 @@ export function AdminLayout(props: LayoutProps) {
   return (
     <AdminNavProvider>
       <AdminNotificationsProvider>
+        <AdminLiveUpdater />
         <div className="admin-app-root flex h-full min-h-0 flex-1 overflow-hidden">
           <AdminSidebarDesktop />
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -33,6 +35,7 @@ export function AdminLayout(props: LayoutProps) {
                     flexDirection: 'column',
                     flexGrow: 1,
                     marginTop: 0,
+                    paddingTop: 0,
                     height: '100%',
                     minHeight: '100%',
                   },
@@ -47,6 +50,7 @@ export function AdminLayout(props: LayoutProps) {
                     flexBasis: 0,
                     overflowY: 'auto',
                     overflowX: 'hidden',
+                    paddingTop: 0,
                     paddingBottom: 2,
                     backgroundColor: '#f8f9fa',
                   },

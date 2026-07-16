@@ -29,7 +29,8 @@ public class UserAuthJpaAdapter implements UserAuthRepository {
                 entity.getCode(),
                 entity.getFullName(),
                 entity.isActive(),
-                entity.getPassword()
+                entity.getPassword(),
+                entity.isPasswordTemporary()
         );
     }
 }

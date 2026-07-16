@@ -5,13 +5,16 @@ import type { AppError } from '../errors/AppError';
 import type {
   AlertData,
   AlertWsMessage,
+  ChangeAction,
   DevicesTopology,
   NotificationData,
   NotificationWsMessage,
   Unit,
+  UnitPayload,
   UnitStatus,
   UnitTopology,
   Workshop,
+  WorkshopPayload,
   WorkshopTopology,
 } from '../types';
 
@@ -78,10 +81,25 @@ export interface AppState {
    * Передаётся обратно в заголовке `If-None-Match` при повторных запросах.
    */
   topologyETag: string | null;
+  /**
+   * Версия конфигурации топологии. Инкрементируется при live-изменениях,
+   * чтобы DetailsLayout мог перезагрузить топологию устройств без F5.
+   */
+  topologyVersion: number;
 
   // ── Status layer (live, патчится из WS) ──
   /** workshopId → (unitId → UnitStatus) */
   unitStatusByWorkshop: Record<string, Record<string, UnitStatus>>;
+}
+
+function adjustTotalUnits(
+  topology: WorkshopTopology[],
+  workshopId: number,
+  delta: number
+): WorkshopTopology[] {
+  return topology.map((w) =>
+    w.id === workshopId ? { ...w, totalUnits: Math.max(0, w.totalUnits + delta) } : w
+  );
 }
 
 const initialState: AppState = {
@@ -96,6 +114,7 @@ const initialState: AppState = {
   unitTopologyByWorkshop: {},
   devicesTopologyByUnit: {},
   topologyETag: null,
+  topologyVersion: 0,
   unitStatusByWorkshop: {},
 };
 
@@ -117,6 +136,11 @@ type Action =
   | { type: 'SET_UNIT_TOPOLOGY'; workshopId: number; topology: UnitTopology[] }
   | { type: 'SET_DEVICES_TOPOLOGY'; unitId: string; topology: DevicesTopology }
   | { type: 'SET_TOPOLOGY_ETAG'; etag: string }
+  // Live admin-driven topology patches
+  | { type: 'APPLY_WORKSHOP_CHANGE'; payload: WorkshopPayload; action: ChangeAction }
+  | { type: 'APPLY_UNIT_CHANGE'; payload: UnitPayload; action: ChangeAction }
+  | { type: 'INVALIDATE_DEVICES_TOPOLOGY'; unitId: string }
+  | { type: 'BUMP_TOPOLOGY_VERSION' }
   // Live status (from WebSocket)
   | { type: 'SET_ALERT_SNAPSHOT'; alerts: AlertWsMessage[] }
   | { type: 'PATCH_UNITS_STATUS'; workshopId: number; statuses: UnitStatus[] };
@@ -220,6 +244,120 @@ function reducer(state: AppState, action: Action): AppState {
       };
     case 'SET_TOPOLOGY_ETAG':
       return { ...state, topologyETag: action.etag };
+    // ── Live admin-driven topology patches ────────────────────────────
+    case 'APPLY_WORKSHOP_CHANGE': {
+      const wsPayload = action.payload;
+      if (action.action === 'DELETE' || !wsPayload.active) {
+        return {
+          ...state,
+          workshopTopology: state.workshopTopology.filter((w) => w.id !== wsPayload.id),
+        };
+      }
+      const existingIndex = state.workshopTopology.findIndex((w) => w.id === wsPayload.id);
+      const nextTopology = [...state.workshopTopology];
+      const workshop: WorkshopTopology = {
+        id: wsPayload.id,
+        name: wsPayload.name ?? '',
+        totalUnits: wsPayload.totalUnits,
+      };
+      if (existingIndex >= 0) {
+        nextTopology[existingIndex] = workshop;
+      } else {
+        nextTopology.push(workshop);
+      }
+      return { ...state, workshopTopology: nextTopology };
+    }
+    case 'APPLY_UNIT_CHANGE': {
+      const uPayload = action.payload;
+      const unitId = uPayload.printsrvInstanceId ?? String(uPayload.id);
+      const newWorkshopKey = String(uPayload.workshopId);
+
+      // Найдём текущее расположение аппарата (если он уже был в другой цехе)
+      let oldWorkshopKey: string | null = null;
+      for (const [key, list] of Object.entries(state.unitTopologyByWorkshop)) {
+        if (list.some((u) => String(u.id) === unitId)) {
+          oldWorkshopKey = key;
+          break;
+        }
+      }
+
+      if (action.action === 'DELETE' || !uPayload.active) {
+        // Удаляем неактивный/удалённый аппарат из топологии
+        const nextUnitMap = { ...state.unitTopologyByWorkshop };
+        const list = nextUnitMap[newWorkshopKey];
+        if (list) {
+          nextUnitMap[newWorkshopKey] = list.filter((u) => String(u.id) !== unitId);
+        }
+        // Если аппарат переехал в другой цех и стал неактивным — очистим и старый
+        if (oldWorkshopKey !== null && oldWorkshopKey !== newWorkshopKey) {
+          nextUnitMap[oldWorkshopKey] = nextUnitMap[oldWorkshopKey].filter(
+            (u) => String(u.id) !== unitId
+          );
+        }
+
+        let nextWorkshopTopology = state.workshopTopology;
+        if (oldWorkshopKey !== null) {
+          nextWorkshopTopology = adjustTotalUnits(nextWorkshopTopology, Number(oldWorkshopKey), -1);
+        } else {
+          nextWorkshopTopology = adjustTotalUnits(nextWorkshopTopology, uPayload.workshopId, -1);
+        }
+
+        return {
+          ...state,
+          unitTopologyByWorkshop: nextUnitMap,
+          workshopTopology: nextWorkshopTopology,
+        };
+      }
+
+      const unitTopology: UnitTopology = {
+        id: unitId,
+        workshopId: uPayload.workshopId,
+        unit: uPayload.name ?? '',
+      };
+
+      let nextUnitMap = { ...state.unitTopologyByWorkshop };
+      let nextWorkshopTopology = state.workshopTopology;
+
+      if (oldWorkshopKey !== null && oldWorkshopKey !== newWorkshopKey) {
+        // Переместили в другой цех
+        nextUnitMap = {
+          ...nextUnitMap,
+          [oldWorkshopKey]: nextUnitMap[oldWorkshopKey].filter((u) => String(u.id) !== unitId),
+        };
+        nextWorkshopTopology = adjustTotalUnits(nextWorkshopTopology, Number(oldWorkshopKey), -1);
+        nextWorkshopTopology = adjustTotalUnits(nextWorkshopTopology, uPayload.workshopId, +1);
+      }
+
+      const newList = [...(nextUnitMap[newWorkshopKey] ?? [])];
+      const existingUnitIndex = newList.findIndex((u) => String(u.id) === unitId);
+      if (existingUnitIndex >= 0) {
+        newList[existingUnitIndex] = unitTopology;
+      } else {
+        newList.push(unitTopology);
+        if (action.action === 'CREATE') {
+          nextWorkshopTopology = adjustTotalUnits(nextWorkshopTopology, uPayload.workshopId, +1);
+        }
+      }
+      nextUnitMap[newWorkshopKey] = newList;
+
+      return {
+        ...state,
+        unitTopologyByWorkshop: nextUnitMap,
+        workshopTopology: nextWorkshopTopology,
+      };
+    }
+    case 'INVALIDATE_DEVICES_TOPOLOGY': {
+      if (!state.devicesTopologyByUnit[action.unitId]) return state;
+      const nextDevices = { ...state.devicesTopologyByUnit };
+      delete nextDevices[action.unitId];
+      return {
+        ...state,
+        devicesTopologyByUnit: nextDevices,
+        topologyVersion: state.topologyVersion + 1,
+      };
+    }
+    case 'BUMP_TOPOLOGY_VERSION':
+      return { ...state, topologyVersion: state.topologyVersion + 1 };
     // ── Live status ───────────────────────────────────────────────────
     case 'SET_ALERT_SNAPSHOT': {
       // Начальный срез алёртов при подключении к /ws/live.
@@ -280,6 +418,14 @@ interface AppContextValue {
   setDevicesTopology: (unitId: string, topology: DevicesTopology) => void;
   /** Сохраняет ETag, полученный от topology-эндпоинтов. */
   setTopologyETag: (etag: string) => void;
+  /** Патчит топологию цеха по WS-сообщению об изменении. */
+  applyWorkshopChange: (payload: WorkshopPayload, action: ChangeAction) => void;
+  /** Патчит топологию автомата по WS-сообщению об изменении. */
+  applyUnitChange: (payload: UnitPayload, action: ChangeAction) => void;
+  /** Инвалидирует кэш топологии устройств аппарата. */
+  invalidateDevicesTopology: (unitId: string) => void;
+  /** Инкрементирует версию топологии для принудительного перезапроса. */
+  bumpTopologyVersion: () => void;
   // Status actions (вызываются из WS-хуков)
   /** Применяет начальный снапшот алёртов, полученный при подключении к /ws/live */
   setAlertSnapshot: (alerts: AlertWsMessage[]) => void;
@@ -330,6 +476,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     (etag: string) => dispatch({ type: 'SET_TOPOLOGY_ETAG', etag }),
     []
   );
+  const applyWorkshopChange = useCallback(
+    (payload: WorkshopPayload, action: ChangeAction) =>
+      dispatch({ type: 'APPLY_WORKSHOP_CHANGE', payload, action }),
+    []
+  );
+  const applyUnitChange = useCallback(
+    (payload: UnitPayload, action: ChangeAction) =>
+      dispatch({ type: 'APPLY_UNIT_CHANGE', payload, action }),
+    []
+  );
+  const invalidateDevicesTopology = useCallback(
+    (unitId: string) => dispatch({ type: 'INVALIDATE_DEVICES_TOPOLOGY', unitId }),
+    []
+  );
+  const bumpTopologyVersion = useCallback(() => dispatch({ type: 'BUMP_TOPOLOGY_VERSION' }), []);
   const setAlertSnapshot = useCallback(
     (alerts: AlertWsMessage[]) => dispatch({ type: 'SET_ALERT_SNAPSHOT', alerts }),
     []
@@ -413,6 +574,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUnitTopology,
         setDevicesTopology,
         setTopologyETag,
+        applyWorkshopChange,
+        applyUnitChange,
+        invalidateDevicesTopology,
+        bumpTopologyVersion,
         setAlertSnapshot,
         patchUnitsStatus,
         handleNotification,

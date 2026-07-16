@@ -1,5 +1,7 @@
 package dev.savushkin.scada.mobile.backend.api.controller.admin;
 
+import dev.savushkin.scada.mobile.backend.api.dto.admin.PasswordResetResponseDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.admin.UserCreateResponseDTO;
 import dev.savushkin.scada.mobile.backend.exception.UnitAssignmentConflictException;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.RoleEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UnitEntity;
@@ -9,15 +11,18 @@ import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.re
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UnitJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UserAssignmentJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UserJpaRepository;
+import dev.savushkin.scada.mobile.backend.domain.model.ChangeAction;
+import dev.savushkin.scada.mobile.backend.domain.model.EmployeeChangedEvent;
+import dev.savushkin.scada.mobile.backend.domain.model.UserAssignmentsChangedEvent;
+import dev.savushkin.scada.mobile.backend.services.EmployeeAccessService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import org.jspecify.annotations.NonNull;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -31,8 +36,8 @@ import java.util.Set;
  * Ручной CRUD-контроллер для управления пользователями.
  * <p>
  * Spring Data REST экспортирует только чтение (GET /users, GET /users/{id}).
- * Создание, обновление, удаление — через этот контроллер с валидацией
- * и автоматическим хешированием пароля.
+ * Создание, обновление, удаление — через этот контроллер с валидацией.
+ * Код и пароль генерируются системой автоматически; администратор не задаёт их вручную.
  */
 @RestController
 @RequestMapping("${scada.api.base-path}/admin/users")
@@ -43,71 +48,60 @@ public class AdminUserController {
     private final RoleJpaRepository roleRepository;
     private final UnitJpaRepository unitRepository;
     private final UserAssignmentJpaRepository assignmentRepository;
-    private final PasswordEncoder passwordEncoder;
+    private final EmployeeAccessService employeeAccessService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AdminUserController(UserJpaRepository userRepository,
                                RoleJpaRepository roleRepository,
                                UnitJpaRepository unitRepository,
                                UserAssignmentJpaRepository assignmentRepository,
-                               PasswordEncoder passwordEncoder) {
+                               EmployeeAccessService employeeAccessService,
+                               ApplicationEventPublisher eventPublisher) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.unitRepository = unitRepository;
         this.assignmentRepository = assignmentRepository;
-        this.passwordEncoder = passwordEncoder;
+        this.employeeAccessService = employeeAccessService;
+        this.eventPublisher = eventPublisher;
     }
 
     @PostMapping
     @Transactional
-    public ResponseEntity<UserEntity> create(@Valid @RequestBody UserRequest request) {
-        RoleEntity role = roleRepository.findById(request.roleId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Роль не найдена"));
+    public ResponseEntity<UserCreateResponseDTO> create(@Valid @RequestBody UserCreateRequest request) {
+        EmployeeAccessService.CreatedEmployee created = employeeAccessService.createEmployee(
+                request.fullName(), request.roleId(), request.active(), request.unitIds()
+        );
+        eventPublisher.publishEvent(new EmployeeChangedEvent(created.id(), ChangeAction.CREATE));
 
-        if (userRepository.findByCode(request.code()).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Код сотрудника уже занят");
-        }
-
-        if (request.password() == null || request.password().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Пароль обязателен");
-        }
-
-        UserEntity user = new UserEntity();
-        user.setCode(request.code());
-        user.setPassword(passwordEncoder.encode(request.password()));
-        user.setFullName(request.fullName());
-        user.setActive(request.active());
-        user.setRole(role);
-
-        UserEntity saved = userRepository.save(user);
-        syncAssignments(saved, request.unitIds(), null);
-        return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+        return ResponseEntity.status(HttpStatus.CREATED).body(new UserCreateResponseDTO(
+                created.id(),
+                created.code(),
+                created.fullName(),
+                created.roleId(),
+                created.active(),
+                created.unitIds(),
+                created.generatedPassword()
+        ));
     }
 
     @PutMapping("/{id}")
     @Transactional
     public ResponseEntity<UserEntity> update(@PathVariable @NonNull Long id,
-                                             @Valid @RequestBody UserRequest request) {
+                                             @Valid @RequestBody UserUpdateRequest request) {
         UserEntity user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Пользователь не найден"));
 
         RoleEntity role = roleRepository.findById(request.roleId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Роль не найдена"));
 
-        if (!user.getCode().equals(request.code()) && userRepository.findByCode(request.code()).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Код сотрудника уже занят");
-        }
-
-        user.setCode(request.code());
         user.setFullName(request.fullName());
         user.setActive(request.active());
         user.setRole(role);
 
-        if (request.password() != null && !request.password().isBlank()) {
-            user.setPassword(passwordEncoder.encode(request.password()));
-        }
-
         UserEntity saved = userRepository.save(user);
         syncAssignments(saved, request.unitIds(), id);
+        eventPublisher.publishEvent(new UserAssignmentsChangedEvent(id));
+        eventPublisher.publishEvent(new EmployeeChangedEvent(id, ChangeAction.UPDATE));
         return ResponseEntity.ok(saved);
     }
 
@@ -119,7 +113,18 @@ public class AdminUserController {
         }
         assignmentRepository.deleteByUser_Id(id);
         userRepository.deleteById(id);
+        eventPublisher.publishEvent(new EmployeeChangedEvent(id, ChangeAction.DELETE));
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/reset-password")
+    @Transactional
+    public ResponseEntity<PasswordResetResponseDTO> resetPassword(@PathVariable @NonNull Long id) {
+        EmployeeAccessService.ResetPassword reset = employeeAccessService.resetPassword(id);
+        eventPublisher.publishEvent(new EmployeeChangedEvent(id, ChangeAction.UPDATE));
+        return ResponseEntity.ok(new PasswordResetResponseDTO(
+                reset.code(), reset.fullName(), reset.generatedPassword()
+        ));
     }
 
     /**
@@ -130,7 +135,6 @@ public class AdminUserController {
      * @param currentUserId ID текущего пользователя для исключения при проверке конфликтов
      *                        (null для create)
      */
-    @Transactional
     private void syncAssignments(UserEntity user, List<Long> unitIds, Long currentUserId) {
         if (unitIds == null) {
             return;
@@ -167,9 +171,15 @@ public class AdminUserController {
         }
     }
 
-    public record UserRequest(
-            @NotBlank @Size(max = 10) String code,
-            String password,
+    public record UserCreateRequest(
+            @NotBlank String fullName,
+            @NotNull Long roleId,
+            boolean active,
+            List<Long> unitIds
+    ) {
+    }
+
+    public record UserUpdateRequest(
             @NotBlank String fullName,
             @NotNull Long roleId,
             boolean active,

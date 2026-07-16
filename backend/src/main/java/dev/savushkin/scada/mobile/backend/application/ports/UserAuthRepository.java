@@ -26,7 +26,8 @@ public interface UserAuthRepository {
             @NonNull String code,
             @NonNull String fullName,
             boolean active,
-            @NonNull String passwordHash
+            @NonNull String passwordHash,
+            boolean passwordTemporary
     ) {
     }
 }
