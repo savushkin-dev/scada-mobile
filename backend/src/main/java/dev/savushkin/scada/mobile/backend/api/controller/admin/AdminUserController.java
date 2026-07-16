@@ -11,11 +11,15 @@ import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.re
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UnitJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UserAssignmentJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UserJpaRepository;
+import dev.savushkin.scada.mobile.backend.domain.model.ChangeAction;
+import dev.savushkin.scada.mobile.backend.domain.model.EmployeeChangedEvent;
+import dev.savushkin.scada.mobile.backend.domain.model.UserAssignmentsChangedEvent;
 import dev.savushkin.scada.mobile.backend.services.EmployeeAccessService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import org.jspecify.annotations.NonNull;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -45,17 +49,20 @@ public class AdminUserController {
     private final UnitJpaRepository unitRepository;
     private final UserAssignmentJpaRepository assignmentRepository;
     private final EmployeeAccessService employeeAccessService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AdminUserController(UserJpaRepository userRepository,
                                RoleJpaRepository roleRepository,
                                UnitJpaRepository unitRepository,
                                UserAssignmentJpaRepository assignmentRepository,
-                               EmployeeAccessService employeeAccessService) {
+                               EmployeeAccessService employeeAccessService,
+                               ApplicationEventPublisher eventPublisher) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.unitRepository = unitRepository;
         this.assignmentRepository = assignmentRepository;
         this.employeeAccessService = employeeAccessService;
+        this.eventPublisher = eventPublisher;
     }
 
     @PostMapping
@@ -64,6 +71,7 @@ public class AdminUserController {
         EmployeeAccessService.CreatedEmployee created = employeeAccessService.createEmployee(
                 request.fullName(), request.roleId(), request.active(), request.unitIds()
         );
+        eventPublisher.publishEvent(new EmployeeChangedEvent(created.id(), ChangeAction.CREATE));
 
         return ResponseEntity.status(HttpStatus.CREATED).body(new UserCreateResponseDTO(
                 created.id(),
@@ -92,6 +100,8 @@ public class AdminUserController {
 
         UserEntity saved = userRepository.save(user);
         syncAssignments(saved, request.unitIds(), id);
+        eventPublisher.publishEvent(new UserAssignmentsChangedEvent(id));
+        eventPublisher.publishEvent(new EmployeeChangedEvent(id, ChangeAction.UPDATE));
         return ResponseEntity.ok(saved);
     }
 
@@ -103,6 +113,7 @@ public class AdminUserController {
         }
         assignmentRepository.deleteByUser_Id(id);
         userRepository.deleteById(id);
+        eventPublisher.publishEvent(new EmployeeChangedEvent(id, ChangeAction.DELETE));
         return ResponseEntity.noContent().build();
     }
 
@@ -110,6 +121,7 @@ public class AdminUserController {
     @Transactional
     public ResponseEntity<PasswordResetResponseDTO> resetPassword(@PathVariable @NonNull Long id) {
         EmployeeAccessService.ResetPassword reset = employeeAccessService.resetPassword(id);
+        eventPublisher.publishEvent(new EmployeeChangedEvent(id, ChangeAction.UPDATE));
         return ResponseEntity.ok(new PasswordResetResponseDTO(
                 reset.code(), reset.fullName(), reset.generatedPassword()
         ));

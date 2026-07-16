@@ -3,18 +3,50 @@ import { Outlet, useLocation, useMatch } from 'react-router-dom';
 import { ALERT_VIBRATION_COOLDOWN_MS, ALERT_VIBRATION_PATTERN } from '../config';
 import { AppProvider, useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { useAccessControl } from '../context/AccessControlContext';
 import { PageHeaderProvider, usePageHeaderContext } from '../context/PageHeaderContext';
 import { PageHeader } from '../components/PageHeader';
 import { useLiveWs } from '../hooks/useLiveWs';
 import { useHardwareBackGuard } from '../hooks/useHardwareBackGuard';
 import { pushNotificationEvent, syncNotificationSnapshot } from '../lib/notificationSwBridge';
-import type { AlertWsMessage, NotificationWsMessage, UnitsStatusMessage } from '../types';
+import type {
+  AlertWsMessage,
+  DeviceCatalogChangedMessage,
+  DeviceChangedMessage,
+  DeviceTypeChangedMessage,
+  EmployeeChangedMessage,
+  NotificationWsMessage,
+  RoleChangedMessage,
+  UnitsStatusMessage,
+  UnitChangedMessage,
+  UserAssignmentsMessage,
+  UserNotificationSettingsChangedMessage,
+  WorkshopChangedMessage,
+} from '../types';
 
 type AlertRouteScope =
   | { kind: 'dashboard' }
   | { kind: 'workshop'; workshopId: number }
   | { kind: 'unit'; unitId: string }
   | { kind: 'other' };
+
+type AdminEntityType =
+  | 'employee'
+  | 'workshop'
+  | 'role'
+  | 'unit'
+  | 'device'
+  | 'device-catalog'
+  | 'device-type'
+  | 'user-notification-settings';
+
+function notifyAdminEntityChanged(entity: AdminEntityType, id?: string | number | null) {
+  window.dispatchEvent(
+    new CustomEvent('scada:admin-entity-changed', {
+      detail: { entity, id: id != null ? String(id) : undefined },
+    })
+  );
+}
 
 function resolveAlertRouteScope(pathname: string): AlertRouteScope {
   const segments = pathname.split('/').filter(Boolean);
@@ -65,8 +97,13 @@ function RootLayoutInner() {
     setHeaderError,
     clearHeaderError,
     setSignalState,
+    applyWorkshopChange,
+    applyUnitChange,
+    invalidateDevicesTopology,
+    bumpTopologyVersion,
   } = useAppContext();
-  const { userId } = useAuth();
+  const { userId, logout } = useAuth();
+  const { updateAssignedUnitsFromWs, refreshAssignments } = useAccessControl();
 
   const { config } = usePageHeaderContext();
   const location = useLocation();
@@ -127,6 +164,89 @@ function RootLayoutInner() {
     [handleNotification]
   );
 
+  const handleUserAssignments = useCallback(
+    (msg: UserAssignmentsMessage) => {
+      updateAssignedUnitsFromWs(msg);
+    },
+    [updateAssignedUnitsFromWs]
+  );
+
+  const handleForceLogout = useCallback(() => {
+    logout();
+  }, [logout]);
+
+  const handleEmployeeChanged = useCallback(
+    (msg: EmployeeChangedMessage) => {
+      const payloadId = msg.payload?.id;
+      if (payloadId != null && String(payloadId) === userId) {
+        void refreshAssignments();
+      }
+      notifyAdminEntityChanged('employee', payloadId);
+    },
+    [userId, refreshAssignments]
+  );
+
+  const handleWorkshopChanged = useCallback(
+    (msg: WorkshopChangedMessage) => {
+      if (msg.payload) {
+        applyWorkshopChange(msg.payload, msg.action);
+      }
+      bumpTopologyVersion();
+      notifyAdminEntityChanged('workshop', msg.payload?.id);
+    },
+    [applyWorkshopChange, bumpTopologyVersion]
+  );
+
+  const handleUnitChanged = useCallback(
+    (msg: UnitChangedMessage) => {
+      if (msg.payload) {
+        applyUnitChange(msg.payload, msg.action);
+      }
+      bumpTopologyVersion();
+      notifyAdminEntityChanged('unit', msg.payload?.id);
+    },
+    [applyUnitChange, bumpTopologyVersion]
+  );
+
+  const handleDeviceChanged = useCallback(
+    (msg: DeviceChangedMessage) => {
+      const instanceId = msg.payload?.printsrvInstanceId;
+      if (instanceId) {
+        invalidateDevicesTopology(instanceId);
+      }
+      bumpTopologyVersion();
+      notifyAdminEntityChanged('device', msg.payload?.id);
+    },
+    [invalidateDevicesTopology, bumpTopologyVersion]
+  );
+
+  const handleRoleChanged = useCallback((msg: RoleChangedMessage) => {
+    notifyAdminEntityChanged('role', msg.payload?.id);
+  }, []);
+
+  const handleDeviceCatalogChanged = useCallback(
+    (msg: DeviceCatalogChangedMessage) => {
+      bumpTopologyVersion();
+      notifyAdminEntityChanged('device-catalog', msg.payload?.id);
+    },
+    [bumpTopologyVersion]
+  );
+
+  const handleDeviceTypeChanged = useCallback(
+    (msg: DeviceTypeChangedMessage) => {
+      bumpTopologyVersion();
+      notifyAdminEntityChanged('device-type', msg.payload?.id);
+    },
+    [bumpTopologyVersion]
+  );
+
+  const handleUserNotificationSettingsChanged = useCallback(
+    (msg: UserNotificationSettingsChangedMessage) => {
+      notifyAdminEntityChanged('user-notification-settings', msg.payload?.id);
+    },
+    []
+  );
+
   // Перехватывает события popstate (кнопка «назад» на Android / в браузере)
   // и гарантирует навигацию строго по иерархии экранов приложения.
   useHardwareBackGuard();
@@ -140,6 +260,16 @@ function RootLayoutInner() {
     onUnitsStatus: handleUnitsStatus,
     onAlert: handleLiveAlert,
     onNotification: handleLiveNotification,
+    onUserAssignments: handleUserAssignments,
+    onForceLogout: handleForceLogout,
+    onEmployeeChanged: handleEmployeeChanged,
+    onWorkshopChanged: handleWorkshopChanged,
+    onRoleChanged: handleRoleChanged,
+    onUnitChanged: handleUnitChanged,
+    onDeviceChanged: handleDeviceChanged,
+    onDeviceCatalogChanged: handleDeviceCatalogChanged,
+    onDeviceTypeChanged: handleDeviceTypeChanged,
+    onUserNotificationSettingsChanged: handleUserNotificationSettingsChanged,
     onReconnecting: () => {
       setSignalState('live', 'reconnecting');
     },

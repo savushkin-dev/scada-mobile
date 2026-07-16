@@ -267,6 +267,66 @@ public class LiveWsHandler extends TextWebSocketHandler {
         sendToSessions(allSessions, json);
     }
 
+    /**
+     * Рассылает JSON-сообщение всем подключённым клиентам.
+     *
+     * @param json сериализованное сообщение
+     */
+    public void broadcastToAll(String json) {
+        if (allSessions.isEmpty()) return;
+        sendToSessions(allSessions, json);
+    }
+
+    /**
+     * Рассылает JSON-сообщение всем клиентам с ролью ADMIN.
+     *
+     * @param json сериализованное сообщение
+     */
+    public void sendToAdmins(String json) {
+        if (allSessions.isEmpty()) return;
+
+        for (WebSocketSession session : allSessions) {
+            if (!session.isOpen()) {
+                allSessions.remove(session);
+                continue;
+            }
+            if (!isAdmin(session)) {
+                continue;
+            }
+            try {
+                sendMessageSafely(session, json);
+            } catch (IOException | IllegalStateException e) {
+                log.warn("WS /live: send to admins failed, id={}: {}", session.getId(), e.getMessage());
+                allSessions.remove(session);
+            }
+        }
+    }
+
+    /**
+     * Отправляет сообщение конкретному пользователю по всем его активным сессиям.
+     *
+     * @param userId ID пользователя
+     * @param json   сериализованное сообщение
+     */
+    public void sendToUser(long userId, String json) {
+        for (WebSocketSession session : allSessions) {
+            if (!session.isOpen()) {
+                allSessions.remove(session);
+                continue;
+            }
+            OptionalLong sessionUserId = resolveUserId(session);
+            if (sessionUserId.isEmpty() || sessionUserId.getAsLong() != userId) {
+                continue;
+            }
+            try {
+                sendMessageSafely(session, json);
+            } catch (IOException | IllegalStateException e) {
+                log.warn("WS /live: send to user failed, id={}: {}", session.getId(), e.getMessage());
+                allSessions.remove(session);
+            }
+        }
+    }
+
     // ─── Private helpers ─────────────────────────────────────────────────────
 
     /**
@@ -363,6 +423,11 @@ public class LiveWsHandler extends TextWebSocketHandler {
             }
         }
         return OptionalLong.empty();
+    }
+
+    private boolean isAdmin(WebSocketSession session) {
+        Object raw = session.getAttributes().get(WebSocketJwtInterceptor.ATTR_ROLE);
+        return "ADMIN".equals(raw);
     }
 
     /**

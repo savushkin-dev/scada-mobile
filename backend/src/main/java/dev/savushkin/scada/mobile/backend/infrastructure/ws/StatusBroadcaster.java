@@ -5,6 +5,8 @@ import dev.savushkin.scada.mobile.backend.api.dto.AdminNotificationMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.AlertMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.NotificationMessageDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitStatusDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.UserAssignmentsMessageDTO;
+import dev.savushkin.scada.mobile.backend.domain.model.UserAssignmentsChangedEvent;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitsStatusMessageDTO;
 import dev.savushkin.scada.mobile.backend.application.ports.PrintSrvTopologyRepository;
 import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
@@ -23,6 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -250,6 +254,40 @@ public class StatusBroadcaster {
             liveWsHandler.broadcastAdminNotification(liveWsHandler.toJson(dto));
         } catch (JsonProcessingException e) {
             log.error("StatusBroadcaster: failed to serialize ADMIN_NOTIFICATION", e);
+        }
+    }
+
+    /**
+     * Рассылает персональное сообщение {@code USER_ASSIGNMENTS} пользователю,
+     * у которого администратор изменил закрепление аппаратов.
+     * <p>
+     * Слушатель запускается после коммита транзакции, чтобы читать актуальные назначения из БД.
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onUserAssignmentsChanged(UserAssignmentsChangedEvent event) {
+        if (liveWsHandler.getTotalSessionCount() == 0) {
+            return;
+        }
+
+        UserProfileService.ProfileSnapshot snapshot;
+        try {
+            snapshot = userProfileService.getProfileSnapshot(event.userId());
+        } catch (Exception e) {
+            log.warn("StatusBroadcaster: failed to load profile for userId={}, skipping USER_ASSIGNMENTS", event.userId(), e);
+            return;
+        }
+
+        List<UserAssignmentsMessageDTO.AssignedUnitPayload> payload = snapshot.profile().assignedUnits().stream()
+                .map(unit -> new UserAssignmentsMessageDTO.AssignedUnitPayload(
+                        unit.unitId(), unit.printsrvInstanceId(), unit.unitName()))
+                .toList();
+
+        UserAssignmentsMessageDTO dto = UserAssignmentsMessageDTO.of(payload);
+        try {
+            liveWsHandler.sendToUser(event.userId(), liveWsHandler.toJson(dto));
+            log.debug("StatusBroadcaster: sent USER_ASSIGNMENTS to userId={}, units={}", event.userId(), payload.size());
+        } catch (JsonProcessingException e) {
+            log.error("StatusBroadcaster: failed to serialize USER_ASSIGNMENTS for userId={}", event.userId(), e);
         }
     }
 }

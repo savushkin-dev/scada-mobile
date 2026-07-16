@@ -212,6 +212,7 @@ function UserFormFields({
 export const UserEdit = () => {
   const notify = useNotify();
   const navigate = useNavigate();
+  const getRoleName = useNameMap('roles');
   const [credentials, setCredentials] = useState<GeneratedCredentials | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -245,15 +246,17 @@ export const UserEdit = () => {
   return (
     <AdminEditForm
       title="Редактирование сотрудника"
-      extraActions={
-        <PillButton
-          variant="secondary"
-          icon={<IconKey size={18} />}
-          onClick={() => setShowResetConfirm(true)}
-          disabled={resetting}
-        >
-          {resetting ? 'Сброс...' : 'Сбросить пароль'}
-        </PillButton>
+      extraActions={(record) =>
+        getRoleName(record.roleId as number | undefined) === 'ADMIN' ? null : (
+          <PillButton
+            variant="secondary"
+            icon={<IconKey size={18} />}
+            onClick={() => setShowResetConfirm(true)}
+            disabled={resetting}
+          >
+            {resetting ? 'Сброс...' : 'Сбросить пароль'}
+          </PillButton>
+        )
       }
     >
       {({ record, onChange }) => (

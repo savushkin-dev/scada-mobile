@@ -1,6 +1,7 @@
 package dev.savushkin.scada.mobile.backend.services;
 
 import dev.savushkin.scada.mobile.backend.domain.auth.EmployeeCredentialsGenerator;
+import dev.savushkin.scada.mobile.backend.domain.model.UserAssignmentsChangedEvent;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.RoleEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserAssignmentEntity;
@@ -11,6 +12,7 @@ import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.re
 import org.jspecify.annotations.NonNull;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -34,19 +36,22 @@ public class EmployeeAccessService {
     private final UserAssignmentJpaRepository assignmentRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthService authService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public EmployeeAccessService(UserJpaRepository userRepository,
                                  RoleJpaRepository roleRepository,
                                  UnitJpaRepository unitRepository,
                                  UserAssignmentJpaRepository assignmentRepository,
                                  PasswordEncoder passwordEncoder,
-                                 AuthService authService) {
+                                 AuthService authService,
+                                 ApplicationEventPublisher eventPublisher) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.unitRepository = unitRepository;
         this.assignmentRepository = assignmentRepository;
         this.passwordEncoder = passwordEncoder;
         this.authService = authService;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
@@ -79,6 +84,8 @@ public class EmployeeAccessService {
 
         UserEntity saved = userRepository.save(user);
         syncAssignments(saved, unitIds, null);
+
+        eventPublisher.publishEvent(new UserAssignmentsChangedEvent(saved.getId()));
 
         return new CreatedEmployee(saved.getId(), saved.getCode(), saved.getFullName(),
                 role.getId(), saved.isActive(), unitIds, rawPassword);

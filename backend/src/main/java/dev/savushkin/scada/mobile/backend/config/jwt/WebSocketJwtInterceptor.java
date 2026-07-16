@@ -1,6 +1,7 @@
 package dev.savushkin.scada.mobile.backend.config.jwt;
 
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.server.ServerHttpRequest;
@@ -31,6 +32,7 @@ public class WebSocketJwtInterceptor implements HandshakeInterceptor {
     private static final Logger log = LoggerFactory.getLogger(WebSocketJwtInterceptor.class);
 
     public static final String ATTR_USER_ID = "userId";
+    public static final String ATTR_ROLE = "role";
     private static final String QUERY_PARAM = "token";
 
     private final JwtTokenProvider jwtTokenProvider;
@@ -57,16 +59,35 @@ public class WebSocketJwtInterceptor implements HandshakeInterceptor {
             return false;
         }
 
-        Long userId = jwtTokenProvider.validateAccessToken(token.trim());
-        if (userId == null) {
+        var claims = jwtTokenProvider.validateAccessTokenClaims(token.trim());
+        if (claims == null) {
             log.warn("WS handshake rejected: invalid token, URI='{}'", request.getURI());
             response.setStatusCode(HttpStatusCode.valueOf(401));
             return false;
         }
 
+        Long userId = parseUserId(claims.getSubject());
+        if (userId == null) {
+            log.warn("WS handshake rejected: invalid subject, URI='{}'", request.getURI());
+            response.setStatusCode(HttpStatusCode.valueOf(401));
+            return false;
+        }
+
         attributes.put(ATTR_USER_ID, userId);
+        attributes.put(ATTR_ROLE, claims.get("role", String.class));
         log.debug("WS handshake: authenticated userId='{}' URI='{}'", userId, request.getURI());
         return true;
+    }
+
+    private @Nullable Long parseUserId(String subject) {
+        if (subject == null || subject.isBlank()) {
+            return null;
+        }
+        try {
+            return Long.parseLong(subject.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     @Override

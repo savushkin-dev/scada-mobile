@@ -1,5 +1,7 @@
 package dev.savushkin.scada.mobile.backend.api.controller.admin;
 
+import dev.savushkin.scada.mobile.backend.domain.model.ChangeAction;
+import dev.savushkin.scada.mobile.backend.domain.model.DeviceCatalogChangedEvent;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceCatalogEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceTypeEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.DeviceCatalogJpaRepository;
@@ -7,11 +9,13 @@ import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.re
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.jspecify.annotations.NonNull;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -25,11 +29,14 @@ public class AdminDeviceCatalogController {
 
     private final DeviceCatalogJpaRepository catalogRepository;
     private final DeviceTypeJpaRepository deviceTypeRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public AdminDeviceCatalogController(DeviceCatalogJpaRepository catalogRepository,
-                                        DeviceTypeJpaRepository deviceTypeRepository) {
+                                        DeviceTypeJpaRepository deviceTypeRepository,
+                                        ApplicationEventPublisher eventPublisher) {
         this.catalogRepository = catalogRepository;
         this.deviceTypeRepository = deviceTypeRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @GetMapping
@@ -46,6 +53,7 @@ public class AdminDeviceCatalogController {
     }
 
     @PostMapping
+    @Transactional
     public ResponseEntity<DeviceCatalogEntity> create(@Valid @RequestBody CatalogRequest request) {
         DeviceTypeEntity type = resolveType(request.typeId());
 
@@ -68,10 +76,12 @@ public class AdminDeviceCatalogController {
         catalog.setActive(request.active());
 
         DeviceCatalogEntity saved = catalogRepository.save(catalog);
+        eventPublisher.publishEvent(new DeviceCatalogChangedEvent(saved.getId(), ChangeAction.CREATE));
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
     @PutMapping("/{id}")
+    @Transactional
     public ResponseEntity<DeviceCatalogEntity> update(@PathVariable @NonNull Long id,
                                                       @Valid @RequestBody CatalogRequest request) {
         DeviceCatalogEntity catalog = catalogRepository.findById(id)
@@ -97,15 +107,18 @@ public class AdminDeviceCatalogController {
         catalog.setActive(request.active());
 
         DeviceCatalogEntity saved = catalogRepository.save(catalog);
+        eventPublisher.publishEvent(new DeviceCatalogChangedEvent(saved.getId(), ChangeAction.UPDATE));
         return ResponseEntity.ok(saved);
     }
 
     @DeleteMapping("/{id}")
+    @Transactional
     public ResponseEntity<Void> delete(@PathVariable @NonNull Long id) {
         if (!catalogRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Устройство не найдено");
         }
         catalogRepository.deleteById(id);
+        eventPublisher.publishEvent(new DeviceCatalogChangedEvent(id, ChangeAction.DELETE));
         return ResponseEntity.noContent().build();
     }
 

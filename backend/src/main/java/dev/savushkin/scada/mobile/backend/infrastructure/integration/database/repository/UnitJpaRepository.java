@@ -85,4 +85,7 @@ public interface UnitJpaRepository extends JpaRepository<UnitEntity, Long> {
             where u.printsrvInstanceId = :printsrvInstanceId
             """)
     @NonNull Optional<Long> findUnitIdByPrintsrvInstanceId(@Param("printsrvInstanceId") String printsrvInstanceId);
+
+    @RestResource(exported = false)
+    long countByWorkshop_Id(@NonNull @Param("workshopId") Long workshopId);
 }

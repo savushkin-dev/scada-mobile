@@ -22,7 +22,7 @@ interface AdminEditFormProps {
     onChange: (field: string, value: unknown) => void;
   }) => ReactNode;
   /** Дополнительные действия рядом с кнопкой "Сохранить". */
-  extraActions?: ReactNode;
+  extraActions?: ReactNode | ((record: Record<string, unknown>) => ReactNode);
 }
 
 function isRecordDirty(
@@ -152,7 +152,7 @@ export function AdminEditForm({ title, children, extraActions }: AdminEditFormPr
             >
               {saving ? 'Сохранение...' : 'Сохранить'}
             </PillButton>
-            {extraActions}
+            {typeof extraActions === 'function' ? extraActions(values) : extraActions}
           </div>
           <PillButton
             variant="danger"

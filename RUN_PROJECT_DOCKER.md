@@ -83,30 +83,11 @@ $env:SCADA_MOBILE_DATABASE_PASSWORD = openssl rand -base64 16
 Write-Host "DB_PASS: $env:SCADA_MOBILE_DATABASE_PASSWORD"
 ~~~
 
-### 3.3 Пароль администратора (обязательно)
+### 3.3 Учётная запись администратора
 
-Сгенерируйте и запишите в `.env.prod.local`:
+Начальный администратор создаётся backend автоматически при первом запуске, если в БД ещё нет пользователя с ролью `ADMIN`. Код и временный пароль генерируются автоматически и выводятся в логи контейнера backend.
 
-**bash / Linux / macOS:**
-~~~bash
-export SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE=$(openssl rand -base64 6 | tr -dc 'A-Z0-9' | cut -c1-8)
-export SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD=$(openssl rand -base64 7 | cut -c1-10)
-echo "ADMIN_CODE: $SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE"
-echo "ADMIN_PASS: $SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD"
-~~~
-
-**PowerShell:**
-~~~powershell
-$passChars = (48..57) + (65..90) + (97..122) + (33,35,36,37,38,42,64,94)
-$codeChars = (48..57) + (65..90)
-$env:SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD = -join ($passChars | Get-Random -Count 10 | ForEach-Object { [char]$_ })
-$env:SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE = -join ($codeChars | Get-Random -Count 8 | ForEach-Object { [char]$_ })
-Write-Host "ADMIN_PASS: $env:SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD"
-Write-Host "ADMIN_CODE: $env:SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE"
-~~~
-
-> **Требования к паролю администратора:** ровно 10 символов, заглавные и строчные буквы, цифры, спецсимволы.  
-> **Требования к коду администратора:** рекомндуется написать просто "admin"
+> **Важно:** пароль является временным — администратор обязан сменить его при первом входе через экран `/change-password`.
 
 ---
 
@@ -136,9 +117,6 @@ SCADA_MOBILE_DATABASE_PASSWORD=YOUR_GENERATED_DB_PASSWORD
 SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS=http://999.9.9.9:9998
 SCADA_MOBILE_JWT_ACCESS_SECRET=YOUR_GENERATED_ACCESS_SECRET
 SCADA_MOBILE_JWT_REFRESH_SECRET=YOUR_GENERATED_REFRESH_SECRET
-
-SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD=YOUR_GENERATED_ADMIN_PASS
-SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE=YOUR_GENERATED_ADMIN_CODE
 
 # Один автомат для проверки (остальные можно не указывать)
 SCADA_MOBILE_PRINTSRV_HASSIA4_HOST=999.9.9.9
@@ -175,19 +153,21 @@ scada-mobile-frontend-1   healthy                   0.0.0.0:9998->8080/tcp
 
 ## Шаг 6: Получить учётные данные администратора
 
-При первом запуске backend автоматически создаёт администратора и дописывает учётные данные в `.env.prod.local`:
+При первом запуске backend автоматически создаёт администратора и выводит учётные данные в лог:
 
 ~~~bash
-grep SCADA_MOBILE_ADMIN .env.prod.local
+docker compose logs backend | grep -A5 "Bootstrap: initial admin account created"
 ~~~
 
 Ожидаемый вывод:
 ~~~
-SCADA_MOBILE_ADMIN_BOOTSTRAP_CODE=XXXXXXXX
-SCADA_MOBILE_ADMIN_BOOTSTRAP_PASSWORD=XXXXXXXXXX
+Bootstrap: initial admin account created.
+Code:     XXXXXXXX
+Password: XXXXXXXX
+IMPORTANT: this is a temporary password. The admin must change it on first login.
 ~~~
 
-> **Важно:** эти переменные создаются только при первом старте, когда в БД нет пользователя с ролью ADMIN. Сохраните их надёжно.
+> **Важно:** учётные данные создаются только при первом старте, когда в БД нет пользователя с ролью ADMIN. Сохраните их надёжно.
 
 ---
 
