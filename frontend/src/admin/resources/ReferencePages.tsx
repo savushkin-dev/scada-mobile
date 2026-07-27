@@ -11,7 +11,7 @@ const resourceMap: Record<
     label: string;
     list: () => JSX.Element;
     edit: () => JSX.Element;
-    create: () => JSX.Element;
+    create: (props: { onSuccessWithData?: (data: Record<string, unknown>) => void }) => JSX.Element;
     searchableFields: string[];
   }
 > = {

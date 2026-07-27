@@ -1,20 +1,21 @@
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { useListContext } from 'react-admin';
 import { AdminListContainer } from '../ui/AdminListContainer';
 import { MobileCardList } from '../ui/MobileCardList';
 import { DesktopDataTable } from '../ui/DesktopDataTable';
 import { AdminEditForm } from '../ui/AdminEditForm';
 import { AdminCreateForm } from '../ui/AdminCreateForm';
+import { CreateRecordOverlay } from '../ui/CreateRecordOverlay';
+import { WorkshopCreate } from './Workshops';
+import { DeviceCatalogCreate } from './DeviceCatalog';
 import { RoundedInput } from '../ui/RoundedInput';
-import { IOSSwitch } from '../ui/IOSSwitch';
-import { StatusPill } from '../ui/StatusPill';
 import { AdminChip } from '../ui/AdminChip';
 import { ReferenceSelect } from '../ui/ReferenceSelect';
-import { PillButton } from '../ui/PillButton';
-import { AdminDeleteButton } from '../ui/AdminDeleteButton';
 import { formatEmpty } from '../ui/formatEmpty';
 import { useNameMap } from '../ui/useNameMap';
-import { IconPencil, IconUnits } from '../ui/icons';
+import { IconUnits } from '../ui/icons';
+import { RowActionsMenu } from '../ui/RowActionsMenu';
+import { useRowActions } from '../ui/useRowActions';
 
 interface Unit {
   id: number;
@@ -31,7 +32,7 @@ interface Unit {
 const UNIT_SEARCHABLE_FIELDS: (keyof Unit)[] = ['name', 'printsrvInstanceId', 'printsrvHost'];
 
 export const UnitList = () => {
-  const navigate = useNavigate();
+  const { navigateToEdit, toggleActive, deleteRecord } = useRowActions();
   const { data } = useListContext<Unit>();
   const records = data ?? [];
 
@@ -46,49 +47,45 @@ export const UnitList = () => {
           <MobileCardList
             records={filtered}
             renderCard={(unit) => (
-              <div className="rounded-[20px] bg-white p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-base font-bold text-[#1a1c1e]">
-                    {formatEmpty(unit.name)}
-                  </span>
-                  <StatusPill variant={unit.active ? 'active' : 'inactive'}>
-                    {unit.active ? 'Активен' : 'Неактивен'}
-                  </StatusPill>
+              <div className={`rounded-[20px] p-4 ${unit.active ? 'bg-white' : 'bg-[#f8f9fa]'}`}>
+                <div className={unit.active ? '' : 'opacity-60'}>
+                  <div className="mb-1">
+                    <span className="text-base font-bold text-[#1a1c1e]">
+                      {formatEmpty(unit.name)}
+                    </span>
+                  </div>
+                  <div className="mb-3 space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-[#74777f]">PrintSrv ID</span>
+                      <span className="text-[#1a1c1e]">{formatEmpty(unit.printsrvInstanceId)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#74777f]">Хост</span>
+                      <span className="text-[#1a1c1e]">{formatEmpty(unit.printsrvHost)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#74777f]">Порт</span>
+                      <span className="text-[#1a1c1e]">{formatEmpty(unit.printsrvPort)}</span>
+                    </div>
+                  </div>
+                  {unit.deviceNames && unit.deviceNames.length > 0 && (
+                    <div className="mb-3 flex flex-wrap gap-1">
+                      {unit.deviceNames.slice(0, 3).map((name) => (
+                        <AdminChip key={name}>{name}</AdminChip>
+                      ))}
+                      {unit.deviceNames.length > 3 && (
+                        <AdminChip>+{unit.deviceNames.length - 3}</AdminChip>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="mb-3 space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-[#74777f]">PrintSrv ID</span>
-                    <span className="text-[#1a1c1e]">{formatEmpty(unit.printsrvInstanceId)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#74777f]">Хост</span>
-                    <span className="text-[#1a1c1e]">{formatEmpty(unit.printsrvHost)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#74777f]">Порт</span>
-                    <span className="text-[#1a1c1e]">{formatEmpty(unit.printsrvPort)}</span>
-                  </div>
-                </div>
-                {unit.deviceNames && unit.deviceNames.length > 0 && (
-                  <div className="mb-3 flex flex-wrap gap-1">
-                    {unit.deviceNames.slice(0, 3).map((name) => (
-                      <AdminChip key={name}>{name}</AdminChip>
-                    ))}
-                    {unit.deviceNames.length > 3 && (
-                      <AdminChip>+{unit.deviceNames.length - 3}</AdminChip>
-                    )}
-                  </div>
-                )}
-                <div className="flex items-center justify-between gap-2">
-                  <PillButton
-                    variant="secondary"
-                    icon={<IconPencil size={16} />}
-                    onClick={() => navigate(unit.id.toString())}
-                    className="h-9 px-3 text-xs"
-                  >
-                    Изменить
-                  </PillButton>
-                  <AdminDeleteButton record={unit} size="small" />
+                <div className="flex items-center justify-end">
+                  <RowActionsMenu
+                    onEdit={() => navigateToEdit(unit.id)}
+                    isActive={unit.active}
+                    onToggleActive={() => toggleActive(unit)}
+                    onDelete={() => deleteRecord(unit)}
+                  />
                 </div>
               </div>
             )}
@@ -96,6 +93,7 @@ export const UnitList = () => {
           <DesktopDataTable
             records={filtered}
             keyExtractor={(unit) => unit.id}
+            isActive={(unit) => unit.active}
             columns={[
               { key: 'id', header: 'ID', render: (unit) => unit.id, className: 'w-12' },
               { key: 'name', header: 'Название', render: (unit) => unit.name },
@@ -117,15 +115,6 @@ export const UnitList = () => {
                 className: 'w-16',
               },
               {
-                key: 'active',
-                header: 'Активен',
-                render: (unit) => (
-                  <StatusPill variant={unit.active ? 'active' : 'inactive'}>
-                    {unit.active ? 'Активен' : 'Неактивен'}
-                  </StatusPill>
-                ),
-              },
-              {
                 key: 'devices',
                 header: 'Устройства',
                 render: (unit) => (
@@ -143,16 +132,13 @@ export const UnitList = () => {
                 key: 'actions',
                 header: '',
                 render: (unit) => (
-                  <div className="flex items-center justify-end gap-2">
-                    <PillButton
-                      variant="secondary"
-                      icon={<IconPencil size={16} />}
-                      onClick={() => navigate(unit.id.toString())}
-                      className="h-9 px-3 text-xs"
-                    >
-                      Изменить
-                    </PillButton>
-                    <AdminDeleteButton record={unit} size="small" />
+                  <div className="flex items-center justify-end">
+                    <RowActionsMenu
+                      onEdit={() => navigateToEdit(unit.id)}
+                      isActive={unit.active}
+                      onToggleActive={() => toggleActive(unit)}
+                      onDelete={() => deleteRecord(unit)}
+                    />
                   </div>
                 ),
               },
@@ -184,13 +170,6 @@ function UnitLeftFields({
         onChange={(e) => onChange('name', e.target.value)}
         required
       />
-      <label className="flex items-center justify-between">
-        <span className="text-sm font-medium text-[#1a1c1e]">Активен</span>
-        <IOSSwitch
-          checked={!!record.active}
-          onChange={(e) => onChange('active', e.target.checked)}
-        />
-      </label>
     </div>
   );
 }
@@ -202,7 +181,8 @@ function UnitRightFields({
   record: Record<string, unknown>;
   onChange: (field: string, value: unknown) => void;
 }) {
-  const navigate = useNavigate();
+  const [creatingWorkshop, setCreatingWorkshop] = useState(false);
+  const [creatingDevice, setCreatingDevice] = useState(false);
 
   return (
     <div className="space-y-5">
@@ -213,7 +193,7 @@ function UnitRightFields({
         value={(record.workshopId as number) ?? null}
         onChange={(v) => onChange('workshopId', v)}
         placeholder="Выберите цех"
-        onAddNew={() => navigate('/admin/settings/references/workshops/create')}
+        onAddNew={() => setCreatingWorkshop(true)}
         addNewLabel="Добавить цех"
       />
       <RoundedInput
@@ -243,9 +223,29 @@ function UnitRightFields({
         value={(record.catalogIds as number[]) ?? []}
         onChange={(v) => onChange('catalogIds', v ?? [])}
         placeholder="Выберите устройства"
-        onAddNew={() => navigate('/admin/settings/references/device-catalog/create')}
+        onAddNew={() => setCreatingDevice(true)}
         addNewLabel="Добавить устройство"
       />
+      {creatingWorkshop && (
+        <CreateRecordOverlay
+          resource="workshops"
+          onClose={() => setCreatingWorkshop(false)}
+          onCreated={(id) => onChange('workshopId', id)}
+        >
+          {(onSuccess) => <WorkshopCreate onSuccessWithData={onSuccess} />}
+        </CreateRecordOverlay>
+      )}
+      {creatingDevice && (
+        <CreateRecordOverlay
+          resource="device-catalog"
+          onClose={() => setCreatingDevice(false)}
+          onCreated={(id) =>
+            onChange('catalogIds', [...((record.catalogIds as number[]) ?? []), id])
+          }
+        >
+          {(onSuccess) => <DeviceCatalogCreate onSuccessWithData={onSuccess} />}
+        </CreateRecordOverlay>
+      )}
     </div>
   );
 }
@@ -254,6 +254,7 @@ export const UnitEdit = () => (
   <AdminEditForm
     title="Редактирование автомата"
     layout="two-column"
+    defaultLeftWidth={25}
     leftCardTitle="Основная информация"
     rightCardTitle="Подключение и устройства"
     rightCardIcon={<IconUnits size={20} />}
@@ -268,11 +269,16 @@ export const UnitEdit = () => (
   </AdminEditForm>
 );
 
-export const UnitCreate = () => (
+export const UnitCreate = ({
+  onSuccessWithData,
+}: {
+  onSuccessWithData?: (data: Record<string, unknown>) => void;
+}) => (
   <AdminCreateForm
     title="Новый автомат"
     layout="two-column"
     defaultValues={{ active: true, catalogIds: [] }}
+    onSuccessWithData={onSuccessWithData}
     leftCardTitle="Основная информация"
     rightCardTitle="Подключение и устройства"
     rightCardIcon={<IconUnits size={20} />}

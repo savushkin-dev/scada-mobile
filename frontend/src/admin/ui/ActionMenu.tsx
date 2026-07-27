@@ -6,6 +6,8 @@ interface ActionMenuItem {
   key: string;
   label: string;
   variant?: 'default' | 'danger';
+  /** Иконка пункта меню (для danger по умолчанию — корзина). */
+  icon?: ReactNode;
   onClick: () => void;
 }
 
@@ -54,7 +56,7 @@ export function ActionMenu({
             (align === 'right' ? 'right-0' : 'left-0')
           }
         >
-          {items.map((item) => (
+          {items.map((item, index) => (
             <button
               key={item.key}
               type="button"
@@ -65,11 +67,12 @@ export function ActionMenu({
               className={
                 'flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium transition-colors ' +
                 (item.variant === 'danger'
-                  ? 'text-[#ea4335] hover:bg-[#fff0f1]'
+                  ? 'text-[#ea4335] hover:bg-[#fff0f1] ' +
+                    (index > 0 ? 'mt-1 border-t border-[#f0f0f0]' : '')
                   : 'text-[#1a1c1e] hover:bg-[#f8f9fa]')
               }
             >
-              {item.variant === 'danger' && <IconTrash size={16} />}
+              {item.icon ?? (item.variant === 'danger' ? <IconTrash size={16} /> : null)}
               {item.label}
             </button>
           ))}
@@ -80,3 +83,4 @@ export function ActionMenu({
 }
 
 export { IconDotsVertical };
+export type { ActionMenuItem };

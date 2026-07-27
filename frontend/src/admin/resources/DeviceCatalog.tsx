@@ -1,19 +1,18 @@
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { useListContext } from 'react-admin';
 import { AdminListContainer } from '../ui/AdminListContainer';
 import { MobileCardList } from '../ui/MobileCardList';
 import { DesktopDataTable } from '../ui/DesktopDataTable';
 import { AdminEditForm } from '../ui/AdminEditForm';
 import { AdminCreateForm } from '../ui/AdminCreateForm';
+import { CreateRecordOverlay } from '../ui/CreateRecordOverlay';
+import { DeviceTypeCreate } from './DeviceTypes';
 import { RoundedInput } from '../ui/RoundedInput';
-import { IOSSwitch } from '../ui/IOSSwitch';
-import { StatusPill } from '../ui/StatusPill';
 import { ReferenceSelect } from '../ui/ReferenceSelect';
-import { PillButton } from '../ui/PillButton';
-import { AdminDeleteButton } from '../ui/AdminDeleteButton';
 import { formatEmpty } from '../ui/formatEmpty';
-import { IconPencil } from '../ui/icons';
 import { useNameMap } from '../ui/useNameMap';
+import { RowActionsMenu } from '../ui/RowActionsMenu';
+import { useRowActions } from '../ui/useRowActions';
 
 interface DeviceCatalogItem {
   id: number;
@@ -24,7 +23,7 @@ interface DeviceCatalogItem {
 }
 
 export const DeviceCatalogList = () => {
-  const navigate = useNavigate();
+  const { navigateToEdit, toggleActive, deleteRecord } = useRowActions();
   const { data } = useListContext<DeviceCatalogItem>();
   const records = data ?? [];
   const getDeviceTypeName = useNameMap('device-types');
@@ -40,29 +39,25 @@ export const DeviceCatalogList = () => {
           <MobileCardList
             records={filtered}
             renderCard={(item) => (
-              <div className="rounded-[20px] bg-white p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-base font-bold text-[#1a1c1e]">
-                    {formatEmpty(item.name)}
-                  </span>
-                  <StatusPill variant={item.active ? 'active' : 'inactive'}>
-                    {item.active ? 'Активно' : 'Неактивно'}
-                  </StatusPill>
+              <div className={`rounded-[20px] p-4 ${item.active ? 'bg-white' : 'bg-[#f8f9fa]'}`}>
+                <div className={item.active ? '' : 'opacity-60'}>
+                  <div className="mb-1">
+                    <span className="text-base font-bold text-[#1a1c1e]">
+                      {formatEmpty(item.name)}
+                    </span>
+                  </div>
+                  <div className="mb-3 text-sm text-[#74777f]">{formatEmpty(item.code)}</div>
+                  <div className="mb-3 text-sm text-[#74777f]">
+                    {formatEmpty(item.typeId ? getDeviceTypeName(item.typeId) : null)}
+                  </div>
                 </div>
-                <div className="mb-3 text-sm text-[#74777f]">{formatEmpty(item.code)}</div>
-                <div className="mb-3 text-sm text-[#74777f]">
-                  {formatEmpty(item.typeId ? getDeviceTypeName(item.typeId) : null)}
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <PillButton
-                    variant="secondary"
-                    icon={<IconPencil size={16} />}
-                    onClick={() => navigate(item.id.toString())}
-                    className="h-9 px-3 text-xs"
-                  >
-                    Изменить
-                  </PillButton>
-                  <AdminDeleteButton record={item} size="small" />
+                <div className="flex items-center justify-end">
+                  <RowActionsMenu
+                    onEdit={() => navigateToEdit(item.id)}
+                    isActive={item.active}
+                    onToggleActive={() => toggleActive(item)}
+                    onDelete={() => deleteRecord(item)}
+                  />
                 </div>
               </div>
             )}
@@ -70,6 +65,7 @@ export const DeviceCatalogList = () => {
           <DesktopDataTable
             records={filtered}
             keyExtractor={(item) => item.id}
+            isActive={(item) => item.active}
             columns={[
               { key: 'id', header: 'ID', render: (item) => item.id, className: 'w-12' },
               { key: 'code', header: 'Код', render: (item) => item.code },
@@ -84,34 +80,16 @@ export const DeviceCatalogList = () => {
                 ),
               },
               {
-                key: 'state',
-                header: 'Состояние',
-                render: (item) => (
-                  <StatusPill
-                    variant={item.active ? 'active' : item.typeId == null ? 'warning' : 'inactive'}
-                  >
-                    {item.active
-                      ? 'Активно'
-                      : item.typeId == null
-                        ? 'Требует настройки'
-                        : 'Неактивно'}
-                  </StatusPill>
-                ),
-              },
-              {
                 key: 'actions',
                 header: '',
                 render: (item) => (
-                  <div className="flex items-center justify-end gap-2">
-                    <PillButton
-                      variant="secondary"
-                      icon={<IconPencil size={16} />}
-                      onClick={() => navigate(item.id.toString())}
-                      className="h-9 px-3 text-xs"
-                    >
-                      Изменить
-                    </PillButton>
-                    <AdminDeleteButton record={item} size="small" />
+                  <div className="flex items-center justify-end">
+                    <RowActionsMenu
+                      onEdit={() => navigateToEdit(item.id)}
+                      isActive={item.active}
+                      onToggleActive={() => toggleActive(item)}
+                      onDelete={() => deleteRecord(item)}
+                    />
                   </div>
                 ),
               },
@@ -130,7 +108,7 @@ function DeviceCatalogFormFields({
   record: Record<string, unknown>;
   onChange: (field: string, value: unknown) => void;
 }) {
-  const navigate = useNavigate();
+  const [creatingType, setCreatingType] = useState(false);
 
   return (
     <div className="space-y-5">
@@ -153,16 +131,18 @@ function DeviceCatalogFormFields({
         value={(record.typeId as number) ?? null}
         onChange={(v) => onChange('typeId', v)}
         placeholder="Выберите тип"
-        onAddNew={() => navigate('/admin/settings/references/device-types/create')}
+        onAddNew={() => setCreatingType(true)}
         addNewLabel="Добавить тип"
       />
-      <label className="flex items-center justify-between">
-        <span className="text-sm font-medium text-[#1a1c1e]">Активно</span>
-        <IOSSwitch
-          checked={!!record.active}
-          onChange={(e) => onChange('active', e.target.checked)}
-        />
-      </label>
+      {creatingType && (
+        <CreateRecordOverlay
+          resource="device-types"
+          onClose={() => setCreatingType(false)}
+          onCreated={(id) => onChange('typeId', id)}
+        >
+          {(onSuccess) => <DeviceTypeCreate onSuccessWithData={onSuccess} />}
+        </CreateRecordOverlay>
+      )}
     </div>
   );
 }
@@ -173,8 +153,16 @@ export const DeviceCatalogEdit = () => (
   </AdminEditForm>
 );
 
-export const DeviceCatalogCreate = () => (
-  <AdminCreateForm title="Новое устройство" defaultValues={{ active: false }}>
+export const DeviceCatalogCreate = ({
+  onSuccessWithData,
+}: {
+  onSuccessWithData?: (data: Record<string, unknown>) => void;
+}) => (
+  <AdminCreateForm
+    title="Новое устройство"
+    defaultValues={{ active: false }}
+    onSuccessWithData={onSuccessWithData}
+  >
     {({ record, onChange }) => <DeviceCatalogFormFields record={record} onChange={onChange} />}
   </AdminCreateForm>
 );

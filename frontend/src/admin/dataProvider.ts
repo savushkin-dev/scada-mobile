@@ -77,7 +77,9 @@ export const dataProvider: DataProvider = {
       }
 
       if (resource === 'notifications') {
-        // /admin/notifications возвращает плоский массив всех уведомлений
+        // /admin/notifications возвращает плоский массив всех уведомлений.
+        // Отдаём его целиком: фильтрация по вкладкам (прочитано/не прочитано)
+        // и пагинация выполняются на клиенте в NotificationList.
         return { data, total: data.length };
       }
 

@@ -66,7 +66,7 @@ export function AdminHeader() {
         </HeaderIconButton>
         <HeaderIconButton
           active={location.pathname.startsWith('/profile')}
-          onClick={() => navigate('/profile')}
+          onClick={() => navigate('/profile', { state: { from: { pathname: location.pathname } } })}
           ariaLabel="Профиль"
         >
           <IconUserTie size={20} />

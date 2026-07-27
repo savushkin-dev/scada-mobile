@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom';
 import { useListContext } from 'react-admin';
 import { AdminListContainer } from '../ui/AdminListContainer';
 import { MobileCardList } from '../ui/MobileCardList';
@@ -7,9 +6,9 @@ import { AdminEditForm } from '../ui/AdminEditForm';
 import { AdminCreateForm } from '../ui/AdminCreateForm';
 import { RoundedInput } from '../ui/RoundedInput';
 import { ReferenceSelect } from '../ui/ReferenceSelect';
-import { PillButton } from '../ui/PillButton';
-import { IconPencil, IconTrash } from '../ui/icons';
 import { useNameMap } from '../ui/useNameMap';
+import { RowActionsMenu } from '../ui/RowActionsMenu';
+import { useRowActions } from '../ui/useRowActions';
 
 interface Device {
   id: number;
@@ -20,7 +19,7 @@ interface Device {
 }
 
 export const DeviceList = () => {
-  const navigate = useNavigate();
+  const { navigateToEdit, deleteRecord } = useRowActions();
   const { data } = useListContext<Device>();
   const records = data ?? [];
   const getUnitName = useNameMap('units');
@@ -42,23 +41,11 @@ export const DeviceList = () => {
                   <span className="text-base font-bold text-[#1a1c1e]">{device.displayName}</span>
                 </div>
                 <div className="mb-3 text-sm text-[#74777f]">{device.code}</div>
-                <div className="flex items-center justify-between gap-2">
-                  <PillButton
-                    variant="secondary"
-                    icon={<IconPencil size={16} />}
-                    onClick={() => navigate(device.id.toString())}
-                    className="h-9 px-3 text-xs"
-                  >
-                    Изменить
-                  </PillButton>
-                  <PillButton
-                    variant="danger"
-                    icon={<IconTrash size={16} />}
-                    onClick={() => navigate(device.id.toString())}
-                    className="h-9 px-3 text-xs"
-                  >
-                    Удалить
-                  </PillButton>
+                <div className="flex items-center justify-end">
+                  <RowActionsMenu
+                    onEdit={() => navigateToEdit(device.id)}
+                    onDelete={() => deleteRecord(device)}
+                  />
                 </div>
               </div>
             )}
@@ -98,23 +85,11 @@ export const DeviceList = () => {
                 key: 'actions',
                 header: '',
                 render: (device) => (
-                  <div className="flex items-center justify-end gap-2">
-                    <PillButton
-                      variant="secondary"
-                      icon={<IconPencil size={16} />}
-                      onClick={() => navigate(device.id.toString())}
-                      className="h-9 px-3 text-xs"
-                    >
-                      Изменить
-                    </PillButton>
-                    <PillButton
-                      variant="danger"
-                      icon={<IconTrash size={16} />}
-                      onClick={() => navigate(device.id.toString())}
-                      className="h-9 px-3 text-xs"
-                    >
-                      Удалить
-                    </PillButton>
+                  <div className="flex items-center justify-end">
+                    <RowActionsMenu
+                      onEdit={() => navigateToEdit(device.id)}
+                      onDelete={() => deleteRecord(device)}
+                    />
                   </div>
                 ),
               },

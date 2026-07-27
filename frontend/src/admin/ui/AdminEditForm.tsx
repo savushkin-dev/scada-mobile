@@ -5,7 +5,7 @@ import { AdminCard } from './AdminCard';
 import { PillButton } from './PillButton';
 import { ConfirmDialog } from './ConfirmDialog';
 import { AdminPageHeader } from './AdminPageHeader';
-import { ActionMenu } from './ActionMenu';
+import { ActionMenu, type ActionMenuItem } from './ActionMenu';
 import { ResizablePanels } from './ResizablePanels';
 import { useFormKeyboardNavigation } from './useFormKeyboardNavigation';
 import { IconSave } from './icons';
@@ -23,6 +23,10 @@ interface AdminEditFormProps {
       }) => ReactNode);
   /** Дополнительные действия рядом с кнопкой "Сохранить" (только для single layout). */
   extraActions?: ReactNode | ((record: Record<string, unknown>) => ReactNode);
+  /** Дополнительные пункты меню "Доп. параметры" (перед "Удалить"). */
+  menuItems?: ActionMenuItem[] | ((record: Record<string, unknown>) => ActionMenuItem[]);
+  /** Начальная ширина левой панели в процентах (только для two-column). */
+  defaultLeftWidth?: number;
   /** Заголовок левой карточки (для two-column). */
   leftCardTitle?: ReactNode;
   /** Заголовок правой карточки (для two-column). */
@@ -31,6 +35,8 @@ interface AdminEditFormProps {
   leftCardIcon?: ReactNode;
   /** Иконка правой карточки (для two-column). */
   rightCardIcon?: ReactNode;
+  /** Включить вертикальный скролл правой панели в двухколоночном layout (по умолчанию — да). */
+  rightPanelScrollable?: boolean;
 }
 
 function isRecordDirty(
@@ -64,10 +70,13 @@ export function AdminEditForm({
   layout = 'single',
   children,
   extraActions,
+  menuItems,
+  defaultLeftWidth,
   leftCardTitle = 'Основная информация',
   rightCardTitle = 'Дополнительная информация',
   leftCardIcon,
   rightCardIcon,
+  rightPanelScrollable = true,
 }: AdminEditFormProps) {
   const { record, save, saving, isLoading } = useEditController({
     redirect: false,
@@ -139,6 +148,8 @@ export function AdminEditForm({
 
   const formRef = useFormKeyboardNavigation(handleSave);
 
+  const resolvedMenuItems = typeof menuItems === 'function' ? menuItems(values) : (menuItems ?? []);
+
   const renderChildren = (slot?: 'left' | 'right') => {
     if (typeof children === 'function') {
       return (children as (props: Record<string, unknown>) => ReactNode)({
@@ -174,6 +185,7 @@ export function AdminEditForm({
             </PillButton>
             <ActionMenu
               items={[
+                ...resolvedMenuItems,
                 {
                   key: 'delete',
                   label: 'Удалить',
@@ -188,6 +200,7 @@ export function AdminEditForm({
 
       {layout === 'two-column' ? (
         <ResizablePanels
+          defaultLeftWidth={defaultLeftWidth}
           left={
             <AdminCard
               className="flex min-h-0 flex-1 flex-col overflow-hidden"
@@ -205,9 +218,15 @@ export function AdminEditForm({
               title={rightCardTitle}
               icon={rightCardIcon}
             >
-              <div className="flex-1 overflow-y-auto">
-                <div className="space-y-4">{renderChildren('right')}</div>
-              </div>
+              {rightPanelScrollable ? (
+                <div className="flex-1 overflow-y-auto">
+                  <div className="space-y-4">{renderChildren('right')}</div>
+                </div>
+              ) : (
+                <div className="flex flex-1 flex-col min-h-0 overflow-hidden">
+                  {renderChildren('right')}
+                </div>
+              )}
             </AdminCard>
           }
         />

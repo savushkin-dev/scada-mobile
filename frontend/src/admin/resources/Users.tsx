@@ -6,19 +6,20 @@ import { MobileCardList } from '../ui/MobileCardList';
 import { DesktopDataTable } from '../ui/DesktopDataTable';
 import { AdminEditForm } from '../ui/AdminEditForm';
 import { AdminCreateForm } from '../ui/AdminCreateForm';
+import { CreateRecordOverlay } from '../ui/CreateRecordOverlay';
+import { RoleCreate } from './Roles';
+import { UnitCreate } from './Units';
 import { RoundedInput } from '../ui/RoundedInput';
-import { IOSSwitch } from '../ui/IOSSwitch';
-import { StatusPill } from '../ui/StatusPill';
 import { AdminChip } from '../ui/AdminChip';
 import { ReferenceSelect } from '../ui/ReferenceSelect';
 import { UnitAssignmentSelect } from '../ui/UnitAssignmentSelect';
-import { PillButton } from '../ui/PillButton';
-import { AdminDeleteButton } from '../ui/AdminDeleteButton';
 import { GeneratedCredentialsDialog } from '../ui/GeneratedCredentialsDialog';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { formatEmpty } from '../ui/formatEmpty';
 import { useNameMap } from '../ui/useNameMap';
-import { IconPencil, IconKey, IconBell } from '../ui/icons';
+import { IconKey, IconBell } from '../ui/icons';
+import { RowActionsMenu } from '../ui/RowActionsMenu';
+import { useRowActions } from '../ui/useRowActions';
 import { API_BASE } from '../../config';
 import { apiFetchJson } from '../../api/client';
 import { UserNotificationSettingsEditor } from '../components/UserNotificationSettingsEditor';
@@ -43,7 +44,7 @@ interface GeneratedCredentials {
 const USER_SEARCHABLE_FIELDS: (keyof User)[] = ['code', 'fullName'];
 
 export const UserList = () => {
-  const navigate = useNavigate();
+  const { navigateToEdit, toggleActive, deleteRecord } = useRowActions();
   const { data } = useListContext<User>();
   const records = data ?? [];
 
@@ -58,45 +59,41 @@ export const UserList = () => {
           <MobileCardList
             records={filtered}
             renderCard={(user) => (
-              <div className="rounded-[20px] bg-white p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-base font-bold text-[#1a1c1e]">
-                    {formatEmpty(user.fullName)}
-                  </span>
-                  <StatusPill variant={user.active ? 'active' : 'inactive'}>
-                    {user.active ? 'Активен' : 'Неактивен'}
-                  </StatusPill>
+              <div className={`rounded-[20px] p-4 ${user.active ? 'bg-white' : 'bg-[#f8f9fa]'}`}>
+                <div className={user.active ? '' : 'opacity-60'}>
+                  <div className="mb-2">
+                    <span className="text-base font-bold text-[#1a1c1e]">
+                      {formatEmpty(user.fullName)}
+                    </span>
+                  </div>
+                  <div className="mb-3 space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-[#74777f]">Таб. номер</span>
+                      <span className="text-[#1a1c1e]">{formatEmpty(user.code)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-[#74777f]">Роль</span>
+                      <RoleName id={user.roleId} />
+                    </div>
+                  </div>
+                  {user.unitNames && user.unitNames.length > 0 && (
+                    <div className="mb-3 flex flex-wrap gap-1">
+                      {user.unitNames.slice(0, 2).map((name) => (
+                        <AdminChip key={name}>{name}</AdminChip>
+                      ))}
+                      {user.unitNames.length > 2 && (
+                        <AdminChip>+{user.unitNames.length - 2}</AdminChip>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="mb-3 space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-[#74777f]">Таб. номер</span>
-                    <span className="text-[#1a1c1e]">{formatEmpty(user.code)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-[#74777f]">Роль</span>
-                    <RoleName id={user.roleId} />
-                  </div>
-                </div>
-                {user.unitNames && user.unitNames.length > 0 && (
-                  <div className="mb-3 flex flex-wrap gap-1">
-                    {user.unitNames.slice(0, 2).map((name) => (
-                      <AdminChip key={name}>{name}</AdminChip>
-                    ))}
-                    {user.unitNames.length > 2 && (
-                      <AdminChip>+{user.unitNames.length - 2}</AdminChip>
-                    )}
-                  </div>
-                )}
-                <div className="flex items-center justify-between gap-2">
-                  <PillButton
-                    variant="secondary"
-                    icon={<IconPencil size={16} />}
-                    onClick={() => navigate(user.id.toString())}
-                    className="h-9 px-3 text-xs"
-                  >
-                    Изменить
-                  </PillButton>
-                  <AdminDeleteButton record={user} size="small" />
+                <div className="flex items-center justify-end">
+                  <RowActionsMenu
+                    onEdit={() => navigateToEdit(user.id)}
+                    isActive={user.active}
+                    onToggleActive={() => toggleActive(user)}
+                    onDelete={() => deleteRecord(user)}
+                  />
                 </div>
               </div>
             )}
@@ -104,6 +101,7 @@ export const UserList = () => {
           <DesktopDataTable
             records={filtered}
             keyExtractor={(user) => user.id}
+            isActive={(user) => user.active}
             columns={[
               { key: 'id', header: 'ID', render: (user) => user.id, className: 'w-12' },
               { key: 'code', header: 'Таб. номер', render: (user) => user.code, className: 'w-24' },
@@ -112,15 +110,6 @@ export const UserList = () => {
                 key: 'role',
                 header: 'Роль',
                 render: (user) => <RoleName id={user.roleId} />,
-              },
-              {
-                key: 'active',
-                header: 'Активен',
-                render: (user) => (
-                  <StatusPill variant={user.active ? 'active' : 'inactive'}>
-                    {user.active ? 'Активен' : 'Неактивен'}
-                  </StatusPill>
-                ),
               },
               {
                 key: 'units',
@@ -152,16 +141,13 @@ export const UserList = () => {
                 key: 'actions',
                 header: '',
                 render: (user) => (
-                  <div className="flex items-center justify-end gap-2">
-                    <PillButton
-                      variant="secondary"
-                      icon={<IconPencil size={16} />}
-                      onClick={() => navigate(user.id.toString())}
-                      className="h-9 px-3 text-xs"
-                    >
-                      Изменить
-                    </PillButton>
-                    <AdminDeleteButton record={user} size="small" />
+                  <div className="flex items-center justify-end">
+                    <RowActionsMenu
+                      onEdit={() => navigateToEdit(user.id)}
+                      isActive={user.active}
+                      onToggleActive={() => toggleActive(user)}
+                      onDelete={() => deleteRecord(user)}
+                    />
                   </div>
                 ),
               },
@@ -228,7 +214,7 @@ function UserLeftFields({
   onChange: (field: string, value: unknown) => void;
   isCreate: boolean;
 }) {
-  const navigate = useNavigate();
+  const [creatingRole, setCreatingRole] = useState(false);
 
   return (
     <div className="space-y-5">
@@ -250,16 +236,18 @@ function UserLeftFields({
         value={(record.roleId as number) ?? null}
         onChange={(v) => onChange('roleId', v)}
         placeholder="Выберите роль"
-        onAddNew={() => navigate('/admin/settings/references/roles/create')}
+        onAddNew={() => setCreatingRole(true)}
         addNewLabel="Добавить роль"
       />
-      <label className="flex items-center justify-between">
-        <span className="text-sm font-medium text-[#1a1c1e]">Активен</span>
-        <IOSSwitch
-          checked={!!record.active}
-          onChange={(e) => onChange('active', e.target.checked)}
-        />
-      </label>
+      {creatingRole && (
+        <CreateRecordOverlay
+          resource="roles"
+          onClose={() => setCreatingRole(false)}
+          onCreated={(id) => onChange('roleId', id)}
+        >
+          {(onSuccess) => <RoleCreate onSuccessWithData={onSuccess} />}
+        </CreateRecordOverlay>
+      )}
     </div>
   );
 }
@@ -271,12 +259,25 @@ function UserRightFields({
   record: Record<string, unknown>;
   onChange: (field: string, value: unknown) => void;
 }) {
+  const [creatingUnit, setCreatingUnit] = useState(false);
+
   return (
     <div className="space-y-5">
       <UnitAssignmentSelect
         value={(record.unitIds as number[]) ?? []}
         onChange={(v) => onChange('unitIds', v)}
+        onAddNew={() => setCreatingUnit(true)}
+        addNewLabel="Добавить автомат"
       />
+      {creatingUnit && (
+        <CreateRecordOverlay
+          resource="units"
+          onClose={() => setCreatingUnit(false)}
+          onCreated={(id) => onChange('unitIds', [...((record.unitIds as number[]) ?? []), id])}
+        >
+          {(onSuccess) => <UnitCreate onSuccessWithData={onSuccess} />}
+        </CreateRecordOverlay>
+      )}
     </div>
   );
 }
@@ -319,30 +320,31 @@ export const UserEdit = () => {
     <AdminEditForm
       title="Редактирование сотрудника"
       layout="two-column"
+      defaultLeftWidth={25}
+      menuItems={(record) =>
+        getRoleName(record.roleId as number | undefined) !== 'ADMIN'
+          ? [
+              {
+                key: 'reset-password',
+                label: resetting ? 'Сброс...' : 'Сбросить пароль',
+                icon: <IconKey size={16} />,
+                onClick: () => setShowResetConfirm(true),
+              },
+            ]
+          : []
+      }
       leftCardTitle="Основная информация"
       rightCardTitle="Настройки уведомлений"
       rightCardIcon={<IconBell size={20} />}
+      rightPanelScrollable={false}
     >
       {({ record, onChange, slot }) =>
         slot === 'left' ? (
           <UserLeftFields record={record} onChange={onChange} isCreate={false} />
         ) : (
-          <>
+          <div className="flex flex-1 flex-col min-h-0 gap-4">
             <UserRightFields record={record} onChange={onChange} />
-            <div className="pt-2">
-              {getRoleName(record.roleId as number | undefined) !== 'ADMIN' && (
-                <PillButton
-                  variant="secondary"
-                  icon={<IconKey size={18} />}
-                  onClick={() => setShowResetConfirm(true)}
-                  disabled={resetting}
-                  className="mb-4 h-10 px-4"
-                >
-                  {resetting ? 'Сброс...' : 'Сбросить пароль'}
-                </PillButton>
-              )}
-              <UserNotificationSettingsEditor userId={record.id as number | undefined} />
-            </div>
+            <UserNotificationSettingsEditor userId={record.id as number | undefined} />
             <ResetPasswordConfirm
               isOpen={showResetConfirm}
               onClose={() => setShowResetConfirm(false)}
@@ -358,7 +360,7 @@ export const UserEdit = () => {
                 navigate('/admin/users');
               }}
             />
-          </>
+          </div>
         )
       }
     </AdminEditForm>

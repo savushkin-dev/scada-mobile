@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom';
 import { useListContext } from 'react-admin';
 import { AdminListContainer } from '../ui/AdminListContainer';
 import { MobileCardList } from '../ui/MobileCardList';
@@ -6,10 +5,9 @@ import { DesktopDataTable } from '../ui/DesktopDataTable';
 import { AdminEditForm } from '../ui/AdminEditForm';
 import { AdminCreateForm } from '../ui/AdminCreateForm';
 import { RoundedInput } from '../ui/RoundedInput';
-import { PillButton } from '../ui/PillButton';
-import { AdminDeleteButton } from '../ui/AdminDeleteButton';
 import { formatEmpty } from '../ui/formatEmpty';
-import { IconPencil } from '../ui/icons';
+import { RowActionsMenu } from '../ui/RowActionsMenu';
+import { useRowActions } from '../ui/useRowActions';
 
 interface DeviceType {
   id: number;
@@ -20,7 +18,7 @@ interface DeviceType {
 const DEVICE_TYPE_SEARCHABLE_FIELDS: (keyof DeviceType)[] = ['code', 'name'];
 
 export const DeviceTypeList = () => {
-  const navigate = useNavigate();
+  const { navigateToEdit, deleteRecord } = useRowActions();
   const { data } = useListContext<DeviceType>();
   const records = data ?? [];
 
@@ -42,16 +40,11 @@ export const DeviceTypeList = () => {
                   </span>
                 </div>
                 <div className="mb-3 text-sm text-[#74777f]">{formatEmpty(type.code)}</div>
-                <div className="flex items-center justify-between gap-2">
-                  <PillButton
-                    variant="secondary"
-                    icon={<IconPencil size={16} />}
-                    onClick={() => navigate(type.id.toString())}
-                    className="h-9 px-3 text-xs"
-                  >
-                    Изменить
-                  </PillButton>
-                  <AdminDeleteButton record={type} size="small" />
+                <div className="flex items-center justify-end">
+                  <RowActionsMenu
+                    onEdit={() => navigateToEdit(type.id)}
+                    onDelete={() => deleteRecord(type)}
+                  />
                 </div>
               </div>
             )}
@@ -67,16 +60,11 @@ export const DeviceTypeList = () => {
                 key: 'actions',
                 header: '',
                 render: (type) => (
-                  <div className="flex items-center justify-end gap-2">
-                    <PillButton
-                      variant="secondary"
-                      icon={<IconPencil size={16} />}
-                      onClick={() => navigate(type.id.toString())}
-                      className="h-9 px-3 text-xs"
-                    >
-                      Изменить
-                    </PillButton>
-                    <AdminDeleteButton record={type} size="small" />
+                  <div className="flex items-center justify-end">
+                    <RowActionsMenu
+                      onEdit={() => navigateToEdit(type.id)}
+                      onDelete={() => deleteRecord(type)}
+                    />
                   </div>
                 ),
               },
@@ -109,8 +97,12 @@ export const DeviceTypeEdit = () => (
   </AdminEditForm>
 );
 
-export const DeviceTypeCreate = () => (
-  <AdminCreateForm title="Новый тип устройства">
+export const DeviceTypeCreate = ({
+  onSuccessWithData,
+}: {
+  onSuccessWithData?: (data: Record<string, unknown>) => void;
+}) => (
+  <AdminCreateForm title="Новый тип устройства" onSuccessWithData={onSuccessWithData}>
     {({ record, onChange }) => (
       <div className="space-y-5">
         <RoundedInput

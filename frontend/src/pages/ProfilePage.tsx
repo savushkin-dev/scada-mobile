@@ -75,10 +75,15 @@ export function ProfilePage() {
   const location = useLocation();
   const { logout, isAdmin } = useAuth();
 
+  // Откуда открыли профиль: из админ-панели показываем кнопку «Мониторинг»,
+  // из мониторинга (или если источник неизвестен) — «Администрирование».
+  const fromPath = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+  const fromAdmin = fromPath?.startsWith('/admin') ?? false;
+
   const handleBack = useCallback(() => {
-    const target = findNonTransientBackTarget(location.state, '/');
+    const target = findNonTransientBackTarget(location.state, fromAdmin ? '/admin' : '/');
     navigate(target, { replace: true });
-  }, [navigate, location.state]);
+  }, [navigate, location.state, fromAdmin]);
 
   usePageHeader(PROFILE_COPY.title, undefined, 'default', handleBack);
 
@@ -286,8 +291,8 @@ export function ProfilePage() {
                     />
                   </button>
                 </div>
-                {isAdmin && (
-                  <>
+                {isAdmin &&
+                  (fromAdmin ? (
                     <button
                       type="button"
                       onClick={() => navigate('/')}
@@ -295,15 +300,15 @@ export function ProfilePage() {
                     >
                       <span>Мониторинг</span>
                     </button>
+                  ) : (
                     <button
                       type="button"
                       onClick={() => navigate('/admin')}
                       className="flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#111827] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(15,23,42,0.32)]"
                     >
-                      <span>Админ-панель</span>
+                      <span>Администрирование</span>
                     </button>
-                  </>
-                )}
+                  ))}
               </div>
             </>
           )}

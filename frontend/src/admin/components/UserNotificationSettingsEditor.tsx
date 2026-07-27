@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   useRecordContext,
   useGetList,
@@ -7,9 +7,8 @@ import {
   useDelete,
   useNotify,
 } from 'react-admin';
-import { PillButton } from '../ui/PillButton';
-import { SearchableSelect } from '../ui/SearchableSelect';
-import { IconPlus, IconCheck, IconChevronDown } from '../ui/icons';
+import { RowActionsMenu } from '../ui/RowActionsMenu';
+import { IconCheck, IconChevronDown } from '../ui/icons';
 
 interface NotificationSetting {
   id: number;
@@ -26,16 +25,30 @@ interface Unit {
   name: string;
 }
 
+interface RowViewModel {
+  unitId: number;
+  unitName: string;
+  setting?: NotificationSetting;
+  incidentNotificationsEnabled: boolean;
+  androidCallNotificationsEnabled: boolean;
+  active: boolean;
+}
+
 interface UserNotificationSettingsEditorProps {
   userId?: number;
 }
+
+const DEFAULT_FLAGS = {
+  incidentNotificationsEnabled: true,
+  androidCallNotificationsEnabled: true,
+  active: true,
+};
 
 export function UserNotificationSettingsEditor({ userId }: UserNotificationSettingsEditorProps) {
   const record = useRecordContext();
   const effectiveUserId = userId ?? (record?.id as number | undefined);
   const notify = useNotify();
 
-  const [selectedUnitId, setSelectedUnitId] = useState<string>('');
   const [expanded, setExpanded] = useState(false);
 
   const {
@@ -57,70 +70,83 @@ export function UserNotificationSettingsEditor({ userId }: UserNotificationSetti
   const [create] = useCreate();
   const [deleteOne] = useDelete();
 
-  if (settingsLoading || unitsLoading) {
-    return (
-      <div className="rounded-[16px] border border-[#e8eaed] bg-white p-5 lg:rounded-[20px] lg:p-6">
-        <div className="pb-3 text-base font-bold text-[#1a1c1e] lg:text-lg">
-          Настройки уведомлений
-        </div>
-        <div className="py-4 text-sm text-[#74777f]">Загрузка настроек уведомлений...</div>
-      </div>
-    );
-  }
+  const rows = useMemo<RowViewModel[]>(() => {
+    const settingsList = settings ?? [];
+    const unitsList = units ?? [];
+    const byUnitId = new Map(settingsList.map((s) => [s.unitId, s]));
 
-  const settingsList = settings ?? [];
-  const unitsList = units ?? [];
+    return unitsList.map((unit) => {
+      const setting = byUnitId.get(unit.id);
+      return {
+        unitId: unit.id,
+        unitName: unit.name,
+        setting,
+        incidentNotificationsEnabled:
+          setting?.incidentNotificationsEnabled ?? DEFAULT_FLAGS.incidentNotificationsEnabled,
+        androidCallNotificationsEnabled:
+          setting?.androidCallNotificationsEnabled ?? DEFAULT_FLAGS.androidCallNotificationsEnabled,
+        active: setting?.active ?? DEFAULT_FLAGS.active,
+      };
+    });
+  }, [settings, units]);
 
-  const assignedUnitIds = new Set(settingsList.map((s) => s.unitId));
-  const availableUnits = unitsList.filter((u) => !assignedUnitIds.has(u.id));
+  const allSelected = useMemo(
+    () =>
+      rows.length > 0 &&
+      rows.every((row) => row.incidentNotificationsEnabled && row.androidCallNotificationsEnabled),
+    [rows]
+  );
 
-  const unitName = (unitId: number) =>
-    unitsList.find((u) => u.id === unitId)?.name ?? `Автомат ${unitId}`;
+  const upsert = (row: RowViewModel, data: Partial<NotificationSetting>) => {
+    if (!effectiveUserId) return;
 
-  const handleToggle = (setting: NotificationSetting, field: keyof NotificationSetting) => {
-    update(
-      'user-notification-settings',
-      {
-        id: setting.id,
-        data: { ...setting, [field]: !(setting[field] as boolean) },
-      },
-      {
-        onSuccess: () => {
-          notify('Настройка сохранена', { type: 'info' });
-          refetch();
+    if (row.setting) {
+      update(
+        'user-notification-settings',
+        {
+          id: row.setting.id,
+          data: { ...row.setting, ...data },
         },
-        onError: () => notify('Ошибка сохранения', { type: 'error', autoHideDuration: null }),
-      }
-    );
+        {
+          onSuccess: () => refetch(),
+          onError: () => notify('Ошибка сохранения', { type: 'error', autoHideDuration: null }),
+        }
+      );
+    } else {
+      create(
+        'user-notification-settings',
+        {
+          data: {
+            userId: effectiveUserId,
+            unitId: row.unitId,
+            incidentNotificationsEnabled:
+              data.incidentNotificationsEnabled ?? DEFAULT_FLAGS.incidentNotificationsEnabled,
+            androidCallNotificationsEnabled:
+              data.androidCallNotificationsEnabled ?? DEFAULT_FLAGS.androidCallNotificationsEnabled,
+            active: data.active ?? DEFAULT_FLAGS.active,
+          },
+        },
+        {
+          onSuccess: () => refetch(),
+          onError: () => notify('Ошибка сохранения', { type: 'error', autoHideDuration: null }),
+        }
+      );
+    }
   };
 
-  const handleAdd = () => {
-    const unitId = Number(selectedUnitId);
-    if (!unitId || !effectiveUserId) return;
-
-    create(
-      'user-notification-settings',
-      {
-        data: {
-          userId: effectiveUserId,
-          unitId,
-          incidentNotificationsEnabled: true,
-          androidCallNotificationsEnabled: true,
-          active: true,
-        },
-      },
-      {
-        onSuccess: () => {
-          notify('Настройка добавлена', { type: 'info' });
-          setSelectedUnitId('');
-          refetch();
-        },
-        onError: () => notify('Ошибка добавления', { type: 'error', autoHideDuration: null }),
-      }
-    );
+  const handleToggleField = (
+    row: RowViewModel,
+    field: 'incidentNotificationsEnabled' | 'androidCallNotificationsEnabled'
+  ) => {
+    upsert(row, { [field]: !row[field] });
   };
 
-  const handleDelete = (id: number) => {
+  const handleToggleActive = (row: RowViewModel) => {
+    upsert(row, { active: !row.active });
+  };
+
+  const handleDelete = (id: number | undefined) => {
+    if (!id) return;
     deleteOne(
       'user-notification-settings',
       { id },
@@ -134,16 +160,35 @@ export function UserNotificationSettingsEditor({ userId }: UserNotificationSetti
     );
   };
 
+  const handleToggleAll = () => {
+    const nextValue = !allSelected;
+    rows.forEach((row) => {
+      upsert(row, {
+        incidentNotificationsEnabled: nextValue,
+        androidCallNotificationsEnabled: nextValue,
+      });
+    });
+  };
+
+  if (settingsLoading || unitsLoading) {
+    return (
+      <div className="rounded-[16px] border border-[#e8eaed] bg-white p-5 lg:rounded-[20px] lg:p-6">
+        <div className="pb-3 text-base font-bold text-[#1a1c1e] lg:text-lg">
+          Настройки уведомлений
+        </div>
+        <div className="py-4 text-sm text-[#74777f]">Загрузка настроек уведомлений...</div>
+      </div>
+    );
+  }
+
   return (
-    <div>
+    <div className="flex flex-1 flex-col min-h-0">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center justify-between rounded-[12px] bg-[#f8f9fa] px-4 py-3 text-left transition-colors hover:bg-[#f0f7ff]"
+        className="flex w-full shrink-0 items-center justify-between rounded-[12px] bg-[#f8f9fa] px-4 py-3 text-left transition-colors hover:bg-[#f0f7ff]"
       >
-        <span className="text-sm font-semibold text-[#1a1c1e]">
-          {expanded ? 'Скрыть настройки' : 'Показать настройки'}
-        </span>
+        <span className="text-sm font-semibold text-[#1a1c1e]">Настройки уведомлений</span>
         <IconChevronDown
           size={18}
           className={`text-[#74777f] transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}
@@ -152,19 +197,34 @@ export function UserNotificationSettingsEditor({ userId }: UserNotificationSetti
 
       <div
         className={`overflow-hidden transition-all duration-300 ease-in-out ${
-          expanded ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+          expanded ? 'max-h-[2000px] flex-1 opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
-        <div className="overflow-hidden">
-          <div className="pt-4">
-            {settingsList.length === 0 ? (
-              <p className="py-2 text-sm text-[#74777f]">Нет настроек уведомлений</p>
-            ) : (
-              <>
-                {/* Desktop table */}
-                <div className="hidden overflow-x-auto lg:block">
+        <div className="flex h-full min-h-0 flex-col pt-4">
+          {rows.length === 0 ? (
+            <p className="py-2 text-sm text-[#74777f]">Нет доступных автоматов</p>
+          ) : (
+            <>
+              <div className="mb-3 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleToggleAll}
+                  aria-pressed={allSelected}
+                  className={`flex h-6 w-6 items-center justify-center rounded-[8px] border transition-colors ${
+                    allSelected
+                      ? 'border-[#4285f4] bg-[#4285f4] text-white'
+                      : 'border-[#e8eaed] bg-white text-transparent hover:border-[#c4c7cc]'
+                  }`}
+                >
+                  <IconCheck size={14} />
+                </button>
+                <span className="text-sm font-medium text-[#1a1c1e]">Выбрать всё</span>
+              </div>
+
+              <div className="flex-1 min-h-0 overflow-auto">
+                <div className="hidden lg:block">
                   <table className="w-full border-collapse">
-                    <thead>
+                    <thead className="sticky top-0 z-10 bg-white">
                       <tr className="border-b border-[#f0f0f0]">
                         <th className="pb-3 text-left text-xs font-semibold uppercase tracking-[0.05em] text-[#74777f]">
                           Автомат
@@ -175,114 +235,86 @@ export function UserNotificationSettingsEditor({ userId }: UserNotificationSetti
                         <th className="pb-3 text-left text-xs font-semibold uppercase tracking-[0.05em] text-[#74777f]">
                           Вызов
                         </th>
-                        <th className="pb-3 text-left text-xs font-semibold uppercase tracking-[0.05em] text-[#74777f]">
-                          Активны
-                        </th>
                         <th className="pb-3" />
                       </tr>
                     </thead>
                     <tbody>
-                      {settingsList.map((setting) => (
-                        <tr key={setting.id} className="border-b border-[#f0f0f0] last:border-b-0">
-                          <td className="py-3 pr-4 text-sm font-medium text-[#1a1c1e]">
-                            {unitName(setting.unitId)}
-                          </td>
-                          <td className="py-3 pr-4">
-                            <CheckButton
-                              checked={setting.incidentNotificationsEnabled}
-                              onChange={() => handleToggle(setting, 'incidentNotificationsEnabled')}
-                            />
-                          </td>
-                          <td className="py-3 pr-4">
-                            <CheckButton
-                              checked={setting.androidCallNotificationsEnabled}
-                              onChange={() =>
-                                handleToggle(setting, 'androidCallNotificationsEnabled')
-                              }
-                            />
-                          </td>
-                          <td className="py-3 pr-4">
-                            <CheckButton
-                              checked={setting.active}
-                              onChange={() => handleToggle(setting, 'active')}
-                            />
-                          </td>
-                          <td className="py-3 text-right">
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(setting.id)}
-                              className="text-sm font-medium text-[#ea4335] hover:underline"
-                            >
-                              Удалить
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {rows.map((row) => {
+                        const settingId = row.setting?.id;
+                        return (
+                          <tr
+                            key={row.unitId}
+                            className="border-b border-[#f0f0f0] last:border-b-0"
+                          >
+                            <td className="py-3 pr-4 text-sm font-medium text-[#1a1c1e]">
+                              {row.unitName}
+                            </td>
+                            <td className="py-3 pr-4">
+                              <CheckButton
+                                checked={row.incidentNotificationsEnabled}
+                                onChange={() =>
+                                  handleToggleField(row, 'incidentNotificationsEnabled')
+                                }
+                              />
+                            </td>
+                            <td className="py-3 pr-4">
+                              <CheckButton
+                                checked={row.androidCallNotificationsEnabled}
+                                onChange={() =>
+                                  handleToggleField(row, 'androidCallNotificationsEnabled')
+                                }
+                              />
+                            </td>
+                            <td className="py-3 text-right">
+                              <RowActionsMenu
+                                isActive={row.active}
+                                onToggleActive={() => handleToggleActive(row)}
+                                onDelete={
+                                  settingId != null ? () => handleDelete(settingId) : undefined
+                                }
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
 
-                {/* Mobile cards */}
                 <div className="flex flex-col gap-3 lg:hidden">
-                  {settingsList.map((setting) => (
-                    <div key={setting.id} className="rounded-[16px] border border-[#f0f0f0] p-4">
-                      <div className="mb-3 flex items-center justify-between">
-                        <span className="font-semibold text-[#1a1c1e]">
-                          {unitName(setting.unitId)}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(setting.id)}
-                          className="text-sm font-medium text-[#ea4335]"
-                        >
-                          Удалить
-                        </button>
+                  {rows.map((row) => {
+                    const settingId = row.setting?.id;
+                    return (
+                      <div key={row.unitId} className="rounded-[16px] border border-[#f0f0f0] p-4">
+                        <div className="mb-3 flex items-center justify-between">
+                          <span className="font-semibold text-[#1a1c1e]">{row.unitName}</span>
+                          <RowActionsMenu
+                            isActive={row.active}
+                            onToggleActive={() => handleToggleActive(row)}
+                            onDelete={settingId != null ? () => handleDelete(settingId) : undefined}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <CheckItem
+                            label="Тех. сбои"
+                            checked={row.incidentNotificationsEnabled}
+                            onChange={() => handleToggleField(row, 'incidentNotificationsEnabled')}
+                          />
+                          <CheckItem
+                            label="Вызов"
+                            checked={row.androidCallNotificationsEnabled}
+                            onChange={() =>
+                              handleToggleField(row, 'androidCallNotificationsEnabled')
+                            }
+                          />
+                        </div>
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <CheckItem
-                          label="Тех. сбои"
-                          checked={setting.incidentNotificationsEnabled}
-                          onChange={() => handleToggle(setting, 'incidentNotificationsEnabled')}
-                        />
-                        <CheckItem
-                          label="Вызов"
-                          checked={setting.androidCallNotificationsEnabled}
-                          onChange={() => handleToggle(setting, 'androidCallNotificationsEnabled')}
-                        />
-                        <CheckItem
-                          label="Активны"
-                          checked={setting.active}
-                          onChange={() => handleToggle(setting, 'active')}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
-              </>
-            )}
-
-            {availableUnits.length > 0 && (
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end">
-                <div className="flex-1">
-                  <SearchableSelect
-                    label="Добавить автомат"
-                    options={availableUnits.map((u) => ({ id: u.id, label: u.name }))}
-                    value={selectedUnitId ? Number(selectedUnitId) : null}
-                    onChange={(v) => setSelectedUnitId(v != null ? String(v) : '')}
-                    placeholder="Выберите автомат"
-                  />
-                </div>
-                <PillButton
-                  icon={<IconPlus size={16} />}
-                  onClick={handleAdd}
-                  disabled={!selectedUnitId}
-                  className="h-10"
-                >
-                  Добавить
-                </PillButton>
               </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
       </div>
     </div>

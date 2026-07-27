@@ -141,35 +141,6 @@ function NotificationActions({ note }: { note: Notification }) {
   return <MarkAsReadButton id={note.id} />;
 }
 
-function MarkAllAsReadButton() {
-  const [update, { isPending }] = useUpdate();
-  const refresh = useRefresh();
-  const { refreshCount } = useAdminNotificationsCount();
-
-  return (
-    <PillButton
-      variant="secondary"
-      icon={<IconCheck size={16} />}
-      onClick={() =>
-        update(
-          'notifications',
-          { id: 'read-all', data: {} },
-          {
-            onSuccess: () => {
-              refresh();
-              refreshCount();
-            },
-          }
-        )
-      }
-      disabled={isPending}
-      className="h-9 px-3 text-xs"
-    >
-      Все прочитаны
-    </PillButton>
-  );
-}
-
 function TabButton({
   active,
   onClick,
@@ -198,12 +169,30 @@ function TabButton({
 export function NotificationList() {
   const refresh = useRefresh();
   const [activeTab, setActiveTab] = useState<Tab>('unread');
-  const { data } = useListContext<Notification>();
+  const { data, page, perPage, setPage } = useListContext<Notification>();
   const records = useMemo(() => data ?? [], [data]);
 
   const unread = useMemo(() => records.filter((n) => !n.read), [records]);
   const read = useMemo(() => records.filter((n) => n.read), [records]);
   const visible = activeTab === 'unread' ? unread : read;
+
+  // Клиентская пагинация поверх отфильтрованного вкладкой списка
+  const paginated = useMemo(
+    () => visible.slice((page - 1) * perPage, page * perPage),
+    [visible, page, perPage]
+  );
+
+  const handleTabChange = (tab: Tab) => {
+    setActiveTab(tab);
+    setPage(1);
+  };
+
+  // Если список текущей вкладки сократился (например, отметили всё прочитанным),
+  // возвращаемся на последнюю существующую страницу
+  useEffect(() => {
+    const totalPages = Math.max(1, Math.ceil(visible.length / perPage));
+    if (page > totalPages) setPage(totalPages);
+  }, [visible.length, perPage, page, setPage]);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -225,13 +214,12 @@ export function NotificationList() {
 
   const filters = (
     <div className="flex flex-wrap items-center gap-2">
-      <TabButton active={activeTab === 'unread'} onClick={() => setActiveTab('unread')}>
+      <TabButton active={activeTab === 'unread'} onClick={() => handleTabChange('unread')}>
         Непрочитанные ({unread.length})
       </TabButton>
-      <TabButton active={activeTab === 'read'} onClick={() => setActiveTab('read')}>
+      <TabButton active={activeTab === 'read'} onClick={() => handleTabChange('read')}>
         Прочитанные ({read.length})
       </TabButton>
-      {activeTab === 'unread' && <MarkAllAsReadButton />}
       <PillButton
         variant="secondary"
         icon={<IconRefresh size={16} />}
@@ -246,7 +234,9 @@ export function NotificationList() {
   return (
     <AdminListContainer
       title="Уведомления"
-      records={visible}
+      records={paginated}
+      total={visible.length}
+      showCreate={false}
       searchableFields={NOTIFICATION_SEARCHABLE_FIELDS}
       filters={filters}
     >

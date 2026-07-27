@@ -65,7 +65,10 @@ export function AdminBottomSheetMenu() {
           })}
           <button
             type="button"
-            onClick={() => handleNavigate('/profile')}
+            onClick={() => {
+              navigate('/profile', { state: { from: { pathname: location.pathname } } });
+              closeMenu();
+            }}
             className={
               'flex items-center gap-3 rounded-[12px] px-4 py-3.5 text-[15px] font-medium transition-colors ' +
               (location.pathname.startsWith('/profile')

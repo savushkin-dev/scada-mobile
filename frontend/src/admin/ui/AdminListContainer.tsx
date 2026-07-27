@@ -11,6 +11,14 @@ interface AdminListContainerProps<T> {
   records: T[];
   searchableFields?: (keyof T)[];
   filters?: ReactNode;
+  /**
+   * Переопределение общего числа записей для пагинации.
+   * Нужно, когда пагинация выполняется на клиенте поверх уже
+   * отфильтрованного списка (например, вкладки уведомлений).
+   */
+  total?: number;
+  /** Показывать ли кнопку "Создать" (по умолчанию — да). */
+  showCreate?: boolean;
   children: (props: { records: T[] }) => ReactNode;
 }
 
@@ -19,6 +27,8 @@ export function AdminListContainer<T>({
   records,
   searchableFields,
   filters,
+  total: totalOverride,
+  showCreate = true,
   children,
 }: AdminListContainerProps<T>) {
   const [search, setSearch] = useState('');
@@ -65,14 +75,19 @@ export function AdminListContainer<T>({
             </div>
           )}
           {filters}
-          <CreateButton />
+          {showCreate && <CreateButton />}
         </div>
       </div>
       <AdminCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           {children({ records: filteredRecords })}
         </div>
-        <PaginationPills page={page} perPage={perPage} total={total ?? 0} onPageChange={setPage} />
+        <PaginationPills
+          page={page}
+          perPage={perPage}
+          total={totalOverride ?? total ?? 0}
+          onPageChange={setPage}
+        />
       </AdminCard>
     </div>
   );
