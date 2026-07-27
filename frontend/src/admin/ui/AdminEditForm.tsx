@@ -1,28 +1,36 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  useEditController,
-  useDelete,
-  useNotify,
-  useResourceContext,
-  useResourceDefinition,
-} from 'react-admin';
+import { useEditController, useDelete, useNotify, useResourceContext } from 'react-admin';
 import { AdminCard } from './AdminCard';
 import { PillButton } from './PillButton';
 import { ConfirmDialog } from './ConfirmDialog';
-import { AdminBreadcrumbs } from './AdminBreadcrumbs';
+import { AdminPageHeader } from './AdminPageHeader';
+import { ActionMenu } from './ActionMenu';
+import { ResizablePanels } from './ResizablePanels';
 import { useFormKeyboardNavigation } from './useFormKeyboardNavigation';
-import { IconSave, IconTrash } from './icons';
+import { IconSave } from './icons';
 import type { ReactNode } from 'react';
 
 interface AdminEditFormProps {
   title?: ReactNode;
-  children: (props: {
-    record: Record<string, unknown>;
-    onChange: (field: string, value: unknown) => void;
-  }) => ReactNode;
-  /** Дополнительные действия рядом с кнопкой "Сохранить". */
+  layout?: 'single' | 'two-column';
+  children:
+    | ReactNode
+    | ((props: {
+        record: Record<string, unknown>;
+        onChange: (field: string, value: unknown) => void;
+        slot?: 'left' | 'right';
+      }) => ReactNode);
+  /** Дополнительные действия рядом с кнопкой "Сохранить" (только для single layout). */
   extraActions?: ReactNode | ((record: Record<string, unknown>) => ReactNode);
+  /** Заголовок левой карточки (для two-column). */
+  leftCardTitle?: ReactNode;
+  /** Заголовок правой карточки (для two-column). */
+  rightCardTitle?: ReactNode;
+  /** Иконка левой карточки (для two-column). */
+  leftCardIcon?: ReactNode;
+  /** Иконка правой карточки (для two-column). */
+  rightCardIcon?: ReactNode;
 }
 
 function isRecordDirty(
@@ -43,14 +51,24 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function getRecordName(record: Record<string, unknown>): string {
-  if (record.name) return String(record.name);
-  if (record.fullName) return String(record.fullName);
-  if (record.code) return String(record.code);
-  return String(record.id ?? '');
+function getListPath(resource: string): string {
+  const referenceNames = ['roles', 'workshops', 'device-types', 'device-catalog'];
+  if (referenceNames.includes(resource)) {
+    return `/admin/settings/references/${resource}`;
+  }
+  return `/admin/${resource}`;
 }
 
-export function AdminEditForm({ title, children, extraActions }: AdminEditFormProps) {
+export function AdminEditForm({
+  title,
+  layout = 'single',
+  children,
+  extraActions,
+  leftCardTitle = 'Основная информация',
+  rightCardTitle = 'Дополнительная информация',
+  leftCardIcon,
+  rightCardIcon,
+}: AdminEditFormProps) {
   const { record, save, saving, isLoading } = useEditController({
     redirect: false,
     mutationMode: 'pessimistic',
@@ -61,9 +79,7 @@ export function AdminEditForm({ title, children, extraActions }: AdminEditFormPr
   const notify = useNotify();
   const navigate = useNavigate();
   const resource = useResourceContext();
-  const resourceDef = useResourceDefinition();
-  const resourceLabel = (resourceDef.options?.label as string) || resource || '';
-  const [deleteOne, { isPending: deleting }] = useDelete(undefined, undefined, {
+  const [deleteOne] = useDelete(undefined, undefined, {
     mutationMode: 'pessimistic',
   });
 
@@ -89,7 +105,7 @@ export function AdminEditForm({ title, children, extraActions }: AdminEditFormPr
     save?.(values, {
       onSuccess: () => {
         notify('Сохранено', { type: 'info' });
-        navigate('/admin/' + resource);
+        navigate(getListPath(resource ?? ''));
       },
       onError: (error) => {
         notify(getErrorMessage(error, 'Ошибка сохранения'), {
@@ -108,7 +124,7 @@ export function AdminEditForm({ title, children, extraActions }: AdminEditFormPr
       {
         onSuccess: () => {
           notify('Удалено', { type: 'info' });
-          navigate('/admin/' + resource);
+          navigate(getListPath(resource ?? ''));
         },
         onError: (error) => {
           notify(getErrorMessage(error, 'Ошибка удаления'), {
@@ -123,47 +139,98 @@ export function AdminEditForm({ title, children, extraActions }: AdminEditFormPr
 
   const formRef = useFormKeyboardNavigation(handleSave);
 
+  const renderChildren = (slot?: 'left' | 'right') => {
+    if (typeof children === 'function') {
+      return (children as (props: Record<string, unknown>) => ReactNode)({
+        record: values,
+        onChange: handleChange,
+        slot,
+      });
+    }
+    return children;
+  };
+
   if (isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center text-[#74777f]">
+      <div className="flex flex-1 items-center justify-center text-[#74777f]">
         <span className="animate-pulse">Загрузка...</span>
       </div>
     );
   }
 
   return (
-    <div className="p-4 lg:p-6">
-      <AdminBreadcrumbs
-        resource={resource ?? ''}
-        resourceLabel={resourceLabel}
-        recordName={getRecordName(values)}
-      />
-      <div className="mb-4 flex items-center justify-between lg:mb-6">
-        <h1 className="text-xl font-bold text-[#1a1c1e]">{title}</h1>
-      </div>
-      <AdminCard>
-        <div ref={formRef}>{children({ record: values, onChange: handleChange })}</div>
-        <div className="mt-4 flex items-center justify-between lg:mt-6">
-          <div className="flex items-center gap-2">
+    <div className="flex h-full flex-col p-3 lg:p-4">
+      <AdminPageHeader
+        title={title}
+        actions={
+          <>
             <PillButton
               icon={<IconSave size={18} />}
               onClick={handleSave}
               disabled={!isDirty || saving}
+              className="h-9 px-3"
             >
               {saving ? 'Сохранение...' : 'Сохранить'}
             </PillButton>
-            {typeof extraActions === 'function' ? extraActions(values) : extraActions}
+            <ActionMenu
+              items={[
+                {
+                  key: 'delete',
+                  label: 'Удалить',
+                  variant: 'danger',
+                  onClick: () => setShowDelete(true),
+                },
+              ]}
+            />
+          </>
+        }
+      />
+
+      {layout === 'two-column' ? (
+        <ResizablePanels
+          left={
+            <AdminCard
+              className="flex min-h-0 flex-1 flex-col overflow-hidden"
+              title={leftCardTitle}
+              icon={leftCardIcon}
+            >
+              <div ref={formRef} className="flex-1 overflow-y-auto">
+                <div className="space-y-4">{renderChildren('left')}</div>
+              </div>
+            </AdminCard>
+          }
+          right={
+            <AdminCard
+              className="flex min-h-0 flex-1 flex-col overflow-hidden"
+              title={rightCardTitle}
+              icon={rightCardIcon}
+            >
+              <div className="flex-1 overflow-y-auto">
+                <div className="space-y-4">{renderChildren('right')}</div>
+              </div>
+            </AdminCard>
+          }
+        />
+      ) : (
+        <AdminCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div ref={formRef} className="flex-1 overflow-y-auto">
+            {renderChildren()}
           </div>
-          <PillButton
-            variant="danger"
-            icon={<IconTrash size={18} />}
-            onClick={() => setShowDelete(true)}
-            disabled={deleting}
-          >
-            Удалить
-          </PillButton>
-        </div>
-      </AdminCard>
+          <div className="mt-3 flex items-center justify-between border-t border-[#f0f0f0] pt-3 lg:mt-4">
+            <div className="flex items-center gap-2">
+              <PillButton
+                icon={<IconSave size={18} />}
+                onClick={handleSave}
+                disabled={!isDirty || saving}
+              >
+                {saving ? 'Сохранение...' : 'Сохранить'}
+              </PillButton>
+              {typeof extraActions === 'function' ? extraActions(values) : extraActions}
+            </div>
+          </div>
+        </AdminCard>
+      )}
+
       <ConfirmDialog
         isOpen={showDelete}
         onClose={() => setShowDelete(false)}

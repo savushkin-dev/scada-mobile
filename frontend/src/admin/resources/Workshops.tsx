@@ -19,73 +19,83 @@ interface Workshop {
   active: boolean;
 }
 
+const WORKSHOP_SEARCHABLE_FIELDS: (keyof Workshop)[] = ['name'];
+
 export const WorkshopList = () => {
   const navigate = useNavigate();
   const { data } = useListContext<Workshop>();
   const records = data ?? [];
 
   return (
-    <AdminListContainer title="Цеха">
-      <MobileCardList
-        records={records}
-        renderCard={(workshop) => (
-          <div className="rounded-[20px] bg-white p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-base font-bold text-[#1a1c1e]">
-                {formatEmpty(workshop.name)}
-              </span>
-              <StatusPill variant={workshop.active ? 'active' : 'inactive'}>
-                {workshop.active ? 'Активен' : 'Неактивен'}
-              </StatusPill>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <PillButton
-                variant="secondary"
-                icon={<IconPencil size={16} />}
-                onClick={() => navigate(workshop.id.toString())}
-                className="h-9 px-3 text-xs"
-              >
-                Изменить
-              </PillButton>
-              <AdminDeleteButton record={workshop} size="small" />
-            </div>
-          </div>
-        )}
-      />
-      <DesktopDataTable
-        records={records}
-        keyExtractor={(workshop) => workshop.id}
-        columns={[
-          { key: 'id', header: 'ID', render: (workshop) => workshop.id, className: 'w-16' },
-          { key: 'name', header: 'Название', render: (workshop) => workshop.name },
-          {
-            key: 'active',
-            header: 'Активен',
-            render: (workshop) => (
-              <StatusPill variant={workshop.active ? 'active' : 'inactive'}>
-                {workshop.active ? 'Активен' : 'Неактивен'}
-              </StatusPill>
-            ),
-          },
-          {
-            key: 'actions',
-            header: '',
-            render: (workshop) => (
-              <div className="flex items-center justify-end gap-2">
-                <PillButton
-                  variant="secondary"
-                  icon={<IconPencil size={16} />}
-                  onClick={() => navigate(workshop.id.toString())}
-                  className="h-9 px-3 text-xs"
-                >
-                  Изменить
-                </PillButton>
-                <AdminDeleteButton record={workshop} size="small" />
+    <AdminListContainer
+      title="Цеха"
+      records={records}
+      searchableFields={WORKSHOP_SEARCHABLE_FIELDS}
+    >
+      {({ records: filtered }) => (
+        <>
+          <MobileCardList
+            records={filtered}
+            renderCard={(workshop) => (
+              <div className="rounded-[20px] bg-white p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-base font-bold text-[#1a1c1e]">
+                    {formatEmpty(workshop.name)}
+                  </span>
+                  <StatusPill variant={workshop.active ? 'active' : 'inactive'}>
+                    {workshop.active ? 'Активен' : 'Неактивен'}
+                  </StatusPill>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <PillButton
+                    variant="secondary"
+                    icon={<IconPencil size={16} />}
+                    onClick={() => navigate(workshop.id.toString())}
+                    className="h-9 px-3 text-xs"
+                  >
+                    Изменить
+                  </PillButton>
+                  <AdminDeleteButton record={workshop} size="small" />
+                </div>
               </div>
-            ),
-          },
-        ]}
-      />
+            )}
+          />
+          <DesktopDataTable
+            records={filtered}
+            keyExtractor={(workshop) => workshop.id}
+            columns={[
+              { key: 'id', header: 'ID', render: (workshop) => workshop.id, className: 'w-16' },
+              { key: 'name', header: 'Название', render: (workshop) => workshop.name },
+              {
+                key: 'active',
+                header: 'Активен',
+                render: (workshop) => (
+                  <StatusPill variant={workshop.active ? 'active' : 'inactive'}>
+                    {workshop.active ? 'Активен' : 'Неактивен'}
+                  </StatusPill>
+                ),
+              },
+              {
+                key: 'actions',
+                header: '',
+                render: (workshop) => (
+                  <div className="flex items-center justify-end gap-2">
+                    <PillButton
+                      variant="secondary"
+                      icon={<IconPencil size={16} />}
+                      onClick={() => navigate(workshop.id.toString())}
+                      className="h-9 px-3 text-xs"
+                    >
+                      Изменить
+                    </PillButton>
+                    <AdminDeleteButton record={workshop} size="small" />
+                  </div>
+                ),
+              },
+            ]}
+          />
+        </>
+      )}
     </AdminListContainer>
   );
 };

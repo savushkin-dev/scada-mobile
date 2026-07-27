@@ -16,59 +16,67 @@ interface Role {
   name: string;
 }
 
+const ROLE_SEARCHABLE_FIELDS: (keyof Role)[] = ['name'];
+
 export const RoleList = () => {
   const navigate = useNavigate();
   const { data } = useListContext<Role>();
   const records = data ?? [];
 
   return (
-    <AdminListContainer title="Роли">
-      <MobileCardList
-        records={records}
-        renderCard={(role) => (
-          <div className="rounded-[20px] bg-white p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-base font-bold text-[#1a1c1e]">{formatEmpty(role.name)}</span>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <PillButton
-                variant="secondary"
-                icon={<IconPencil size={16} />}
-                onClick={() => navigate(role.id.toString())}
-                className="h-9 px-3 text-xs"
-              >
-                Изменить
-              </PillButton>
-              <AdminDeleteButton record={role} size="small" />
-            </div>
-          </div>
-        )}
-      />
-      <DesktopDataTable
-        records={records}
-        keyExtractor={(role) => role.id}
-        columns={[
-          { key: 'id', header: 'ID', render: (role) => role.id, className: 'w-16' },
-          { key: 'name', header: 'Название', render: (role) => role.name },
-          {
-            key: 'actions',
-            header: '',
-            render: (role) => (
-              <div className="flex items-center justify-end gap-2">
-                <PillButton
-                  variant="secondary"
-                  icon={<IconPencil size={16} />}
-                  onClick={() => navigate(role.id.toString())}
-                  className="h-9 px-3 text-xs"
-                >
-                  Изменить
-                </PillButton>
-                <AdminDeleteButton record={role} size="small" />
+    <AdminListContainer title="Роли" records={records} searchableFields={ROLE_SEARCHABLE_FIELDS}>
+      {({ records: filtered }) => (
+        <>
+          <MobileCardList
+            records={filtered}
+            renderCard={(role) => (
+              <div className="rounded-[20px] bg-white p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-base font-bold text-[#1a1c1e]">
+                    {formatEmpty(role.name)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <PillButton
+                    variant="secondary"
+                    icon={<IconPencil size={16} />}
+                    onClick={() => navigate(role.id.toString())}
+                    className="h-9 px-3 text-xs"
+                  >
+                    Изменить
+                  </PillButton>
+                  <AdminDeleteButton record={role} size="small" />
+                </div>
               </div>
-            ),
-          },
-        ]}
-      />
+            )}
+          />
+          <DesktopDataTable
+            records={filtered}
+            keyExtractor={(role) => role.id}
+            columns={[
+              { key: 'id', header: 'ID', render: (role) => role.id, className: 'w-16' },
+              { key: 'name', header: 'Название', render: (role) => role.name },
+              {
+                key: 'actions',
+                header: '',
+                render: (role) => (
+                  <div className="flex items-center justify-end gap-2">
+                    <PillButton
+                      variant="secondary"
+                      icon={<IconPencil size={16} />}
+                      onClick={() => navigate(role.id.toString())}
+                      className="h-9 px-3 text-xs"
+                    >
+                      Изменить
+                    </PillButton>
+                    <AdminDeleteButton record={role} size="small" />
+                  </div>
+                ),
+              },
+            ]}
+          />
+        </>
+      )}
     </AdminListContainer>
   );
 };

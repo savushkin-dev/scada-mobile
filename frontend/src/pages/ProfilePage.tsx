@@ -20,7 +20,7 @@ import { UnitCardSkeleton } from '../components/skeleton/UnitCardSkeleton';
 const PROFILE_COPY = Object.freeze({
   title: 'Профиль',
   roleLabel: 'Роль',
-  workerCodeLabel: 'ID сотрудника',
+  workerCodeLabel: 'Табельный номер',
   assignedUnitsLabel: 'Закрепленное оборудование',
   assignedUnitsEmpty: 'Нет закрепленного оборудования',
   notificationButton: 'Настроить уведомления',
@@ -287,13 +287,22 @@ export function ProfilePage() {
                   </button>
                 </div>
                 {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/admin')}
-                    className="flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#0b5da4] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(11,93,164,0.32)]"
-                  >
-                    <span>Админ-панель</span>
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/')}
+                      className="flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#0b5da4] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(11,93,164,0.32)]"
+                    >
+                      <span>Мониторинг</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/admin')}
+                      className="flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#111827] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(15,23,42,0.32)]"
+                    >
+                      <span>Админ-панель</span>
+                    </button>
+                  </>
                 )}
               </div>
             </>

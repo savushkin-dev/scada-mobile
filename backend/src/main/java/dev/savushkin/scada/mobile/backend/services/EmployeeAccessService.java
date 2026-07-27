@@ -24,7 +24,7 @@ import java.util.Set;
 
 /**
  * Application service для сценариев управления доступом сотрудников:
- * создание нового сотрудника со сгенерированным кодом и временным паролем,
+ * создание нового сотрудника с заданным табельным номером и временным паролем,
  * а также сброс пароля сотруднику.
  */
 @Service
@@ -55,8 +55,9 @@ public class EmployeeAccessService {
     }
 
     /**
-     * Создаёт нового сотрудника с автоматически сгенерированным кодом и временным паролем.
+     * Создаёт нового сотрудника с заданным табельным номером и автоматически сгенерированным временным паролем.
      *
+     * @param code     табельный номер сотрудника (5 цифр)
      * @param fullName ФИО
      * @param roleId   ID роли
      * @param active   активен ли сотрудник
@@ -64,14 +65,18 @@ public class EmployeeAccessService {
      * @return результат создания с сгенерированными учётными данными
      */
     @Transactional
-    public @NonNull CreatedEmployee createEmployee(@NonNull String fullName,
+    public @NonNull CreatedEmployee createEmployee(@NonNull String code,
+                                                    @NonNull String fullName,
                                                     long roleId,
                                                     boolean active,
                                                     List<Long> unitIds) {
         RoleEntity role = roleRepository.findById(roleId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Роль не найдена"));
 
-        String code = generateUniqueCode();
+        if (userRepository.findByCode(code).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Табельный номер уже используется");
+        }
+
         String rawPassword = EmployeeCredentialsGenerator.generateTemporaryPassword();
 
         UserEntity user = new UserEntity();
@@ -111,16 +116,6 @@ public class EmployeeAccessService {
         authService.revokeAllRefreshTokens(userId);
 
         return new ResetPassword(user.getCode(), user.getFullName(), rawPassword);
-    }
-
-    private @NonNull String generateUniqueCode() {
-        for (int attempt = 0; attempt < 100; attempt++) {
-            String code = EmployeeCredentialsGenerator.generateCode();
-            if (userRepository.findByCode(code).isEmpty()) {
-                return code;
-            }
-        }
-        throw new IllegalStateException("Не удалось сгенерировать уникальный код сотрудника");
     }
 
     private void syncAssignments(UserEntity user, List<Long> unitIds, Long currentUserId) {

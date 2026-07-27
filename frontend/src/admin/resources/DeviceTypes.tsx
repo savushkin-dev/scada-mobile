@@ -17,61 +17,73 @@ interface DeviceType {
   name: string;
 }
 
+const DEVICE_TYPE_SEARCHABLE_FIELDS: (keyof DeviceType)[] = ['code', 'name'];
+
 export const DeviceTypeList = () => {
   const navigate = useNavigate();
   const { data } = useListContext<DeviceType>();
   const records = data ?? [];
 
   return (
-    <AdminListContainer title="Типы устройств">
-      <MobileCardList
-        records={records}
-        renderCard={(type) => (
-          <div className="rounded-[20px] bg-white p-4">
-            <div className="mb-1">
-              <span className="text-base font-bold text-[#1a1c1e]">{formatEmpty(type.name)}</span>
-            </div>
-            <div className="mb-3 text-sm text-[#74777f]">{formatEmpty(type.code)}</div>
-            <div className="flex items-center justify-between gap-2">
-              <PillButton
-                variant="secondary"
-                icon={<IconPencil size={16} />}
-                onClick={() => navigate(type.id.toString())}
-                className="h-9 px-3 text-xs"
-              >
-                Изменить
-              </PillButton>
-              <AdminDeleteButton record={type} size="small" />
-            </div>
-          </div>
-        )}
-      />
-      <DesktopDataTable
-        records={records}
-        keyExtractor={(type) => type.id}
-        columns={[
-          { key: 'id', header: 'ID', render: (type) => type.id, className: 'w-16' },
-          { key: 'code', header: 'Код', render: (type) => type.code },
-          { key: 'name', header: 'Название', render: (type) => type.name },
-          {
-            key: 'actions',
-            header: '',
-            render: (type) => (
-              <div className="flex items-center justify-end gap-2">
-                <PillButton
-                  variant="secondary"
-                  icon={<IconPencil size={16} />}
-                  onClick={() => navigate(type.id.toString())}
-                  className="h-9 px-3 text-xs"
-                >
-                  Изменить
-                </PillButton>
-                <AdminDeleteButton record={type} size="small" />
+    <AdminListContainer
+      title="Типы устройств"
+      records={records}
+      searchableFields={DEVICE_TYPE_SEARCHABLE_FIELDS}
+    >
+      {({ records: filtered }) => (
+        <>
+          <MobileCardList
+            records={filtered}
+            renderCard={(type) => (
+              <div className="rounded-[20px] bg-white p-4">
+                <div className="mb-1">
+                  <span className="text-base font-bold text-[#1a1c1e]">
+                    {formatEmpty(type.name)}
+                  </span>
+                </div>
+                <div className="mb-3 text-sm text-[#74777f]">{formatEmpty(type.code)}</div>
+                <div className="flex items-center justify-between gap-2">
+                  <PillButton
+                    variant="secondary"
+                    icon={<IconPencil size={16} />}
+                    onClick={() => navigate(type.id.toString())}
+                    className="h-9 px-3 text-xs"
+                  >
+                    Изменить
+                  </PillButton>
+                  <AdminDeleteButton record={type} size="small" />
+                </div>
               </div>
-            ),
-          },
-        ]}
-      />
+            )}
+          />
+          <DesktopDataTable
+            records={filtered}
+            keyExtractor={(type) => type.id}
+            columns={[
+              { key: 'id', header: 'ID', render: (type) => type.id, className: 'w-16' },
+              { key: 'code', header: 'Код', render: (type) => type.code },
+              { key: 'name', header: 'Название', render: (type) => type.name },
+              {
+                key: 'actions',
+                header: '',
+                render: (type) => (
+                  <div className="flex items-center justify-end gap-2">
+                    <PillButton
+                      variant="secondary"
+                      icon={<IconPencil size={16} />}
+                      onClick={() => navigate(type.id.toString())}
+                      className="h-9 px-3 text-xs"
+                    >
+                      Изменить
+                    </PillButton>
+                    <AdminDeleteButton record={type} size="small" />
+                  </div>
+                ),
+              },
+            ]}
+          />
+        </>
+      )}
     </AdminListContainer>
   );
 };

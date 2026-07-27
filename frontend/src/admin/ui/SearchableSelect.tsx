@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { BottomSheet } from './BottomSheet';
 import { AdminChip } from './AdminChip';
-import { IconSearch, IconX, IconCheck } from './icons';
+import { IconSearch, IconX, IconCheck, IconPlus } from './icons';
 
 interface Choice {
   id: string | number;
@@ -20,6 +20,8 @@ interface SearchableSelectProps {
   disabled?: boolean;
   error?: string;
   hint?: string;
+  onAddNew?: () => void;
+  addNewLabel?: string;
 }
 
 export function SearchableSelect({
@@ -32,6 +34,8 @@ export function SearchableSelect({
   disabled = false,
   error,
   hint,
+  onAddNew,
+  addNewLabel = 'Добавить',
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -83,6 +87,11 @@ export function SearchableSelect({
     onChange(next.length > 0 ? next : null);
   };
 
+  const handleAddNew = () => {
+    setIsOpen(false);
+    onAddNew?.();
+  };
+
   const fieldClasses =
     'min-h-[48px] w-full cursor-pointer rounded-[14px] border-[1.5px] bg-white px-4 py-2.5 text-[15px] text-[#1a1c1e] ' +
     'outline-none transition-all duration-200 ' +
@@ -111,8 +120,38 @@ export function SearchableSelect({
     </div>
   );
 
+  const searchInput = (
+    <div className="mb-2 flex items-center gap-2 rounded-[12px] border border-[#e8eaed] bg-[#f8f9fa] px-3 py-2">
+      <IconSearch size={16} className="text-[#74777f]" />
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Поиск..."
+        className="flex-1 bg-transparent text-sm text-[#1a1c1e] outline-none placeholder:text-[#74777f]"
+        autoFocus
+      />
+      {search && (
+        <button type="button" onClick={() => setSearch('')} className="text-[#74777f]">
+          <IconX size={16} />
+        </button>
+      )}
+    </div>
+  );
+
+  const addNewButton = onAddNew ? (
+    <button
+      type="button"
+      onClick={handleAddNew}
+      className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-[#1a1c1e] py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#2c2f33]"
+    >
+      <IconPlus size={16} />
+      {addNewLabel}
+    </button>
+  ) : null;
+
   const optionList = (
-    <div className="max-h-[50vh] overflow-y-auto">
+    <div className="-mr-1 flex-1 overflow-y-auto pr-1">
       {filteredOptions.length === 0 && (
         <div className="py-6 text-center text-sm text-[#74777f]">Ничего не найдено</div>
       )}
@@ -141,6 +180,41 @@ export function SearchableSelect({
     </div>
   );
 
+  const dropdownContent = (
+    <div className="flex max-h-[50vh] flex-col gap-2">
+      {searchInput}
+      {optionList}
+      {addNewButton}
+    </div>
+  );
+
+  const mobileSearchInput = (
+    <div className="mb-3 flex items-center gap-2 rounded-[14px] border border-[#e8eaed] bg-[#f8f9fa] px-3 py-2.5">
+      <IconSearch size={18} className="text-[#74777f]" />
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Поиск..."
+        className="flex-1 bg-transparent text-[15px] text-[#1a1c1e] outline-none placeholder:text-[#74777f]"
+        autoFocus
+      />
+      {search && (
+        <button type="button" onClick={() => setSearch('')} className="text-[#74777f]">
+          <IconX size={16} />
+        </button>
+      )}
+    </div>
+  );
+
+  const mobileContent = (
+    <div className="flex max-h-[60vh] flex-col gap-2">
+      {mobileSearchInput}
+      {optionList}
+      {addNewButton}
+    </div>
+  );
+
   return (
     <div className="w-full">
       {label && (
@@ -154,23 +228,7 @@ export function SearchableSelect({
 
       {isMobile ? (
         <BottomSheet isOpen={isOpen} onClose={() => setIsOpen(false)} title={label}>
-          <div className="mb-3 flex items-center gap-2 rounded-[14px] border border-[#e8eaed] bg-[#f8f9fa] px-3 py-2.5">
-            <IconSearch size={18} className="text-[#74777f]" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Поиск..."
-              className="flex-1 bg-transparent text-[15px] text-[#1a1c1e] outline-none placeholder:text-[#74777f]"
-              autoFocus
-            />
-            {search && (
-              <button type="button" onClick={() => setSearch('')} className="text-[#74777f]">
-                <IconX size={16} />
-              </button>
-            )}
-          </div>
-          {optionList}
+          {mobileContent}
         </BottomSheet>
       ) : (
         isOpen && (
@@ -184,18 +242,7 @@ export function SearchableSelect({
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="mb-2 flex items-center gap-2 rounded-[12px] border border-[#e8eaed] bg-[#f8f9fa] px-3 py-2">
-                <IconSearch size={16} className="text-[#74777f]" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Поиск..."
-                  className="flex-1 bg-transparent text-sm text-[#1a1c1e] outline-none placeholder:text-[#74777f]"
-                  autoFocus
-                />
-              </div>
-              {optionList}
+              {dropdownContent}
             </div>
           </div>
         )

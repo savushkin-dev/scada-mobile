@@ -18,7 +18,7 @@ import { GeneratedCredentialsDialog } from '../ui/GeneratedCredentialsDialog';
 import { ConfirmDialog } from '../ui/ConfirmDialog';
 import { formatEmpty } from '../ui/formatEmpty';
 import { useNameMap } from '../ui/useNameMap';
-import { IconPencil, IconKey } from '../ui/icons';
+import { IconPencil, IconKey, IconBell } from '../ui/icons';
 import { API_BASE } from '../../config';
 import { apiFetchJson } from '../../api/client';
 import { UserNotificationSettingsEditor } from '../components/UserNotificationSettingsEditor';
@@ -40,118 +40,135 @@ interface GeneratedCredentials {
   password: string;
 }
 
+const USER_SEARCHABLE_FIELDS: (keyof User)[] = ['code', 'fullName'];
+
 export const UserList = () => {
   const navigate = useNavigate();
   const { data } = useListContext<User>();
   const records = data ?? [];
 
   return (
-    <AdminListContainer title="Сотрудники">
-      <MobileCardList
-        records={records}
-        renderCard={(user) => (
-          <div className="rounded-[20px] bg-white p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-base font-bold text-[#1a1c1e]">
-                {formatEmpty(user.fullName)}
-              </span>
-              <StatusPill variant={user.active ? 'active' : 'inactive'}>
-                {user.active ? 'Активен' : 'Неактивен'}
-              </StatusPill>
-            </div>
-            <div className="mb-3 space-y-1 text-sm">
-              <div className="flex justify-between">
-                <span className="text-[#74777f]">Роль</span>
-                <RoleName id={user.roleId} />
-              </div>
-            </div>
-            {user.unitNames && user.unitNames.length > 0 && (
-              <div className="mb-3 flex flex-wrap gap-1">
-                {user.unitNames.slice(0, 2).map((name) => (
-                  <AdminChip key={name}>{name}</AdminChip>
-                ))}
-                {user.unitNames.length > 2 && <AdminChip>+{user.unitNames.length - 2}</AdminChip>}
+    <AdminListContainer
+      title="Сотрудники"
+      records={records}
+      searchableFields={USER_SEARCHABLE_FIELDS}
+    >
+      {({ records: filtered }) => (
+        <>
+          <MobileCardList
+            records={filtered}
+            renderCard={(user) => (
+              <div className="rounded-[20px] bg-white p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-base font-bold text-[#1a1c1e]">
+                    {formatEmpty(user.fullName)}
+                  </span>
+                  <StatusPill variant={user.active ? 'active' : 'inactive'}>
+                    {user.active ? 'Активен' : 'Неактивен'}
+                  </StatusPill>
+                </div>
+                <div className="mb-3 space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-[#74777f]">Таб. номер</span>
+                    <span className="text-[#1a1c1e]">{formatEmpty(user.code)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#74777f]">Роль</span>
+                    <RoleName id={user.roleId} />
+                  </div>
+                </div>
+                {user.unitNames && user.unitNames.length > 0 && (
+                  <div className="mb-3 flex flex-wrap gap-1">
+                    {user.unitNames.slice(0, 2).map((name) => (
+                      <AdminChip key={name}>{name}</AdminChip>
+                    ))}
+                    {user.unitNames.length > 2 && (
+                      <AdminChip>+{user.unitNames.length - 2}</AdminChip>
+                    )}
+                  </div>
+                )}
+                <div className="flex items-center justify-between gap-2">
+                  <PillButton
+                    variant="secondary"
+                    icon={<IconPencil size={16} />}
+                    onClick={() => navigate(user.id.toString())}
+                    className="h-9 px-3 text-xs"
+                  >
+                    Изменить
+                  </PillButton>
+                  <AdminDeleteButton record={user} size="small" />
+                </div>
               </div>
             )}
-            <div className="flex items-center justify-between gap-2">
-              <PillButton
-                variant="secondary"
-                icon={<IconPencil size={16} />}
-                onClick={() => navigate(user.id.toString())}
-                className="h-9 px-3 text-xs"
-              >
-                Изменить
-              </PillButton>
-              <AdminDeleteButton record={user} size="small" />
-            </div>
-          </div>
-        )}
-      />
-      <DesktopDataTable
-        records={records}
-        keyExtractor={(user) => user.id}
-        columns={[
-          { key: 'id', header: 'ID', render: (user) => user.id, className: 'w-12' },
-          { key: 'fullName', header: 'ФИО', render: (user) => user.fullName },
-          {
-            key: 'role',
-            header: 'Роль',
-            render: (user) => <RoleName id={user.roleId} />,
-          },
-          {
-            key: 'active',
-            header: 'Активен',
-            render: (user) => (
-              <StatusPill variant={user.active ? 'active' : 'inactive'}>
-                {user.active ? 'Активен' : 'Неактивен'}
-              </StatusPill>
-            ),
-          },
-          {
-            key: 'units',
-            header: 'Автоматы',
-            render: (user) => (
-              <div className="flex flex-wrap gap-1">
-                {user.unitNames?.slice(0, 2).map((name) => (
-                  <AdminChip key={name}>{name}</AdminChip>
-                ))}
-                {(user.unitNames?.length ?? 0) > 2 && (
-                  <AdminChip>+{(user.unitNames?.length ?? 0) - 2}</AdminChip>
-                )}
-              </div>
-            ),
-          },
-          {
-            key: 'incidents',
-            header: 'Тех. сбои',
-            render: (user) => user.incidentNotificationsCount ?? 0,
-            className: 'w-20',
-          },
-          {
-            key: 'calls',
-            header: 'Вызов',
-            render: (user) => user.callNotificationsCount ?? 0,
-            className: 'w-16',
-          },
-          {
-            key: 'actions',
-            header: '',
-            render: (user) => (
-              <div className="flex items-center justify-end gap-2">
-                <PillButton
-                  variant="secondary"
-                  icon={<IconPencil size={16} />}
-                  onClick={() => navigate(user.id.toString())}
-                  className="h-9 px-3 text-xs"
-                >
-                  Изменить
-                </PillButton>
-                <AdminDeleteButton record={user} size="small" />
-              </div>
-            ),
-          },
-        ]}
-      />
+          />
+          <DesktopDataTable
+            records={filtered}
+            keyExtractor={(user) => user.id}
+            columns={[
+              { key: 'id', header: 'ID', render: (user) => user.id, className: 'w-12' },
+              { key: 'code', header: 'Таб. номер', render: (user) => user.code, className: 'w-24' },
+              { key: 'fullName', header: 'ФИО', render: (user) => user.fullName },
+              {
+                key: 'role',
+                header: 'Роль',
+                render: (user) => <RoleName id={user.roleId} />,
+              },
+              {
+                key: 'active',
+                header: 'Активен',
+                render: (user) => (
+                  <StatusPill variant={user.active ? 'active' : 'inactive'}>
+                    {user.active ? 'Активен' : 'Неактивен'}
+                  </StatusPill>
+                ),
+              },
+              {
+                key: 'units',
+                header: 'Автоматы',
+                render: (user) => (
+                  <div className="flex flex-wrap gap-1">
+                    {user.unitNames?.slice(0, 2).map((name) => (
+                      <AdminChip key={name}>{name}</AdminChip>
+                    ))}
+                    {(user.unitNames?.length ?? 0) > 2 && (
+                      <AdminChip>+{(user.unitNames?.length ?? 0) - 2}</AdminChip>
+                    )}
+                  </div>
+                ),
+              },
+              {
+                key: 'incidents',
+                header: 'Тех. сбои',
+                render: (user) => user.incidentNotificationsCount ?? 0,
+                className: 'w-20',
+              },
+              {
+                key: 'calls',
+                header: 'Вызов',
+                render: (user) => user.callNotificationsCount ?? 0,
+                className: 'w-16',
+              },
+              {
+                key: 'actions',
+                header: '',
+                render: (user) => (
+                  <div className="flex items-center justify-end gap-2">
+                    <PillButton
+                      variant="secondary"
+                      icon={<IconPencil size={16} />}
+                      onClick={() => navigate(user.id.toString())}
+                      className="h-9 px-3 text-xs"
+                    >
+                      Изменить
+                    </PillButton>
+                    <AdminDeleteButton record={user} size="small" />
+                  </div>
+                ),
+              },
+            ]}
+          />
+        </>
+      )}
     </AdminListContainer>
   );
 };
@@ -161,7 +178,48 @@ function RoleName({ id }: { id: number }) {
   return <span className="text-[#1a1c1e]">{formatEmpty(getName(id))}</span>;
 }
 
-function UserFormFields({
+function isValidWorkerCode(value: string): boolean {
+  return /^\d{0,5}$/.test(value);
+}
+
+function WorkerCodeInput({
+  value,
+  onChange,
+  isCreate,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  isCreate: boolean;
+}) {
+  const [error, setError] = useState<string | undefined>(undefined);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const next = e.target.value;
+    if (!isValidWorkerCode(next)) return;
+    setError(
+      next.length === 5 || next.length === 0
+        ? undefined
+        : 'Табельный номер должен состоять из 5 цифр'
+    );
+    onChange(next);
+  };
+
+  return (
+    <RoundedInput
+      label="Табельный номер"
+      value={value}
+      onChange={handleChange}
+      inputMode="numeric"
+      pattern="\d{5}"
+      maxLength={5}
+      required
+      hint={isCreate ? 'Введите табельный номер из 5 цифр' : undefined}
+      error={error}
+    />
+  );
+}
+
+function UserLeftFields({
   record,
   onChange,
   isCreate,
@@ -170,16 +228,15 @@ function UserFormFields({
   onChange: (field: string, value: unknown) => void;
   isCreate: boolean;
 }) {
+  const navigate = useNavigate();
+
   return (
     <div className="space-y-5">
-      {!isCreate && (
-        <RoundedInput
-          label="Код сотрудника"
-          value={(record.code as string) ?? ''}
-          disabled
-          hint="Код генерируется автоматически и не может быть изменён"
-        />
-      )}
+      <WorkerCodeInput
+        value={(record.code as string) ?? ''}
+        onChange={(v) => onChange('code', v)}
+        isCreate={isCreate}
+      />
       <RoundedInput
         label="ФИО"
         value={(record.fullName as string) ?? ''}
@@ -193,6 +250,8 @@ function UserFormFields({
         value={(record.roleId as number) ?? null}
         onChange={(v) => onChange('roleId', v)}
         placeholder="Выберите роль"
+        onAddNew={() => navigate('/admin/settings/references/roles/create')}
+        addNewLabel="Добавить роль"
       />
       <label className="flex items-center justify-between">
         <span className="text-sm font-medium text-[#1a1c1e]">Активен</span>
@@ -201,6 +260,19 @@ function UserFormFields({
           onChange={(e) => onChange('active', e.target.checked)}
         />
       </label>
+    </div>
+  );
+}
+
+function UserRightFields({
+  record,
+  onChange,
+}: {
+  record: Record<string, unknown>;
+  onChange: (field: string, value: unknown) => void;
+}) {
+  return (
+    <div className="space-y-5">
       <UnitAssignmentSelect
         value={(record.unitIds as number[]) ?? []}
         onChange={(v) => onChange('unitIds', v)}
@@ -246,40 +318,49 @@ export const UserEdit = () => {
   return (
     <AdminEditForm
       title="Редактирование сотрудника"
-      extraActions={(record) =>
-        getRoleName(record.roleId as number | undefined) === 'ADMIN' ? null : (
-          <PillButton
-            variant="secondary"
-            icon={<IconKey size={18} />}
-            onClick={() => setShowResetConfirm(true)}
-            disabled={resetting}
-          >
-            {resetting ? 'Сброс...' : 'Сбросить пароль'}
-          </PillButton>
+      layout="two-column"
+      leftCardTitle="Основная информация"
+      rightCardTitle="Настройки уведомлений"
+      rightCardIcon={<IconBell size={20} />}
+    >
+      {({ record, onChange, slot }) =>
+        slot === 'left' ? (
+          <UserLeftFields record={record} onChange={onChange} isCreate={false} />
+        ) : (
+          <>
+            <UserRightFields record={record} onChange={onChange} />
+            <div className="pt-2">
+              {getRoleName(record.roleId as number | undefined) !== 'ADMIN' && (
+                <PillButton
+                  variant="secondary"
+                  icon={<IconKey size={18} />}
+                  onClick={() => setShowResetConfirm(true)}
+                  disabled={resetting}
+                  className="mb-4 h-10 px-4"
+                >
+                  {resetting ? 'Сброс...' : 'Сбросить пароль'}
+                </PillButton>
+              )}
+              <UserNotificationSettingsEditor userId={record.id as number | undefined} />
+            </div>
+            <ResetPasswordConfirm
+              isOpen={showResetConfirm}
+              onClose={() => setShowResetConfirm(false)}
+              onConfirm={() => handleResetPassword(record.id as string | number)}
+            />
+            <GeneratedCredentialsDialog
+              isOpen={credentials != null}
+              fullName={credentials?.fullName ?? ''}
+              code={credentials?.code ?? ''}
+              password={credentials?.password ?? ''}
+              onClose={() => {
+                setCredentials(null);
+                navigate('/admin/users');
+              }}
+            />
+          </>
         )
       }
-    >
-      {({ record, onChange }) => (
-        <div className="space-y-6">
-          <UserFormFields record={record} onChange={onChange} isCreate={false} />
-          <UserNotificationSettingsEditor />
-          <ResetPasswordConfirm
-            isOpen={showResetConfirm}
-            onClose={() => setShowResetConfirm(false)}
-            onConfirm={() => handleResetPassword(record.id as string | number)}
-          />
-          <GeneratedCredentialsDialog
-            isOpen={credentials != null}
-            fullName={credentials?.fullName ?? ''}
-            code={credentials?.code ?? ''}
-            password={credentials?.password ?? ''}
-            onClose={() => {
-              setCredentials(null);
-              navigate('/admin/users');
-            }}
-          />
-        </div>
-      )}
     </AdminEditForm>
   );
 };
@@ -301,10 +382,19 @@ export const UserCreate = () => {
     <>
       <AdminCreateForm
         title="Новый сотрудник"
-        defaultValues={{ active: true, unitIds: [] }}
+        layout="two-column"
+        defaultValues={{ code: '', active: true, unitIds: [] }}
         onSuccessWithData={handleSuccess}
+        leftCardTitle="Основная информация"
+        rightCardTitle="Закреплённые автоматы"
       >
-        {({ record, onChange }) => <UserFormFields record={record} onChange={onChange} isCreate />}
+        {({ record, onChange, slot }) =>
+          slot === 'left' ? (
+            <UserLeftFields record={record} onChange={onChange} isCreate />
+          ) : (
+            <UserRightFields record={record} onChange={onChange} />
+          )
+        }
       </AdminCreateForm>
       <GeneratedCredentialsDialog
         isOpen={credentials != null}

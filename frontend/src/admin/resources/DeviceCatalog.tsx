@@ -30,81 +30,95 @@ export const DeviceCatalogList = () => {
   const getDeviceTypeName = useNameMap('device-types');
 
   return (
-    <AdminListContainer title="Справочник устройств">
-      <MobileCardList
-        records={records}
-        renderCard={(item) => (
-          <div className="rounded-[20px] bg-white p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-base font-bold text-[#1a1c1e]">{formatEmpty(item.name)}</span>
-              <StatusPill variant={item.active ? 'active' : 'inactive'}>
-                {item.active ? 'Активно' : 'Неактивно'}
-              </StatusPill>
-            </div>
-            <div className="mb-3 text-sm text-[#74777f]">{formatEmpty(item.code)}</div>
-            <div className="mb-3 text-sm text-[#74777f]">
-              {formatEmpty(item.typeId ? getDeviceTypeName(item.typeId) : null)}
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <PillButton
-                variant="secondary"
-                icon={<IconPencil size={16} />}
-                onClick={() => navigate(item.id.toString())}
-                className="h-9 px-3 text-xs"
-              >
-                Изменить
-              </PillButton>
-              <AdminDeleteButton record={item} size="small" />
-            </div>
-          </div>
-        )}
-      />
-      <DesktopDataTable
-        records={records}
-        keyExtractor={(item) => item.id}
-        columns={[
-          { key: 'id', header: 'ID', render: (item) => item.id, className: 'w-12' },
-          { key: 'code', header: 'Код', render: (item) => item.code },
-          { key: 'name', header: 'Название', render: (item) => item.name },
-          {
-            key: 'type',
-            header: 'Тип',
-            render: (item) => (
-              <span className="text-[#1a1c1e]">
-                {formatEmpty(item.typeId ? getDeviceTypeName(item.typeId) : null)}
-              </span>
-            ),
-          },
-          {
-            key: 'state',
-            header: 'Состояние',
-            render: (item) => (
-              <StatusPill
-                variant={item.active ? 'active' : item.typeId == null ? 'warning' : 'inactive'}
-              >
-                {item.active ? 'Активно' : item.typeId == null ? 'Требует настройки' : 'Неактивно'}
-              </StatusPill>
-            ),
-          },
-          {
-            key: 'actions',
-            header: '',
-            render: (item) => (
-              <div className="flex items-center justify-end gap-2">
-                <PillButton
-                  variant="secondary"
-                  icon={<IconPencil size={16} />}
-                  onClick={() => navigate(item.id.toString())}
-                  className="h-9 px-3 text-xs"
-                >
-                  Изменить
-                </PillButton>
-                <AdminDeleteButton record={item} size="small" />
+    <AdminListContainer
+      title="Справочник устройств"
+      records={records}
+      searchableFields={['code', 'name']}
+    >
+      {({ records: filtered }) => (
+        <>
+          <MobileCardList
+            records={filtered}
+            renderCard={(item) => (
+              <div className="rounded-[20px] bg-white p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-base font-bold text-[#1a1c1e]">
+                    {formatEmpty(item.name)}
+                  </span>
+                  <StatusPill variant={item.active ? 'active' : 'inactive'}>
+                    {item.active ? 'Активно' : 'Неактивно'}
+                  </StatusPill>
+                </div>
+                <div className="mb-3 text-sm text-[#74777f]">{formatEmpty(item.code)}</div>
+                <div className="mb-3 text-sm text-[#74777f]">
+                  {formatEmpty(item.typeId ? getDeviceTypeName(item.typeId) : null)}
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <PillButton
+                    variant="secondary"
+                    icon={<IconPencil size={16} />}
+                    onClick={() => navigate(item.id.toString())}
+                    className="h-9 px-3 text-xs"
+                  >
+                    Изменить
+                  </PillButton>
+                  <AdminDeleteButton record={item} size="small" />
+                </div>
               </div>
-            ),
-          },
-        ]}
-      />
+            )}
+          />
+          <DesktopDataTable
+            records={filtered}
+            keyExtractor={(item) => item.id}
+            columns={[
+              { key: 'id', header: 'ID', render: (item) => item.id, className: 'w-12' },
+              { key: 'code', header: 'Код', render: (item) => item.code },
+              { key: 'name', header: 'Название', render: (item) => item.name },
+              {
+                key: 'type',
+                header: 'Тип',
+                render: (item) => (
+                  <span className="text-[#1a1c1e]">
+                    {formatEmpty(item.typeId ? getDeviceTypeName(item.typeId) : null)}
+                  </span>
+                ),
+              },
+              {
+                key: 'state',
+                header: 'Состояние',
+                render: (item) => (
+                  <StatusPill
+                    variant={item.active ? 'active' : item.typeId == null ? 'warning' : 'inactive'}
+                  >
+                    {item.active
+                      ? 'Активно'
+                      : item.typeId == null
+                        ? 'Требует настройки'
+                        : 'Неактивно'}
+                  </StatusPill>
+                ),
+              },
+              {
+                key: 'actions',
+                header: '',
+                render: (item) => (
+                  <div className="flex items-center justify-end gap-2">
+                    <PillButton
+                      variant="secondary"
+                      icon={<IconPencil size={16} />}
+                      onClick={() => navigate(item.id.toString())}
+                      className="h-9 px-3 text-xs"
+                    >
+                      Изменить
+                    </PillButton>
+                    <AdminDeleteButton record={item} size="small" />
+                  </div>
+                ),
+              },
+            ]}
+          />
+        </>
+      )}
     </AdminListContainer>
   );
 };
@@ -116,6 +130,8 @@ function DeviceCatalogFormFields({
   record: Record<string, unknown>;
   onChange: (field: string, value: unknown) => void;
 }) {
+  const navigate = useNavigate();
+
   return (
     <div className="space-y-5">
       <RoundedInput
@@ -137,6 +153,8 @@ function DeviceCatalogFormFields({
         value={(record.typeId as number) ?? null}
         onChange={(v) => onChange('typeId', v)}
         placeholder="Выберите тип"
+        onAddNew={() => navigate('/admin/settings/references/device-types/create')}
+        addNewLabel="Добавить тип"
       />
       <label className="flex items-center justify-between">
         <span className="text-sm font-medium text-[#1a1c1e]">Активно</span>

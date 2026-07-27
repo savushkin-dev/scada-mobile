@@ -14,6 +14,8 @@ interface ReferenceSelectProps {
   disabled?: boolean;
   error?: string;
   hint?: string;
+  onAddNew?: () => void;
+  addNewLabel?: string;
 }
 
 export function ReferenceSelect({

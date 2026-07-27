@@ -76,7 +76,7 @@ export function GeneratedCredentialsDialog({
           </div>
 
           <CredentialRow
-            label="Код сотрудника (логин)"
+            label="Табельный номер (логин)"
             value={code}
             copied={copiedCode}
             onCopy={() => handleCopy(code, 'code')}

@@ -140,6 +140,14 @@ export function IconChevronRight(props: Omit<AdminIconProps, 'children'>) {
   );
 }
 
+export function IconChevronDown(props: Omit<AdminIconProps, 'children'>) {
+  return (
+    <AdminIcon {...props}>
+      <polyline points="6 9 12 15 18 9" />
+    </AdminIcon>
+  );
+}
+
 export function IconMenu(props: Omit<AdminIconProps, 'children'>) {
   return (
     <AdminIcon {...props}>
@@ -193,11 +201,30 @@ export function IconX(props: Omit<AdminIconProps, 'children'>) {
   );
 }
 
+export function IconDotsVertical(props: Omit<AdminIconProps, 'children'>) {
+  return (
+    <AdminIcon {...props}>
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="12" cy="5" r="1" />
+      <circle cx="12" cy="19" r="1" />
+    </AdminIcon>
+  );
+}
+
 export function IconInbox(props: Omit<AdminIconProps, 'children'>) {
   return (
     <AdminIcon {...props}>
       <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
       <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+    </AdminIcon>
+  );
+}
+
+export function IconBooks(props: Omit<AdminIconProps, 'children'>) {
+  return (
+    <AdminIcon {...props}>
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
     </AdminIcon>
   );
 }
@@ -217,6 +244,15 @@ export function IconRefresh(props: Omit<AdminIconProps, 'children'>) {
     <AdminIcon {...props}>
       <polyline points="23 4 23 10 17 10" />
       <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+    </AdminIcon>
+  );
+}
+
+export function IconSettings(props: Omit<AdminIconProps, 'children'>) {
+  return (
+    <AdminIcon {...props}>
+      <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z" />
     </AdminIcon>
   );
 }

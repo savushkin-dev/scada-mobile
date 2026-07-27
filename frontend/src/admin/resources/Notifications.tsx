@@ -1,10 +1,9 @@
 import { useListContext, useRefresh, useUpdate } from 'react-admin';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WS_BASE } from '../../config';
 import { getAccessToken } from '../../auth/session';
-import { AdminCard } from '../ui/AdminCard';
-
+import { AdminListContainer } from '../ui/AdminListContainer';
 import { PillButton } from '../ui/PillButton';
 import { StatusPill } from '../ui/StatusPill';
 import { MobileCardList } from '../ui/MobileCardList';
@@ -25,6 +24,14 @@ interface Notification {
 }
 
 type Tab = 'unread' | 'read';
+
+const NOTIFICATION_SEARCHABLE_FIELDS: (keyof Notification)[] = [
+  'type',
+  'severity',
+  'instanceId',
+  'deviceCode',
+  'message',
+];
 
 function severityVariant(severity: string): 'warning' | 'error' | 'inactive' {
   switch (severity) {
@@ -191,11 +198,11 @@ function TabButton({
 export function NotificationList() {
   const refresh = useRefresh();
   const [activeTab, setActiveTab] = useState<Tab>('unread');
-  const { data, isLoading } = useListContext<Notification>();
-  const records = data ?? [];
+  const { data } = useListContext<Notification>();
+  const records = useMemo(() => data ?? [], [data]);
 
-  const unread = records.filter((n) => !n.read);
-  const read = records.filter((n) => n.read);
+  const unread = useMemo(() => records.filter((n) => !n.read), [records]);
+  const read = useMemo(() => records.filter((n) => n.read), [records]);
   const visible = activeTab === 'unread' ? unread : read;
 
   useEffect(() => {
@@ -216,45 +223,36 @@ export function NotificationList() {
     return () => ws.close();
   }, [refresh]);
 
-  if (isLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center text-[#74777f]">
-        <span className="animate-pulse">Загрузка...</span>
-      </div>
-    );
-  }
+  const filters = (
+    <div className="flex flex-wrap items-center gap-2">
+      <TabButton active={activeTab === 'unread'} onClick={() => setActiveTab('unread')}>
+        Непрочитанные ({unread.length})
+      </TabButton>
+      <TabButton active={activeTab === 'read'} onClick={() => setActiveTab('read')}>
+        Прочитанные ({read.length})
+      </TabButton>
+      {activeTab === 'unread' && <MarkAllAsReadButton />}
+      <PillButton
+        variant="secondary"
+        icon={<IconRefresh size={16} />}
+        onClick={refresh}
+        className="h-9 px-3 text-xs"
+      >
+        Обновить
+      </PillButton>
+    </div>
+  );
 
   return (
-    <div className="p-4 lg:p-6">
-      <div className="mb-4 flex items-center justify-between lg:mb-6">
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl font-bold text-[#1a1c1e]">Уведомления</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <PillButton
-            variant="secondary"
-            icon={<IconRefresh size={16} />}
-            onClick={refresh}
-            className="h-9 px-3 text-xs"
-          >
-            Обновить
-          </PillButton>
-          {activeTab === 'unread' && <MarkAllAsReadButton />}
-        </div>
-      </div>
-
-      <div className="mb-4 flex items-center gap-2 lg:mb-6">
-        <TabButton active={activeTab === 'unread'} onClick={() => setActiveTab('unread')}>
-          Непрочитанные ({unread.length})
-        </TabButton>
-        <TabButton active={activeTab === 'read'} onClick={() => setActiveTab('read')}>
-          Прочитанные ({read.length})
-        </TabButton>
-      </div>
-
-      <AdminCard>
-        {visible.length === 0 ? (
-          <div className="flex h-64 items-center justify-center text-[#74777f]">
+    <AdminListContainer
+      title="Уведомления"
+      records={visible}
+      searchableFields={NOTIFICATION_SEARCHABLE_FIELDS}
+      filters={filters}
+    >
+      {({ records: filtered }) =>
+        filtered.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-[#74777f]">
             {activeTab === 'unread'
               ? 'Нет непрочитанных уведомлений'
               : 'Нет прочитанных уведомлений'}
@@ -262,7 +260,7 @@ export function NotificationList() {
         ) : (
           <>
             <MobileCardList
-              records={visible}
+              records={filtered}
               renderCard={(note) => (
                 <div className="rounded-[20px] bg-white p-4">
                   <div className="mb-2 flex items-center justify-between">
@@ -283,7 +281,7 @@ export function NotificationList() {
               )}
             />
             <DesktopDataTable
-              records={visible}
+              records={filtered}
               keyExtractor={(note) => note.id}
               columns={[
                 {
@@ -320,8 +318,8 @@ export function NotificationList() {
               ]}
             />
           </>
-        )}
-      </AdminCard>
-    </div>
+        )
+      }
+    </AdminListContainer>
   );
 }

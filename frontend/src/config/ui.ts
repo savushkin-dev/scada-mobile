@@ -78,19 +78,19 @@ export const UI_COPY = Object.freeze({
 
 export const AUTH_COPY = Object.freeze({
   title: 'Вход в аккаунт',
-  workerCodeLabel: 'Код работника',
+  workerCodeLabel: 'Табельный номер',
   passwordLabel: 'Пароль работника',
   submit: 'Войти',
   submitting: 'Входим...',
   forgot: 'Забыли пароль?',
-  forgotHint: 'Обратитесь к администратору, который выдал вам код и пароль',
-  requiredWorkerCode: 'Введите код работника',
+  forgotHint: 'Обратитесь к администратору, который выдал вам табельный номер и пароль',
+  requiredWorkerCode: 'Введите табельный номер',
   requiredPassword: 'Введите пароль',
   notFound: 'Пользователь не найден, проверьте правильность введенных данных',
   blocked: 'Пользователь заблокирован',
   serverError: 'Ошибка сервера. Повторите попытку позже',
   networkError: 'Нет связи с сервером. Проверьте подключение',
-  workerCodePlaceholder: 'Введите код',
+  workerCodePlaceholder: 'Введите табельный номер',
   passwordPlaceholder: 'Введите пароль',
 });
 

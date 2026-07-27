@@ -126,15 +126,7 @@ export const router = createBrowserRouter([
             path: 'change-password',
             element: withSuspense(<ChangePasswordPage />),
           },
-          {
-            element: <RequireAdmin />,
-            children: [
-              {
-                path: 'admin/*',
-                element: withSuspense(<AdminApp />),
-              },
-            ],
-          },
+
           {
             path: 'workshops/:workshopId/units/:unitId',
             element: withSuspense(<DetailsLayout />),
@@ -169,5 +161,13 @@ export const router = createBrowserRouter([
         element: <Navigate to="/" replace />,
       },
     ],
+  },
+  {
+    path: '/admin/*',
+    element: withSuspense(
+      <RequireAdmin>
+        <AdminApp />
+      </RequireAdmin>
+    ),
   },
 ]);

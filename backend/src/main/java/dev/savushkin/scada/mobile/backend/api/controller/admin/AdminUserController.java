@@ -37,7 +37,7 @@ import java.util.Set;
  * <p>
  * Spring Data REST экспортирует только чтение (GET /users, GET /users/{id}).
  * Создание, обновление, удаление — через этот контроллер с валидацией.
- * Код и пароль генерируются системой автоматически; администратор не задаёт их вручную.
+ * Табельный номер задаёт администратор; временный пароль генерируется системой.
  */
 @RestController
 @RequestMapping("${scada.api.base-path}/admin/users")
@@ -69,7 +69,7 @@ public class AdminUserController {
     @Transactional
     public ResponseEntity<UserCreateResponseDTO> create(@Valid @RequestBody UserCreateRequest request) {
         EmployeeAccessService.CreatedEmployee created = employeeAccessService.createEmployee(
-                request.fullName(), request.roleId(), request.active(), request.unitIds()
+                request.code(), request.fullName(), request.roleId(), request.active(), request.unitIds()
         );
         eventPublisher.publishEvent(new EmployeeChangedEvent(created.id(), ChangeAction.CREATE));
 
@@ -93,6 +93,13 @@ public class AdminUserController {
 
         RoleEntity role = roleRepository.findById(request.roleId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Роль не найдена"));
+
+        if (request.code() != null && !request.code().isBlank() && !request.code().equals(user.getCode())) {
+            if (userRepository.findByCode(request.code()).isPresent()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Табельный номер уже используется");
+            }
+            user.setCode(request.code());
+        }
 
         user.setFullName(request.fullName());
         user.setActive(request.active());
@@ -172,6 +179,7 @@ public class AdminUserController {
     }
 
     public record UserCreateRequest(
+            @NotBlank @jakarta.validation.constraints.Pattern(regexp = "^\\d{5}$", message = "Табельный номер должен состоять из 5 цифр") String code,
             @NotBlank String fullName,
             @NotNull Long roleId,
             boolean active,
@@ -180,6 +188,7 @@ public class AdminUserController {
     }
 
     public record UserUpdateRequest(
+            @jakarta.validation.constraints.Pattern(regexp = "^\\d{5}$", message = "Табельный номер должен состоять из 5 цифр") String code,
             @NotBlank String fullName,
             @NotNull Long roleId,
             boolean active,

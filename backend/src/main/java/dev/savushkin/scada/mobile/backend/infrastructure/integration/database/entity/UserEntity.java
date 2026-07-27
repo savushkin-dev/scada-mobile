@@ -2,6 +2,7 @@ package dev.savushkin.scada.mobile.backend.infrastructure.integration.database.e
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -22,6 +23,7 @@ public class UserEntity {
     private RoleEntity role;
 
     @Column(name = "code", nullable = false, unique = true, length = 10)
+    @Pattern(regexp = "^\\d{5}$", message = "Табельный номер должен состоять из 5 цифр")
     private String code;
 
     @Column(name = "password", nullable = false, length = 60)
