@@ -175,14 +175,6 @@ export function AdminEditForm({
         title={title}
         actions={
           <>
-            <PillButton
-              icon={<IconSave size={18} />}
-              onClick={handleSave}
-              disabled={!isDirty || saving}
-              className="h-9 px-3"
-            >
-              {saving ? 'Сохранение...' : 'Сохранить'}
-            </PillButton>
             <ActionMenu
               items={[
                 ...resolvedMenuItems,
@@ -194,6 +186,14 @@ export function AdminEditForm({
                 },
               ]}
             />
+            <PillButton
+              icon={<IconSave size={18} />}
+              onClick={handleSave}
+              disabled={!isDirty || saving}
+              className="h-9 px-4"
+            >
+              {saving ? 'Сохранение...' : 'Сохранить'}
+            </PillButton>
           </>
         }
       />
@@ -241,6 +241,7 @@ export function AdminEditForm({
                 icon={<IconSave size={18} />}
                 onClick={handleSave}
                 disabled={!isDirty || saving}
+                className="h-9 px-4"
               >
                 {saving ? 'Сохранение...' : 'Сохранить'}
               </PillButton>

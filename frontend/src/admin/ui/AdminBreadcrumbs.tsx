@@ -29,41 +29,62 @@ export function AdminBreadcrumbs() {
     pathname === '/admin/users' ||
     pathname === '/admin/units' ||
     pathname === '/admin/notifications' ||
-    pathname === '/admin/settings' ||
-    pathname === '/admin/settings/references'
+    pathname === '/admin/settings'
   ) {
     return null;
   }
 
-  // Справочники: /admin/settings/references/:resource
-  const referenceMatch = pathname.match(/^\/admin\/settings\/references\/([^/]+)(?:\/([^/]+))?$/);
+  // Справочники: /admin/settings/references[/:resource[/:id|create]]
+  const referenceMatch = pathname.match(
+    /^\/admin\/settings\/references(?:\/([^/]+))?(?:\/([^/]+))?$/
+  );
   if (referenceMatch) {
     const resource = referenceMatch[1];
     const tail = referenceMatch[2];
-    const resourceLabel = REFERENCE_LABELS[resource] ?? resource;
+    const resourceLabel = resource ? (REFERENCE_LABELS[resource] ?? resource) : null;
 
     return (
       <nav className="flex items-center gap-1.5 text-xs leading-none">
         <button
           type="button"
-          onClick={() => navigate('/admin/settings/references')}
+          onClick={() => navigate('/admin/settings')}
           className="leading-none text-[#74777f] transition-colors hover:text-[#1a1c1e]"
         >
-          Справочники
+          Настройки
         </button>
         <IconChevronRight size={14} className="text-[#b0b3b8]" />
-        <button
-          type="button"
-          onClick={() => navigate(`/admin/settings/references/${resource}`)}
-          className="leading-none text-[#74777f] transition-colors hover:text-[#1a1c1e]"
-        >
-          {resourceLabel}
-        </button>
+        {resourceLabel ? (
+          <button
+            type="button"
+            onClick={() => navigate('/admin/settings/references')}
+            className="leading-none text-[#74777f] transition-colors hover:text-[#1a1c1e]"
+          >
+            Справочники
+          </button>
+        ) : (
+          <span className="font-medium leading-none text-[#1a1c1e]">Справочники</span>
+        )}
+        {resourceLabel && (
+          <>
+            <IconChevronRight size={14} className="text-[#b0b3b8]" />
+            {tail ? (
+              <button
+                type="button"
+                onClick={() => navigate(`/admin/settings/references/${resource}`)}
+                className="leading-none text-[#74777f] transition-colors hover:text-[#1a1c1e]"
+              >
+                {resourceLabel}
+              </button>
+            ) : (
+              <span className="font-medium leading-none text-[#1a1c1e]">{resourceLabel}</span>
+            )}
+          </>
+        )}
         {tail && (
           <>
             <IconChevronRight size={14} className="text-[#b0b3b8]" />
             <span className="font-medium leading-none text-[#1a1c1e]">
-              {tail === 'create' ? 'Создать' : 'Редактирование'}
+              {tail === 'create' ? 'Создание' : 'Редактирование'}
             </span>
           </>
         )}
@@ -71,11 +92,11 @@ export function AdminBreadcrumbs() {
     );
   }
 
-  // Оперативные сущности: /admin/users/:id, /admin/units/:id
+  // Оперативные сущности: /admin/users/:id, /admin/units/:id —
+  // простая ссылка «Назад к списку ...»
   const operationalMatch = pathname.match(/^\/admin\/([^/]+)\/([^/]+)$/);
   if (operationalMatch) {
     const resource = operationalMatch[1];
-    const tail = operationalMatch[2];
     const backLabel = OPERATIONAL_BACK_LABELS[resource];
     if (!backLabel) return null;
 
@@ -88,10 +109,6 @@ export function AdminBreadcrumbs() {
         >
           {backLabel}
         </button>
-        <IconChevronRight size={14} className="text-[#b0b3b8]" />
-        <span className="font-medium leading-none text-[#1a1c1e]">
-          {tail === 'create' ? 'Создать' : 'Редактирование'}
-        </span>
       </nav>
     );
   }

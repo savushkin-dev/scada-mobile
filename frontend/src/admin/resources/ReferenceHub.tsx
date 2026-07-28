@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { AdminCard } from '../ui/AdminCard';
+import { AdminBreadcrumbs } from '../ui/AdminBreadcrumbs';
 import { adminReferenceItems } from '../ui/AdminMenuConfig';
 import {
   IconChevronRight,
@@ -20,8 +21,9 @@ export function ReferenceHubPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="p-4 lg:p-6">
-      <div className="mb-4 lg:mb-6">
+    <div className="p-3 lg:p-4">
+      <div className="mb-3 flex flex-col gap-1.5 lg:mb-4">
+        <AdminBreadcrumbs />
         <h1 className="text-xl font-bold text-[#1a1c1e]">Справочники</h1>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

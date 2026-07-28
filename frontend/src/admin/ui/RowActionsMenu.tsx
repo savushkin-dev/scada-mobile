@@ -16,9 +16,11 @@ export function RowActionsMenu({
   onDelete,
 }: RowActionsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -47,11 +49,25 @@ export function RowActionsMenu({
     onDelete?.();
   };
 
+  // У нижних строк таблицы меню открываем вверх, иначе оно
+  // уходит за пределы экрана и добавляет лишнюю прокрутку.
+  const MENU_HEIGHT_ESTIMATE = 160;
+
+  const handleToggleOpen = () => {
+    if (!isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setOpenUpward(spaceBelow < MENU_HEIGHT_ESTIMATE && rect.top > spaceBelow);
+    }
+    setIsOpen((v) => !v);
+  };
+
   return (
     <div ref={containerRef} className="relative ml-auto">
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setIsOpen((v) => !v)}
+        onClick={handleToggleOpen}
         aria-label="Дополнительные действия"
         className="flex h-9 w-9 items-center justify-center rounded-full text-[#74777f] transition-colors hover:bg-[#f0f7ff] hover:text-[#4285f4]"
       >
@@ -59,7 +75,11 @@ export function RowActionsMenu({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 z-30 mt-1 w-48 rounded-[14px] border border-[#e8eaed] bg-white py-1 shadow-[0_4px_16px_rgba(0,0,0,0.08)]">
+        <div
+          className={`absolute right-0 z-30 w-48 rounded-[14px] border border-[#e8eaed] bg-white py-1 shadow-[0_4px_16px_rgba(0,0,0,0.08)] ${
+            openUpward ? 'bottom-full mb-1' : 'top-full mt-1'
+          }`}
+        >
           {onEdit && (
             <button
               type="button"

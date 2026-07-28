@@ -45,7 +45,7 @@ export function ActionMenu({
         variant="secondary"
         icon={icon}
         onClick={() => setIsOpen((v) => !v)}
-        className="h-10 px-4"
+        className="h-9 px-4"
       >
         {label}
       </PillButton>

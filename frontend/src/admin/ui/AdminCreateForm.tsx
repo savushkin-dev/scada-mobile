@@ -137,7 +137,12 @@ export function AdminCreateForm({
                 <div className="space-y-4">{renderChildren('right')}</div>
               </div>
               <div className="mt-3 flex items-center justify-end border-t border-[#f0f0f0] pt-3 lg:mt-4">
-                <PillButton icon={<IconSave size={18} />} onClick={handleSave} disabled={saving}>
+                <PillButton
+                  icon={<IconSave size={18} />}
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="h-9 px-4"
+                >
                   {saving ? 'Создание...' : 'Создать'}
                 </PillButton>
               </div>
@@ -150,7 +155,12 @@ export function AdminCreateForm({
             {renderChildren()}
           </div>
           <div className="mt-3 flex items-center justify-between border-t border-[#f0f0f0] pt-3 lg:mt-4">
-            <PillButton icon={<IconSave size={18} />} onClick={handleSave} disabled={saving}>
+            <PillButton
+              icon={<IconSave size={18} />}
+              onClick={handleSave}
+              disabled={saving}
+              className="h-9 px-4"
+            >
               {saving ? 'Создание...' : 'Создать'}
             </PillButton>
           </div>

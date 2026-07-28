@@ -479,6 +479,15 @@
   }
 }
 
+/* ── Admin list/edit/create pages: убираем дефолтный верхний отступ react-admin
+   (.Ra*-noActions получает margin-top: 1em, когда actions={false}),
+   чтобы контент начинался сразу под шапкой ── */
+.admin-app-root .RaList-noActions,
+.admin-app-root .RaEdit-noActions,
+.admin-app-root .RaCreate-noActions {
+  margin-top: 0 !important;
+}
+
 /* ── Admin list/edit pages: ограничение высоты и внутренний скролл ──
    Цепочка высот: .RaLayout-content → .list-page → .RaList-main →
    .RaList-content → AdminListContainer (h-full). Без этих правил
