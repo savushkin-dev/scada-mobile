@@ -1,5 +1,5 @@
 import { useListContext, useRefresh, useUpdate } from 'react-admin';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WS_BASE } from '../../config';
 import { getAccessToken } from '../../auth/session';
@@ -10,6 +10,8 @@ import { MobileCardList } from '../ui/MobileCardList';
 import { DesktopDataTable } from '../ui/DesktopDataTable';
 import { IconRefresh, IconCheck, IconPencil } from '../ui/icons';
 import { useAdminNotificationsCount } from '../ui/AdminNotificationsContext';
+import { NOTIFICATION_FILTER_FIELDS } from '../filters/configs';
+import { useTableFilters } from '../filters/TableFilterContext';
 
 interface Notification {
   id: number | string;
@@ -24,14 +26,6 @@ interface Notification {
 }
 
 type Tab = 'unread' | 'read';
-
-const NOTIFICATION_SEARCHABLE_FIELDS: (keyof Notification)[] = [
-  'type',
-  'severity',
-  'instanceId',
-  'deviceCode',
-  'message',
-];
 
 function severityVariant(severity: string): 'warning' | 'error' | 'inactive' {
   switch (severity) {
@@ -168,31 +162,8 @@ function TabButton({
 
 export function NotificationList() {
   const refresh = useRefresh();
-  const [activeTab, setActiveTab] = useState<Tab>('unread');
-  const { data, page, perPage, setPage } = useListContext<Notification>();
-  const records = useMemo(() => data ?? [], [data]);
-
-  const unread = useMemo(() => records.filter((n) => !n.read), [records]);
-  const read = useMemo(() => records.filter((n) => n.read), [records]);
-  const visible = activeTab === 'unread' ? unread : read;
-
-  // Клиентская пагинация поверх отфильтрованного вкладкой списка
-  const paginated = useMemo(
-    () => visible.slice((page - 1) * perPage, page * perPage),
-    [visible, page, perPage]
-  );
-
-  const handleTabChange = (tab: Tab) => {
-    setActiveTab(tab);
-    setPage(1);
-  };
-
-  // Если список текущей вкладки сократился (например, отметили всё прочитанным),
-  // возвращаемся на последнюю существующую страницу
-  useEffect(() => {
-    const totalPages = Math.max(1, Math.ceil(visible.length / perPage));
-    if (page > totalPages) setPage(totalPages);
-  }, [visible.length, perPage, page, setPage]);
+  const { data } = useListContext<Notification>();
+  const records = data ?? [];
 
   useEffect(() => {
     const token = getAccessToken();
@@ -214,12 +185,7 @@ export function NotificationList() {
 
   const filters = (
     <div className="flex flex-wrap items-center gap-2">
-      <TabButton active={activeTab === 'unread'} onClick={() => handleTabChange('unread')}>
-        Непрочитанные ({unread.length})
-      </TabButton>
-      <TabButton active={activeTab === 'read'} onClick={() => handleTabChange('read')}>
-        Прочитанные ({read.length})
-      </TabButton>
+      <NotificationTabs />
       <PillButton
         variant="secondary"
         icon={<IconRefresh size={16} />}
@@ -234,82 +200,116 @@ export function NotificationList() {
   return (
     <AdminListContainer
       title="Уведомления"
-      records={paginated}
-      total={visible.length}
+      records={records}
       showCreate={false}
-      searchableFields={NOTIFICATION_SEARCHABLE_FIELDS}
+      filterFields={NOTIFICATION_FILTER_FIELDS}
       filters={filters}
     >
-      {({ records: filtered }) =>
-        filtered.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-[#74777f]">
-            {activeTab === 'unread'
-              ? 'Нет непрочитанных уведомлений'
-              : 'Нет прочитанных уведомлений'}
-          </div>
-        ) : (
-          <>
-            <MobileCardList
-              records={filtered}
-              renderCard={(note) => (
-                <div className="rounded-[20px] bg-white p-4">
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-semibold text-[#1a1c1e]">
-                      {typeLabel(note.type)}
-                    </span>
-                    <StatusPill variant={severityVariant(note.severity)}>
-                      {note.severity}
-                    </StatusPill>
-                  </div>
-                  <div className="mb-1 text-sm text-[#1a1c1e]">{note.message}</div>
-                  <div className="mb-3 text-xs text-[#74777f]">
-                    {note.instanceId} {note.deviceCode ? `· ${note.deviceCode}` : ''} ·{' '}
-                    {new Date(note.createdAt).toLocaleString('ru-RU')}
-                  </div>
-                  <NotificationActions note={note} />
+      {({ records: filtered }) => (
+        <>
+          <MobileCardList
+            records={filtered}
+            renderCard={(note) => (
+              <div className="rounded-[20px] bg-white p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-[#1a1c1e]">
+                    {typeLabel(note.type)}
+                  </span>
+                  <StatusPill variant={severityVariant(note.severity)}>{note.severity}</StatusPill>
                 </div>
-              )}
-            />
-            <DesktopDataTable
-              records={filtered}
-              keyExtractor={(note) => note.id}
-              columns={[
-                {
-                  key: 'type',
-                  header: 'Тип',
-                  render: (note) => typeLabel(note.type),
-                },
-                {
-                  key: 'severity',
-                  header: 'Важность',
-                  render: (note) => (
-                    <StatusPill variant={severityVariant(note.severity)}>
-                      {note.severity}
-                    </StatusPill>
-                  ),
-                },
-                { key: 'instance', header: 'Автомат', render: (note) => note.instanceId },
-                {
-                  key: 'device',
-                  header: 'Устройство',
-                  render: (note) => note.deviceCode ?? '—',
-                },
-                { key: 'message', header: 'Сообщение', render: (note) => note.message },
-                {
-                  key: 'time',
-                  header: 'Время',
-                  render: (note) => new Date(note.createdAt).toLocaleString('ru-RU'),
-                },
-                {
-                  key: 'action',
-                  header: '',
-                  render: (note) => <NotificationActions note={note} />,
-                },
-              ]}
-            />
-          </>
-        )
-      }
+                <div className="mb-1 text-sm text-[#1a1c1e]">{note.message}</div>
+                <div className="mb-3 text-xs text-[#74777f]">
+                  {note.instanceId} {note.deviceCode ? `· ${note.deviceCode}` : ''} ·{' '}
+                  {new Date(note.createdAt).toLocaleString('ru-RU')}
+                </div>
+                <NotificationActions note={note} />
+              </div>
+            )}
+          />
+          <DesktopDataTable
+            records={filtered}
+            keyExtractor={(note) => note.id}
+            columns={[
+              {
+                key: 'type',
+                header: 'Тип',
+                filterKey: 'type',
+                render: (note) => typeLabel(note.type),
+              },
+              {
+                key: 'severity',
+                header: 'Важность',
+                filterKey: 'severity',
+                render: (note) => (
+                  <StatusPill variant={severityVariant(note.severity)}>{note.severity}</StatusPill>
+                ),
+              },
+              {
+                key: 'instance',
+                header: 'Автомат',
+                filterKey: 'instanceId',
+                render: (note) => note.instanceId,
+              },
+              {
+                key: 'device',
+                header: 'Устройство',
+                filterKey: 'deviceCode',
+                render: (note) => note.deviceCode ?? '—',
+              },
+              {
+                key: 'message',
+                header: 'Сообщение',
+                filterKey: 'message',
+                render: (note) => note.message,
+              },
+              {
+                key: 'time',
+                header: 'Время',
+                filterKey: 'createdAt',
+                render: (note) => new Date(note.createdAt).toLocaleString('ru-RU'),
+              },
+              {
+                key: 'action',
+                header: '',
+                render: (note) => <NotificationActions note={note} />,
+              },
+            ]}
+          />
+        </>
+      )}
     </AdminListContainer>
+  );
+}
+
+/**
+ * Вкладки «Непрочитанные/Прочитанные» — фильтр по полю read,
+ * выполняется на бэкенде. Состояние хранится в URL (filterValues).
+ */
+function NotificationTabs() {
+  const ctx = useTableFilters();
+
+  // По умолчанию — вкладка непрочитанных
+  useEffect(() => {
+    if (ctx && ctx.filterValues.f?.read === undefined) {
+      ctx.setFieldFilter('read', 'false');
+    }
+  }, [ctx]);
+
+  if (!ctx) return null;
+
+  const activeTab: Tab = ctx.filterValues.f?.read === 'true' ? 'read' : 'unread';
+
+  return (
+    <>
+      <TabButton
+        active={activeTab === 'unread'}
+        onClick={() => ctx.setFieldFilter('read', 'false')}
+      >
+        Непрочитанные
+      </TabButton>
+      <TabButton active={activeTab === 'read'} onClick={() => ctx.setFieldFilter('read', 'true')}>
+        Прочитанные
+      </TabButton>
+    </>
   );
 }

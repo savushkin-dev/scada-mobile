@@ -13,6 +13,7 @@ import { formatEmpty } from '../ui/formatEmpty';
 import { useNameMap } from '../ui/useNameMap';
 import { RowActionsMenu } from '../ui/RowActionsMenu';
 import { useRowActions } from '../ui/useRowActions';
+import { DEVICE_CATALOG_FILTER_FIELDS } from '../filters/configs';
 
 interface DeviceCatalogItem {
   id: number;
@@ -32,7 +33,7 @@ export const DeviceCatalogList = () => {
     <AdminListContainer
       title="Справочник устройств"
       records={records}
-      searchableFields={['code', 'name']}
+      filterFields={DEVICE_CATALOG_FILTER_FIELDS}
     >
       {({ records: filtered }) => (
         <>
@@ -67,12 +68,19 @@ export const DeviceCatalogList = () => {
             keyExtractor={(item) => item.id}
             isActive={(item) => item.active}
             columns={[
-              { key: 'id', header: 'ID', render: (item) => item.id, className: 'w-12' },
-              { key: 'code', header: 'Код', render: (item) => item.code },
-              { key: 'name', header: 'Название', render: (item) => item.name },
+              {
+                key: 'id',
+                header: 'ID',
+                render: (item) => item.id,
+                className: 'w-12',
+                filterKey: 'id',
+              },
+              { key: 'code', header: 'Код', render: (item) => item.code, filterKey: 'code' },
+              { key: 'name', header: 'Название', render: (item) => item.name, filterKey: 'name' },
               {
                 key: 'type',
                 header: 'Тип',
+                filterKey: 'typeId',
                 render: (item) => (
                   <span className="text-[#1a1c1e]">
                     {formatEmpty(item.typeId ? getDeviceTypeName(item.typeId) : null)}

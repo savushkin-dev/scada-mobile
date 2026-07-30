@@ -1,16 +1,26 @@
-import { useState, useMemo, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useListContext, useResourceContext, useCreatePath } from 'react-admin';
 import { AdminCard } from './AdminCard';
 import { PillButton } from './PillButton';
 import { PaginationPills } from './PaginationPills';
 import { AdminBreadcrumbs } from './AdminBreadcrumbs';
+import { EmptyState } from './EmptyState';
+import { FilterToolbar } from './FilterToolbar';
 import { IconPlus, IconSearch } from './icons';
+import { TableFilterProvider, useTableFilters } from '../filters/TableFilterContext';
+import type { FilterFieldConfig } from '../filters/types';
 
 interface AdminListContainerProps<T> {
   title: string;
   records: T[];
-  searchableFields?: (keyof T)[];
+  /**
+   * Декларативное описание фильтруемых колонок. Если передано —
+   * над таблицей появляются глобальный поиск, пилюли фильтров и
+   * выпадающие фильтры в шапке колонок. Фильтрация выполняется
+   * на бэкенде; на фронтенде никакой логики фильтрации данных.
+   */
+  filterFields?: FilterFieldConfig[];
   filters?: ReactNode;
   /**
    * Переопределение общего числа записей для пагинации.
@@ -26,26 +36,13 @@ interface AdminListContainerProps<T> {
 export function AdminListContainer<T>({
   title,
   records,
-  searchableFields,
+  filterFields,
   filters,
   total: totalOverride,
   showCreate = true,
   children,
 }: AdminListContainerProps<T>) {
-  const [search, setSearch] = useState('');
   const { total, page, perPage, setPage, isLoading } = useListContext();
-
-  const filteredRecords = useMemo(() => {
-    if (!search.trim() || !searchableFields || searchableFields.length === 0) return records;
-    const query = search.toLowerCase().trim();
-    return records.filter((record) =>
-      searchableFields.some((field) => {
-        const value = (record as Record<string, unknown>)[field as string];
-        if (value == null) return false;
-        return String(value).toLowerCase().includes(query);
-      })
-    );
-  }, [records, search, searchableFields]);
 
   if (isLoading) {
     return (
@@ -55,36 +52,24 @@ export function AdminListContainer<T>({
     );
   }
 
-  return (
+  const body = (
     <div className="flex h-full flex-col p-3 lg:px-4 lg:pb-4 lg:pt-4">
       <div className="mb-3 flex flex-col gap-1.5 lg:mb-4">
         <AdminBreadcrumbs />
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <h1 className="text-xl font-bold text-[#1a1c1e]">{title}</h1>
           <div className="flex items-center gap-2">
-            {searchableFields && searchableFields.length > 0 && (
-              <div className="relative flex-1 lg:w-64">
-                <IconSearch
-                  size={18}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[#74777f]"
-                />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Поиск..."
-                  className="h-10 w-full rounded-[12px] border border-[#e8eaed] bg-white pl-9 pr-4 text-sm text-[#1a1c1e] outline-none transition-all focus:border-[#4285f4] focus:ring-2 focus:ring-[rgba(66,133,244,0.15)]"
-                />
-              </div>
-            )}
             {filters}
             {showCreate && <CreateButton />}
           </div>
         </div>
+        {filterFields && <FilterToolbar />}
       </div>
       <AdminCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-          {children({ records: filteredRecords })}
+          <ListBody records={records} hasFilters={Boolean(filterFields)}>
+            {children}
+          </ListBody>
         </div>
         <PaginationPills
           page={page}
@@ -95,6 +80,52 @@ export function AdminListContainer<T>({
       </AdminCard>
     </div>
   );
+
+  if (filterFields) {
+    return <TableFilterProvider fields={filterFields}>{body}</TableFilterProvider>;
+  }
+  return body;
+}
+
+/**
+ * Тело списка. Если фильтры активны и бэкенд вернул пустой результат —
+ * показывает понятный плейсхолдер с предложением сбросить фильтры.
+ */
+function ListBody<T>({
+  records,
+  hasFilters,
+  children,
+}: {
+  records: T[];
+  hasFilters: boolean;
+  children: (props: { records: T[] }) => ReactNode;
+}) {
+  const ctx = useTableFilters();
+
+  if (records.length === 0 && hasFilters && ctx?.hasActiveFilters) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <EmptyState
+          icon={<IconSearch size={36} />}
+          title="Ничего не найдено"
+          subtitle={
+            <>
+              Попробуйте изменить фильтры или{' '}
+              <button
+                type="button"
+                onClick={ctx.clearAll}
+                className="font-semibold text-[#4285f4] hover:underline"
+              >
+                очистить все фильтры
+              </button>
+            </>
+          }
+        />
+      </div>
+    );
+  }
+
+  return <>{children({ records })}</>;
 }
 
 function CreateButton() {

@@ -167,6 +167,14 @@ export function IconSearch(props: Omit<AdminIconProps, 'children'>) {
   );
 }
 
+export function IconFilter(props: Omit<AdminIconProps, 'children'>) {
+  return (
+    <AdminIcon {...props}>
+      <path d="M3 5h18l-7 8v5.5l-4 2.5v-8L3 5z" />
+    </AdminIcon>
+  );
+}
+
 export function IconCheck(props: Omit<AdminIconProps, 'children'>) {
   return (
     <AdminIcon {...props}>

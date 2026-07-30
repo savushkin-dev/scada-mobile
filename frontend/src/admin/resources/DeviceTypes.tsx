@@ -8,14 +8,13 @@ import { RoundedInput } from '../ui/RoundedInput';
 import { formatEmpty } from '../ui/formatEmpty';
 import { RowActionsMenu } from '../ui/RowActionsMenu';
 import { useRowActions } from '../ui/useRowActions';
+import { DEVICE_TYPE_FILTER_FIELDS } from '../filters/configs';
 
 interface DeviceType {
   id: number;
   code: string;
   name: string;
 }
-
-const DEVICE_TYPE_SEARCHABLE_FIELDS: (keyof DeviceType)[] = ['code', 'name'];
 
 export const DeviceTypeList = () => {
   const { navigateToEdit, deleteRecord } = useRowActions();
@@ -26,7 +25,7 @@ export const DeviceTypeList = () => {
     <AdminListContainer
       title="Типы устройств"
       records={records}
-      searchableFields={DEVICE_TYPE_SEARCHABLE_FIELDS}
+      filterFields={DEVICE_TYPE_FILTER_FIELDS}
     >
       {({ records: filtered }) => (
         <>
@@ -53,9 +52,15 @@ export const DeviceTypeList = () => {
             records={filtered}
             keyExtractor={(type) => type.id}
             columns={[
-              { key: 'id', header: 'ID', render: (type) => type.id, className: 'w-16' },
-              { key: 'code', header: 'Код', render: (type) => type.code },
-              { key: 'name', header: 'Название', render: (type) => type.name },
+              {
+                key: 'id',
+                header: 'ID',
+                render: (type) => type.id,
+                className: 'w-16',
+                filterKey: 'id',
+              },
+              { key: 'code', header: 'Код', render: (type) => type.code, filterKey: 'code' },
+              { key: 'name', header: 'Название', render: (type) => type.name, filterKey: 'name' },
               {
                 key: 'actions',
                 header: '',

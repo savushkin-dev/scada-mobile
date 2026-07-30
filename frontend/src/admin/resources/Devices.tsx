@@ -9,6 +9,7 @@ import { ReferenceSelect } from '../ui/ReferenceSelect';
 import { useNameMap } from '../ui/useNameMap';
 import { RowActionsMenu } from '../ui/RowActionsMenu';
 import { useRowActions } from '../ui/useRowActions';
+import { DEVICE_FILTER_FIELDS } from '../filters/configs';
 
 interface Device {
   id: number;
@@ -26,11 +27,7 @@ export const DeviceList = () => {
   const getDeviceTypeName = useNameMap('device-types');
 
   return (
-    <AdminListContainer
-      title="Устройства"
-      records={records}
-      searchableFields={['code', 'displayName']}
-    >
+    <AdminListContainer title="Устройства" records={records} filterFields={DEVICE_FILTER_FIELDS}>
       {({ records: filtered }) => (
         <>
           <MobileCardList
@@ -54,16 +51,24 @@ export const DeviceList = () => {
             records={filtered}
             keyExtractor={(device) => device.id}
             columns={[
-              { key: 'id', header: 'ID', render: (device) => device.id, className: 'w-12' },
-              { key: 'code', header: 'Код', render: (device) => device.code },
+              {
+                key: 'id',
+                header: 'ID',
+                render: (device) => device.id,
+                className: 'w-12',
+                filterKey: 'id',
+              },
+              { key: 'code', header: 'Код', render: (device) => device.code, filterKey: 'code' },
               {
                 key: 'displayName',
                 header: 'Отображаемое имя',
+                filterKey: 'displayName',
                 render: (device) => device.displayName,
               },
               {
                 key: 'unit',
                 header: 'Автомат',
+                filterKey: 'unitId',
                 render: (device) =>
                   device.unitId ? (
                     <span className="text-[#4285f4]">{getUnitName(device.unitId)}</span>
@@ -74,6 +79,7 @@ export const DeviceList = () => {
               {
                 key: 'type',
                 header: 'Тип',
+                filterKey: 'typeId',
                 render: (device) =>
                   device.typeId ? (
                     <span className="text-[#4285f4]">{getDeviceTypeName(device.typeId)}</span>

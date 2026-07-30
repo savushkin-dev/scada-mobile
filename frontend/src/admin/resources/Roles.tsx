@@ -8,13 +8,12 @@ import { RoundedInput } from '../ui/RoundedInput';
 import { formatEmpty } from '../ui/formatEmpty';
 import { RowActionsMenu } from '../ui/RowActionsMenu';
 import { useRowActions } from '../ui/useRowActions';
+import { ROLE_FILTER_FIELDS } from '../filters/configs';
 
 interface Role {
   id: number;
   name: string;
 }
-
-const ROLE_SEARCHABLE_FIELDS: (keyof Role)[] = ['name'];
 
 export const RoleList = () => {
   const { navigateToEdit, deleteRecord } = useRowActions();
@@ -22,7 +21,7 @@ export const RoleList = () => {
   const records = data ?? [];
 
   return (
-    <AdminListContainer title="Роли" records={records} searchableFields={ROLE_SEARCHABLE_FIELDS}>
+    <AdminListContainer title="Роли" records={records} filterFields={ROLE_FILTER_FIELDS}>
       {({ records: filtered }) => (
         <>
           <MobileCardList
@@ -47,8 +46,14 @@ export const RoleList = () => {
             records={filtered}
             keyExtractor={(role) => role.id}
             columns={[
-              { key: 'id', header: 'ID', render: (role) => role.id, className: 'w-16' },
-              { key: 'name', header: 'Название', render: (role) => role.name },
+              {
+                key: 'id',
+                header: 'ID',
+                render: (role) => role.id,
+                className: 'w-16',
+                filterKey: 'id',
+              },
+              { key: 'name', header: 'Название', render: (role) => role.name, filterKey: 'name' },
               {
                 key: 'actions',
                 header: '',

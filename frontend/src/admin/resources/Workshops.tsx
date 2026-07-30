@@ -8,6 +8,7 @@ import { RoundedInput } from '../ui/RoundedInput';
 import { formatEmpty } from '../ui/formatEmpty';
 import { RowActionsMenu } from '../ui/RowActionsMenu';
 import { useRowActions } from '../ui/useRowActions';
+import { WORKSHOP_FILTER_FIELDS } from '../filters/configs';
 
 interface Workshop {
   id: number;
@@ -15,19 +16,13 @@ interface Workshop {
   active: boolean;
 }
 
-const WORKSHOP_SEARCHABLE_FIELDS: (keyof Workshop)[] = ['name'];
-
 export const WorkshopList = () => {
   const { navigateToEdit, toggleActive, deleteRecord } = useRowActions();
   const { data } = useListContext<Workshop>();
   const records = data ?? [];
 
   return (
-    <AdminListContainer
-      title="Цеха"
-      records={records}
-      searchableFields={WORKSHOP_SEARCHABLE_FIELDS}
-    >
+    <AdminListContainer title="Цеха" records={records} filterFields={WORKSHOP_FILTER_FIELDS}>
       {({ records: filtered }) => (
         <>
           <MobileCardList
@@ -59,8 +54,19 @@ export const WorkshopList = () => {
             keyExtractor={(workshop) => workshop.id}
             isActive={(workshop) => workshop.active}
             columns={[
-              { key: 'id', header: 'ID', render: (workshop) => workshop.id, className: 'w-16' },
-              { key: 'name', header: 'Название', render: (workshop) => workshop.name },
+              {
+                key: 'id',
+                header: 'ID',
+                render: (workshop) => workshop.id,
+                className: 'w-16',
+                filterKey: 'id',
+              },
+              {
+                key: 'name',
+                header: 'Название',
+                render: (workshop) => workshop.name,
+                filterKey: 'name',
+              },
               {
                 key: 'actions',
                 header: '',

@@ -12,7 +12,6 @@ const resourceMap: Record<
     list: () => JSX.Element;
     edit: () => JSX.Element;
     create: (props: { onSuccessWithData?: (data: Record<string, unknown>) => void }) => JSX.Element;
-    searchableFields: string[];
   }
 > = {
   roles: {
@@ -20,28 +19,24 @@ const resourceMap: Record<
     list: RoleList,
     edit: RoleEdit,
     create: RoleCreate,
-    searchableFields: ['name'],
   },
   workshops: {
     label: 'Цеха',
     list: WorkshopList,
     edit: WorkshopEdit,
     create: WorkshopCreate,
-    searchableFields: ['name'],
   },
   'device-types': {
     label: 'Типы устройств',
     list: DeviceTypeList,
     edit: DeviceTypeEdit,
     create: DeviceTypeCreate,
-    searchableFields: ['code', 'name'],
   },
   'device-catalog': {
     label: 'Справочник устройств',
     list: DeviceCatalogList,
     edit: DeviceCatalogEdit,
     create: DeviceCatalogCreate,
-    searchableFields: ['code', 'name'],
   },
 };
 

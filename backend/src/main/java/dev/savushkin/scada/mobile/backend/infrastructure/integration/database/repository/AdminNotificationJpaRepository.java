@@ -4,11 +4,12 @@ import dev.savushkin.scada.mobile.backend.domain.model.AdminNotificationType;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.AdminNotificationEntity;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.rest.core.annotation.RestResource;
 
 import java.util.List;
 
-public interface AdminNotificationJpaRepository extends JpaRepository<AdminNotificationEntity, Long> {
+public interface AdminNotificationJpaRepository extends JpaRepository<AdminNotificationEntity, Long>, JpaSpecificationExecutor<AdminNotificationEntity> {
 
     @RestResource(exported = false)
     @NonNull List<AdminNotificationEntity> findAllByOrderByCreatedAtDesc();

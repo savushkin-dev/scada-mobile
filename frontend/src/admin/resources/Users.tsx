@@ -23,6 +23,7 @@ import { useRowActions } from '../ui/useRowActions';
 import { API_BASE } from '../../config';
 import { apiFetchJson } from '../../api/client';
 import { UserNotificationSettingsEditor } from '../components/UserNotificationSettingsEditor';
+import { USER_FILTER_FIELDS } from '../filters/configs';
 
 interface User {
   id: number;
@@ -41,19 +42,13 @@ interface GeneratedCredentials {
   password: string;
 }
 
-const USER_SEARCHABLE_FIELDS: (keyof User)[] = ['code', 'fullName'];
-
 export const UserList = () => {
   const { navigateToEdit, toggleActive, deleteRecord } = useRowActions();
   const { data } = useListContext<User>();
   const records = data ?? [];
 
   return (
-    <AdminListContainer
-      title="Сотрудники"
-      records={records}
-      searchableFields={USER_SEARCHABLE_FIELDS}
-    >
+    <AdminListContainer title="Сотрудники" records={records} filterFields={USER_FILTER_FIELDS}>
       {({ records: filtered }) => (
         <>
           <MobileCardList
@@ -103,12 +98,30 @@ export const UserList = () => {
             keyExtractor={(user) => user.id}
             isActive={(user) => user.active}
             columns={[
-              { key: 'id', header: 'ID', render: (user) => user.id, className: 'w-12' },
-              { key: 'code', header: 'Таб. номер', render: (user) => user.code, className: 'w-24' },
-              { key: 'fullName', header: 'ФИО', render: (user) => user.fullName },
+              {
+                key: 'id',
+                header: 'ID',
+                render: (user) => user.id,
+                className: 'w-12',
+                filterKey: 'id',
+              },
+              {
+                key: 'code',
+                header: 'Таб. номер',
+                render: (user) => user.code,
+                className: 'w-24',
+                filterKey: 'code',
+              },
+              {
+                key: 'fullName',
+                header: 'ФИО',
+                render: (user) => user.fullName,
+                filterKey: 'fullName',
+              },
               {
                 key: 'role',
                 header: 'Роль',
+                filterKey: 'roleId',
                 render: (user) => <RoleName id={user.roleId} />,
               },
               {

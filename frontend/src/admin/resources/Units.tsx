@@ -16,6 +16,7 @@ import { useNameMap } from '../ui/useNameMap';
 import { IconUnits } from '../ui/icons';
 import { RowActionsMenu } from '../ui/RowActionsMenu';
 import { useRowActions } from '../ui/useRowActions';
+import { UNIT_FILTER_FIELDS } from '../filters/configs';
 
 interface Unit {
   id: number;
@@ -29,19 +30,13 @@ interface Unit {
   catalogIds?: number[];
 }
 
-const UNIT_SEARCHABLE_FIELDS: (keyof Unit)[] = ['name', 'printsrvInstanceId', 'printsrvHost'];
-
 export const UnitList = () => {
   const { navigateToEdit, toggleActive, deleteRecord } = useRowActions();
   const { data } = useListContext<Unit>();
   const records = data ?? [];
 
   return (
-    <AdminListContainer
-      title="Автоматы"
-      records={records}
-      searchableFields={UNIT_SEARCHABLE_FIELDS}
-    >
+    <AdminListContainer title="Автоматы" records={records} filterFields={UNIT_FILTER_FIELDS}>
       {({ records: filtered }) => (
         <>
           <MobileCardList
@@ -95,22 +90,36 @@ export const UnitList = () => {
             keyExtractor={(unit) => unit.id}
             isActive={(unit) => unit.active}
             columns={[
-              { key: 'id', header: 'ID', render: (unit) => unit.id, className: 'w-12' },
-              { key: 'name', header: 'Название', render: (unit) => unit.name },
+              {
+                key: 'id',
+                header: 'ID',
+                render: (unit) => unit.id,
+                className: 'w-12',
+                filterKey: 'id',
+              },
+              { key: 'name', header: 'Название', render: (unit) => unit.name, filterKey: 'name' },
               {
                 key: 'workshop',
                 header: 'Цех',
+                filterKey: 'workshopId',
                 render: (unit) => <WorkshopName id={unit.workshopId} />,
               },
               {
                 key: 'printsrv',
                 header: 'PrintSrv ID',
+                filterKey: 'printsrvInstanceId',
                 render: (unit) => unit.printsrvInstanceId,
               },
-              { key: 'host', header: 'Хост', render: (unit) => unit.printsrvHost },
+              {
+                key: 'host',
+                header: 'Хост',
+                render: (unit) => unit.printsrvHost,
+                filterKey: 'printsrvHost',
+              },
               {
                 key: 'port',
                 header: 'Порт',
+                filterKey: 'printsrvPort',
                 render: (unit) => unit.printsrvPort,
                 className: 'w-16',
               },
