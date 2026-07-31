@@ -244,7 +244,7 @@ export function UserNotificationSettingsEditor({ userId }: UserNotificationSetti
                         return (
                           <tr
                             key={row.unitId}
-                            className="border-b border-[#f0f0f0] last:border-b-0"
+                            className="border-b border-[#f0f0f0] last:border-b-0 even:bg-[#f8f9fa]"
                           >
                             <td className="py-3 pr-4 text-sm font-medium text-[#1a1c1e]">
                               {row.unitName}

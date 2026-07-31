@@ -45,6 +45,8 @@
     --clr-divider: #f0f0f0;
     --clr-blue-light: #f0f7ff;
     --clr-border-soft: #e8eaed;
+    /* Фон чётных строк в табличных списках (zebra) */
+    --clr-row-alt: #f8f9fa;
 
     /*
       --app-height обновляется из JS (visualViewport / innerHeight).
@@ -323,6 +325,27 @@
   }
   .log-item:last-child {
     border-bottom: none;
+  }
+
+  /*
+    Zebra-чередование строк в табличных списках мониторинга
+    (детальные вкладки автомата). Контейнер списка помечается
+    классом .zebra-list; фон получает каждая чётная строка.
+    Паддинг и отрицательный margin расширяют фон строки в поля
+    карточки, не сдвигая текст; у всех строк одинаковые, чтобы
+    разделители и выравнивание не «прыгали».
+  */
+  .zebra-list > .kv-row,
+  .zebra-list > .queue-item,
+  .zebra-list > .log-item {
+    padding-inline: 10px;
+    margin-inline: -10px;
+  }
+  .zebra-list > .kv-row:nth-child(even),
+  .zebra-list > .queue-item:nth-child(even),
+  .zebra-list > .log-item:nth-child(even) {
+    background: var(--clr-row-alt);
+    border-radius: 10px;
   }
 
   .accordion-btn {
