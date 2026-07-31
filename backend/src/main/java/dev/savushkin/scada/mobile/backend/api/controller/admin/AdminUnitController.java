@@ -10,6 +10,8 @@ import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.en
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.DeviceCatalogJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.DeviceJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UnitJpaRepository;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UserAssignmentJpaRepository;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UserNotificationSettingsJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.WorkshopJpaRepository;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -39,6 +41,8 @@ public class AdminUnitController {
     private final WorkshopJpaRepository workshopRepository;
     private final DeviceJpaRepository deviceRepository;
     private final DeviceCatalogJpaRepository catalogRepository;
+    private final UserAssignmentJpaRepository assignmentRepository;
+    private final UserNotificationSettingsJpaRepository notificationSettingsRepository;
     private final PrintSrvTopologyJpaAdapter topologyJpaAdapter;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -46,12 +50,16 @@ public class AdminUnitController {
                                WorkshopJpaRepository workshopRepository,
                                DeviceJpaRepository deviceRepository,
                                DeviceCatalogJpaRepository catalogRepository,
+                               UserAssignmentJpaRepository assignmentRepository,
+                               UserNotificationSettingsJpaRepository notificationSettingsRepository,
                                PrintSrvTopologyJpaAdapter topologyJpaAdapter,
                                ApplicationEventPublisher eventPublisher) {
         this.unitRepository = unitRepository;
         this.workshopRepository = workshopRepository;
         this.deviceRepository = deviceRepository;
         this.catalogRepository = catalogRepository;
+        this.assignmentRepository = assignmentRepository;
+        this.notificationSettingsRepository = notificationSettingsRepository;
         this.topologyJpaAdapter = topologyJpaAdapter;
         this.eventPublisher = eventPublisher;
     }
@@ -126,6 +134,10 @@ public class AdminUnitController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Аппарат не найден"));
         String printsrvInstanceId = unit.getPrintsrvInstanceId();
         Long workshopId = unit.getWorkshopId();
+        // Составная сущность «Автомат»: удаляем все оперативные записи,
+        // ссылающиеся на автомат, до удаления самой записи в units.
+        assignmentRepository.deleteByUnit_Id(id);
+        notificationSettingsRepository.deleteByUnit_Id(id);
         deviceRepository.deleteByUnit_Id(id);
         unitRepository.deleteById(id);
         topologyJpaAdapter.invalidateETag();

@@ -7,10 +7,12 @@ import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.en
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UnitEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserAssignmentEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserEntity;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.RefreshTokenJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.RoleJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UnitJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UserAssignmentJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UserJpaRepository;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UserNotificationSettingsJpaRepository;
 import dev.savushkin.scada.mobile.backend.domain.model.ChangeAction;
 import dev.savushkin.scada.mobile.backend.domain.model.EmployeeChangedEvent;
 import dev.savushkin.scada.mobile.backend.domain.model.UserAssignmentsChangedEvent;
@@ -48,6 +50,8 @@ public class AdminUserController {
     private final RoleJpaRepository roleRepository;
     private final UnitJpaRepository unitRepository;
     private final UserAssignmentJpaRepository assignmentRepository;
+    private final RefreshTokenJpaRepository refreshTokenRepository;
+    private final UserNotificationSettingsJpaRepository notificationSettingsRepository;
     private final EmployeeAccessService employeeAccessService;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -55,12 +59,16 @@ public class AdminUserController {
                                RoleJpaRepository roleRepository,
                                UnitJpaRepository unitRepository,
                                UserAssignmentJpaRepository assignmentRepository,
+                               RefreshTokenJpaRepository refreshTokenRepository,
+                               UserNotificationSettingsJpaRepository notificationSettingsRepository,
                                EmployeeAccessService employeeAccessService,
                                ApplicationEventPublisher eventPublisher) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.unitRepository = unitRepository;
         this.assignmentRepository = assignmentRepository;
+        this.refreshTokenRepository = refreshTokenRepository;
+        this.notificationSettingsRepository = notificationSettingsRepository;
         this.employeeAccessService = employeeAccessService;
         this.eventPublisher = eventPublisher;
     }
@@ -118,7 +126,11 @@ public class AdminUserController {
         if (!userRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Пользователь не найден");
         }
+        // Составная сущность «Сотрудник»: удаляем все оперативные записи,
+        // ссылающиеся на пользователя, до удаления самой записи в users.
         assignmentRepository.deleteByUser_Id(id);
+        notificationSettingsRepository.deleteByUser_Id(id);
+        refreshTokenRepository.deleteByUser_Id(id);
         userRepository.deleteById(id);
         eventPublisher.publishEvent(new EmployeeChangedEvent(id, ChangeAction.DELETE));
         return ResponseEntity.noContent().build();

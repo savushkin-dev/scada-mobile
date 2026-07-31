@@ -56,5 +56,8 @@ public interface UserAssignmentJpaRepository extends JpaRepository<UserAssignmen
     void deleteByUser_Id(Long userId);
 
     @RestResource(exported = false)
+    void deleteByUnit_Id(Long unitId);
+
+    @RestResource(exported = false)
     Optional<UserAssignmentEntity> findByUnit_IdAndActiveTrue(Long unitId);
 }
