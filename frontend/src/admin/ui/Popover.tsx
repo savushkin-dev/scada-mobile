@@ -1,15 +1,26 @@
-import { useLayoutEffect, useState, type ReactNode, type RefObject } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 
 const VIEWPORT_MARGIN = 8;
+const GAP = 4;
+const MIN_POPUP_HEIGHT = 160;
+
+const DEFAULT_PANEL_CLASSNAME =
+  'rounded-[16px] border border-[#e8eaed] bg-white p-3 normal-case shadow-[0_8px_24px_rgba(26,28,30,0.12)]';
 
 interface PopoverProps {
   open: boolean;
   onClose: () => void;
-  /** Элемент-якорь; попап позиционируется под его левым краем. */
+  /** Элемент-якорь; попап позиционируется относительно него. */
   anchorRef: RefObject<HTMLElement | null>;
   /** Ширина попапа в px (по умолчанию 256 = w-64). */
   width?: number;
+  /** К какому краю якоря прижимать попап по горизонтали. */
+  align?: 'left' | 'right';
+  /** Оформление панели; по умолчанию — стиль выпадающих фильтров. */
+  panelClassName?: string;
+  /** aria-label полноэкранной подложки, закрывающей попап кликом снаружи. */
+  closeLabel?: string;
   children: ReactNode;
 }
 
@@ -17,16 +28,28 @@ interface PopoverProps {
  * Выпадающий попап через портал в document.body с фиксированным
  * позиционированием относительно якоря.
  *
- * Решает две архитектурные проблемы выпадающих фильтров в таблицах:
+ * Решает три архитектурные проблемы выпадающих элементов в таблицах:
  *  - попап не является частью скролл-контейнера таблицы, поэтому никогда
  *    не растягивает его и не создаёт горизонтальную прокрутку;
  *  - позиция прижимается к краям viewport — попап не уезжает за экран
- *    даже у крайних правых колонок.
+ *    даже у крайних правых колонок;
+ *  - если под якорем не хватает места, попап открывается вверх (flip);
+ *    решение принимается по измеренной высоте контента, а не по оценке.
  *
  * Позиция пересчитывается при скролле (в любом контейнере) и resize.
  */
-export function Popover({ open, onClose, anchorRef, width = 256, children }: PopoverProps) {
+export function Popover({
+  open,
+  onClose,
+  anchorRef,
+  width = 256,
+  align = 'left',
+  panelClassName,
+  closeLabel = 'Закрыть',
+  children,
+}: PopoverProps) {
   const [pos, setPos] = useState<{ left: number; top: number; maxHeight: number } | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -35,14 +58,24 @@ export function Popover({ open, onClose, anchorRef, width = 256, children }: Pop
       const anchor = anchorRef.current;
       if (!anchor) return;
       const rect = anchor.getBoundingClientRect();
-      const top = rect.bottom + 4;
+      const contentHeight = panelRef.current?.offsetHeight ?? 0;
+      const spaceBelow = window.innerHeight - rect.bottom - GAP - VIEWPORT_MARGIN;
+      const spaceAbove = rect.top - GAP - VIEWPORT_MARGIN;
+      // Flip: если снизу не помещаемся и сверху места больше — открываем вверх.
+      const openUp = contentHeight > spaceBelow && spaceAbove > spaceBelow;
+      const available = openUp ? spaceAbove : spaceBelow;
       setPos({
         left: Math.max(
           VIEWPORT_MARGIN,
-          Math.min(rect.left, window.innerWidth - width - VIEWPORT_MARGIN)
+          Math.min(
+            align === 'right' ? rect.right - width : rect.left,
+            window.innerWidth - width - VIEWPORT_MARGIN
+          )
         ),
-        top,
-        maxHeight: Math.max(160, window.innerHeight - top - VIEWPORT_MARGIN),
+        top: openUp
+          ? Math.max(VIEWPORT_MARGIN, rect.top - GAP - Math.min(contentHeight, available))
+          : rect.bottom + GAP,
+        maxHeight: Math.max(MIN_POPUP_HEIGHT, available),
       });
     };
 
@@ -54,7 +87,7 @@ export function Popover({ open, onClose, anchorRef, width = 256, children }: Pop
       window.removeEventListener('scroll', update, true);
       window.removeEventListener('resize', update);
     };
-  }, [open, anchorRef, width]);
+  }, [open, anchorRef, width, align]);
 
   if (!open) return null;
 
@@ -62,13 +95,14 @@ export function Popover({ open, onClose, anchorRef, width = 256, children }: Pop
     <>
       <button
         type="button"
-        aria-label="Закрыть фильтр"
+        aria-label={closeLabel}
         onClick={onClose}
         className="fixed inset-0 z-20 cursor-default bg-transparent"
       />
       <div
+        ref={panelRef}
         role="dialog"
-        className="fixed z-30 overflow-y-auto rounded-[16px] border border-[#e8eaed] bg-white p-3 normal-case shadow-[0_8px_24px_rgba(26,28,30,0.12)]"
+        className={`fixed z-30 overflow-y-auto ${panelClassName ?? DEFAULT_PANEL_CLASSNAME}`}
         style={{
           left: pos?.left ?? VIEWPORT_MARGIN,
           top: pos?.top ?? 0,
