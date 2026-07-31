@@ -5,7 +5,7 @@
  * фильтрации в новую таблицу = передача массива FilterFieldConfig.
  */
 
-export type FilterFieldType = 'text' | 'number' | 'enum' | 'bool' | 'date';
+export type FilterFieldType = 'text' | 'number' | 'enum' | 'bool' | 'date' | 'search-select';
 
 export interface FilterFieldOption {
   value: string;
@@ -24,6 +24,10 @@ export interface FilterFieldConfig {
   reference?: string;
   /** Поле записи справочника для подписи опции (по умолчанию 'name'). */
   optionText?: string;
+  /** Полная замена текста пилюли (вместо «label: значение»), напр. «Архив». */
+  chipLabel?: string;
+  /** Значения, для которых пилюля не показывается (например, значение по умолчанию). */
+  chipHiddenValues?: string[];
 }
 
 /** Операторы сравнения для числовых полей и дат. */

@@ -163,8 +163,19 @@ export function TableFilterProvider({
 
   const value = useMemo<TableFilterContextValue>(() => {
     const f = typedFilterValues.f ?? {};
+    // Значения, скрытые из пилюль как дефолтные (chipHiddenValues),
+    // активными фильтрами не считаются — иначе под тулбаром висит
+    // пустой ряд с «Очистить всё».
+    const isHiddenDefault = (key: string, v: FieldFilterValue): boolean => {
+      const field = fields.find((fld) => fld.key === key);
+      if (!field?.chipHiddenValues) return false;
+      const flat = Array.isArray(v) ? v : typeof v === 'string' ? [v] : [];
+      return flat.length > 0 && flat.every((x) => field.chipHiddenValues!.includes(x));
+    };
     const hasActiveFilters =
-      Boolean(typedFilterValues.q) || Object.keys(f).length > 0 || invalidTokens.length > 0;
+      Boolean(typedFilterValues.q) ||
+      Object.entries(f).some(([key, v]) => !isHiddenDefault(key, v)) ||
+      invalidTokens.length > 0;
     return {
       fields,
       filterValues: typedFilterValues,

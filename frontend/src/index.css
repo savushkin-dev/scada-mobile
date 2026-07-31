@@ -364,6 +364,20 @@
     background: #edeef0;
     color: #5f6368;
   }
+
+  /*
+    Полоса пилюль активных фильтров в FilterToolbar: нативный
+    скроллбар полностью скрыт (кросс-браузерно он то рисует стрелки,
+    то залезает на контент), а вместо него под пилюлями отображается
+    собственный тонкий индикатор прокрутки (см. ChipStripScroller).
+  */
+  .chip-strip-scroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .chip-strip-scroll::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @keyframes fadeIn {

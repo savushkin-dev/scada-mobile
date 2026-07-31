@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useGetList } from 'react-admin';
 import { useTableFilters } from '../filters/TableFilterContext';
+import { IconCheck, IconSearch } from './icons';
 import type {
   ComparisonFilterValue,
   FieldFilterValue,
@@ -15,8 +16,11 @@ interface ColumnFilterControlProps {
   onApplied?: () => void;
 }
 
-const inputClass =
-  'h-9 w-full rounded-[10px] border border-[#e8eaed] bg-white px-3 text-sm text-[#1a1c1e] outline-none transition-all focus:border-[#4285f4] focus:ring-2 focus:ring-[rgba(66,133,244,0.15)]';
+const controlClass =
+  'h-9 rounded-[10px] border border-[#e8eaed] bg-white px-3 text-sm text-[#1a1c1e] outline-none transition-all focus:border-[#4285f4] focus:ring-2 focus:ring-[rgba(66,133,244,0.15)]';
+const inputClass = `${controlClass} w-full`;
+/** Числовой ввод без нативных стрелок-спиннеров — они ломают аккуратный вид попапа. */
+const numberInputClass = `${inputClass} [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`;
 
 const applyButtonClass =
   'h-8 flex-1 rounded-full bg-[#1a1c1e] text-xs font-semibold text-white transition-opacity hover:opacity-85';
@@ -55,6 +59,8 @@ export function ColumnFilterControl({ field, onApplied }: ColumnFilterControlPro
     case 'enum':
     case 'bool':
       return <EnumControl field={field} current={current} />;
+    case 'search-select':
+      return <SearchSelectControl field={field} current={current} />;
     case 'number':
       return (
         <NumberControl
@@ -135,7 +141,8 @@ function TextControl({
 
 /** Загрузка опций для enum со ссылкой на справочник react-admin. */
 function useReferenceOptions(field: FilterFieldConfig): FilterFieldOption[] {
-  const isReference = field.type === 'enum' && Boolean(field.reference);
+  const isReference =
+    (field.type === 'enum' || field.type === 'search-select') && Boolean(field.reference);
   const { data } = useGetList(
     field.reference ?? 'roles',
     {
@@ -209,6 +216,91 @@ function EnumControl({
   );
 }
 
+// ── Search-select ───────────────────────────────────────────────────────
+
+/**
+ * Выпадающий список со sticky-поиском (для длинных справочников:
+ * автоматы, устройства, роли). Мультивыбор с live-применением;
+ * выбранные строки подсвечены и отмечены галочкой.
+ */
+function SearchSelectControl({
+  field,
+  current,
+}: {
+  field: FilterFieldConfig;
+  current: FieldFilterValue | undefined;
+}) {
+  const ctx = useTableFilters();
+  const options = useReferenceOptions(field);
+  const [query, setQuery] = useState('');
+
+  const selected: string[] = Array.isArray(current)
+    ? current
+    : typeof current === 'string' && current
+      ? [current]
+      : [];
+
+  // Live-применение: таблицы небольшие, дополнительный клик не нужен
+  const toggle = (value: string) => {
+    if (!ctx) return;
+    const next = selected.includes(value)
+      ? selected.filter((v) => v !== value)
+      : [...selected, value];
+    if (next.length === 0) {
+      ctx.removeFieldFilter(field.key);
+    } else {
+      ctx.setFieldFilter(field.key, next);
+    }
+  };
+
+  const visible = options.filter((o) =>
+    o.label.toLowerCase().includes(query.trim().toLowerCase())
+  );
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="relative">
+        <IconSearch
+          size={16}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-[#74777f]"
+        />
+        <input
+          type="text"
+          value={query}
+          autoFocus
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Поиск..."
+          className={`${inputClass} pl-9`}
+        />
+      </div>
+      {visible.length === 0 ? (
+        <p className="px-1 py-2 text-xs text-[#74777f]">Ничего не найдено</p>
+      ) : (
+        <div className="flex max-h-56 flex-col gap-0.5 overflow-y-auto">
+          {visible.map((option) => {
+            const isSelected = selected.includes(option.value);
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => toggle(option.value)}
+                className={`flex items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 text-left text-sm transition-colors ${
+                  isSelected
+                    ? 'bg-[#e8f0fe] font-medium text-[#1a73e8]'
+                    : 'text-[#1a1c1e] hover:bg-[#f8f9fa]'
+                }`}
+              >
+                <span className="truncate">{option.label}</span>
+                {isSelected && <IconCheck size={16} className="flex-none" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Number ──────────────────────────────────────────────────────────────
 
 const NUMBER_OPERATORS: { value: FilterOperator; label: string }[] = [
@@ -251,7 +343,7 @@ function NumberControl({
         <select
           value={op}
           onChange={(e) => setOp(e.target.value as FilterOperator)}
-          className={`${inputClass} w-16 flex-none`}
+          className={`${controlClass} w-14 flex-none px-2`}
         >
           {NUMBER_OPERATORS.map((o) => (
             <option key={o.value} value={o.value}>
@@ -266,19 +358,19 @@ function NumberControl({
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && apply()}
           placeholder={op === 'between' ? 'от' : 'значение'}
-          className={inputClass}
+          className={numberInputClass}
         />
-        {op === 'between' && (
-          <input
-            type="number"
-            value={valueTo}
-            onChange={(e) => setValueTo(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && apply()}
-            placeholder="до"
-            className={inputClass}
-          />
-        )}
       </div>
+      {op === 'between' && (
+        <input
+          type="number"
+          value={valueTo}
+          onChange={(e) => setValueTo(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && apply()}
+          placeholder="до"
+          className={numberInputClass}
+        />
+      )}
       <div className="flex items-center gap-2">
         <button type="button" onClick={apply} className={applyButtonClass}>
           Применить

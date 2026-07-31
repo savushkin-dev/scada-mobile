@@ -1,9 +1,9 @@
 import { formatEmpty } from './formatEmpty';
 import { IconFilter, IconPowerOff } from './icons';
-import { useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { useTableFilters } from '../filters/TableFilterContext';
-import type { FilterFieldConfig } from '../filters/types';
 import { ColumnFilterControl } from './ColumnFilterControl';
+import { Popover } from './Popover';
 
 interface Column<T> {
   key: string;
@@ -56,7 +56,7 @@ export function DesktopDataTable<T>({
               {allColumns.map((col) => (
                 <th
                   key={col.key}
-                  className="pb-3 pt-1 text-left text-xs font-semibold uppercase tracking-[0.05em] text-[#74777f]"
+                  className="whitespace-nowrap pb-3 pt-1 text-left text-xs font-semibold uppercase tracking-[0.05em] text-[#74777f]"
                 >
                   <HeaderCell header={col.header} filterKey={col.filterKey} />
                 </th>
@@ -93,55 +93,41 @@ export function DesktopDataTable<T>({
   );
 }
 
-/** Заголовок колонки с опциональной кнопкой фильтра. */
+/** Заголовок колонки с опциональным выпадающим фильтром (открывается кликом по шапке). */
 function HeaderCell({ header, filterKey }: { header: ReactNode; filterKey?: string }) {
   const ctx = useTableFilters();
-
-  if (!ctx || !filterKey) return <>{header}</>;
-
-  const field = ctx.fields.find((f: FilterFieldConfig) => f.key === filterKey);
-  if (!field) return <>{header}</>;
-
-  const isActive = ctx.filterValues.f?.[filterKey] !== undefined;
-
-  return (
-    <span className="inline-flex items-center gap-1">
-      {header}
-      <HeaderFilterButton field={field} isActive={isActive} />
-    </span>
-  );
-}
-
-/** Кнопка-воронка в шапке колонки с выпадающим фильтром. */
-function HeaderFilterButton({ field, isActive }: { field: FilterFieldConfig; isActive: boolean }) {
   const [open, setOpen] = useState(false);
+  const anchorRef = useRef<HTMLButtonElement>(null);
+
+  const field = filterKey ? ctx?.fields.find((f) => f.key === filterKey) : undefined;
+  if (!ctx || !field) return <>{header}</>;
+
+  const isActive = ctx.filterValues.f?.[field.key] !== undefined;
 
   return (
-    <span className="relative inline-flex">
+    <>
       <button
+        ref={anchorRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={`Фильтр: ${field.label}`}
-        className={`rounded-[6px] p-0.5 transition-colors ${
-          isActive ? 'text-[#4285f4]' : 'text-[#c4c7cc] hover:text-[#74777f]'
-        }`}
+        aria-expanded={open}
+        className="group/header inline-flex cursor-pointer items-center gap-1 uppercase"
       >
-        <IconFilter size={14} />
+        <span>{header}</span>
+        <IconFilter
+          size={14}
+          className={`flex-none transition-colors ${
+            isActive
+              ? 'text-[#4285f4]'
+              : 'text-[#c4c7cc] group-hover/header:text-[#74777f]'
+          }`}
+        />
       </button>
-      {open && (
-        <>
-          <button
-            type="button"
-            aria-label="Закрыть фильтр"
-            onClick={() => setOpen(false)}
-            className="fixed inset-0 z-20 cursor-default bg-transparent"
-          />
-          <span className="absolute left-0 top-full z-30 mt-1 block w-64 rounded-[16px] border border-[#e8eaed] bg-white p-3 normal-case shadow-[0_8px_24px_rgba(26,28,30,0.12)]">
-            <span className="mb-2 block text-xs font-semibold text-[#1a1c1e]">{field.label}</span>
-            <ColumnFilterControl field={field} onApplied={() => setOpen(false)} />
-          </span>
-        </>
-      )}
-    </span>
+      <Popover open={open} onClose={() => setOpen(false)} anchorRef={anchorRef}>
+        <span className="mb-2 block text-xs font-semibold text-[#1a1c1e]">{field.label}</span>
+        <ColumnFilterControl field={field} onApplied={() => setOpen(false)} />
+      </Popover>
+    </>
   );
 }

@@ -2,11 +2,17 @@ package dev.savushkin.scada.mobile.backend.api.controller.admin.filter;
 
 import dev.savushkin.scada.mobile.backend.domain.model.AdminNotificationSeverity;
 import dev.savushkin.scada.mobile.backend.domain.model.AdminNotificationType;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceEntity;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserAssignmentEntity;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserNotificationSettingsEntity;
 import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.From;
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -17,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -67,7 +74,8 @@ public final class AdminFilterSupport {
                             FilterableField.text("printsrvHost", "printsrvHost"),
                             FilterableField.number("printsrvPort", "printsrvPort"),
                             FilterableField.bool("active", "active"),
-                            FilterableField.number("workshopId", "workshop.id")
+                            FilterableField.number("workshopId", "workshop.id"),
+                            FilterableField.custom("deviceCatalogId", AdminFilterSupport::unitHasCatalogDevice)
                     )),
             "device-catalog", new ResourceFilterDefinition(
                     List.of("code", "name"),
@@ -95,7 +103,10 @@ public final class AdminFilterSupport {
                             FilterableField.text("code", "code"),
                             FilterableField.text("fullName", "fullName"),
                             FilterableField.bool("active", "active"),
-                            FilterableField.number("roleId", "role.id")
+                            FilterableField.number("roleId", "role.id"),
+                            FilterableField.custom("unitId", AdminFilterSupport::userHasUnit),
+                            FilterableField.custom("incidentUnitId", AdminFilterSupport::userHasIncidentUnit),
+                            FilterableField.custom("callUnitId", AdminFilterSupport::userHasCallUnit)
                     )),
             "notifications", new ResourceFilterDefinition(
                     List.of("instanceId", "deviceCode", "message"),
@@ -156,7 +167,7 @@ public final class AdminFilterSupport {
                     throw new InvalidFilterException("f." + filter.field(),
                             "Неизвестное поле фильтра. Допустимые поля: " + String.join(", ", fields.keySet()));
                 }
-                predicates.add(toPredicate(root, cb, field, filter));
+                predicates.add(toPredicate(root, query, cb, field, filter));
             }
 
             return predicates.isEmpty()
@@ -167,11 +178,19 @@ public final class AdminFilterSupport {
 
     // ── Предикаты по типам ────────────────────────────────────────────────
 
-    private static Predicate toPredicate(jakarta.persistence.criteria.Root<?> root,
+    private static Predicate toPredicate(Root<?> root,
+                                         CriteriaQuery<?> query,
                                          CriteriaBuilder cb,
                                          FilterableField field,
                                          ParsedFilters.FieldFilter filter) {
         String param = "f." + field.name();
+
+        // CUSTOM-поля не имеют пути атрибута — предикат строится целиком в обработчике
+        if (field.type() == FilterFieldType.CUSTOM) {
+            requireOps(param, filter, ParsedFilters.Op.EQ, ParsedFilters.Op.IN);
+            return Objects.requireNonNull(field.custom()).toPredicate(root, query, cb, filter.values());
+        }
+
         Expression<?> expr = resolve(root, field.path());
 
         return switch (field.type()) {
@@ -199,7 +218,71 @@ public final class AdminFilterSupport {
             }
             case NUMBER -> numberPredicate(cb, expr, filter, param);
             case DATE_TIME -> dateTimePredicate(cb, expr, filter, param);
+            case CUSTOM -> throw new IllegalStateException("CUSTOM-поля обрабатываются до разрешения пути");
         };
+    }
+
+    // ── EXISTS-предикаты связанных коллекций (CUSTOM) ─────────────────────
+
+    /** Сотрудник закреплён за автоматом (активное назначение, user_unit_assignments). */
+    private static Predicate userHasUnit(Root<?> root, CriteriaQuery<?> query,
+                                         CriteriaBuilder cb, List<String> values) {
+        Subquery<Long> sub = query.subquery(Long.class);
+        Root<UserAssignmentEntity> assignment = sub.from(UserAssignmentEntity.class);
+        sub.select(cb.literal(1L)).where(
+                cb.equal(assignment.get("user"), root),
+                assignment.get("unit").get("id").in(parseIds("f.unitId", values)),
+                cb.isTrue(assignment.get("active").as(Boolean.class)));
+        return cb.exists(sub);
+    }
+
+    /** У сотрудника включены уведомления о тех. сбоях по автомату. */
+    private static Predicate userHasIncidentUnit(Root<?> root, CriteriaQuery<?> query,
+                                                 CriteriaBuilder cb, List<String> values) {
+        return userHasNotificationFlag(root, query, cb, values, "f.incidentUnitId", "incidentNotificationsEnabled");
+    }
+
+    /** У сотрудника включены звонки-уведомления по автомату. */
+    private static Predicate userHasCallUnit(Root<?> root, CriteriaQuery<?> query,
+                                             CriteriaBuilder cb, List<String> values) {
+        return userHasNotificationFlag(root, query, cb, values, "f.callUnitId", "androidCallNotificationsEnabled");
+    }
+
+    private static Predicate userHasNotificationFlag(Root<?> root, CriteriaQuery<?> query,
+                                                     CriteriaBuilder cb, List<String> values,
+                                                     String param, String enabledAttr) {
+        Subquery<Long> sub = query.subquery(Long.class);
+        Root<UserNotificationSettingsEntity> settings = sub.from(UserNotificationSettingsEntity.class);
+        sub.select(cb.literal(1L)).where(
+                cb.equal(settings.get("user"), root),
+                settings.get("unit").get("id").in(parseIds(param, values)),
+                cb.isTrue(settings.get(enabledAttr).as(Boolean.class)),
+                cb.isTrue(settings.get("active").as(Boolean.class)));
+        return cb.exists(sub);
+    }
+
+    /** На автомате есть устройство указанной позиции справочника. */
+    private static Predicate unitHasCatalogDevice(Root<?> root, CriteriaQuery<?> query,
+                                                  CriteriaBuilder cb, List<String> values) {
+        Subquery<Long> sub = query.subquery(Long.class);
+        Root<DeviceEntity> device = sub.from(DeviceEntity.class);
+        sub.select(cb.literal(1L)).where(
+                cb.equal(device.get("unit"), root),
+                device.get("catalog").get("id").in(parseIds("f.deviceCatalogId", values)));
+        return cb.exists(sub);
+    }
+
+    /** Парсит значения фильтра как числовые идентификаторы. */
+    private static List<Long> parseIds(String param, List<String> values) {
+        return values.stream()
+                .map(v -> {
+                    try {
+                        return Long.parseLong(v);
+                    } catch (NumberFormatException e) {
+                        throw new InvalidFilterException(param, "Ожидается числовой идентификатор, получено: " + v);
+                    }
+                })
+                .toList();
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

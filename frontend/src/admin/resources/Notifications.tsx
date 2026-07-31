@@ -25,8 +25,6 @@ interface Notification {
   createdAt: string;
 }
 
-type Tab = 'unread' | 'read';
-
 function severityVariant(severity: string): 'warning' | 'error' | 'inactive' {
   switch (severity) {
     case 'WARNING':
@@ -185,7 +183,7 @@ export function NotificationList() {
 
   const filters = (
     <div className="flex flex-wrap items-center gap-2">
-      <NotificationTabs />
+      <ArchiveToggle />
       <PillButton
         variant="secondary"
         icon={<IconRefresh size={16} />}
@@ -282,13 +280,14 @@ export function NotificationList() {
 }
 
 /**
- * Вкладки «Непрочитанные/Прочитанные» — фильтр по полю read,
- * выполняется на бэкенде. Состояние хранится в URL (filterValues).
+ * Переключатель «Архив» — фильтр по полю read, выполняется на бэкенде.
+ * По умолчанию видны только непрочитанные; активная «Архив» показывает
+ * прочитанные. Состояние хранится в URL (filterValues).
  */
-function NotificationTabs() {
+function ArchiveToggle() {
   const ctx = useTableFilters();
 
-  // По умолчанию — вкладка непрочитанных
+  // По умолчанию — только непрочитанные
   useEffect(() => {
     if (ctx && ctx.filterValues.f?.read === undefined) {
       ctx.setFieldFilter('read', 'false');
@@ -297,19 +296,14 @@ function NotificationTabs() {
 
   if (!ctx) return null;
 
-  const activeTab: Tab = ctx.filterValues.f?.read === 'true' ? 'read' : 'unread';
+  const archiveActive = ctx.filterValues.f?.read === 'true';
 
   return (
-    <>
-      <TabButton
-        active={activeTab === 'unread'}
-        onClick={() => ctx.setFieldFilter('read', 'false')}
-      >
-        Непрочитанные
-      </TabButton>
-      <TabButton active={activeTab === 'read'} onClick={() => ctx.setFieldFilter('read', 'true')}>
-        Прочитанные
-      </TabButton>
-    </>
+    <TabButton
+      active={archiveActive}
+      onClick={() => ctx.setFieldFilter('read', archiveActive ? 'false' : 'true')}
+    >
+      Архив
+    </TabButton>
   );
 }

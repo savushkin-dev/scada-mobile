@@ -52,18 +52,22 @@ export function AdminListContainer<T>({
     );
   }
 
+  const actions = (
+    <>
+      {filters}
+      {showCreate && <CreateButton />}
+    </>
+  );
+
   const body = (
     <div className="flex h-full flex-col p-3 lg:px-4 lg:pb-4 lg:pt-4">
       <div className="mb-3 flex flex-col gap-1.5 lg:mb-4">
         <AdminBreadcrumbs />
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <h1 className="text-xl font-bold text-[#1a1c1e]">{title}</h1>
-          <div className="flex items-center gap-2">
-            {filters}
-            {showCreate && <CreateButton />}
-          </div>
+          {!filterFields && <div className="flex items-center gap-2">{actions}</div>}
         </div>
-        {filterFields && <FilterToolbar />}
+        {filterFields && <FilterToolbar actions={actions} />}
       </div>
       <AdminCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">

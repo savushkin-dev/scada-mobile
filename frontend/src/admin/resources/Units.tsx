@@ -126,6 +126,7 @@ export const UnitList = () => {
               {
                 key: 'devices',
                 header: 'Устройства',
+                filterKey: 'deviceCatalogId',
                 render: (unit) => (
                   <div className="flex flex-wrap gap-1">
                     {unit.deviceNames?.slice(0, 2).map((name) => (

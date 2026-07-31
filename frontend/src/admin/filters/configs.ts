@@ -36,6 +36,13 @@ export const UNIT_FILTER_FIELDS: FilterFieldConfig[] = [
   { key: 'printsrvInstanceId', label: 'PrintSrv ID', type: 'text' },
   { key: 'printsrvHost', label: 'PrintSrv хост', type: 'text' },
   { key: 'printsrvPort', label: 'PrintSrv порт', type: 'number' },
+  {
+    key: 'deviceCatalogId',
+    label: 'Устройства',
+    type: 'search-select',
+    reference: 'device-catalog',
+    optionText: 'name',
+  },
   { key: 'active', label: 'Статус', type: 'bool', options: ACTIVE_OPTIONS },
 ];
 
@@ -57,7 +64,22 @@ export const USER_FILTER_FIELDS: FilterFieldConfig[] = [
   { key: 'id', label: 'ID', type: 'number' },
   { key: 'code', label: 'Код', type: 'text' },
   { key: 'fullName', label: 'ФИО', type: 'text' },
-  { key: 'roleId', label: 'Роль', type: 'enum', reference: 'roles', optionText: 'name' },
+  { key: 'roleId', label: 'Роль', type: 'search-select', reference: 'roles', optionText: 'name' },
+  { key: 'unitId', label: 'Автоматы', type: 'search-select', reference: 'units', optionText: 'name' },
+  {
+    key: 'incidentUnitId',
+    label: 'Тех. сбои',
+    type: 'search-select',
+    reference: 'units',
+    optionText: 'name',
+  },
+  {
+    key: 'callUnitId',
+    label: 'Вызов',
+    type: 'search-select',
+    reference: 'units',
+    optionText: 'name',
+  },
   { key: 'active', label: 'Статус', type: 'bool', options: ACTIVE_OPTIONS },
 ];
 
@@ -106,6 +128,9 @@ export const NOTIFICATION_FILTER_FIELDS: FilterFieldConfig[] = [
       { value: 'false', label: 'Непрочитано' },
       { value: 'true', label: 'Прочитано' },
     ],
+    // Непрочитанные — вид по умолчанию, пилюля не нужна; прочитанные — пилюля «Архив»
+    chipLabel: 'Архив',
+    chipHiddenValues: ['false'],
   },
   { key: 'createdAt', label: 'Время', type: 'date' },
 ];

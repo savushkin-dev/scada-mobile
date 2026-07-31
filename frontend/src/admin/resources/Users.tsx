@@ -127,6 +127,7 @@ export const UserList = () => {
               {
                 key: 'units',
                 header: 'Автоматы',
+                filterKey: 'unitId',
                 render: (user) => (
                   <div className="flex flex-wrap gap-1">
                     {user.unitNames?.slice(0, 2).map((name) => (
@@ -141,12 +142,14 @@ export const UserList = () => {
               {
                 key: 'incidents',
                 header: 'Тех. сбои',
+                filterKey: 'incidentUnitId',
                 render: (user) => user.incidentNotificationsCount ?? 0,
                 className: 'w-20',
               },
               {
                 key: 'calls',
                 header: 'Вызов',
+                filterKey: 'callUnitId',
                 render: (user) => user.callNotificationsCount ?? 0,
                 className: 'w-16',
               },

@@ -13,5 +13,11 @@ public enum FilterFieldType {
     /** Enum-поле: значение — имя константы, допустимы списки (OR). */
     ENUM,
     /** Дата/время (LocalDateTime): eq, gt, lt, gte, lte, between. */
-    DATE_TIME
+    DATE_TIME,
+    /**
+     * Поле с собственным предикатом (например, EXISTS-подзапрос по связанной
+     * коллекции). Значения передаются в {@link CustomFilterPredicate} как строки;
+     * допустимы eq / список значений (OR).
+     */
+    CUSTOM
 }
