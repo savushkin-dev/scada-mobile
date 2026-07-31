@@ -48,4 +48,10 @@ public interface UserNotificationSettingsJpaRepository extends JpaRepository<Use
               and u.printsrvInstanceId is not null
             """)
     @NonNull Set<String> findAndroidCallEnabledPrintsrvUnitIdsByUserId(@Param("userId") Long userId);
+
+    @RestResource(exported = false)
+    void deleteByUser_Id(Long userId);
+
+    @RestResource(exported = false)
+    void deleteByUnit_Id(Long unitId);
 }

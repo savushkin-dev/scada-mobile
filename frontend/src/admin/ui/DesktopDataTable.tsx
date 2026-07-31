@@ -69,7 +69,7 @@ export function DesktopDataTable<T>({
               return (
                 <tr
                   key={keyExtractor(record, index)}
-                  className={`group border-b border-[#f0f0f0] last:border-b-0 ${
+                  className={`group border-b border-[#f0f0f0] last:border-b-0 even:bg-[#f8f9fa] ${
                     active
                       ? ''
                       : 'bg-[#f8f9fa] [&>td]:opacity-60 [&>td:first-child]:opacity-100 [&>td:last-child]:opacity-100'
@@ -78,7 +78,7 @@ export function DesktopDataTable<T>({
                   {allColumns.map((col) => (
                     <td
                       key={col.key}
-                      className={`py-3 pr-4 transition-colors duration-200 group-hover:bg-[#fafafa] first:rounded-l-[12px] last:rounded-r-[12px] ${col.className ?? ''}`}
+                      className={`py-3 pr-4 transition-colors duration-200 group-hover:bg-[#f0f7ff] first:rounded-l-[12px] last:rounded-r-[12px] ${col.className ?? ''}`}
                     >
                       {formatEmpty(col.render(record))}
                     </td>
@@ -118,9 +118,7 @@ function HeaderCell({ header, filterKey }: { header: ReactNode; filterKey?: stri
         <IconFilter
           size={14}
           className={`flex-none transition-colors ${
-            isActive
-              ? 'text-[#4285f4]'
-              : 'text-[#c4c7cc] group-hover/header:text-[#74777f]'
+            isActive ? 'text-[#4285f4]' : 'text-[#c4c7cc] group-hover/header:text-[#74777f]'
           }`}
         />
       </button>

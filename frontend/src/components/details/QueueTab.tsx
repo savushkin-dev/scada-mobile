@@ -21,7 +21,7 @@ export function QueueTab() {
 
   return (
     <TabContentState isLoading={isLoading} error={error} skeleton={<QueueTabSkeleton />}>
-      <div className="card p-5 card-static mb-4">
+      <div className="card p-5 card-static mb-4 zebra-list">
         <div className="card-title flex items-center gap-2">
           <img src="/assets/list.svg" alt="" aria-hidden="true" className="h-5 w-5" />
           {UI_COPY.queueTitle}

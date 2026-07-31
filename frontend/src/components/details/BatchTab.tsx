@@ -52,7 +52,7 @@ export function BatchTab() {
 
   return (
     <TabContentState isLoading={isLoading} error={error} skeleton={<BatchTabSkeleton />}>
-      <div className="card p-5 card-static mb-4">
+      <div className="card p-5 card-static mb-4 zebra-list">
         <div className="card-title flex items-center gap-2">
           <img src="/assets/box.svg" alt="" aria-hidden="true" className="h-5 w-5" />
           {UI_COPY.batchTitle}
@@ -70,7 +70,7 @@ export function BatchTab() {
         </button>
 
         {expanded && (
-          <div style={BATCH_EXPANDED_SECTION_STYLE}>
+          <div style={BATCH_EXPANDED_SECTION_STYLE} className="zebra-list">
             {BATCH_ADDITIONAL_FIELDS.map(({ key, label, format }) => (
               <div key={key} className="kv-row">
                 <div className="kv-key">{label}</div>
