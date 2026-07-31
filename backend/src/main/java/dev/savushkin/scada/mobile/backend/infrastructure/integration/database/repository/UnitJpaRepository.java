@@ -3,6 +3,7 @@ package dev.savushkin.scada.mobile.backend.infrastructure.integration.database.r
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UnitEntity;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.rest.core.annotation.RepositoryRestResource;
@@ -13,7 +14,7 @@ import java.util.Optional;
 import java.util.Set;
 
 
-public interface UnitJpaRepository extends JpaRepository<UnitEntity, Long> {
+public interface UnitJpaRepository extends JpaRepository<UnitEntity, Long>, JpaSpecificationExecutor<UnitEntity> {
 
     @RestResource(exported = false)
     @Query("""

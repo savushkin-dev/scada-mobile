@@ -53,6 +53,8 @@ export function LoginPage() {
         login(result.userId, result.role, result.accessToken, result.refreshToken);
         if (result.temporaryPassword) {
           navigate('/change-password', { replace: true });
+        } else if (result.role === 'ADMIN') {
+          navigate('/admin/users', { replace: true });
         } else {
           navigate(fromPath, { replace: true });
         }

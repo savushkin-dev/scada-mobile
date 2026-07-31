@@ -1,5 +1,6 @@
 package dev.savushkin.scada.mobile.backend.api.controller.admin;
 
+import dev.savushkin.scada.mobile.backend.api.controller.admin.filter.AdminFilterSupport;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.*;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.*;
 import org.jspecify.annotations.NonNull;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Единый read-only контроллер для админ-панели.
@@ -66,10 +68,21 @@ public class AdminReadController {
                 .body(page);
     }
 
+    /** Есть ли в запросе параметры фильтрации (q или f.*). */
+    private static boolean hasFilterParams(Map<String, String> params) {
+        return params.keySet().stream().anyMatch(k -> k.equals("q") || k.startsWith("f."));
+    }
+
     // ── Roles ─────────────────────────────────────────────────────────────
 
     @GetMapping("/roles")
-    public ResponseEntity<Page<RoleEntity>> listRoles(Pageable pageable) {
+    public ResponseEntity<Page<RoleEntity>> listRoles(@RequestParam Map<String, String> params,
+                                                      Pageable pageable) {
+        if (hasFilterParams(params)) {
+            return pageResponse(
+                    roleRepository.findAll(AdminFilterSupport.specification("roles", params), pageable),
+                    "roles");
+        }
         return pageResponse(roleRepository.findAll(pageable), "roles");
     }
 
@@ -83,7 +96,13 @@ public class AdminReadController {
     // ── Workshops ─────────────────────────────────────────────────────────
 
     @GetMapping("/workshops")
-    public ResponseEntity<Page<WorkshopEntity>> listWorkshops(Pageable pageable) {
+    public ResponseEntity<Page<WorkshopEntity>> listWorkshops(@RequestParam Map<String, String> params,
+                                                              Pageable pageable) {
+        if (hasFilterParams(params)) {
+            return pageResponse(
+                    workshopRepository.findAll(AdminFilterSupport.specification("workshops", params), pageable),
+                    "workshops");
+        }
         return pageResponse(workshopRepository.findAll(pageable), "workshops");
     }
 
@@ -97,7 +116,13 @@ public class AdminReadController {
     // ── Device Types ──────────────────────────────────────────────────────
 
     @GetMapping("/device-types")
-    public ResponseEntity<Page<DeviceTypeEntity>> listDeviceTypes(Pageable pageable) {
+    public ResponseEntity<Page<DeviceTypeEntity>> listDeviceTypes(@RequestParam Map<String, String> params,
+                                                                  Pageable pageable) {
+        if (hasFilterParams(params)) {
+            return pageResponse(
+                    deviceTypeRepository.findAll(AdminFilterSupport.specification("device-types", params), pageable),
+                    "device-types");
+        }
         return pageResponse(deviceTypeRepository.findAll(pageable), "device-types");
     }
 
@@ -111,7 +136,13 @@ public class AdminReadController {
     // ── Units ─────────────────────────────────────────────────────────────
 
     @GetMapping("/units")
-    public ResponseEntity<Page<UnitEntity>> listUnits(Pageable pageable) {
+    public ResponseEntity<Page<UnitEntity>> listUnits(@RequestParam Map<String, String> params,
+                                                      Pageable pageable) {
+        if (hasFilterParams(params)) {
+            return pageResponse(
+                    unitRepository.findAll(AdminFilterSupport.specification("units", params), pageable),
+                    "units");
+        }
         return pageResponse(unitRepository.findAll(pageable), "units");
     }
 
@@ -127,8 +158,14 @@ public class AdminReadController {
     @GetMapping("/devices")
     public ResponseEntity<Page<DeviceEntity>> listDevices(
             @RequestParam(required = false) Long unitId,
+            @RequestParam Map<String, String> params,
             Pageable pageable
     ) {
+        if (hasFilterParams(params)) {
+            return pageResponse(
+                    deviceRepository.findAll(AdminFilterSupport.specification("devices", params), pageable),
+                    "devices");
+        }
         if (unitId != null) {
             List<DeviceEntity> devices = deviceRepository.findByUnit_Id(unitId);
             Page<DeviceEntity> page = new org.springframework.data.domain.PageImpl<>(devices, pageable, devices.size());
@@ -147,7 +184,13 @@ public class AdminReadController {
     // ── Users ─────────────────────────────────────────────────────────────
 
     @GetMapping("/users")
-    public ResponseEntity<Page<UserEntity>> listUsers(Pageable pageable) {
+    public ResponseEntity<Page<UserEntity>> listUsers(@RequestParam Map<String, String> params,
+                                                      Pageable pageable) {
+        if (hasFilterParams(params)) {
+            return pageResponse(
+                    userRepository.findAll(AdminFilterSupport.specification("users", params), pageable),
+                    "users");
+        }
         return pageResponse(userRepository.findAll(pageable), "users");
     }
 

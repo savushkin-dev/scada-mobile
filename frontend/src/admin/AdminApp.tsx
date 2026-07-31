@@ -1,4 +1,5 @@
-import { Admin, Resource, List } from 'react-admin';
+import { Admin, Resource, List, CustomRoutes } from 'react-admin';
+import { Navigate, Route } from 'react-router-dom';
 import { dataProvider } from './dataProvider';
 import { AdminLayout } from './AdminLayout';
 import { RoleList, RoleEdit, RoleCreate } from './resources/Roles';
@@ -13,6 +14,13 @@ import {
 import { UserList, UserEdit, UserCreate } from './resources/Users';
 import { NotificationList } from './resources/Notifications';
 import { NotificationSettingsEdit } from './resources/NotificationSettings';
+import { SettingsPage } from './resources/Settings';
+import { ReferenceHubPage } from './resources/ReferenceHub';
+import {
+  ReferenceListPage,
+  ReferenceEditPage,
+  ReferenceCreatePage,
+} from './resources/ReferencePages';
 
 export function AdminApp() {
   return (
@@ -93,6 +101,14 @@ export function AdminApp() {
           </List>
         )}
       />
+      <CustomRoutes>
+        <Route path="/" element={<Navigate to="/admin/users" replace />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings/references" element={<ReferenceHubPage />} />
+        <Route path="/settings/references/:resource" element={<ReferenceListPage />} />
+        <Route path="/settings/references/:resource/create" element={<ReferenceCreatePage />} />
+        <Route path="/settings/references/:resource/:id" element={<ReferenceEditPage />} />
+      </CustomRoutes>
     </Admin>
   );
 }

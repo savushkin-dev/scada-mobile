@@ -4,11 +4,13 @@ import dev.savushkin.scada.mobile.backend.domain.model.AdminNotificationType;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.AdminNotificationEntity;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.rest.core.annotation.RestResource;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
-public interface AdminNotificationJpaRepository extends JpaRepository<AdminNotificationEntity, Long> {
+public interface AdminNotificationJpaRepository extends JpaRepository<AdminNotificationEntity, Long>, JpaSpecificationExecutor<AdminNotificationEntity> {
 
     @RestResource(exported = false)
     @NonNull List<AdminNotificationEntity> findAllByOrderByCreatedAtDesc();
@@ -42,4 +44,8 @@ public interface AdminNotificationJpaRepository extends JpaRepository<AdminNotif
             @NonNull String instanceId,
             @NonNull String deviceCode
     );
+
+    /** Удаляет прочитанные уведомления, созданные раньше cutoff (retention-очистка). */
+    @RestResource(exported = false)
+    long deleteByReadTrueAndCreatedAtBefore(@NonNull LocalDateTime cutoff);
 }

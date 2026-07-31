@@ -364,6 +364,20 @@
     background: #edeef0;
     color: #5f6368;
   }
+
+  /*
+    Полоса пилюль активных фильтров в FilterToolbar: нативный
+    скроллбар полностью скрыт (кросс-браузерно он то рисует стрелки,
+    то залезает на контент), а вместо него под пилюлями отображается
+    собственный тонкий индикатор прокрутки (см. ChipStripScroller).
+  */
+  .chip-strip-scroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .chip-strip-scroll::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @keyframes fadeIn {
@@ -477,4 +491,66 @@
     padding: 8px 12px;
     font-size: 0.8rem;
   }
+}
+
+/* ── Admin list/edit/create pages: убираем дефолтный верхний отступ react-admin
+   (.Ra*-noActions получает margin-top: 1em, когда actions={false}),
+   чтобы контент начинался сразу под шапкой ── */
+.admin-app-root .RaList-noActions,
+.admin-app-root .RaEdit-noActions,
+.admin-app-root .RaCreate-noActions {
+  margin-top: 0 !important;
+}
+
+/* ── Admin list/edit pages: ограничение высоты и внутренний скролл ──
+   Цепочка высот: .RaLayout-content → .list-page → .RaList-main →
+   .RaList-content → AdminListContainer (h-full). Без этих правил
+   обёртки react-admin растягиваются по контенту, таблица не
+   прокручивается, а пагинация уезжает за пределы экрана.
+   Правила вне @layer + !important, чтобы переопределить emotion-стили MUI. */
+.admin-app-root .RaLayout-content > .list-page {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+}
+
+.admin-app-root .list-page .RaList-main {
+  min-height: 0 !important;
+}
+
+.admin-app-root .list-page .RaList-content {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Страницы редактирования/создания, обёрнутые в <Edit>/<Create>
+   (справочники в настройках): та же цепочка высот. */
+.admin-app-root .RaLayout-content > .edit-page,
+.admin-app-root .RaLayout-content > .create-page {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.admin-app-root .edit-page .RaEdit-main,
+.admin-app-root .create-page .RaCreate-main {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  align-items: stretch !important;
+}
+
+.admin-app-root .edit-page .RaEdit-card,
+.admin-app-root .create-page .RaCreate-card {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }

@@ -1,3 +1,4 @@
+import { type ReactNode } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -7,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
  * Пока идёт начальная проверка токена (isVerifying) — показывает минимальный
  * загрузчик, чтобы избежать "authenticated flash" при старте с expired token.
  */
-export function RequireAdmin() {
+export function RequireAdmin({ children }: { children?: ReactNode }) {
   const { isAuthenticated, isAdmin, isVerifying } = useAuth();
 
   if (isVerifying) {
@@ -26,5 +27,5 @@ export function RequireAdmin() {
     return <Navigate to="/" replace />;
   }
 
-  return <Outlet />;
+  return children ?? <Outlet />;
 }

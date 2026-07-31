@@ -3,13 +3,14 @@ package dev.savushkin.scada.mobile.backend.infrastructure.integration.database.r
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceTypeEntity;
 import org.jspecify.annotations.NonNull;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 import org.springframework.data.rest.core.annotation.RestResource;
 
 import java.util.Optional;
 
 
-public interface DeviceTypeJpaRepository extends JpaRepository<DeviceTypeEntity, Long> {
+public interface DeviceTypeJpaRepository extends JpaRepository<DeviceTypeEntity, Long>, JpaSpecificationExecutor<DeviceTypeEntity> {
 
     @RestResource(exported = false)
     @NonNull Optional<DeviceTypeEntity> findByCode(@NonNull String code);

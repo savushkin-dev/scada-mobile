@@ -1,7 +1,15 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { BottomSheet } from './BottomSheet';
 import { AdminChip } from './AdminChip';
-import { IconSearch, IconX, IconCheck } from './icons';
+import { IconSearch, IconX, IconCheck, IconPlus } from './icons';
+
+/** Отступ дропдауна от поля-триггера. */
+const DROPDOWN_GAP = 6;
+/** Если снизу меньше этого порога — пробуем открыть дропдаун вверх. */
+const DROPDOWN_FLIP_THRESHOLD = 260;
+/** Минимальная/максимальная высота десктопного дропдауна. */
+const DROPDOWN_MIN_HEIGHT = 140;
+const DROPDOWN_MAX_HEIGHT = 400;
 
 interface Choice {
   id: string | number;
@@ -20,6 +28,8 @@ interface SearchableSelectProps {
   disabled?: boolean;
   error?: string;
   hint?: string;
+  onAddNew?: () => void;
+  addNewLabel?: string;
 }
 
 export function SearchableSelect({
@@ -32,10 +42,13 @@ export function SearchableSelect({
   disabled = false,
   error,
   hint,
+  onAddNew,
+  addNewLabel = 'Добавить',
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [isMobile, setIsMobile] = useState(false);
+  const [triggerRect, setTriggerRect] = useState<DOMRect | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -49,6 +62,25 @@ export function SearchableSelect({
     if (!isOpen) return;
     setSearch('');
   }, [isOpen]);
+
+  // Пока дропдаун открыт, следим за позицией поля-триггера:
+  // страница может скроллиться (в т.ч. внутри карточек), дропдаун fixed —
+  // без этого он «отлипнет» от поля.
+  useEffect(() => {
+    if (!isOpen || isMobile) return;
+    const updateRect = () => {
+      if (containerRef.current) {
+        setTriggerRect(containerRef.current.getBoundingClientRect());
+      }
+    };
+    updateRect();
+    window.addEventListener('resize', updateRect);
+    window.addEventListener('scroll', updateRect, true);
+    return () => {
+      window.removeEventListener('resize', updateRect);
+      window.removeEventListener('scroll', updateRect, true);
+    };
+  }, [isOpen, isMobile]);
 
   const normalizedValue: (string | number)[] =
     value == null
@@ -77,10 +109,28 @@ export function SearchableSelect({
     }
   };
 
+  // Направление и высота дропдауна: если снизу мало места,
+  // а сверху больше — открываем вверх; высота ограничена доступным местом.
+  const placement = useMemo(() => {
+    if (!triggerRect) return null;
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - triggerRect.bottom - DROPDOWN_GAP;
+    const spaceAbove = triggerRect.top - DROPDOWN_GAP;
+    const openUp = spaceBelow < DROPDOWN_FLIP_THRESHOLD && spaceAbove > spaceBelow;
+    const available = openUp ? spaceAbove : spaceBelow;
+    const maxHeight = Math.max(DROPDOWN_MIN_HEIGHT, Math.min(available, DROPDOWN_MAX_HEIGHT));
+    return { openUp, maxHeight };
+  }, [triggerRect]);
+
   const removeValue = (id: string | number) => {
     if (!multiple) return;
     const next = normalizedValue.filter((v) => String(v) !== String(id));
     onChange(next.length > 0 ? next : null);
+  };
+
+  const handleAddNew = () => {
+    setIsOpen(false);
+    onAddNew?.();
   };
 
   const fieldClasses =
@@ -90,7 +140,17 @@ export function SearchableSelect({
     (disabled ? 'cursor-not-allowed bg-[#f8f9fa] text-[#74777f] ' : ' ');
 
   const trigger = (
-    <div ref={containerRef} onClick={() => !disabled && setIsOpen(true)} className={fieldClasses}>
+    <div
+      ref={containerRef}
+      onClick={() => {
+        if (disabled) return;
+        if (containerRef.current) {
+          setTriggerRect(containerRef.current.getBoundingClientRect());
+        }
+        setIsOpen(true);
+      }}
+      className={fieldClasses}
+    >
       {selectedOptions.length === 0 ? (
         <span className="text-[#74777f]">{placeholder}</span>
       ) : (
@@ -111,8 +171,38 @@ export function SearchableSelect({
     </div>
   );
 
+  const searchInput = (
+    <div className="mb-2 flex items-center gap-2 rounded-[12px] border border-[#e8eaed] bg-[#f8f9fa] px-3 py-2">
+      <IconSearch size={16} className="text-[#74777f]" />
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Поиск..."
+        className="flex-1 bg-transparent text-sm text-[#1a1c1e] outline-none placeholder:text-[#74777f]"
+        autoFocus
+      />
+      {search && (
+        <button type="button" onClick={() => setSearch('')} className="text-[#74777f]">
+          <IconX size={16} />
+        </button>
+      )}
+    </div>
+  );
+
+  const addNewButton = onAddNew ? (
+    <button
+      type="button"
+      onClick={handleAddNew}
+      className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-[#1a1c1e] py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#2c2f33]"
+    >
+      <IconPlus size={16} />
+      {addNewLabel}
+    </button>
+  ) : null;
+
   const optionList = (
-    <div className="max-h-[50vh] overflow-y-auto">
+    <div className="-mr-1 min-h-0 flex-1 overflow-y-auto pr-1">
       {filteredOptions.length === 0 && (
         <div className="py-6 text-center text-sm text-[#74777f]">Ничего не найдено</div>
       )}
@@ -141,6 +231,44 @@ export function SearchableSelect({
     </div>
   );
 
+  const dropdownContent = (
+    <div
+      className="flex flex-col gap-2"
+      style={{ maxHeight: placement?.maxHeight ?? DROPDOWN_MAX_HEIGHT }}
+    >
+      {searchInput}
+      {optionList}
+      {addNewButton}
+    </div>
+  );
+
+  const mobileSearchInput = (
+    <div className="mb-3 flex items-center gap-2 rounded-[14px] border border-[#e8eaed] bg-[#f8f9fa] px-3 py-2.5">
+      <IconSearch size={18} className="text-[#74777f]" />
+      <input
+        type="text"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Поиск..."
+        className="flex-1 bg-transparent text-[15px] text-[#1a1c1e] outline-none placeholder:text-[#74777f]"
+        autoFocus
+      />
+      {search && (
+        <button type="button" onClick={() => setSearch('')} className="text-[#74777f]">
+          <IconX size={16} />
+        </button>
+      )}
+    </div>
+  );
+
+  const mobileContent = (
+    <div className="flex max-h-[60vh] flex-col gap-2">
+      {mobileSearchInput}
+      {optionList}
+      {addNewButton}
+    </div>
+  );
+
   return (
     <div className="w-full">
       {label && (
@@ -154,23 +282,7 @@ export function SearchableSelect({
 
       {isMobile ? (
         <BottomSheet isOpen={isOpen} onClose={() => setIsOpen(false)} title={label}>
-          <div className="mb-3 flex items-center gap-2 rounded-[14px] border border-[#e8eaed] bg-[#f8f9fa] px-3 py-2.5">
-            <IconSearch size={18} className="text-[#74777f]" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Поиск..."
-              className="flex-1 bg-transparent text-[15px] text-[#1a1c1e] outline-none placeholder:text-[#74777f]"
-              autoFocus
-            />
-            {search && (
-              <button type="button" onClick={() => setSearch('')} className="text-[#74777f]">
-                <IconX size={16} />
-              </button>
-            )}
-          </div>
-          {optionList}
+          {mobileContent}
         </BottomSheet>
       ) : (
         isOpen && (
@@ -178,24 +290,15 @@ export function SearchableSelect({
             <div
               className="absolute z-50 rounded-[14px] border border-[#e8eaed] bg-white p-2 shadow-[0_4px_16px_rgba(0,0,0,0.08)]"
               style={{
-                top: containerRef.current?.getBoundingClientRect().bottom ?? 0 + 4,
-                left: containerRef.current?.getBoundingClientRect().left ?? 0,
-                width: containerRef.current?.getBoundingClientRect().width ?? 300,
+                left: triggerRect?.left ?? 0,
+                width: triggerRect?.width ?? 300,
+                ...(placement?.openUp
+                  ? { bottom: window.innerHeight - (triggerRect?.top ?? 0) + DROPDOWN_GAP }
+                  : { top: (triggerRect?.bottom ?? 0) + DROPDOWN_GAP }),
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="mb-2 flex items-center gap-2 rounded-[12px] border border-[#e8eaed] bg-[#f8f9fa] px-3 py-2">
-                <IconSearch size={16} className="text-[#74777f]" />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Поиск..."
-                  className="flex-1 bg-transparent text-sm text-[#1a1c1e] outline-none placeholder:text-[#74777f]"
-                  autoFocus
-                />
-              </div>
-              {optionList}
+              {dropdownContent}
             </div>
           </div>
         )

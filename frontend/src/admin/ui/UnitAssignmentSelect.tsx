@@ -21,9 +21,16 @@ interface AdminUser {
 interface UnitAssignmentSelectProps {
   value: number[];
   onChange: (value: number[]) => void;
+  onAddNew?: () => void;
+  addNewLabel?: string;
 }
 
-export function UnitAssignmentSelect({ value, onChange }: UnitAssignmentSelectProps) {
+export function UnitAssignmentSelect({
+  value,
+  onChange,
+  onAddNew,
+  addNewLabel,
+}: UnitAssignmentSelectProps) {
   const record = useRecordContext<AdminUser>();
   const currentUserId = record?.id;
 
@@ -81,6 +88,8 @@ export function UnitAssignmentSelect({ value, onChange }: UnitAssignmentSelectPr
       value={value}
       onChange={(v) => onChange((v as number[]) ?? [])}
       placeholder="Выберите автоматы"
+      onAddNew={onAddNew}
+      addNewLabel={addNewLabel}
     />
   );
 }

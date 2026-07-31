@@ -66,5 +66,15 @@ jwt:
   access-expiration-minutes: 1440
   refresh-expiration-days: 7
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Админ-уведомления — retention прочитанных записей.
+#
+# read-retention-days — сколько дней прочитанное уведомление хранится в БД;
+# по истечении удаляется планировщиком (ежедневно, 02:30).
+# Переопределяется через SCADA_MOBILE_ADMIN_NOTIFICATIONS_READ_RETENTION_DAYS.
+# ─────────────────────────────────────────────────────────────────────────────
+admin-notifications:
+  read-retention-days: ${SCADA_MOBILE_ADMIN_NOTIFICATIONS_READ_RETENTION_DAYS:60}
+
 # Логирование — конфигурация в src/main/resources/logback-spring.xml
 # Уровни переопределяются по профилям (dev / prod) в logback-spring.xml

@@ -1,5 +1,6 @@
 package dev.savushkin.scada.mobile.backend.api.controller.admin;
 
+import dev.savushkin.scada.mobile.backend.api.controller.admin.filter.AdminFilterSupport;
 import dev.savushkin.scada.mobile.backend.domain.model.ChangeAction;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceCatalogChangedEvent;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceCatalogEntity;
@@ -18,6 +19,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.Map;
 
 /**
  * Ручной CRUD-контроллер для управления справочником устройств (device_catalog).
@@ -40,8 +43,12 @@ public class AdminDeviceCatalogController {
     }
 
     @GetMapping
-    public ResponseEntity<Page<DeviceCatalogEntity>> list(Pageable pageable) {
-        Page<DeviceCatalogEntity> page = catalogRepository.findAll(pageable);
+    public ResponseEntity<Page<DeviceCatalogEntity>> list(@RequestParam Map<String, String> params,
+                                                          Pageable pageable) {
+        boolean hasFilters = params.keySet().stream().anyMatch(k -> k.equals("q") || k.startsWith("f."));
+        Page<DeviceCatalogEntity> page = hasFilters
+                ? catalogRepository.findAll(AdminFilterSupport.specification("device-catalog", params), pageable)
+                : catalogRepository.findAll(pageable);
         return ResponseEntity.ok(page);
     }
 

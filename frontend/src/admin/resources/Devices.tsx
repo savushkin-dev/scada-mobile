@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom';
 import { useListContext } from 'react-admin';
 import { AdminListContainer } from '../ui/AdminListContainer';
 import { MobileCardList } from '../ui/MobileCardList';
@@ -7,9 +6,10 @@ import { AdminEditForm } from '../ui/AdminEditForm';
 import { AdminCreateForm } from '../ui/AdminCreateForm';
 import { RoundedInput } from '../ui/RoundedInput';
 import { ReferenceSelect } from '../ui/ReferenceSelect';
-import { PillButton } from '../ui/PillButton';
-import { IconPencil, IconTrash } from '../ui/icons';
 import { useNameMap } from '../ui/useNameMap';
+import { RowActionsMenu } from '../ui/RowActionsMenu';
+import { useRowActions } from '../ui/useRowActions';
+import { DEVICE_FILTER_FIELDS } from '../filters/configs';
 
 interface Device {
   id: number;
@@ -20,100 +20,89 @@ interface Device {
 }
 
 export const DeviceList = () => {
-  const navigate = useNavigate();
+  const { navigateToEdit, deleteRecord } = useRowActions();
   const { data } = useListContext<Device>();
   const records = data ?? [];
   const getUnitName = useNameMap('units');
   const getDeviceTypeName = useNameMap('device-types');
 
   return (
-    <AdminListContainer title="Устройства">
-      <MobileCardList
-        records={records}
-        renderCard={(device) => (
-          <div className="rounded-[20px] bg-white p-4">
-            <div className="mb-1">
-              <span className="text-base font-bold text-[#1a1c1e]">{device.displayName}</span>
-            </div>
-            <div className="mb-3 text-sm text-[#74777f]">{device.code}</div>
-            <div className="flex items-center justify-between gap-2">
-              <PillButton
-                variant="secondary"
-                icon={<IconPencil size={16} />}
-                onClick={() => navigate(device.id.toString())}
-                className="h-9 px-3 text-xs"
-              >
-                Изменить
-              </PillButton>
-              <PillButton
-                variant="danger"
-                icon={<IconTrash size={16} />}
-                onClick={() => navigate(device.id.toString())}
-                className="h-9 px-3 text-xs"
-              >
-                Удалить
-              </PillButton>
-            </div>
-          </div>
-        )}
-      />
-      <DesktopDataTable
-        records={records}
-        keyExtractor={(device) => device.id}
-        columns={[
-          { key: 'id', header: 'ID', render: (device) => device.id, className: 'w-12' },
-          { key: 'code', header: 'Код', render: (device) => device.code },
-          {
-            key: 'displayName',
-            header: 'Отображаемое имя',
-            render: (device) => device.displayName,
-          },
-          {
-            key: 'unit',
-            header: 'Автомат',
-            render: (device) =>
-              device.unitId ? (
-                <span className="text-[#4285f4]">{getUnitName(device.unitId)}</span>
-              ) : (
-                '—'
-              ),
-          },
-          {
-            key: 'type',
-            header: 'Тип',
-            render: (device) =>
-              device.typeId ? (
-                <span className="text-[#4285f4]">{getDeviceTypeName(device.typeId)}</span>
-              ) : (
-                '—'
-              ),
-          },
-          {
-            key: 'actions',
-            header: '',
-            render: (device) => (
-              <div className="flex items-center justify-end gap-2">
-                <PillButton
-                  variant="secondary"
-                  icon={<IconPencil size={16} />}
-                  onClick={() => navigate(device.id.toString())}
-                  className="h-9 px-3 text-xs"
-                >
-                  Изменить
-                </PillButton>
-                <PillButton
-                  variant="danger"
-                  icon={<IconTrash size={16} />}
-                  onClick={() => navigate(device.id.toString())}
-                  className="h-9 px-3 text-xs"
-                >
-                  Удалить
-                </PillButton>
+    <AdminListContainer title="Устройства" records={records} filterFields={DEVICE_FILTER_FIELDS}>
+      {({ records: filtered }) => (
+        <>
+          <MobileCardList
+            records={filtered}
+            renderCard={(device) => (
+              <div className="rounded-[20px] bg-white p-4">
+                <div className="mb-1">
+                  <span className="text-base font-bold text-[#1a1c1e]">{device.displayName}</span>
+                </div>
+                <div className="mb-3 text-sm text-[#74777f]">{device.code}</div>
+                <div className="flex items-center justify-end">
+                  <RowActionsMenu
+                    onEdit={() => navigateToEdit(device.id)}
+                    onDelete={() => deleteRecord(device)}
+                  />
+                </div>
               </div>
-            ),
-          },
-        ]}
-      />
+            )}
+          />
+          <DesktopDataTable
+            records={filtered}
+            keyExtractor={(device) => device.id}
+            columns={[
+              {
+                key: 'id',
+                header: 'ID',
+                render: (device) => device.id,
+                className: 'w-12',
+                filterKey: 'id',
+              },
+              { key: 'code', header: 'Код', render: (device) => device.code, filterKey: 'code' },
+              {
+                key: 'displayName',
+                header: 'Отображаемое имя',
+                filterKey: 'displayName',
+                render: (device) => device.displayName,
+              },
+              {
+                key: 'unit',
+                header: 'Автомат',
+                filterKey: 'unitId',
+                render: (device) =>
+                  device.unitId ? (
+                    <span className="text-[#4285f4]">{getUnitName(device.unitId)}</span>
+                  ) : (
+                    '—'
+                  ),
+              },
+              {
+                key: 'type',
+                header: 'Тип',
+                filterKey: 'typeId',
+                render: (device) =>
+                  device.typeId ? (
+                    <span className="text-[#4285f4]">{getDeviceTypeName(device.typeId)}</span>
+                  ) : (
+                    '—'
+                  ),
+              },
+              {
+                key: 'actions',
+                header: '',
+                render: (device) => (
+                  <div className="flex items-center justify-end">
+                    <RowActionsMenu
+                      onEdit={() => navigateToEdit(device.id)}
+                      onDelete={() => deleteRecord(device)}
+                    />
+                  </div>
+                ),
+              },
+            ]}
+          />
+        </>
+      )}
     </AdminListContainer>
   );
 };

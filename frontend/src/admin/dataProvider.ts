@@ -3,6 +3,7 @@ import { API_BASE } from '../config';
 import { apiFetch } from '../api/client';
 import { HttpError } from 'react-admin';
 import type { DataProvider } from 'react-admin';
+import { appendFilterParams } from './filters/serialize';
 
 const baseUrl = `${API_BASE}/api/v1.0.0/admin`;
 
@@ -49,14 +50,8 @@ export const dataProvider: DataProvider = {
     query.set('size', String(perPage));
     query.set('sort', `${field},${order.toLowerCase() === 'desc' ? 'desc' : 'asc'}`);
 
-    // Пробрасываем простые фильтры react-admin в query-параметры Spring
-    if (params.filter) {
-      Object.entries(params.filter).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          query.set(key, String(value));
-        }
-      });
-    }
+    // Фильтрация — единый контракт: q + f.<field> (исполняется на бэкенде)
+    appendFilterParams(query, params.filter);
 
     const url = `${baseUrl}/${resource}?${query.toString()}`;
 
@@ -74,11 +69,6 @@ export const dataProvider: DataProvider = {
       } else {
         // Fallback для ручных контроллеров, которые не возвращают Content-Range
         total = json.totalElements ?? data.length ?? 0;
-      }
-
-      if (resource === 'notifications') {
-        // /admin/notifications возвращает плоский массив всех уведомлений
-        return { data, total: data.length };
       }
 
       if (resource === 'users') {
