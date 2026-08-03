@@ -60,7 +60,9 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.boot:spring-boot-webmvc-test")
-    runtimeOnly("org.postgresql:postgresql")
+    // implementation (не runtimeOnly): нужен compile-time доступ к org.postgresql.util.PSQLException
+    // для извлечения имени FK-констрейнта/detail при обработке ошибок удаления (issue #35)
+    implementation("org.postgresql:postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     // Mockito Agent jar (используем ту же версию, что резолвится для тестов через BOM Spring).

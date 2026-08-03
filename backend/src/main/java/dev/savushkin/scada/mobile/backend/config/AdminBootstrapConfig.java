@@ -34,7 +34,7 @@ import java.nio.charset.StandardCharsets;
 public class AdminBootstrapConfig implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(AdminBootstrapConfig.class);
-    private static final String ADMIN_ROLE_NAME = "ADMIN";
+    public static final String ADMIN_ROLE_NAME = "ADMIN";
     private static final String BOOTSTRAP_SCRIPT = "classpath:db/bootstrap/bootstrap_admin.sql";
 
     private final UserJpaRepository userRepository;

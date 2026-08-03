@@ -1,7 +1,9 @@
 package dev.savushkin.scada.mobile.backend.services;
 
+import dev.savushkin.scada.mobile.backend.config.AdminBootstrapConfig;
 import dev.savushkin.scada.mobile.backend.domain.auth.EmployeeCredentialsGenerator;
 import dev.savushkin.scada.mobile.backend.domain.model.UserAssignmentsChangedEvent;
+import dev.savushkin.scada.mobile.backend.exception.UnitAssignmentConflictException;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.RoleEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserAssignmentEntity;
@@ -124,6 +126,14 @@ public class EmployeeAccessService {
         }
 
         Set<Long> uniqueUnitIds = new HashSet<>(unitIds);
+
+        // Пользователь с ролью «Админ» не должен иметь закреплённых автоматов
+        RoleEntity userRole = user.getRole();
+        if (userRole != null && AdminBootstrapConfig.ADMIN_ROLE_NAME.equals(userRole.getName())
+                && !uniqueUnitIds.isEmpty()) {
+            throw new UnitAssignmentConflictException("unitIds",
+                    "Нельзя закреплять автоматы за пользователем с ролью «Админ»");
+        }
 
         for (Long unitId : uniqueUnitIds) {
             assignmentRepository.findByUnit_IdAndActiveTrue(unitId).ifPresent(existing -> {

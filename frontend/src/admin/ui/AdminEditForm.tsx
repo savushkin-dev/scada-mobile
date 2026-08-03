@@ -8,6 +8,7 @@ import { AdminPageHeader } from './AdminPageHeader';
 import { ActionMenu, type ActionMenuItem } from './ActionMenu';
 import { ResizablePanels } from './ResizablePanels';
 import { useFormKeyboardNavigation } from './useFormKeyboardNavigation';
+import { formatDeleteError, getErrorMessage } from './errorMessages';
 import { IconSave } from './icons';
 import type { ReactNode } from 'react';
 
@@ -45,16 +46,6 @@ function isRecordDirty(
 ): boolean {
   if (!original) return true;
   return Object.entries(current).some(([key, value]) => original[key] !== value);
-}
-
-function getErrorMessage(error: unknown, fallback: string): string {
-  if (typeof error === 'string') return error || fallback;
-  if (error instanceof Error) return error.message || fallback;
-  if (error && typeof error === 'object' && 'message' in error) {
-    const message = (error as { message?: unknown }).message;
-    return typeof message === 'string' && message ? message : fallback;
-  }
-  return fallback;
 }
 
 function getListPath(resource: string): string {
@@ -136,7 +127,7 @@ export function AdminEditForm({
           navigate(getListPath(resource ?? ''));
         },
         onError: (error) => {
-          notify(getErrorMessage(error, 'Ошибка удаления'), {
+          notify(formatDeleteError(error), {
             type: 'error',
             autoHideDuration: null,
           });

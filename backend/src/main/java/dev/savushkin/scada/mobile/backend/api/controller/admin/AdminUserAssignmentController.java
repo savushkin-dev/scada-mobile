@@ -1,5 +1,8 @@
 package dev.savushkin.scada.mobile.backend.api.controller.admin;
 
+import dev.savushkin.scada.mobile.backend.config.AdminBootstrapConfig;
+import dev.savushkin.scada.mobile.backend.exception.UnitAssignmentConflictException;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.RoleEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UnitEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserAssignmentEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserEntity;
@@ -53,6 +56,8 @@ public class AdminUserAssignmentController {
         UnitEntity unit = unitRepository.findById(request.unitId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Аппарат не найден"));
 
+        rejectAdminAssignment(user);
+
         UserAssignmentEntity assignment = new UserAssignmentEntity();
         assignment.setUser(user);
         assignment.setUnit(unit);
@@ -77,6 +82,14 @@ public class AdminUserAssignmentController {
         UnitEntity unit = unitRepository.findById(request.unitId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Аппарат не найден"));
 
+        // Отказ только при реальном изменении привязки; no-op обновление
+        // (например, смена только флага active) разрешено даже для админа.
+        boolean assignmentChanged = !request.userId().equals(assignment.getUserId())
+                || !request.unitId().equals(assignment.getUnitId());
+        if (assignmentChanged) {
+            rejectAdminAssignment(user);
+        }
+
         assignment.setUser(user);
         assignment.setUnit(unit);
         assignment.setActive(request.active());
@@ -97,6 +110,18 @@ public class AdminUserAssignmentController {
         eventPublisher.publishEvent(new UserAssignmentsChangedEvent(userId));
         eventPublisher.publishEvent(new EmployeeChangedEvent(userId, ChangeAction.UPDATE));
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Проверяет, что пользователю можно назначать автоматы:
+     * пользователь с ролью «Админ» не должен иметь закреплённых автоматов.
+     */
+    private void rejectAdminAssignment(UserEntity user) {
+        RoleEntity role = user.getRole();
+        if (role != null && AdminBootstrapConfig.ADMIN_ROLE_NAME.equals(role.getName())) {
+            throw new UnitAssignmentConflictException("unitIds",
+                    "Нельзя закреплять автоматы за пользователем с ролью «Админ»");
+        }
     }
 
     public record AssignmentRequest(

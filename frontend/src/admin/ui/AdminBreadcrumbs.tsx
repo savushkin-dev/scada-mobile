@@ -44,7 +44,7 @@ export function AdminBreadcrumbs() {
     const resourceLabel = resource ? (REFERENCE_LABELS[resource] ?? resource) : null;
 
     return (
-      <nav className="flex items-center gap-1.5 text-xs leading-none">
+      <nav className="flex items-center gap-1.5 text-sm leading-none">
         <button
           type="button"
           onClick={() => navigate('/admin/settings')}
@@ -52,7 +52,7 @@ export function AdminBreadcrumbs() {
         >
           Настройки
         </button>
-        <IconChevronRight size={14} className="text-[#b0b3b8]" />
+        <IconChevronRight size={16} className="text-[#b0b3b8]" />
         {resourceLabel ? (
           <button
             type="button"
@@ -66,7 +66,7 @@ export function AdminBreadcrumbs() {
         )}
         {resourceLabel && (
           <>
-            <IconChevronRight size={14} className="text-[#b0b3b8]" />
+            <IconChevronRight size={16} className="text-[#b0b3b8]" />
             {tail ? (
               <button
                 type="button"
@@ -82,7 +82,7 @@ export function AdminBreadcrumbs() {
         )}
         {tail && (
           <>
-            <IconChevronRight size={14} className="text-[#b0b3b8]" />
+            <IconChevronRight size={16} className="text-[#b0b3b8]" />
             <span className="font-medium leading-none text-[#1a1c1e]">
               {tail === 'create' ? 'Создание' : 'Редактирование'}
             </span>
@@ -101,7 +101,7 @@ export function AdminBreadcrumbs() {
     if (!backLabel) return null;
 
     return (
-      <nav className="flex items-center gap-1.5 text-xs leading-none">
+      <nav className="flex items-center gap-1.5 text-sm leading-none">
         <button
           type="button"
           onClick={() => navigate(`/admin/${resource}`)}

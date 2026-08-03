@@ -31,7 +31,7 @@ export function FilterToolbar({ actions }: { actions?: ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 lg:w-80 lg:flex-none">
+        <div className="relative flex-1 lg:hidden">
           <IconSearch
             size={18}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-[#74777f]"
@@ -48,7 +48,7 @@ export function FilterToolbar({ actions }: { actions?: ReactNode }) {
           type="button"
           onClick={() => setHintOpen((v) => !v)}
           title="Как искать"
-          className={`flex h-8 w-8 flex-none items-center justify-center rounded-full text-sm font-semibold transition-colors ${
+          className={`flex h-8 w-8 flex-none items-center justify-center rounded-full text-sm font-semibold transition-colors lg:hidden ${
             hintOpen ? 'bg-[#1a1c1e] text-white' : 'bg-white text-[#74777f] hover:bg-[#f8f9fa]'
           }`}
         >
@@ -68,7 +68,9 @@ export function FilterToolbar({ actions }: { actions?: ReactNode }) {
                   key={token}
                   tone="error"
                   label={`Некорректный фильтр: ${token}`}
-                  onRemove={() => ctx.setRawSearch(removeFieldToken(rawSearch, token.split(':')[0]))}
+                  onRemove={() =>
+                    ctx.setRawSearch(removeFieldToken(rawSearch, token.split(':')[0]))
+                  }
                 />
               ))}
             </ChipStripScroller>
@@ -82,7 +84,7 @@ export function FilterToolbar({ actions }: { actions?: ReactNode }) {
           </div>
         )}
         {actions && (
-          <div className="ml-auto flex flex-wrap items-center gap-2">{actions}</div>
+          <div className="ml-auto flex flex-wrap items-center gap-2 lg:hidden">{actions}</div>
         )}
       </div>
 
@@ -222,11 +224,13 @@ function FieldChip({
 
   return (
     <Chip
-      label={field?.chipLabel ?? (
-        <>
-          {label}: {display}
-        </>
-      )}
+      label={
+        field?.chipLabel ?? (
+          <>
+            {label}: {display}
+          </>
+        )
+      }
       onRemove={() => ctx.removeFieldFilter(fieldKey)}
     />
   );

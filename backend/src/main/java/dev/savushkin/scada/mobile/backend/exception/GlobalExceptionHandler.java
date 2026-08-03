@@ -1,6 +1,7 @@
 package dev.savushkin.scada.mobile.backend.exception;
 
 import dev.savushkin.scada.mobile.backend.api.dto.ErrorResponseDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.ReferenceDTO;
 import dev.savushkin.scada.mobile.backend.services.NotificationService.NotificationAccessDeniedException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -29,6 +30,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import java.io.IOException;
 import java.net.SocketException;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -57,6 +59,12 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
         private static final String INTERNAL_ERROR_MESSAGE = "Внутренняя ошибка сервера";
+
+        private final DeleteReferenceResolver deleteReferenceResolver;
+
+        public GlobalExceptionHandler(DeleteReferenceResolver deleteReferenceResolver) {
+                this.deleteReferenceResolver = deleteReferenceResolver;
+        }
 
         private @NonNull String extractPath(@NonNull WebRequest request) {
                 return request.getDescription(false).replace("uri=", "");
@@ -356,7 +364,8 @@ public class GlobalExceptionHandler {
      * <p>
      * Различает две типичные ситуации:
      * <ul>
-     *   <li>нарушение внешнего ключа (23503) — запись используется другими объектами;</li>
+     *   <li>нарушение внешнего ключа (23503) — запись используется другими объектами;
+     *       в ответ включается список ссылающихся записей (references), если его удалось определить;</li>
      *   <li>нарушение уникальности (23505) — запись с такими значениями уже существует.</li>
      * </ul>
      * Возвращает HTTP 409 (Conflict) с человекочитаемым сообщением.
@@ -367,10 +376,18 @@ public class GlobalExceptionHandler {
             @NonNull WebRequest request
     ) {
         log.warn("Data integrity violation: {}", e.getMessage());
-        String message = isForeignKeyViolation(e)
-                ? "Невозможно удалить запись, так как она используется другими объектами системы"
-                : "Запись с такими значениями уже существует";
-        return buildErrorResponse(HttpStatus.CONFLICT, message, request);
+        if (isForeignKeyViolation(e)) {
+            List<ReferenceDTO> references = deleteReferenceResolver.resolve(e);
+            ErrorResponseDTO error = new ErrorResponseDTO(
+                    HttpStatus.CONFLICT.value(),
+                    "Невозможно удалить запись, так как она используется другими объектами системы",
+                    extractPath(request),
+                    null,
+                    references
+            );
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+        }
+        return buildErrorResponse(HttpStatus.CONFLICT, "Запись с такими значениями уже существует", request);
     }
 
     private boolean isForeignKeyViolation(@NonNull DataIntegrityViolationException e) {

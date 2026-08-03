@@ -2,6 +2,7 @@ package dev.savushkin.scada.mobile.backend.api.controller.admin;
 
 import dev.savushkin.scada.mobile.backend.api.dto.admin.PasswordResetResponseDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.admin.UserCreateResponseDTO;
+import dev.savushkin.scada.mobile.backend.config.AdminBootstrapConfig;
 import dev.savushkin.scada.mobile.backend.exception.UnitAssignmentConflictException;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.RoleEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UnitEntity;
@@ -160,6 +161,25 @@ public class AdminUserController {
         }
 
         Set<Long> uniqueUnitIds = new HashSet<>(unitIds);
+
+        // Пользователь с ролью «Админ» не должен иметь закреплённых автоматов.
+        // Отказ только при добавлении новых назначений: пустой список или
+        // удаление существующих (legacy) привязок разрешены.
+        RoleEntity userRole = user.getRole();
+        if (userRole != null && AdminBootstrapConfig.ADMIN_ROLE_NAME.equals(userRole.getName())) {
+            Set<Long> existingUnitIds = new HashSet<>();
+            for (UserAssignmentEntity existing : assignmentRepository.findByUser_Id(user.getId())) {
+                if (existing.getUnit() != null) {
+                    existingUnitIds.add(existing.getUnit().getId());
+                }
+            }
+            Set<Long> newUnitIds = new HashSet<>(uniqueUnitIds);
+            newUnitIds.removeAll(existingUnitIds);
+            if (!newUnitIds.isEmpty()) {
+                throw new UnitAssignmentConflictException("unitIds",
+                        "Нельзя закреплять автоматы за пользователем с ролью «Админ»");
+            }
+        }
 
         // Валидация: каждый автомат может быть назначен только одному сотруднику
         for (Long unitId : uniqueUnitIds) {

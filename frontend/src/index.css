@@ -46,7 +46,7 @@
     --clr-blue-light: #f0f7ff;
     --clr-border-soft: #e8eaed;
     /* Фон чётных строк в табличных списках (zebra) */
-    --clr-row-alt: #f8f9fa;
+    --clr-row-alt: #edf0f4;
 
     /*
       --app-height обновляется из JS (visualViewport / innerHeight).

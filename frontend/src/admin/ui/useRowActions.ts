@@ -7,16 +7,7 @@ import {
   useRefresh,
 } from 'react-admin';
 import type { RaRecord } from 'react-admin';
-
-function getErrorMessage(error: unknown, fallback: string): string {
-  if (typeof error === 'string') return error || fallback;
-  if (error instanceof Error) return error.message || fallback;
-  if (error && typeof error === 'object' && 'message' in error) {
-    const message = (error as { message?: unknown }).message;
-    return typeof message === 'string' && message ? message : fallback;
-  }
-  return fallback;
-}
+import { formatDeleteError, getErrorMessage } from './errorMessages';
 
 interface RecordWithActive extends RaRecord {
   active?: boolean;
@@ -67,7 +58,7 @@ export function useRowActions() {
           notify('Удалено', { type: 'info' });
         },
         onError: (error) => {
-          notify(getErrorMessage(error, 'Ошибка удаления'), {
+          notify(formatDeleteError(error), {
             type: 'error',
             autoHideDuration: null,
           });

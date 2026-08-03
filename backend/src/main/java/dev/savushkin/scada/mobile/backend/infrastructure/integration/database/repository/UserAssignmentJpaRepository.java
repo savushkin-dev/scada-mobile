@@ -60,4 +60,10 @@ public interface UserAssignmentJpaRepository extends JpaRepository<UserAssignmen
 
     @RestResource(exported = false)
     Optional<UserAssignmentEntity> findByUnit_IdAndActiveTrue(Long unitId);
+
+    @RestResource(exported = false)
+    List<UserAssignmentEntity> findTop10ByUser_IdOrderByIdAsc(Long userId);
+
+    @RestResource(exported = false)
+    List<UserAssignmentEntity> findTop10ByUnit_IdOrderByIdAsc(Long unitId);
 }

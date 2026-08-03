@@ -15,6 +15,12 @@ public interface DeviceJpaRepository extends JpaRepository<DeviceEntity, Long>, 
     List<DeviceEntity> findByUnit_Id(Long unitId);
 
     @RestResource(exported = false)
+    List<DeviceEntity> findTop10ByUnit_IdOrderByIdAsc(Long unitId);
+
+    @RestResource(exported = false)
+    List<DeviceEntity> findTop10ByCatalog_IdOrderByIdAsc(Long catalogId);
+
+    @RestResource(exported = false)
     void deleteByUnit_Id(Long unitId);
 
     @RestResource(exported = false)

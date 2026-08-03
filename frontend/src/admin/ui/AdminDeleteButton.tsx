@@ -3,21 +3,12 @@ import { useDelete, useNotify, useRefresh, useResourceContext } from 'react-admi
 import { PillButton } from './PillButton';
 import { ConfirmDialog } from './ConfirmDialog';
 import { IconTrash } from './icons';
+import { formatDeleteError } from './errorMessages';
 
 interface AdminDeleteButtonProps {
   record: { id: string | number };
   className?: string;
   size?: 'default' | 'small';
-}
-
-function getErrorMessage(error: unknown, fallback: string): string {
-  if (typeof error === 'string') return error || fallback;
-  if (error instanceof Error) return error.message || fallback;
-  if (error && typeof error === 'object' && 'message' in error) {
-    const message = (error as { message?: unknown }).message;
-    return typeof message === 'string' && message ? message : fallback;
-  }
-  return fallback;
 }
 
 export function AdminDeleteButton({
@@ -39,7 +30,7 @@ export function AdminDeleteButton({
         refresh();
       },
       onError: (error) => {
-        notify(getErrorMessage(error, 'Ошибка удаления'), {
+        notify(formatDeleteError(error), {
           type: 'error',
           autoHideDuration: null,
         });

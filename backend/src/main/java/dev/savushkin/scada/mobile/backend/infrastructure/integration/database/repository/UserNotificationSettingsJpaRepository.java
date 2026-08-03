@@ -54,4 +54,10 @@ public interface UserNotificationSettingsJpaRepository extends JpaRepository<Use
 
     @RestResource(exported = false)
     void deleteByUnit_Id(Long unitId);
+
+    @RestResource(exported = false)
+    @NonNull List<UserNotificationSettingsEntity> findTop10ByUser_IdOrderByIdAsc(Long userId);
+
+    @RestResource(exported = false)
+    @NonNull List<UserNotificationSettingsEntity> findTop10ByUnit_IdOrderByIdAsc(Long unitId);
 }
