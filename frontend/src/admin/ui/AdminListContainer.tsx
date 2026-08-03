@@ -65,7 +65,8 @@ export function AdminListContainer<T>({
         <AdminBreadcrumbs />
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <h1 className="text-xl font-bold text-[#1a1c1e]">{title}</h1>
-          {!filterFields && <div className="flex items-center gap-2">{actions}</div>}
+          <div className="hidden lg:flex lg:items-center lg:gap-2">{actions}</div>
+          {!filterFields && <div className="flex items-center gap-2 lg:hidden">{actions}</div>}
         </div>
         {filterFields && <FilterToolbar actions={actions} />}
       </div>

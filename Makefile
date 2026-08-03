@@ -13,14 +13,25 @@ SEED_DB_PASSWORD ?= scada_password
 SEED_SQL ?= scripts/seed_notifications.sql
 SEED_PROD_SQL ?= scripts/seed_prod_data.sql
 
+# Локальный файл с автогенерируемыми dev JWT-секретами (игнорируется git через .env.*)
+DEV_SECRETS_FILE := .env.dev
+DEV_BACKEND_LOG := .backend.log
+API_BASE_PATH ?= /api/v1.0.0
 
-ifeq ($(OS),Windows_NT)
+# POSIX-окружение (Linux/macOS/Git Bash/MSYS/Cygwin) определяем по uname,
+# а не по переменной OS: в Git Bash OS=Windows_NT, но доступны sh-утилиты.
+UNAME_S := $(shell uname -s 2>/dev/null)
+IS_POSIX := $(if $(UNAME_S),1,)
+# Git Bash/MSYS/Cygwin на Windows
+IS_MINGW := $(if $(filter MINGW% MSYS% CYGWIN%,$(UNAME_S)),1,)
+
+ifeq ($(IS_POSIX),)
 GRADLEW := gradlew.bat
 else
 GRADLEW := ./gradlew
 endif
 
-.PHONY: help back-run back-stop back-run-prod front-install front-dev front-build db-seed db-seed-prod
+.PHONY: help back-run back-stop back-wait back-logs back-run-prod front-install front-dev front-build db-seed db-seed-prod
 .PHONY: bwa-init bwa-build-apk
 .PHONY: docker-prod-up docker-prod-down docker-ps
 
@@ -29,13 +40,14 @@ PROD_ENV_FILE ?= .env.prod.local
 PROD_ENV_FALLBACK := .env.prod.example
 PROD_ENV_ACTIVE_FILE = $(if $(wildcard $(PROD_ENV_FILE)),$(PROD_ENV_FILE),$(PROD_ENV_FALLBACK))
 
-ifeq ($(OS),Windows_NT)
 help:
 	@echo "SCADA Mobile shortcuts"
 	@echo ""
 	@echo "Backend:"
 	@echo "  make back-run       - run backend in background [dev profile, port $(DEV_BACKEND_PORT), Swagger enabled]"
-	@echo "  make back-stop      - stop backend started by back-run"
+	@echo "  make back-stop      - stop backend started by back-run (also kills the listener on port $(DEV_BACKEND_PORT))"
+	@echo "  make back-wait      - wait until backend responds on port $(DEV_BACKEND_PORT)"
+	@echo "  make back-logs      - tail backend log ($(BACKEND_DIR)/$(DEV_BACKEND_LOG))"
 	@echo "  make back-run-prod  - run backend [prod profile, port from SCADA_MOBILE_BACKEND_PORT, Swagger disabled]"
 	@echo ""
 	@echo "Docker:"
@@ -53,33 +65,8 @@ help:
 	@echo "Bubblewrap (Android):"
 	@echo "  make bwa-init      - create/re-init TWA project in android folder"
 	@echo "  make bwa-build-apk - build APK via bubblewrap"
-else
-help:
-	@echo "SCADA Mobile shortcuts"
-	@echo ""
-	@echo "Backend:"
-	@echo "  make back-run       - run backend in background [dev profile, port $(DEV_BACKEND_PORT), Swagger enabled]"
-	@echo "  make back-stop      - stop backend started by back-run"
-	@echo "  make back-run-prod  - run backend [prod profile, port from SCADA_MOBILE_BACKEND_PORT, Swagger disabled]"
-	@echo ""
-	@echo "Docker:"
-	@echo "  make docker-prod-up   - start docker stack (prod mode) (env: PROD_ENV_FILE=.env.prod.local)"
-	@echo "  make docker-prod-down - stop docker stack (prod mode)"
-	@echo "  make docker-ps        - show container status for the active stack"
-	@echo "  make db-seed          - seed dev database via docker exec (container: $(SEED_DB_CONTAINER_DEV), env: SEED_DB_NAME, SEED_DB_USER, SEED_DB_PASSWORD)"
-	@echo "  make db-seed-prod     - seed production database (container: $(SEED_DB_CONTAINER_PROD), workshops/units/device_types from env vars)"
-	@echo ""
-	@echo "Frontend:"
-	@echo "  make front-install - install frontend dependencies"
-	@echo "  make front-dev     - start frontend dev server (port $(DEV_FRONTEND_PORT), strict)"
-	@echo "  make front-build   - build frontend for production"
-	@echo ""
-	@echo "Bubblewrap (Android):"
-	@echo "  make bwa-init      - create/re-init TWA project in android folder"
-	@echo "  make bwa-build-apk - build APK via bubblewrap"
-endif
 
-ifeq ($(OS),Windows_NT)
+ifeq ($(IS_POSIX),)
 back-run:
 	powershell -NoProfile -Command "$$env:JAVA_TOOL_OPTIONS='$(JAVA_OPTS)'; $$env:SPRING_PROFILES_ACTIVE='dev'; $$env:SERVER_PORT='$(DEV_BACKEND_PORT)'; $$env:SCADA_MOBILE_JWT_ACCESS_SECRET='$(SCADA_MOBILE_JWT_ACCESS_SECRET)'; $$env:SCADA_MOBILE_JWT_REFRESH_SECRET='$(SCADA_MOBILE_JWT_REFRESH_SECRET)'; $$p = Start-Process -FilePath '.\\gradlew.bat' -ArgumentList 'bootRun' -WorkingDirectory '$(BACKEND_DIR)' -PassThru; $$p.Id | Set-Content '$(BACKEND_DIR)\\.backend.pid'"
 
@@ -96,14 +83,57 @@ db-seed-prod:
 	powershell -NoProfile -ExecutionPolicy Bypass -File scripts\seed_prod.ps1 -EnvFile '$(PROD_ENV_ACTIVE_FILE)' -SeedSql '$(SEED_PROD_SQL)' -Container '$(SEED_DB_CONTAINER_PROD)'
 else
 back-run:
-	cd $(BACKEND_DIR) && chmod +x ./gradlew && JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=dev SERVER_PORT='$(DEV_BACKEND_PORT)' SCADA_MOBILE_JWT_ACCESS_SECRET='$(SCADA_MOBILE_JWT_ACCESS_SECRET)' SCADA_MOBILE_JWT_REFRESH_SECRET='$(SCADA_MOBILE_JWT_REFRESH_SECRET)' nohup $(GRADLEW) bootRun > .backend.log 2>&1 & echo $$! > .backend.pid
+	@cd $(BACKEND_DIR) && \
+	if [ -z "$(SCADA_MOBILE_JWT_ACCESS_SECRET)" ] || [ -z "$(SCADA_MOBILE_JWT_REFRESH_SECRET)" ]; then \
+		if [ ! -f "$(DEV_SECRETS_FILE)" ]; then \
+			echo "Generating dev JWT secrets into $(BACKEND_DIR)/$(DEV_SECRETS_FILE) (git-ignored)..."; \
+			umask 077; \
+			printf 'SCADA_MOBILE_JWT_ACCESS_SECRET=%s\n' "$$(openssl rand -base64 48 | tr -d '\n')" > "$(DEV_SECRETS_FILE)"; \
+			printf 'SCADA_MOBILE_JWT_REFRESH_SECRET=%s\n' "$$(openssl rand -base64 48 | tr -d '\n')" >> "$(DEV_SECRETS_FILE)"; \
+		fi; \
+		set -a; . "./$(DEV_SECRETS_FILE)"; set +a; \
+	else \
+		SCADA_MOBILE_JWT_ACCESS_SECRET='$(SCADA_MOBILE_JWT_ACCESS_SECRET)'; \
+		SCADA_MOBILE_JWT_REFRESH_SECRET='$(SCADA_MOBILE_JWT_REFRESH_SECRET)'; \
+		export SCADA_MOBILE_JWT_ACCESS_SECRET SCADA_MOBILE_JWT_REFRESH_SECRET; \
+	fi; \
+	chmod +x ./gradlew; \
+	JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=dev SERVER_PORT='$(DEV_BACKEND_PORT)' \
+	nohup $(GRADLEW) bootRun > $(DEV_BACKEND_LOG) 2>&1 & echo $$! > .backend.pid
+	@echo "Backend starting in background (log: $(BACKEND_DIR)/$(DEV_BACKEND_LOG)). Use 'make back-wait' to wait for readiness."
 
 back-stop:
 	@if [ -f "$(BACKEND_DIR)/.backend.pid" ]; then \
-		kill $$(cat "$(BACKEND_DIR)/.backend.pid") && rm "$(BACKEND_DIR)/.backend.pid"; \
+		kill $$(cat "$(BACKEND_DIR)/.backend.pid") 2>/dev/null || true; \
+		rm -f "$(BACKEND_DIR)/.backend.pid"; \
 	else \
 		echo "No backend PID file found."; \
 	fi
+	@# gradlew/bootRun leaves a child JVM holding the port: finish off the listener
+	@if [ -n "$(IS_MINGW)" ]; then \
+		for pid in $$(netstat -ano | grep LISTENING | grep -E ':$(DEV_BACKEND_PORT)[[:space:]]' | awk '{print $$NF}' | sort -u); do \
+			echo "Killing listener on port $(DEV_BACKEND_PORT) (PID $$pid)..."; \
+			taskkill //F //PID $$pid > /dev/null 2>&1 || true; \
+		done; \
+	else \
+		fuser -k $(DEV_BACKEND_PORT)/tcp 2>/dev/null || true; \
+	fi
+
+back-wait:
+	@echo "Waiting for backend on port $(DEV_BACKEND_PORT)..."; \
+	for i in $$(seq 1 60); do \
+		code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://localhost:$(DEV_BACKEND_PORT)$(API_BASE_PATH)/auth/login" -H 'Content-Type: application/json' -d '{}' 2>/dev/null); \
+		if [ "$$code" != "000" ]; then \
+			echo "backend is UP (HTTP $$code)"; \
+			exit 0; \
+		fi; \
+		sleep 5; \
+	done; \
+	echo "backend did not respond in time"; \
+	exit 1
+
+back-logs:
+	tail -n 200 -f "$(BACKEND_DIR)/$(DEV_BACKEND_LOG)"
 
 back-run-prod:
 	@set -a; \
@@ -164,7 +194,7 @@ db-seed-prod:
 		psql -U "$$SCADA_MOBILE_POSTGRES_USER" -d "$$SCADA_MOBILE_POSTGRES_DB" -v ON_ERROR_STOP=1 -f - < "$(SEED_PROD_SQL)"
 endif
 
-ifeq ($(OS),Windows_NT)
+ifeq ($(IS_POSIX),)
 front-install:
 	cmd /C "cd $(FRONTEND_DIR) && npm install"
 
@@ -196,7 +226,7 @@ bwa-build-apk:
 	cd android && npx @bubblewrap/cli build
 endif
 
-ifeq ($(OS),Windows_NT)
+ifeq ($(IS_POSIX),)
 docker-prod-up:
 	@echo "Ошибка: запуск prod-стека на Windows не поддерживается."
 	@echo "Используйте WSL2 (Ubuntu) или разворачивайте на Linux-сервере."
@@ -210,6 +240,11 @@ docker-ps:
 else
 
 docker-prod-up:
+	@if [ -n "$(IS_MINGW)" ]; then \
+		echo "Ошибка: запуск prod-стека на Windows не поддерживается."; \
+		echo "Используйте WSL2 (Ubuntu) или разворачивайте на Linux-сервере."; \
+		exit 1; \
+	fi
 	@if [ ! -f "$(PROD_ENV_FILE)" ]; then \
 		echo "Missing $(PROD_ENV_FILE). Copy .env.prod.example -> $(PROD_ENV_FILE) and fill values."; \
 		exit 1; \

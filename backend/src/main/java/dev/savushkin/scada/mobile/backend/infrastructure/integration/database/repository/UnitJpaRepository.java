@@ -89,4 +89,7 @@ public interface UnitJpaRepository extends JpaRepository<UnitEntity, Long>, JpaS
 
     @RestResource(exported = false)
     long countByWorkshop_Id(@NonNull @Param("workshopId") Long workshopId);
+
+    @RestResource(exported = false)
+    @NonNull List<UnitEntity> findTop10ByWorkshop_IdOrderByIdAsc(@NonNull Long workshopId);
 }

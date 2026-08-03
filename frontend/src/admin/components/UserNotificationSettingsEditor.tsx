@@ -182,7 +182,7 @@ export function UserNotificationSettingsEditor({ userId }: UserNotificationSetti
   }
 
   return (
-    <div className="flex flex-1 flex-col min-h-0">
+    <div className="m-1 flex flex-1 flex-col min-h-0 lg:m-2">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
@@ -200,42 +200,42 @@ export function UserNotificationSettingsEditor({ userId }: UserNotificationSetti
           expanded ? 'max-h-[2000px] flex-1 opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
-        <div className="flex h-full min-h-0 flex-col pt-4">
+        <div className="flex h-full min-h-0 flex-col pt-3">
           {rows.length === 0 ? (
             <p className="py-2 text-sm text-[#74777f]">Нет доступных автоматов</p>
           ) : (
             <>
-              <div className="mb-3 flex items-center gap-3">
+              <div className="mb-2 flex items-center gap-2">
                 <button
                   type="button"
                   onClick={handleToggleAll}
                   aria-pressed={allSelected}
-                  className={`flex h-6 w-6 items-center justify-center rounded-[8px] border transition-colors ${
+                  className={`flex h-3 w-3 items-center justify-center rounded-[4px] border transition-colors ${
                     allSelected
                       ? 'border-[#4285f4] bg-[#4285f4] text-white'
                       : 'border-[#e8eaed] bg-white text-transparent hover:border-[#c4c7cc]'
                   }`}
                 >
-                  <IconCheck size={14} />
+                  <IconCheck size={8} />
                 </button>
                 <span className="text-sm font-medium text-[#1a1c1e]">Выбрать всё</span>
               </div>
 
-              <div className="flex-1 min-h-0 overflow-auto">
-                <div className="hidden lg:block">
+              <div className="flex min-h-0 flex-1 flex-col rounded-[12px] border border-[#e8eaed] p-3">
+                <div className="hidden min-h-0 flex-1 overflow-y-auto lg:block">
                   <table className="w-full border-collapse">
                     <thead className="sticky top-0 z-10 bg-white">
                       <tr className="border-b border-[#f0f0f0]">
-                        <th className="pb-3 text-left text-xs font-semibold uppercase tracking-[0.05em] text-[#74777f]">
+                        <th className="pb-2 text-left text-xs font-semibold uppercase tracking-[0.05em] text-[#74777f]">
                           Автомат
                         </th>
-                        <th className="pb-3 text-left text-xs font-semibold uppercase tracking-[0.05em] text-[#74777f]">
+                        <th className="pb-2 text-left text-xs font-semibold uppercase tracking-[0.05em] text-[#74777f]">
                           Тех. сбои
                         </th>
-                        <th className="pb-3 text-left text-xs font-semibold uppercase tracking-[0.05em] text-[#74777f]">
+                        <th className="pb-2 text-left text-xs font-semibold uppercase tracking-[0.05em] text-[#74777f]">
                           Вызов
                         </th>
-                        <th className="pb-3" />
+                        <th className="pb-2" />
                       </tr>
                     </thead>
                     <tbody>
@@ -244,12 +244,12 @@ export function UserNotificationSettingsEditor({ userId }: UserNotificationSetti
                         return (
                           <tr
                             key={row.unitId}
-                            className="border-b border-[#f0f0f0] last:border-b-0 even:bg-[#f8f9fa]"
+                            className="border-b border-[#f0f0f0] last:border-b-0 even:bg-[#edf0f4]"
                           >
-                            <td className="py-3 pr-4 text-sm font-medium text-[#1a1c1e]">
+                            <td className="py-1.5 pr-4 text-sm font-medium text-[#1a1c1e]">
                               {row.unitName}
                             </td>
-                            <td className="py-3 pr-4">
+                            <td className="py-1.5 pr-4">
                               <CheckButton
                                 checked={row.incidentNotificationsEnabled}
                                 onChange={() =>
@@ -257,7 +257,7 @@ export function UserNotificationSettingsEditor({ userId }: UserNotificationSetti
                                 }
                               />
                             </td>
-                            <td className="py-3 pr-4">
+                            <td className="py-1.5 pr-4">
                               <CheckButton
                                 checked={row.androidCallNotificationsEnabled}
                                 onChange={() =>
@@ -265,7 +265,7 @@ export function UserNotificationSettingsEditor({ userId }: UserNotificationSetti
                                 }
                               />
                             </td>
-                            <td className="py-3 text-right">
+                            <td className="py-1.5 text-right">
                               <RowActionsMenu
                                 isActive={row.active}
                                 onToggleActive={() => handleToggleActive(row)}
@@ -281,12 +281,15 @@ export function UserNotificationSettingsEditor({ userId }: UserNotificationSetti
                   </table>
                 </div>
 
-                <div className="flex flex-col gap-3 lg:hidden">
+                <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto lg:hidden">
                   {rows.map((row) => {
                     const settingId = row.setting?.id;
                     return (
-                      <div key={row.unitId} className="rounded-[16px] border border-[#f0f0f0] p-4">
-                        <div className="mb-3 flex items-center justify-between">
+                      <div
+                        key={row.unitId}
+                        className="rounded-[16px] border border-[#f0f0f0] p-2.5"
+                      >
+                        <div className="mb-2 flex items-center justify-between">
                           <span className="font-semibold text-[#1a1c1e]">{row.unitName}</span>
                           <RowActionsMenu
                             isActive={row.active}
@@ -327,13 +330,13 @@ function CheckButton({ checked, onChange }: { checked: boolean; onChange: () => 
       type="button"
       onClick={onChange}
       aria-pressed={checked}
-      className={`flex h-8 w-8 items-center justify-center rounded-[10px] border transition-colors ${
+      className={`flex h-4 w-4 items-center justify-center rounded-[5px] border transition-colors ${
         checked
           ? 'border-[#4285f4] bg-[#4285f4] text-white'
           : 'border-[#e8eaed] bg-white text-transparent hover:border-[#c4c7cc]'
       }`}
     >
-      <IconCheck size={18} />
+      <IconCheck size={10} />
     </button>
   );
 }
@@ -352,19 +355,19 @@ function CheckItem({
       type="button"
       onClick={onChange}
       aria-pressed={checked}
-      className={`flex flex-col items-center gap-1.5 rounded-[12px] py-2 transition-colors ${
+      className={`flex flex-col items-center gap-1.5 rounded-[12px] py-1.5 transition-colors ${
         checked ? 'bg-[#f0f7ff] text-[#4285f4]' : 'bg-[#f8f9fa] text-[#74777f]'
       }`}
     >
       <span className="text-[11px] font-medium uppercase tracking-wide">{label}</span>
       <div
-        className={`flex h-6 w-6 items-center justify-center rounded-[8px] border ${
+        className={`flex h-3 w-3 items-center justify-center rounded-[4px] border ${
           checked
             ? 'border-[#4285f4] bg-[#4285f4] text-white'
             : 'border-[#e8eaed] bg-white text-transparent'
         }`}
       >
-        <IconCheck size={14} />
+        <IconCheck size={8} />
       </div>
     </button>
   );

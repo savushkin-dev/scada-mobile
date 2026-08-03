@@ -69,7 +69,7 @@ export function DesktopDataTable<T>({
               return (
                 <tr
                   key={keyExtractor(record, index)}
-                  className={`group border-b border-[#f0f0f0] last:border-b-0 even:bg-[#f8f9fa] ${
+                  className={`group border-b border-[#f0f0f0] last:border-b-0 even:bg-[#edf0f4] ${
                     active
                       ? ''
                       : 'bg-[#f8f9fa] [&>td]:opacity-60 [&>td:first-child]:opacity-100 [&>td:last-child]:opacity-100'
@@ -78,7 +78,7 @@ export function DesktopDataTable<T>({
                   {allColumns.map((col) => (
                     <td
                       key={col.key}
-                      className={`py-3 pr-4 transition-colors duration-200 group-hover:bg-[#f0f7ff] first:rounded-l-[12px] last:rounded-r-[12px] ${col.className ?? ''}`}
+                      className={`py-3 pr-4 transition-colors duration-200 group-hover:bg-[#e2e5e9] first:rounded-l-[12px] last:rounded-r-[12px] ${col.className ?? ''}`}
                     >
                       {formatEmpty(col.render(record))}
                     </td>

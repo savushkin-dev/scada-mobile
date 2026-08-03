@@ -116,21 +116,25 @@
 
 Backend (Spring Boot, готово и используется):
 
-- `make back-run` — запустить backend в текущем терминале.
-- `make back-run-prod BACKEND_PORT=<port>` — запустить backend в prod-профиле на указанном порту.
+- `make back-run` — запустить backend в фоне (dev-профиль, порт `8080`). Если JWT-секреты не заданы в env, они автоматически генерируются в `backend/.env.dev` (игнорируется git). Лог пишется в `backend/.backend.log`.
+- `make back-wait` — дождаться, пока backend начнёт отвечать на порту.
+- `make back-stop` — остановить backend (вместе с процессом, слушающим порт).
+- `make back-logs` — смотреть лог backend (`tail -f backend/.backend.log`).
+- `make back-run-prod` — запустить backend в prod-профиле (порт и секреты берутся из `PROD_ENV_FILE`, по умолчанию `.env.prod.local`).
+
+Типовой цикл локального запуска: `make back-run && make back-wait`.
 
 Docker:
 
-- `make docker-dev-up` — поднять docker-стек в dev-режиме.
-- `make docker-dev-down` — остановить dev-стек.
 - `make docker-prod-up` — поднять docker-стек в prod-режиме (использует `PROD_ENV_FILE`, по умолчанию `.env.prod.local`).
 - `make docker-prod-down` — остановить prod-стек.
 - `make docker-ps` — показать статус контейнеров.
 
 Примечания:
 
+- Makefile работает и в Git Bash на Windows (POSIX-рецепты), и на Linux; для нативного cmd/PowerShell остаются Windows-ветки. На Windows prod-стек через `make docker-prod-up` не поднимается — только WSL2 или Linux-сервер.
 - По умолчанию `make back-run` использует dev-профиль и порт `8080`.
-- Для prod-режима порт обязателен: `make back-run-prod BACKEND_PORT=8080`.
+- Для prod-режима порт и секреты обязательны в `PROD_ENV_FILE` (`SCADA_MOBILE_BACKEND_PORT`, `SCADA_MOBILE_JWT_ACCESS_SECRET`, `SCADA_MOBILE_JWT_REFRESH_SECRET`).
 
 Frontend:
 

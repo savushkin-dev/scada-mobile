@@ -276,6 +276,25 @@ function UserRightFields({
   onChange: (field: string, value: unknown) => void;
 }) {
   const [creatingUnit, setCreatingUnit] = useState(false);
+  const getRoleName = useNameMap('roles');
+  const isAdmin = getRoleName(record.roleId as number | undefined) === 'ADMIN';
+
+  // Для роли ADMIN закрепление автоматов запрещено (backend отклоняет 409).
+  // Очищаем unitIds, чтобы сохранение воспринималось как «снять привязки»,
+  // а не как попытку добавить автоматы.
+  useEffect(() => {
+    if (isAdmin && Array.isArray(record.unitIds) && record.unitIds.length > 0) {
+      onChange('unitIds', []);
+    }
+  }, [isAdmin, record.unitIds, onChange]);
+
+  if (isAdmin) {
+    return (
+      <div className="space-y-5">
+        <p className="text-sm text-[#74777f]">Закрепление автоматов недоступно для роли «Админ»</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

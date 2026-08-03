@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.data.rest.core.annotation.RepositoryRestResource;
 import org.springframework.data.rest.core.annotation.RestResource;
 
+import java.util.List;
 import java.util.Optional;
 
 
@@ -16,6 +17,9 @@ public interface UserJpaRepository extends JpaRepository<UserEntity, Long>, JpaS
 
     @RestResource(exported = false)
     @NonNull Optional<UserEntity> findByCode(@NonNull String code);
+
+    @RestResource(exported = false)
+    @NonNull List<UserEntity> findTop10ByRole_IdOrderByIdAsc(@NonNull Long roleId);
 
     @Query("""
             select u

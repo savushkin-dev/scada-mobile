@@ -10,6 +10,10 @@ const DROPDOWN_FLIP_THRESHOLD = 260;
 /** Минимальная/максимальная высота десктопного дропдауна. */
 const DROPDOWN_MIN_HEIGHT = 140;
 const DROPDOWN_MAX_HEIGHT = 400;
+/** Отступ дропдауна от края viewport (чтобы список не упирался в край экрана). */
+const DROPDOWN_VIEWPORT_MARGIN = 16;
+/** Дропдаун не должен занимать больше этой доли высоты экрана. */
+const DROPDOWN_MAX_VIEWPORT_RATIO = 0.5;
 
 interface Choice {
   id: string | number;
@@ -110,15 +114,20 @@ export function SearchableSelect({
   };
 
   // Направление и высота дропдауна: если снизу мало места,
-  // а сверху больше — открываем вверх; высота ограничена доступным местом.
+  // а сверху больше — открываем вверх; высота ограничена доступным местом
+  // и долей высоты экрана, чтобы список не уходил за видимую область.
   const placement = useMemo(() => {
     if (!triggerRect) return null;
     const viewportHeight = window.innerHeight;
-    const spaceBelow = viewportHeight - triggerRect.bottom - DROPDOWN_GAP;
-    const spaceAbove = triggerRect.top - DROPDOWN_GAP;
+    const spaceBelow =
+      viewportHeight - triggerRect.bottom - DROPDOWN_GAP - DROPDOWN_VIEWPORT_MARGIN;
+    const spaceAbove = triggerRect.top - DROPDOWN_GAP - DROPDOWN_VIEWPORT_MARGIN;
     const openUp = spaceBelow < DROPDOWN_FLIP_THRESHOLD && spaceAbove > spaceBelow;
     const available = openUp ? spaceAbove : spaceBelow;
-    const maxHeight = Math.max(DROPDOWN_MIN_HEIGHT, Math.min(available, DROPDOWN_MAX_HEIGHT));
+    const maxHeight = Math.max(
+      DROPDOWN_MIN_HEIGHT,
+      Math.min(available, DROPDOWN_MAX_HEIGHT, viewportHeight * DROPDOWN_MAX_VIEWPORT_RATIO)
+    );
     return { openUp, maxHeight };
   }, [triggerRect]);
 
