@@ -221,8 +221,8 @@ export function UserNotificationSettingsEditor({ userId }: UserNotificationSetti
                 <span className="text-sm font-medium text-[#1a1c1e]">Выбрать всё</span>
               </div>
 
-              <div className="flex-1 min-h-0 overflow-auto rounded-[12px] border border-[#e8eaed] p-3">
-                <div className="hidden max-h-[280px] overflow-y-auto lg:block">
+              <div className="flex min-h-0 flex-1 flex-col rounded-[12px] border border-[#e8eaed] p-3">
+                <div className="hidden min-h-0 flex-1 overflow-y-auto lg:block">
                   <table className="w-full border-collapse">
                     <thead className="sticky top-0 z-10 bg-white">
                       <tr className="border-b border-[#f0f0f0]">
@@ -281,7 +281,7 @@ export function UserNotificationSettingsEditor({ userId }: UserNotificationSetti
                   </table>
                 </div>
 
-                <div className="flex flex-col gap-2 lg:hidden">
+                <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto lg:hidden">
                   {rows.map((row) => {
                     const settingId = row.setting?.id;
                     return (

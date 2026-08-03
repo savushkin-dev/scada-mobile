@@ -1,11 +1,14 @@
 package dev.savushkin.scada.mobile.backend.api.controller.admin;
 
+import dev.savushkin.scada.mobile.backend.api.dto.ErrorResponseDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.ReferenceDTO;
 import dev.savushkin.scada.mobile.backend.domain.model.ChangeAction;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitChangedEvent;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.adapter.PrintSrvTopologyJpaAdapter;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceCatalogEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UnitEntity;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserAssignmentEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.WorkshopEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.DeviceCatalogJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.DeviceJpaRepository;
@@ -13,6 +16,7 @@ import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.re
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UserAssignmentJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UserNotificationSettingsJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.WorkshopJpaRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -129,9 +133,23 @@ public class AdminUnitController {
 
     @DeleteMapping("/{id}")
     @Transactional
-    public ResponseEntity<Void> delete(@PathVariable @NonNull Long id) {
+    public ResponseEntity<?> delete(@PathVariable @NonNull Long id, HttpServletRequest request) {
         UnitEntity unit = unitRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Аппарат не найден"));
+        // Автомат, закреплённый хотя бы за одним сотрудником, удалять нельзя:
+        // возвращаем 409 со списком сотрудников, чтобы их отвязали перед удалением.
+        List<UserAssignmentEntity> activeAssignments =
+                assignmentRepository.findTop10ByUnit_IdAndActiveTrueOrderByIdAsc(id);
+        if (!activeAssignments.isEmpty()) {
+            List<ReferenceDTO> references = activeAssignments.stream()
+                    .map(a -> new ReferenceDTO("users", "Сотрудники", a.getUser().getId(),
+                            a.getUser().getFullName()))
+                    .toList();
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponseDTO(
+                    HttpStatus.CONFLICT.value(),
+                    "Невозможно удалить запись, так как она используется другими объектами системы",
+                    request.getRequestURI(), null, references));
+        }
         String printsrvInstanceId = unit.getPrintsrvInstanceId();
         Long workshopId = unit.getWorkshopId();
         // Составная сущность «Автомат»: удаляем все оперативные записи,
