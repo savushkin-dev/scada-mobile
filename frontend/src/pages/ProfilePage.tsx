@@ -91,9 +91,11 @@ export function ProfilePage() {
     source: 'profile',
   });
 
+  // Администратору блок настроек уведомлений не показывается (issue #38),
+  // поэтому и запрос за настройками для него не выполняем.
   const settingsFetch = useAsyncFetch<NotificationSetting[]>(
-    (signal) => fetchNotificationSettings(signal),
-    [],
+    isAdmin ? null : (signal) => fetchNotificationSettings(signal),
+    [isAdmin],
     { source: 'notification-settings' }
   );
 
@@ -248,55 +250,35 @@ export function ProfilePage() {
                 </p>
               </div>
 
-              <div className="rounded-[22px] border border-white/70 bg-white/90 px-4 py-4 shadow-[0_14px_40px_rgba(20,30,50,0.06)]">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8a8f98]">
-                  {PROFILE_COPY.assignedUnitsLabel}
-                </p>
-                {profileFetch.data?.assignedUnits?.length ? (
-                  <ul className="mt-3 space-y-2 text-sm font-semibold text-[#1A1C1E]">
-                    {profileFetch.data.assignedUnits.map((unit) => (
-                      <li key={unit.unitId} className="flex items-start gap-2">
-                        <span className="text-[#1c6fe8]">•</span>
-                        <span>{unit.unitName}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-3 text-sm font-medium text-[#74777F]">
-                    {PROFILE_COPY.assignedUnitsEmpty}
+              {!isAdmin && (
+                <div className="rounded-[22px] border border-white/70 bg-white/90 px-4 py-4 shadow-[0_14px_40px_rgba(20,30,50,0.06)]">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8a8f98]">
+                    {PROFILE_COPY.assignedUnitsLabel}
                   </p>
-                )}
-              </div>
-
-              <div className="mt-2 flex flex-col gap-3">
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setSettingsOpen(true)}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-[18px] bg-[#111827] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(15,23,42,0.32)]"
-                  >
-                    <span>{PROFILE_COPY.notificationButton}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleLogoutClick}
-                    aria-label={PROFILE_COPY.logoutButtonAriaLabel}
-                    className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#EA4335] text-white shadow-[0_0_10px_rgba(234,67,53,0.18)] transition-all duration-200 ease-in-out active:scale-[0.98]"
-                  >
-                    <img
-                      src="/assets/logout.svg"
-                      alt=""
-                      aria-hidden="true"
-                      className="h-5 w-5 invert"
-                    />
-                  </button>
+                  {profileFetch.data?.assignedUnits?.length ? (
+                    <ul className="mt-3 space-y-2 text-sm font-semibold text-[#1A1C1E]">
+                      {profileFetch.data.assignedUnits.map((unit) => (
+                        <li key={unit.unitId} className="flex items-start gap-2">
+                          <span className="text-[#1c6fe8]">•</span>
+                          <span>{unit.unitName}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-3 text-sm font-medium text-[#74777F]">
+                      {PROFILE_COPY.assignedUnitsEmpty}
+                    </p>
+                  )}
                 </div>
-                {isAdmin &&
-                  (fromAdmin ? (
+              )}
+
+              <div className="mt-2 flex items-center gap-3">
+                {isAdmin ? (
+                  fromAdmin ? (
                     <button
                       type="button"
                       onClick={() => navigate('/')}
-                      className="flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#0b5da4] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(11,93,164,0.32)]"
+                      className="flex flex-1 items-center justify-center gap-2 rounded-[18px] bg-[#0b5da4] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(11,93,164,0.32)]"
                     >
                       <span>Мониторинг</span>
                     </button>
@@ -304,11 +286,33 @@ export function ProfilePage() {
                     <button
                       type="button"
                       onClick={() => navigate('/admin')}
-                      className="flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#111827] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(15,23,42,0.32)]"
+                      className="flex flex-1 items-center justify-center gap-2 rounded-[18px] bg-[#111827] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(15,23,42,0.32)]"
                     >
                       <span>Администрирование</span>
                     </button>
-                  ))}
+                  )
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setSettingsOpen(true)}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-[18px] bg-[#111827] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(15,23,42,0.32)]"
+                  >
+                    <span>{PROFILE_COPY.notificationButton}</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleLogoutClick}
+                  aria-label={PROFILE_COPY.logoutButtonAriaLabel}
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#EA4335] text-white shadow-[0_0_10px_rgba(234,67,53,0.18)] transition-all duration-200 ease-in-out active:scale-[0.98]"
+                >
+                  <img
+                    src="/assets/logout.svg"
+                    alt=""
+                    aria-hidden="true"
+                    className="h-5 w-5 invert"
+                  />
+                </button>
               </div>
             </>
           )}
