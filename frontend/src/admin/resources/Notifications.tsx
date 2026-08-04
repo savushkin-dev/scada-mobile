@@ -17,9 +17,10 @@ interface Notification {
   id: number | string;
   type: string;
   severity: string;
-  instanceId: string;
+  instanceId?: string | null;
   deviceCode?: string;
   catalogId?: number | null;
+  userId?: number | null;
   message: string;
   read: boolean;
   createdAt: string;
@@ -43,6 +44,10 @@ function typeLabel(type: string) {
       return 'Устройство отключено';
     case 'DEVICE_RECONNECTED':
       return 'Устройство подключено';
+    case 'PASSWORD_CHANGED':
+      return 'Смена пароля';
+    case 'USER_INACTIVE':
+      return 'Бездействие пользователя';
     default:
       return type;
   }
@@ -217,8 +222,13 @@ export function NotificationList() {
                 </div>
                 <div className="mb-1 text-sm text-[#1a1c1e]">{note.message}</div>
                 <div className="mb-3 text-xs text-[#74777f]">
-                  {note.instanceId} {note.deviceCode ? `· ${note.deviceCode}` : ''} ·{' '}
-                  {new Date(note.createdAt).toLocaleString('ru-RU')}
+                  {[
+                    note.instanceId,
+                    note.deviceCode,
+                    new Date(note.createdAt).toLocaleString('ru-RU'),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </div>
                 <NotificationActions note={note} />
               </div>
@@ -246,7 +256,7 @@ export function NotificationList() {
                 key: 'instance',
                 header: 'Автомат',
                 filterKey: 'instanceId',
-                render: (note) => note.instanceId,
+                render: (note) => note.instanceId ?? '—',
               },
               {
                 key: 'device',

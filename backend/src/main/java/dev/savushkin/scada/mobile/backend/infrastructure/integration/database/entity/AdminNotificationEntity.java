@@ -30,7 +30,7 @@ public class AdminNotificationEntity {
     @Enumerated(EnumType.STRING)
     private AdminNotificationSeverity severity;
 
-    @Column(name = "instance_id", nullable = false)
+    @Column(name = "instance_id")
     private String instanceId;
 
     @Column(name = "device_code")
@@ -38,6 +38,10 @@ public class AdminNotificationEntity {
 
     @Column(name = "catalog_id")
     private Long catalogId;
+
+    /** Сотрудник, которого касается событие (для уведомлений о пользователях; null у событий устройств). */
+    @Column(name = "user_id")
+    private Long userId;
 
     @Column(name = "message", nullable = false)
     private String message;

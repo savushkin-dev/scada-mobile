@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
 @Service
@@ -27,19 +28,22 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final JwtProperties jwtProperties;
     private final PasswordEncoder passwordEncoder;
+    private final AdminNotificationService adminNotificationService;
 
     public AuthService(UserAuthRepository userAuthRepository,
                        UserJpaRepository userJpaRepository,
                        RefreshTokenRepository refreshTokenRepository,
                        JwtTokenProvider jwtTokenProvider,
                        JwtProperties jwtProperties,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder,
+                       AdminNotificationService adminNotificationService) {
         this.userAuthRepository = userAuthRepository;
         this.userJpaRepository = userJpaRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.jwtTokenProvider = jwtTokenProvider;
         this.jwtProperties = jwtProperties;
         this.passwordEncoder = passwordEncoder;
+        this.adminNotificationService = adminNotificationService;
     }
 
     public @NonNull AuthUser authenticate(@NonNull String workerCode, @NonNull String password) {
@@ -76,6 +80,9 @@ public class AuthService {
     public @NonNull TokenPair createTokenPair(@NonNull AuthUser user) {
         UserEntity userEntity = userJpaRepository.findByIdWithRole(user.id())
                 .orElseThrow(() -> new InvalidCredentialsException(user.code()));
+
+        userEntity.setLastActivityAt(LocalDateTime.now());
+        userJpaRepository.save(userEntity);
 
         String role = userEntity.getRole().getName();
         String accessToken = jwtTokenProvider.generateAccessToken(user.id(), role, user.passwordTemporary());
@@ -114,6 +121,9 @@ public class AuthService {
         UserEntity user = existing.getUser();
         existing.setRevoked(true);
         refreshTokenRepository.save(existing);
+
+        user.setLastActivityAt(LocalDateTime.now());
+        userJpaRepository.save(user);
 
         String role = user.getRole().getName();
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), role, user.isPasswordTemporary());
@@ -177,7 +187,10 @@ public class AuthService {
 
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setPasswordTemporary(false);
+        user.setLastActivityAt(LocalDateTime.now());
         userJpaRepository.save(user);
+
+        adminNotificationService.createPasswordChangedNotification(user, false);
 
         revokeAllRefreshTokens(userId);
 

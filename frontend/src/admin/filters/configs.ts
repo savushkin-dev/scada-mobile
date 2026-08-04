@@ -65,7 +65,13 @@ export const USER_FILTER_FIELDS: FilterFieldConfig[] = [
   { key: 'code', label: 'Код', type: 'text' },
   { key: 'fullName', label: 'ФИО', type: 'text' },
   { key: 'roleId', label: 'Роль', type: 'search-select', reference: 'roles', optionText: 'name' },
-  { key: 'unitId', label: 'Автоматы', type: 'search-select', reference: 'units', optionText: 'name' },
+  {
+    key: 'unitId',
+    label: 'Автоматы',
+    type: 'search-select',
+    reference: 'units',
+    optionText: 'name',
+  },
   {
     key: 'incidentUnitId',
     label: 'Тех. сбои',
@@ -106,6 +112,8 @@ export const NOTIFICATION_FILTER_FIELDS: FilterFieldConfig[] = [
       { value: 'DEVICE_DISCOVERED', label: 'Новое устройство' },
       { value: 'DEVICE_DISCONNECTED', label: 'Устройство отключено' },
       { value: 'DEVICE_RECONNECTED', label: 'Устройство подключено' },
+      { value: 'PASSWORD_CHANGED', label: 'Смена пароля' },
+      { value: 'USER_INACTIVE', label: 'Бездействие пользователя' },
     ],
   },
   {

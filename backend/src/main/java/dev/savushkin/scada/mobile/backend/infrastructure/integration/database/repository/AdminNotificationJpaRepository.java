@@ -38,6 +38,13 @@ public interface AdminNotificationJpaRepository extends JpaRepository<AdminNotif
             @NonNull String deviceCode
     );
 
+    /** Проверяет наличие непрочитанного уведомления данного типа по сотруднику (дедупликация). */
+    @RestResource(exported = false)
+    boolean existsByTypeAndUserIdAndReadFalse(
+            @NonNull AdminNotificationType type,
+            @NonNull Long userId
+    );
+
     @RestResource(exported = false)
     void deleteByTypeAndInstanceIdAndDeviceCode(
             @NonNull AdminNotificationType type,

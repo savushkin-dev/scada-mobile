@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Pattern;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 @Entity
@@ -37,6 +38,10 @@ public class UserEntity {
 
     @Column(name = "password_temporary", nullable = false)
     private boolean passwordTemporary = false;
+
+    /** Момент последней активности сотрудника (логин, refresh токенов, смена пароля). */
+    @Column(name = "last_activity_at")
+    private LocalDateTime lastActivityAt;
 
     @OneToMany(mappedBy = "user")
     @JsonIgnore

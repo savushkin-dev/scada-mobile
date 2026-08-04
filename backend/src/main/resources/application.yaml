@@ -67,14 +67,19 @@ jwt:
   refresh-expiration-days: 7
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Админ-уведомления — retention прочитанных записей.
+# Админ-уведомления — retention прочитанных записей и порог бездействия сотрудников.
 #
 # read-retention-days — сколько дней прочитанное уведомление хранится в БД;
 # по истечении удаляется планировщиком (ежедневно, 02:30).
 # Переопределяется через SCADA_MOBILE_ADMIN_NOTIFICATIONS_READ_RETENTION_DAYS.
+#
+# inactivity-threshold-hours — порог бездействия сотрудника в часах, после которого
+# создаётся уведомление USER_INACTIVE (проверка ежечасно).
+# Переопределяется через SCADA_MOBILE_ADMIN_NOTIFICATIONS_INACTIVITY_THRESHOLD_HOURS.
 # ─────────────────────────────────────────────────────────────────────────────
 admin-notifications:
   read-retention-days: ${SCADA_MOBILE_ADMIN_NOTIFICATIONS_READ_RETENTION_DAYS:60}
+  inactivity-threshold-hours: ${SCADA_MOBILE_ADMIN_NOTIFICATIONS_INACTIVITY_THRESHOLD_HOURS:72}
 
 # Логирование — конфигурация в src/main/resources/logback-spring.xml
 # Уровни переопределяются по профилям (dev / prod) в logback-spring.xml
