@@ -1,313 +1,171 @@
-import type { SVGProps } from 'react';
+import type { CSSProperties, HTMLAttributes } from 'react';
 
-interface AdminIconProps extends SVGProps<SVGSVGElement> {
+interface AdminIconProps extends HTMLAttributes<HTMLSpanElement> {
+  /** Имя svg-файла (без расширения) в public/assets/admin. */
+  name: string;
   size?: number;
 }
 
-export function AdminIcon({ size = 20, className = '', children, ...props }: AdminIconProps) {
+/** Каталог, из которого раздаются svg-иконки админ-панели. */
+const ICONS_BASE_URL = '/assets/admin/';
+
+/**
+ * Иконка админ-панели на основе svg-файла из public/assets/admin,
+ * подключённого через CSS mask. Цвет берётся из currentColor
+ * (backgroundColor), поэтому сохраняются все text-[#...]
+ * и hover/active-состояния потребителей.
+ */
+export function AdminIcon({ name, size = 20, className = '', style, ...props }: AdminIconProps) {
+  const maskUrl = `url("${ICONS_BASE_URL}${name}.svg")`;
+  const maskStyle: CSSProperties = {
+    width: size,
+    height: size,
+    backgroundColor: 'currentColor',
+    WebkitMaskImage: maskUrl,
+    maskImage: maskUrl,
+    WebkitMaskRepeat: 'no-repeat',
+    maskRepeat: 'no-repeat',
+    WebkitMaskPosition: 'center',
+    maskPosition: 'center',
+    WebkitMaskSize: 'contain',
+    maskSize: 'contain',
+  };
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+    <span
+      aria-hidden="true"
       className={`inline-block shrink-0 ${className}`}
+      style={{ ...maskStyle, ...style }}
       {...props}
-    >
-      {children}
-    </svg>
+    />
   );
 }
 
-export function IconRoles(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-    </AdminIcon>
-  );
+type NamedIconProps = Omit<AdminIconProps, 'name'>;
+
+export function IconRoles(props: NamedIconProps) {
+  return <AdminIcon name="roles" {...props} />;
 }
 
-export function IconWorkshops(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <path d="M2 22h20M2 6h20v16H2zM6 6V2h12v4M12 2v20" />
-    </AdminIcon>
-  );
+export function IconWorkshops(props: NamedIconProps) {
+  return <AdminIcon name="workshops" {...props} />;
 }
 
-export function IconDeviceTypes(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <polygon points="12 2 2 7 12 12 22 7 12 2" />
-      <polyline points="2 17 12 22 22 17" />
-      <polyline points="2 12 12 17 22 12" />
-    </AdminIcon>
-  );
+export function IconDeviceTypes(props: NamedIconProps) {
+  return <AdminIcon name="device-types" {...props} />;
 }
 
-export function IconUnits(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-      <line x1="12" y1="22.08" x2="12" y2="12" />
-    </AdminIcon>
-  );
+export function IconUnits(props: NamedIconProps) {
+  return <AdminIcon name="units" {...props} />;
 }
 
-export function IconDevices(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-      <line x1="8" y1="21" x2="16" y2="21" />
-      <line x1="12" y1="17" x2="12" y2="21" />
-    </AdminIcon>
-  );
+export function IconDevices(props: NamedIconProps) {
+  return <AdminIcon name="devices" {...props} />;
 }
 
-export function IconUserTie(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <circle cx="12" cy="7" r="4" />
-      <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
-    </AdminIcon>
-  );
+export function IconUserTie(props: NamedIconProps) {
+  return <AdminIcon name="user-tie" {...props} />;
 }
 
-export function IconNotifications(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-    </AdminIcon>
-  );
+export function IconNotifications(props: NamedIconProps) {
+  return <AdminIcon name="notifications" {...props} />;
 }
 
-export function IconBell(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-    </AdminIcon>
-  );
+export function IconBell(props: NamedIconProps) {
+  return <AdminIcon name="bell" {...props} />;
 }
 
-export function IconPlus(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <line x1="5" y1="12" x2="19" y2="12" />
-    </AdminIcon>
-  );
+export function IconPlus(props: NamedIconProps) {
+  return <AdminIcon name="plus" {...props} />;
 }
 
-export function IconPencil(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-    </AdminIcon>
-  );
+export function IconPencil(props: NamedIconProps) {
+  return <AdminIcon name="pencil" {...props} />;
 }
 
-export function IconTrash(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-      <line x1="10" y1="11" x2="10" y2="17" />
-      <line x1="14" y1="11" x2="14" y2="17" />
-    </AdminIcon>
-  );
+export function IconTrash(props: NamedIconProps) {
+  return <AdminIcon name="trash" {...props} />;
 }
 
-export function IconChevronLeft(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <polyline points="15 18 9 12 15 6" />
-    </AdminIcon>
-  );
+export function IconChevronLeft(props: NamedIconProps) {
+  return <AdminIcon name="chevron-left" {...props} />;
 }
 
-export function IconChevronRight(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <polyline points="9 18 15 12 9 6" />
-    </AdminIcon>
-  );
+export function IconChevronRight(props: NamedIconProps) {
+  return <AdminIcon name="chevron-right" {...props} />;
 }
 
-export function IconChevronDown(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <polyline points="6 9 12 15 18 9" />
-    </AdminIcon>
-  );
+export function IconChevronDown(props: NamedIconProps) {
+  return <AdminIcon name="chevron-down" {...props} />;
 }
 
-export function IconMenu(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <line x1="3" y1="12" x2="21" y2="12" />
-      <line x1="3" y1="6" x2="21" y2="6" />
-      <line x1="3" y1="18" x2="21" y2="18" />
-    </AdminIcon>
-  );
+export function IconMenu(props: NamedIconProps) {
+  return <AdminIcon name="menu" {...props} />;
 }
 
-export function IconSearch(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </AdminIcon>
-  );
+export function IconSearch(props: NamedIconProps) {
+  return <AdminIcon name="search" {...props} />;
 }
 
-export function IconFilter(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <path d="M3 5h18l-7 8v5.5l-4 2.5v-8L3 5z" />
-    </AdminIcon>
-  );
+export function IconFilter(props: NamedIconProps) {
+  return <AdminIcon name="filter" {...props} />;
 }
 
-export function IconCheck(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <polyline points="20 6 9 17 4 12" />
-    </AdminIcon>
-  );
+export function IconCheck(props: NamedIconProps) {
+  return <AdminIcon name="check" {...props} />;
 }
 
-export function IconCopy(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-    </AdminIcon>
-  );
+export function IconCopy(props: NamedIconProps) {
+  return <AdminIcon name="copy" {...props} />;
 }
 
-export function IconKey(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
-    </AdminIcon>
-  );
+export function IconKey(props: NamedIconProps) {
+  return <AdminIcon name="key" {...props} />;
 }
 
-export function IconX(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <line x1="18" y1="6" x2="6" y2="18" />
-      <line x1="6" y1="6" x2="18" y2="18" />
-    </AdminIcon>
-  );
+export function IconX(props: NamedIconProps) {
+  return <AdminIcon name="x" {...props} />;
 }
 
-export function IconDotsVertical(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <circle cx="12" cy="12" r="1" />
-      <circle cx="12" cy="5" r="1" />
-      <circle cx="12" cy="19" r="1" />
-    </AdminIcon>
-  );
+export function IconDotsVertical(props: NamedIconProps) {
+  return <AdminIcon name="dots-vertical" {...props} />;
 }
 
-export function IconInbox(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
-      <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
-    </AdminIcon>
-  );
+export function IconInbox(props: NamedIconProps) {
+  return <AdminIcon name="inbox" {...props} />;
 }
 
-export function IconBooks(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-    </AdminIcon>
-  );
+export function IconBooks(props: NamedIconProps) {
+  return <AdminIcon name="books" {...props} />;
 }
 
-export function IconAlertCircle(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="8" x2="12" y2="12" />
-      <line x1="12" y1="16" x2="12.01" y2="16" />
-    </AdminIcon>
-  );
+export function IconAlertCircle(props: NamedIconProps) {
+  return <AdminIcon name="alert-circle" {...props} />;
 }
 
-export function IconRefresh(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <polyline points="23 4 23 10 17 10" />
-      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-    </AdminIcon>
-  );
+export function IconRefresh(props: NamedIconProps) {
+  return <AdminIcon name="refresh" {...props} />;
 }
 
-export function IconSettings(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z" />
-    </AdminIcon>
-  );
+export function IconSettings(props: NamedIconProps) {
+  return <AdminIcon name="settings" {...props} />;
 }
 
-export function IconSave(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-      <polyline points="17 21 17 13 7 13 7 21" />
-      <polyline points="7 3 7 8 15 8" />
-    </AdminIcon>
-  );
+export function IconSave(props: NamedIconProps) {
+  return <AdminIcon name="save" {...props} />;
 }
 
-export function IconEye(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </AdminIcon>
-  );
+export function IconEye(props: NamedIconProps) {
+  return <AdminIcon name="eye" {...props} />;
 }
 
-export function IconEyeOff(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-      <line x1="1" y1="1" x2="23" y2="23" />
-    </AdminIcon>
-  );
+export function IconEyeOff(props: NamedIconProps) {
+  return <AdminIcon name="eye-off" {...props} />;
 }
 
-export function IconPower(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <path d="M12 2v10" />
-      <path d="M18.36 6.64a9 9 0 1 1-12.72 0" />
-    </AdminIcon>
-  );
+export function IconPower(props: NamedIconProps) {
+  return <AdminIcon name="power" {...props} />;
 }
 
-export function IconPowerOff(props: Omit<AdminIconProps, 'children'>) {
-  return (
-    <AdminIcon {...props}>
-      <path d="M18.36 6.64a9 9 0 1 1-12.72 0" />
-      <line x1="12" y1="2" x2="12" y2="12" />
-      <line x1="2" y1="2" x2="22" y2="22" />
-    </AdminIcon>
-  );
+export function IconPowerOff(props: NamedIconProps) {
+  return <AdminIcon name="power-off" {...props} />;
 }

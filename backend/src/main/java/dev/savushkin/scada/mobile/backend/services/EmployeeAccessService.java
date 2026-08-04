@@ -39,6 +39,7 @@ public class EmployeeAccessService {
     private final PasswordEncoder passwordEncoder;
     private final AuthService authService;
     private final ApplicationEventPublisher eventPublisher;
+    private final AdminNotificationService adminNotificationService;
 
     public EmployeeAccessService(UserJpaRepository userRepository,
                                  RoleJpaRepository roleRepository,
@@ -46,7 +47,8 @@ public class EmployeeAccessService {
                                  UserAssignmentJpaRepository assignmentRepository,
                                  PasswordEncoder passwordEncoder,
                                  AuthService authService,
-                                 ApplicationEventPublisher eventPublisher) {
+                                 ApplicationEventPublisher eventPublisher,
+                                 AdminNotificationService adminNotificationService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.unitRepository = unitRepository;
@@ -54,6 +56,7 @@ public class EmployeeAccessService {
         this.passwordEncoder = passwordEncoder;
         this.authService = authService;
         this.eventPublisher = eventPublisher;
+        this.adminNotificationService = adminNotificationService;
     }
 
     /**
@@ -114,6 +117,8 @@ public class EmployeeAccessService {
         user.setPassword(passwordEncoder.encode(rawPassword));
         user.setPasswordTemporary(true);
         userRepository.save(user);
+
+        adminNotificationService.createPasswordChangedNotification(user, true);
 
         authService.revokeAllRefreshTokens(userId);
 

@@ -1,6 +1,7 @@
 package dev.savushkin.scada.mobile.backend.services;
 
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.AdminNotificationEntity;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserEntity;
 import dev.savushkin.scada.mobile.backend.domain.model.AdminNotificationEvent;
 import dev.savushkin.scada.mobile.backend.domain.model.AdminNotificationSeverity;
 import dev.savushkin.scada.mobile.backend.domain.model.AdminNotificationType;
@@ -90,6 +91,44 @@ public class AdminNotificationService {
         notification.setMessage(String.format(
                 "Устройство '%s' на автомате '%s' снова подключено.",
                 deviceCode, instanceId));
+        notification.setRead(false);
+
+        notificationRepository.save(notification);
+        eventPublisher.publishEvent(new AdminNotificationEvent(notification));
+    }
+
+    /**
+     * Уведомление о смене пароля сотрудником (самостоятельно или через сброс администратором).
+     */
+    @Transactional
+    public void createPasswordChangedNotification(@NonNull UserEntity user, boolean resetByAdmin) {
+        AdminNotificationEntity notification = new AdminNotificationEntity();
+        notification.setType(AdminNotificationType.PASSWORD_CHANGED);
+        notification.setSeverity(AdminNotificationSeverity.INFO);
+        notification.setUserId(user.getId());
+        notification.setMessage(resetByAdmin
+                ? String.format("Администратор сбросил пароль сотрудника %s (таб. № %s)",
+                        user.getFullName(), user.getCode())
+                : String.format("Сотрудник %s (таб. № %s) сменил пароль",
+                        user.getFullName(), user.getCode()));
+        notification.setRead(false);
+
+        notificationRepository.save(notification);
+        eventPublisher.publishEvent(new AdminNotificationEvent(notification));
+    }
+
+    /**
+     * Уведомление о длительном бездействии сотрудника.
+     */
+    @Transactional
+    public void createUserInactiveNotification(@NonNull UserEntity user, long inactiveHours) {
+        AdminNotificationEntity notification = new AdminNotificationEntity();
+        notification.setType(AdminNotificationType.USER_INACTIVE);
+        notification.setSeverity(AdminNotificationSeverity.WARNING);
+        notification.setUserId(user.getId());
+        notification.setMessage(String.format(
+                "Сотрудник %s (таб. № %s) не проявлял активность более %d ч.",
+                user.getFullName(), user.getCode(), inactiveHours));
         notification.setRead(false);
 
         notificationRepository.save(notification);
