@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAdminNotificationsCount } from './AdminNotificationsContext';
-import { IconSettings, IconNotifications, IconUserTie } from './icons';
+import { IconBooks, IconSettings, IconNotifications, IconUserTie } from './icons';
 
 const operationalItems = [
   { name: 'users', label: 'Сотрудники' },
@@ -49,12 +49,24 @@ export function AdminHeader() {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Иконка «Настройки» скрыта (issue #49): внутри раздела пока только
+            справочники, которые вынесены в отдельную иконку ниже. Кнопка и
+            маршрут /admin/settings сохранены на будущее. */}
+        <div className="hidden">
+          <HeaderIconButton
+            active={location.pathname.startsWith('/admin/settings')}
+            onClick={() => navigate('/admin/settings')}
+            ariaLabel="Настройки"
+          >
+            <IconSettings size={20} />
+          </HeaderIconButton>
+        </div>
         <HeaderIconButton
-          active={location.pathname.startsWith('/admin/settings')}
-          onClick={() => navigate('/admin/settings')}
-          ariaLabel="Настройки"
+          active={location.pathname.startsWith('/admin/settings/references')}
+          onClick={() => navigate('/admin/settings/references')}
+          ariaLabel="Справочники"
         >
-          <IconSettings size={20} />
+          <IconBooks size={20} />
         </HeaderIconButton>
         <HeaderIconButton
           active={location.pathname.startsWith('/admin/notifications')}
@@ -65,8 +77,8 @@ export function AdminHeader() {
           <IconNotifications size={20} />
         </HeaderIconButton>
         <HeaderIconButton
-          active={location.pathname.startsWith('/profile')}
-          onClick={() => navigate('/profile', { state: { from: { pathname: location.pathname } } })}
+          active={location.pathname.startsWith('/admin/profile')}
+          onClick={() => navigate('/admin/profile')}
           ariaLabel="Профиль"
         >
           <IconUserTie size={20} />

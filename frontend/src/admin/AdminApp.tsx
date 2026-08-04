@@ -16,6 +16,7 @@ import { NotificationList } from './resources/Notifications';
 import { NotificationSettingsEdit } from './resources/NotificationSettings';
 import { SettingsPage } from './resources/Settings';
 import { ReferenceHubPage } from './resources/ReferenceHub';
+import { AdminProfilePage } from './resources/AdminProfile';
 import {
   ReferenceListPage,
   ReferenceEditPage,
@@ -108,6 +109,7 @@ export function AdminApp() {
         <Route path="/settings/references/:resource" element={<ReferenceListPage />} />
         <Route path="/settings/references/:resource/create" element={<ReferenceCreatePage />} />
         <Route path="/settings/references/:resource/:id" element={<ReferenceEditPage />} />
+        <Route path="/profile" element={<AdminProfilePage />} />
       </CustomRoutes>
     </Admin>
   );

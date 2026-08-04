@@ -29,7 +29,9 @@ export function AdminBreadcrumbs() {
     pathname === '/admin/users' ||
     pathname === '/admin/units' ||
     pathname === '/admin/notifications' ||
-    pathname === '/admin/settings'
+    pathname === '/admin/settings' ||
+    pathname === '/admin/settings/references' ||
+    pathname === '/admin/profile'
   ) {
     return null;
   }
@@ -45,14 +47,6 @@ export function AdminBreadcrumbs() {
 
     return (
       <nav className="flex items-center gap-1.5 text-sm leading-none">
-        <button
-          type="button"
-          onClick={() => navigate('/admin/settings')}
-          className="leading-none text-[#74777f] transition-colors hover:text-[#1a1c1e]"
-        >
-          Настройки
-        </button>
-        <IconChevronRight size={16} className="text-[#b0b3b8]" />
         {resourceLabel ? (
           <button
             type="button"
