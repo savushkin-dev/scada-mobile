@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useListContext } from 'react-admin';
-import { parseSearchQuery, removeFieldToken } from './parser';
+import { parseSearchQuery, formatFieldToken, removeFieldToken } from './parser';
 import type { FieldFilterValue, FilterFieldConfig, TableFilterValues } from './types';
 
 /** Задержка перед отправкой глобального поиска после остановки печати. */
@@ -112,7 +112,7 @@ export function TableFilterProvider({
   const setFieldFilter = useCallback(
     (key: string, value: FieldFilterValue) => {
       // Фильтр из шапки колонки выигрывает у токена в строке поиска
-      setRawSearch((prev) => removeFieldToken(prev, key));
+      setRawSearch((prev) => removeFieldToken(prev, key, fields));
       tokenKeysRef.current = tokenKeysRef.current.filter((k) => k !== key);
       const prev = filterValuesRef.current;
       const next: TableFilterValues = {
@@ -122,12 +122,12 @@ export function TableFilterProvider({
       lastAppliedRef.current = JSON.stringify(next);
       setFilters(next);
     },
-    [setFilters]
+    [fields, setFilters]
   );
 
   const removeFieldFilter = useCallback(
     (key: string) => {
-      setRawSearch((prev) => removeFieldToken(prev, key));
+      setRawSearch((prev) => removeFieldToken(prev, key, fields));
       tokenKeysRef.current = tokenKeysRef.current.filter((k) => k !== key);
       const prev = filterValuesRef.current;
       const nextF = { ...(prev.f ?? {}) };
@@ -139,7 +139,7 @@ export function TableFilterProvider({
       lastAppliedRef.current = JSON.stringify(next);
       setFilters(next);
     },
-    [setFilters]
+    [fields, setFilters]
   );
 
   const clearGlobalSearch = useCallback(() => {
@@ -147,7 +147,7 @@ export function TableFilterProvider({
     setRawSearch((prev) => {
       const parsed = parseSearchQuery(prev, fields);
       const tokens = [
-        ...Object.entries(parsed.structured).map(([k, v]) => `${k}:${v}`),
+        ...Object.entries(parsed.structured).map(([k, v]) => formatFieldToken(k, v)),
         ...parsed.invalidTokens,
       ];
       return tokens.join(' ');
