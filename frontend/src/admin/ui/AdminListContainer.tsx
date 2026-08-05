@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useListContext, useResourceContext, useCreatePath } from 'react-admin';
+import { useListContext, useResourceContext } from 'react-admin';
 import { AdminCard } from './AdminCard';
 import { PillButton } from './PillButton';
 import { PaginationPills } from './PaginationPills';
@@ -135,17 +135,17 @@ function ListBody<T>({
 
 function CreateButton() {
   const resource = useResourceContext();
-  const getCreatePath = useCreatePath();
   const navigate = useNavigate();
 
   if (!resource) return null;
 
-  const createPath = getCreatePath({ resource, type: 'create' });
-
+  // Относительный переход: для списка справочника сохраняет контекст
+  // /admin/settings/references/:resource/create, где работают хлебные крошки
+  // (useCreatePath вёл бы на канонический /admin/:resource/create вне этого раздела).
   return (
     <PillButton
       icon={<IconPlus size={18} />}
-      onClick={() => navigate(createPath)}
+      onClick={() => navigate('create')}
       className="h-9 px-4"
     >
       Создать
