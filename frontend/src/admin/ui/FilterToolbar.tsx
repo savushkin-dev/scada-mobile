@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { useTableFilters } from '../filters/TableFilterContext';
-import { removeFieldToken } from '../filters/parser';
+import { removeRawToken } from '../filters/parser';
 import type { ComparisonFilterValue, FieldFilterValue, FilterFieldConfig } from '../filters/types';
 import { useNameMap } from './useNameMap';
 import { IconSearch, IconX } from './icons';
@@ -68,9 +68,7 @@ export function FilterToolbar({ actions }: { actions?: ReactNode }) {
                   key={token}
                   tone="error"
                   label={`Некорректный фильтр: ${token}`}
-                  onRemove={() =>
-                    ctx.setRawSearch(removeFieldToken(rawSearch, token.split(':')[0]))
-                  }
+                  onRemove={() => ctx.setRawSearch(removeRawToken(rawSearch, token))}
                 />
               ))}
             </ChipStripScroller>
@@ -96,7 +94,8 @@ export function FilterToolbar({ actions }: { actions?: ReactNode }) {
               {ex}
             </code>
           ))}
-          . Несколько условий — через пробел.
+          . Несколько условий — через пробел, значение с пробелами — в двойных кавычках. Поле можно
+          указать ключом или названием колонки.
         </p>
       )}
     </div>
@@ -124,17 +123,24 @@ function ChipStripScroller({ children }: { children: ReactNode }) {
     const el = scrollRef.current;
     if (!el) return;
 
+    // Замер откладываем в rAF: setState синхронно в layout-эффекте
+    // при каскаде рендеров (применение фильтров из строки поиска)
+    // превращался в Maximum update depth exceeded и ронял страницу.
+    let raf = 0;
     const update = () => {
-      const { scrollWidth, clientWidth, scrollLeft } = el;
-      setThumb((prev) => {
-        if (scrollWidth <= clientWidth + 1) return prev === null ? prev : null;
-        const width = Math.max(24, (clientWidth / scrollWidth) * clientWidth);
-        const left = (scrollLeft / (scrollWidth - clientWidth)) * (clientWidth - width);
-        // Без этого сравнения каждый рендер кладёт в стейт новый объект
-        // и зацикливает эффект (Maximum update depth exceeded).
-        return prev && Math.abs(prev.left - left) < 0.5 && Math.abs(prev.width - width) < 0.5
-          ? prev
-          : { left, width };
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const { scrollWidth, clientWidth, scrollLeft } = el;
+        setThumb((prev) => {
+          if (scrollWidth <= clientWidth + 1) return prev === null ? prev : null;
+          const width = Math.max(24, (clientWidth / scrollWidth) * clientWidth);
+          const left = (scrollLeft / (scrollWidth - clientWidth)) * (clientWidth - width);
+          // Без этого сравнения каждый кадр клал бы в стейт новый объект
+          // и зацикливал перерисовку.
+          return prev && Math.abs(prev.left - left) < 0.5 && Math.abs(prev.width - width) < 0.5
+            ? prev
+            : { left, width };
+        });
       });
     };
 
@@ -142,6 +148,7 @@ function ChipStripScroller({ children }: { children: ReactNode }) {
     el.addEventListener('scroll', update, { passive: true });
     window.addEventListener('resize', update);
     return () => {
+      cancelAnimationFrame(raf);
       el.removeEventListener('scroll', update);
       window.removeEventListener('resize', update);
     };
@@ -246,7 +253,11 @@ function FilterValueLabel({ field, value }: { field: FilterFieldConfig; value: F
   if (field.reference) {
     return <ReferenceValuesLabel field={field} values={values} />;
   }
-  const mapped = values.map((v) => field.options?.find((o) => o.value === v)?.label ?? v);
+  // Бэкенд приводит enum/bool-значения к каноническому виду сам, поэтому опции
+  // сопоставляем без учёта регистра — иначе пилюля показывала бы сырое значение.
+  const mapped = values.map(
+    (v) => field.options?.find((o) => o.value.toLowerCase() === v.toLowerCase())?.label ?? v
+  );
   return <>{mapped.join(', ')}</>;
 }
 
