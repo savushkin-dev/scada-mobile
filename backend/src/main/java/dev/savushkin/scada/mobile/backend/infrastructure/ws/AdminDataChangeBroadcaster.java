@@ -71,7 +71,7 @@ public class AdminDataChangeBroadcaster {
     public void onEmployeeChanged(EmployeeChangedEvent event) {
         if (event.action() == ChangeAction.DELETE) {
             sendToAdminsAndUser(event.employeeId(), EmployeeChangedMessageDTO.of(
-                    new EmployeeChangedMessageDTO.EmployeePayload(event.employeeId(), null, null, null, false),
+                    new EmployeeChangedMessageDTO.EmployeePayload(event.employeeId(), null, null, null, null, false),
                     event.action().name()
             ));
             sendForceLogout(event.employeeId(), "User deleted");
@@ -80,11 +80,17 @@ public class AdminDataChangeBroadcaster {
 
         userRepository.findById(event.employeeId()).ifPresentOrElse(
                 user -> {
+                    // role — LAZY-связь; после коммита сессия может быть закрыта,
+                    // поэтому имя роли читаем отдельным запросом по FK.
+                    String roleName = user.getRoleId() != null
+                            ? roleRepository.findById(user.getRoleId()).map(RoleEntity::getName).orElse(null)
+                            : null;
                     var payload = new EmployeeChangedMessageDTO.EmployeePayload(
                             user.getId(),
                             user.getFullName(),
                             user.getCode(),
                             user.getRoleId(),
+                            roleName,
                             user.isActive()
                     );
                     sendToAdminsAndUser(user.getId(), EmployeeChangedMessageDTO.of(payload, event.action().name()));
@@ -96,6 +102,16 @@ public class AdminDataChangeBroadcaster {
                 },
                 () -> log.warn("AdminDataChangeBroadcaster: employee {} not found after commit", event.employeeId())
         );
+    }
+
+    /**
+     * Администратор сбросил пароль сотрудника — refresh-токены уже отозваны
+     * в {@code EmployeeAccessService}; здесь немедленно разлогиниваем
+     * активные WS-сессии сотрудника, не дожидаясь истечения access-токена.
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void onEmployeePasswordReset(EmployeePasswordResetEvent event) {
+        sendForceLogout(event.userId(), "Password reset by administrator");
     }
 
     // ─── Workshops ───────────────────────────────────────────────────────────

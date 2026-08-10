@@ -1,19 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { PAGE_FADE_SECTION_STYLE } from '../config';
-import {
-  fetchNotificationSettings,
-  fetchUserProfile,
-  updateNotificationSetting,
-} from '../api/profile';
+import { updateNotificationSetting } from '../api/profile';
 import { logoutUser } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
+import { useUserProfile } from '../context/UserProfileContext';
 import { usePageHeader } from '../context/PageHeaderContext';
-import { useAsyncFetch } from '../hooks/useAsyncFetch';
 import { classifyError } from '../errors/classifyError';
 import { getErrorBodyMessage } from '../errors/AppError';
 import type { AppError } from '../errors/AppError';
-import type { NotificationSetting, UserProfile } from '../types';
+import type { NotificationSetting } from '../types';
 import { SkeletonBlock } from '../components/skeleton/SkeletonBlock';
 import { UnitCardSkeleton } from '../components/skeleton/UnitCardSkeleton';
 
@@ -87,19 +83,18 @@ export function ProfilePage() {
 
   usePageHeader(PROFILE_COPY.title, undefined, 'default', handleBack);
 
-  const profileFetch = useAsyncFetch<UserProfile>((signal) => fetchUserProfile(signal), [], {
-    source: 'profile',
-  });
+  // Профиль и настройки живут в UserProfileContext: первоначальная загрузка — REST,
+  // все дальнейшие изменения приходят по /ws/live (см. RootLayout).
+  const {
+    profile,
+    profileStatus,
+    profileError,
+    settings,
+    settingsStatus,
+    settingsError,
+    applyLocalSetting,
+  } = useUserProfile();
 
-  // Администратору блок настроек уведомлений не показывается (issue #38),
-  // поэтому и запрос за настройками для него не выполняем.
-  const settingsFetch = useAsyncFetch<NotificationSetting[]>(
-    isAdmin ? null : (signal) => fetchNotificationSettings(signal),
-    [isAdmin],
-    { source: 'notification-settings' }
-  );
-
-  const [settings, setSettings] = useState<NotificationSetting[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [pendingUnits, setPendingUnits] = useState<string[]>([]);
@@ -123,11 +118,6 @@ export function ProfilePage() {
   }, [logout, navigate]);
 
   useEffect(() => {
-    if (!settingsFetch.data) return;
-    setSettings(settingsFetch.data);
-  }, [settingsFetch.data]);
-
-  useEffect(() => {
     if (!settingsOpen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -137,18 +127,18 @@ export function ProfilePage() {
   }, [settingsOpen]);
 
   const profileInitials = useMemo(() => {
-    if (!profileFetch.data?.fullName) return '—';
-    return getInitials(profileFetch.data.fullName);
-  }, [profileFetch.data?.fullName]);
+    if (!profile?.fullName) return '—';
+    return getInitials(profile.fullName);
+  }, [profile?.fullName]);
 
   const assignedUnitIds = useMemo(() => {
-    const units = profileFetch.data?.assignedUnits ?? [];
+    const units = profile?.assignedUnits ?? [];
     return new Set(units.map((unit) => unit.unitId));
-  }, [profileFetch.data?.assignedUnits]);
+  }, [profile?.assignedUnits]);
 
   const handleToggle = useCallback(
     async (unitId: string, field: 'techEnabled' | 'masterEnabled') => {
-      const current = settings.find((item) => item.unitId === unitId);
+      const current = settings?.find((item) => item.unitId === unitId);
       if (!current) return;
 
       const updated: NotificationSetting = {
@@ -157,7 +147,7 @@ export function ProfilePage() {
         masterEnabled: field === 'masterEnabled' ? !current.masterEnabled : current.masterEnabled,
       };
 
-      setSettings((prev) => prev.map((item) => (item.unitId === unitId ? updated : item)));
+      applyLocalSetting(updated);
       setPendingUnits((prev) => mergePending(prev, unitId, true));
       setUpdateError(null);
 
@@ -168,17 +158,16 @@ export function ProfilePage() {
           masterEnabled: updated.masterEnabled,
         });
       } catch (error) {
-        setSettings((prev) => prev.map((item) => (item.unitId === unitId ? current : item)));
+        applyLocalSetting(current);
         setUpdateError(classifyError(error, 'notification-settings'));
       } finally {
         setPendingUnits((prev) => mergePending(prev, unitId, false));
       }
     },
-    [settings]
+    [settings, applyLocalSetting]
   );
 
-  const profileError = profileFetch.error;
-  const isProfileLoading = profileFetch.status === 'loading';
+  const isProfileLoading = profileStatus === 'loading' || profileStatus === 'idle';
 
   function ProfileSkeleton() {
     return (
@@ -232,11 +221,11 @@ export function ProfilePage() {
                 </div>
                 <div className="text-center">
                   <h2 className="text-lg font-semibold text-[#1A1C1E]">
-                    {profileFetch.data?.fullName ?? '—'}
+                    {profile?.fullName ?? '—'}
                   </h2>
                   <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-[#eaf2ff] px-3 py-1 text-xs font-semibold text-[#1c4f8a]">
                     <span>{PROFILE_COPY.roleLabel}:</span>
-                    <span>{profileFetch.data?.role ?? '—'}</span>
+                    <span>{profile?.role ?? '—'}</span>
                   </div>
                 </div>
               </div>
@@ -246,7 +235,7 @@ export function ProfilePage() {
                   {PROFILE_COPY.workerCodeLabel}
                 </p>
                 <p className="mt-2 text-base font-semibold text-[#1A1C1E]">
-                  {profileFetch.data?.workerCode ?? '—'}
+                  {profile?.workerCode ?? '—'}
                 </p>
               </div>
 
@@ -255,9 +244,9 @@ export function ProfilePage() {
                   <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8a8f98]">
                     {PROFILE_COPY.assignedUnitsLabel}
                   </p>
-                  {profileFetch.data?.assignedUnits?.length ? (
+                  {profile?.assignedUnits?.length ? (
                     <ul className="mt-3 space-y-2 text-sm font-semibold text-[#1A1C1E]">
-                      {profileFetch.data.assignedUnits.map((unit) => (
+                      {profile.assignedUnits.map((unit) => (
                         <li key={unit.unitId} className="flex items-start gap-2">
                           <span className="text-[#1c6fe8]">•</span>
                           <span>{unit.unitName}</span>
@@ -369,17 +358,17 @@ export function ProfilePage() {
             </div>
 
             <div data-scroll className="flex-1 overflow-y-auto px-5 pb-5">
-              {settingsFetch.status === 'loading' ? (
+              {settingsStatus === 'loading' || settingsStatus === 'idle' ? (
                 <div className="space-y-3">
                   <UnitCardSkeleton />
                   <UnitCardSkeleton />
                   <UnitCardSkeleton />
                 </div>
-              ) : settingsFetch.error ? (
+              ) : settingsError ? (
                 <p className="py-6 text-center text-sm text-[#7b8190]">
-                  {getErrorBodyMessage(settingsFetch.error)}
+                  {getErrorBodyMessage(settingsError)}
                 </p>
-              ) : settings.length === 0 ? (
+              ) : (settings ?? []).length === 0 ? (
                 <p className="py-6 text-center text-sm text-[#7b8190]">
                   {PROFILE_COPY.notificationEmpty}
                 </p>
@@ -390,7 +379,7 @@ export function ProfilePage() {
                       {PROFILE_COPY.updateErrorLabel}: {updateError.message}
                     </div>
                   )}
-                  {settings.map((item) => {
+                  {(settings ?? []).map((item) => {
                     const isPending = pendingUnits.includes(item.unitId);
                     const techActive = item.techEnabled;
                     const masterActive = item.masterEnabled;

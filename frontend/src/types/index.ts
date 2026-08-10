@@ -37,6 +37,7 @@ export type {
   DeviceTypeChangedMessage,
   UserNotificationSettingsChangedMessage,
   ForceLogoutMessage,
+  AdminNotificationMessage,
   EmployeePayload,
   WorkshopPayload,
   RolePayload,

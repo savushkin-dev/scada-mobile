@@ -302,10 +302,24 @@ function reducer(state: AppState, action: Action): AppState {
           nextWorkshopTopology = adjustTotalUnits(nextWorkshopTopology, uPayload.workshopId, -1);
         }
 
+        // Живые карточки удалённого аппарата больше не актуальны
+        let nextAlerts = state.alerts;
+        if (nextAlerts.has(unitId)) {
+          nextAlerts = new Map(nextAlerts);
+          nextAlerts.delete(unitId);
+        }
+        let nextNotifications = state.notifications;
+        if (nextNotifications.has(unitId)) {
+          nextNotifications = new Map(nextNotifications);
+          nextNotifications.delete(unitId);
+        }
+
         return {
           ...state,
           unitTopologyByWorkshop: nextUnitMap,
           workshopTopology: nextWorkshopTopology,
+          alerts: nextAlerts,
+          notifications: nextNotifications,
         };
       }
 
@@ -340,10 +354,29 @@ function reducer(state: AppState, action: Action): AppState {
       }
       nextUnitMap[newWorkshopKey] = newList;
 
+      // Переименование аппарата — синхронно обновляем название
+      // в активных алёртах и уведомлениях (их ключ — тот же unitId).
+      let nextAlerts = state.alerts;
+      let nextNotifications = state.notifications;
+      if (action.action === 'UPDATE' && uPayload.name != null) {
+        const currentAlert = nextAlerts.get(unitId);
+        if (currentAlert && currentAlert.unitName !== uPayload.name) {
+          nextAlerts = new Map(nextAlerts);
+          nextAlerts.set(unitId, { ...currentAlert, unitName: uPayload.name });
+        }
+        const currentNotification = nextNotifications.get(unitId);
+        if (currentNotification && currentNotification.unitName !== uPayload.name) {
+          nextNotifications = new Map(nextNotifications);
+          nextNotifications.set(unitId, { ...currentNotification, unitName: uPayload.name });
+        }
+      }
+
       return {
         ...state,
         unitTopologyByWorkshop: nextUnitMap,
         workshopTopology: nextWorkshopTopology,
+        alerts: nextAlerts,
+        notifications: nextNotifications,
       };
     }
     case 'INVALIDATE_DEVICES_TOPOLOGY': {

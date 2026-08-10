@@ -2,6 +2,7 @@ import { RouterProvider } from 'react-router-dom';
 import { router } from './router';
 import { AccessControlProvider } from './context/AccessControlContext';
 import { AuthProvider } from './context/AuthContext';
+import { UserProfileProvider } from './context/UserProfileContext';
 
 /**
  * Корневой компонент приложения.
@@ -11,9 +12,11 @@ import { AuthProvider } from './context/AuthContext';
 export default function App() {
   return (
     <AuthProvider>
-      <AccessControlProvider>
-        <RouterProvider router={router} />
-      </AccessControlProvider>
+      <UserProfileProvider>
+        <AccessControlProvider>
+          <RouterProvider router={router} />
+        </AccessControlProvider>
+      </UserProfileProvider>
     </AuthProvider>
   );
 }

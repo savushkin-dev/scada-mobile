@@ -251,7 +251,9 @@ public class StatusBroadcaster {
         }
         AdminNotificationMessageDTO dto = AdminNotificationMessageDTO.from(event.notification());
         try {
-            liveWsHandler.broadcastAdminNotification(liveWsHandler.toJson(dto));
+            // Админские уведомления (discovery устройств, смена пароля, бездействие)
+            // адресованы только администраторам — рядовым сотрудникам они не нужны.
+            liveWsHandler.sendToAdmins(liveWsHandler.toJson(dto));
         } catch (JsonProcessingException e) {
             log.error("StatusBroadcaster: failed to serialize ADMIN_NOTIFICATION", e);
         }

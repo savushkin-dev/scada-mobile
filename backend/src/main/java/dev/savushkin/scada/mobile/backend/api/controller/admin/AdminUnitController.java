@@ -3,12 +3,15 @@ package dev.savushkin.scada.mobile.backend.api.controller.admin;
 import dev.savushkin.scada.mobile.backend.api.dto.ErrorResponseDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.ReferenceDTO;
 import dev.savushkin.scada.mobile.backend.domain.model.ChangeAction;
+import dev.savushkin.scada.mobile.backend.domain.model.DeviceChangedEvent;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitChangedEvent;
+import dev.savushkin.scada.mobile.backend.domain.model.UserNotificationSettingsChangedEvent;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.adapter.PrintSrvTopologyJpaAdapter;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceCatalogEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UnitEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserAssignmentEntity;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UserNotificationSettingsEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.WorkshopEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.DeviceCatalogJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.DeviceJpaRepository;
@@ -155,7 +158,20 @@ public class AdminUnitController {
         // Составная сущность «Автомат»: удаляем все оперативные записи,
         // ссылающиеся на автомат, до удаления самой записи в units.
         assignmentRepository.deleteByUnit_Id(id);
+        // Настройки уведомлений удаляются массово — читаем затронутые строки заранее,
+        // чтобы каждый пользователь получил персональное WS-событие об удалении.
+        List<UserNotificationSettingsEntity> removedSettings = notificationSettingsRepository.findByUnit_Id(id);
         notificationSettingsRepository.deleteByUnit_Id(id);
+        for (UserNotificationSettingsEntity settings : removedSettings) {
+            eventPublisher.publishEvent(new UserNotificationSettingsChangedEvent(
+                    settings.getId(), settings.getUserId(), ChangeAction.DELETE));
+        }
+        // Связи с устройствами тоже уходят с событием — клиенты инвалидируют
+        // кэш топологии устройств этого аппарата.
+        for (DeviceEntity device : deviceRepository.findByUnit_Id(id)) {
+            eventPublisher.publishEvent(new DeviceChangedEvent(
+                    device.getId(), id, printsrvInstanceId, ChangeAction.DELETE));
+        }
         deviceRepository.deleteByUnit_Id(id);
         unitRepository.deleteById(id);
         topologyJpaAdapter.invalidateETag();
@@ -186,6 +202,8 @@ public class AdminUnitController {
         for (DeviceEntity device : currentDevices) {
             if (!newCatalogIds.contains(device.getCatalog().getId())) {
                 deviceRepository.delete(device);
+                eventPublisher.publishEvent(new DeviceChangedEvent(
+                        device.getId(), unit.getId(), unit.getPrintsrvInstanceId(), ChangeAction.DELETE));
             }
         }
 
@@ -200,7 +218,8 @@ public class AdminUnitController {
             DeviceEntity device = new DeviceEntity();
             device.setUnit(unit);
             device.setCatalog(catalog);
-            deviceRepository.save(device);
+            DeviceEntity saved = deviceRepository.save(device);
+            eventPublisher.publishEvent(new DeviceChangedEvent(saved.getId(), null, null, ChangeAction.CREATE));
         }
     }
 

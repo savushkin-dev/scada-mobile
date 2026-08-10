@@ -1,8 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
-import { API_BASE, WS_BASE } from '../../config';
+import { API_BASE } from '../../config';
 import { apiFetchJson } from '../../api/client';
 import { getAccessToken } from '../../auth/session';
+import { ADMIN_NOTIFICATION_EVENT } from '../useAdminLiveWs';
 
 interface AdminNotificationsContextValue {
   unreadCount: number;
@@ -39,28 +40,18 @@ export function AdminNotificationsProvider({ children }: { children: ReactNode }
   useEffect(() => {
     refreshCount();
 
-    const token = getAccessToken();
-    if (!token) return;
-
-    const wsUrl = `${WS_BASE}/ws/live?token=${encodeURIComponent(token)}`;
-    const ws = new WebSocket(wsUrl);
-
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === 'ADMIN_NOTIFICATION') {
-          refreshCount();
-        }
-      } catch {
-        // ignore
-      }
+    // Новые админ-уведомления приходят по /ws/live — AdminLiveUpdater
+    // рассылает ADMIN_NOTIFICATION_EVENT; WS-соединение здесь не нужно.
+    const handler = () => {
+      void refreshCount();
     };
+    window.addEventListener(ADMIN_NOTIFICATION_EVENT, handler);
 
     // Фолбэк: раз в 30 секунд сверяемся с сервером
     const interval = setInterval(refreshCount, 30_000);
 
     return () => {
-      ws.close();
+      window.removeEventListener(ADMIN_NOTIFICATION_EVENT, handler);
       clearInterval(interval);
     };
   }, [refreshCount]);

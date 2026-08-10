@@ -258,16 +258,6 @@ public class LiveWsHandler extends TextWebSocketHandler {
     }
 
     /**
-     * Рассылает {@code ADMIN_NOTIFICATION} всем подключённым клиентам.
-     *
-     * @param json сериализованный {@link dev.savushkin.scada.mobile.backend.api.dto.AdminNotificationMessageDTO}
-     */
-    public void broadcastAdminNotification(String json) {
-        if (allSessions.isEmpty()) return;
-        sendToSessions(allSessions, json);
-    }
-
-    /**
      * Рассылает JSON-сообщение всем подключённым клиентам.
      *
      * @param json сериализованное сообщение

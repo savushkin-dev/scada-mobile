@@ -1,8 +1,6 @@
 import { useListContext, useRefresh, useUpdate } from 'react-admin';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { WS_BASE } from '../../config';
-import { getAccessToken } from '../../auth/session';
 import { AdminListContainer } from '../ui/AdminListContainer';
 import { PillButton } from '../ui/PillButton';
 import { StatusPill } from '../ui/StatusPill';
@@ -168,23 +166,8 @@ export function NotificationList() {
   const { data } = useListContext<Notification>();
   const records = data ?? [];
 
-  useEffect(() => {
-    const token = getAccessToken();
-    if (!token) return;
-
-    const wsUrl = `${WS_BASE}/ws/live?token=${encodeURIComponent(token)}`;
-    const ws = new WebSocket(wsUrl);
-
-    ws.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.type === 'ADMIN_NOTIFICATION') refresh();
-      } catch {
-        // ignore
-      }
-    };
-    return () => ws.close();
-  }, [refresh]);
+  // Live-обновление списка при новых ADMIN_NOTIFICATION выполняет
+  // AdminLiveUpdater (инвалидация react-query по каналу /ws/live).
 
   const filters = (
     <div className="flex flex-wrap items-center gap-2">

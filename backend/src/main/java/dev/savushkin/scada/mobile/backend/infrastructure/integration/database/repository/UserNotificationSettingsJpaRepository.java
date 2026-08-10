@@ -27,6 +27,9 @@ public interface UserNotificationSettingsJpaRepository extends JpaRepository<Use
     @NonNull Page<UserNotificationSettingsEntity> findByUnit_Id(Long unitId, Pageable pageable);
 
     @RestResource(exported = false)
+    @NonNull List<UserNotificationSettingsEntity> findByUnit_Id(Long unitId);
+
+    @RestResource(exported = false)
     @Query("""
             select s
             from UserNotificationSettingsEntity s
