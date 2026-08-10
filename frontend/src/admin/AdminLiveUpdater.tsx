@@ -15,6 +15,20 @@ const ENTITY_TO_RESOURCE: Record<AdminEntityType, string> = {
 };
 
 /**
+ * Кросс-ресурсные инвалидации: списки показывают связанные сущности
+ * в своих колонках, поэтому изменение одной сущности должно обновлять
+ * и чужие списки:
+ * - список users — колонка «Автоматы» (имена units);
+ * - список units — колонки «Цех» (workshops) и «Устройства» (devices),
+ *   а getOne автомата встраивает свои устройства.
+ */
+const CROSS_RESOURCE_INVALIDATIONS: Partial<Record<AdminEntityType, string[]>> = {
+  unit: ['users'],
+  workshop: ['units'],
+  device: ['units'],
+};
+
+/**
  * Держит данные админ-панели актуальными без перезагрузки страницы:
  * подписывается на единый канал /ws/live и инвалидирует кэш React Admin
  * (react-query) при изменениях сущностей, сделанных другими сессиями/админами.
@@ -33,6 +47,9 @@ export function AdminLiveUpdater() {
       void queryClient.invalidateQueries({ queryKey: [resource] });
       if (id) {
         void queryClient.invalidateQueries({ queryKey: [resource, 'getOne', id] });
+      }
+      for (const dependent of CROSS_RESOURCE_INVALIDATIONS[entity] ?? []) {
+        void queryClient.invalidateQueries({ queryKey: [dependent] });
       }
     },
     [queryClient]
