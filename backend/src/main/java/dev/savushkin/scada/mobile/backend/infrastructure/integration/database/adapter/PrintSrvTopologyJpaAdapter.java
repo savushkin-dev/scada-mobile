@@ -116,6 +116,8 @@ public class PrintSrvTopologyJpaAdapter implements PrintSrvTopologyRepository {
         List<String> aggregationCams = new ArrayList<>();
         List<String> aggregationBoxCams = new ArrayList<>();
         List<String> checkerCams = new ArrayList<>();
+        Map<String, String> deviceDisplayNames = new LinkedHashMap<>();
+        Map<String, String> typeDisplayNames = new LinkedHashMap<>();
 
         for (DeviceEntity device : devices) {
             DeviceCatalogEntity catalog = device.getCatalog();
@@ -126,6 +128,12 @@ public class PrintSrvTopologyJpaAdapter implements PrintSrvTopologyRepository {
             String code = catalog.getCode();
             if (typeCode == null || code == null) {
                 continue;
+            }
+            if (catalog.getName() != null) {
+                deviceDisplayNames.put(code, catalog.getName());
+            }
+            if (catalog.getType().getName() != null) {
+                typeDisplayNames.putIfAbsent(typeCode, catalog.getType().getName());
             }
             switch (typeCode) {
                 case TYPE_PRINTER -> printers.add(code);
@@ -156,7 +164,9 @@ public class PrintSrvTopologyJpaAdapter implements PrintSrvTopologyRepository {
                 Collections.unmodifiableList(printers),
                 Collections.unmodifiableList(aggregationCams),
                 Collections.unmodifiableList(aggregationBoxCams),
-                Collections.unmodifiableList(checkerCams)
+                Collections.unmodifiableList(checkerCams),
+                Collections.unmodifiableMap(deviceDisplayNames),
+                Collections.unmodifiableMap(typeDisplayNames)
         );
     }
 
@@ -172,9 +182,20 @@ public class PrintSrvTopologyJpaAdapter implements PrintSrvTopologyRepository {
             List<PrintSrvInstance> instances = findAllActiveInstances();
             instances.stream()
                     .sorted(Comparator.comparing(PrintSrvInstance::instanceId))
-                    .forEach(inst -> sb.append("i:").append(inst.instanceId()).append(':')
-                            .append(inst.workshopId()).append(':').append(inst.displayName()).append(':')
-                            .append(String.join(",", inst.deviceNames())).append(';'));
+                    .forEach(inst -> {
+                        sb.append("i:").append(inst.instanceId()).append(':')
+                                .append(inst.workshopId()).append(':').append(inst.displayName()).append(':')
+                                .append(String.join(",", inst.deviceNames())).append(';');
+                        // Отображаемые имена тоже участвуют в хэше — иначе переименование
+                        // устройства/типа в справочнике не меняло бы ETag и клиенты
+                        // получали бы 304 с устаревшими именами.
+                        inst.deviceDisplayNames().entrySet().stream()
+                                .sorted(Map.Entry.comparingByKey())
+                                .forEach(e -> sb.append("dn:").append(e.getKey()).append('=').append(e.getValue()).append(';'));
+                        inst.typeDisplayNames().entrySet().stream()
+                                .sorted(Map.Entry.comparingByKey())
+                                .forEach(e -> sb.append("tn:").append(e.getKey()).append('=').append(e.getValue()).append(';'));
+                    });
 
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(sb.toString().getBytes(StandardCharsets.UTF_8));

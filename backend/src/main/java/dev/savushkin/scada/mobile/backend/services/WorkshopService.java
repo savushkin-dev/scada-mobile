@@ -130,7 +130,9 @@ public class WorkshopService {
                         composition.aggregationCams(),
                         composition.aggregationBoxCams(),
                         composition.checkerCams()
-                )
+                ),
+                inst.deviceDisplayNames(),
+                inst.typeDisplayNames()
         ));
     }
 

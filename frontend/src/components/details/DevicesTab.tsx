@@ -17,11 +17,14 @@ import type { DevicesStatusPayload, DevicesTopology } from '../../types';
  */
 
 // ── Конфигурация групп ─────────────────────────────────────────────────────────
-// Статичная таблица соответствия: ключ topology.devices → заголовок + поведение.
+// Статичная таблица соответствия: ключ topology.devices → тип устройства + поведение.
+// Заголовок группы берётся из справочника типов (topology.typeNames по typeCode),
+// fallbackTitle — запасной вариант, если типа нет в ответе.
 // Порядок задаёт порядок отрисовки карточек.
 interface GroupConfig {
   key: keyof DevicesTopology['devices'];
-  title: string;
+  typeCode: string;
+  fallbackTitle: string;
   icon: string;
   showBatch: boolean;
   showStats: boolean;
@@ -30,28 +33,32 @@ interface GroupConfig {
 const DEVICE_GROUPS: GroupConfig[] = [
   {
     key: 'printers',
-    title: UI_COPY.devicesGroupPrinters,
+    typeCode: 'printer',
+    fallbackTitle: UI_COPY.devicesGroupPrinters,
     icon: '/assets/printer.svg',
     showBatch: true,
     showStats: false,
   },
   {
     key: 'aggregationCams',
-    title: UI_COPY.devicesGroupAggrCams,
+    typeCode: 'aggregation_cam',
+    fallbackTitle: UI_COPY.devicesGroupAggrCams,
     icon: '/assets/camera.svg',
     showBatch: false,
     showStats: true,
   },
   {
     key: 'aggregationBoxCams',
-    title: UI_COPY.devicesGroupAggrBoxCams,
+    typeCode: 'aggregation_box_cam',
+    fallbackTitle: UI_COPY.devicesGroupAggrBoxCams,
     icon: '/assets/camera.svg',
     showBatch: false,
     showStats: true,
   },
   {
     key: 'checkerCams',
-    title: UI_COPY.devicesGroupCheckerCams,
+    typeCode: 'checker_cam',
+    fallbackTitle: UI_COPY.devicesGroupCheckerCams,
     icon: '/assets/search.svg',
     showBatch: false,
     showStats: true,
@@ -67,20 +74,24 @@ function val(v: string | number | undefined | null): string {
 }
 
 // ── Одна карточка устройства ───────────────────────────────────────────────────
+// code — технический код устройства (ключ live-данных WS), label — отображаемое
+// имя из справочника (device_catalog.name).
 function DeviceCard({
-  name,
+  code,
+  label,
   wsData,
   showBatch,
   showStats,
 }: {
-  name: string;
+  code: string;
+  label: string;
   wsData: DevicesStatusPayload | null;
   showBatch: boolean;
   showStats: boolean;
 }) {
-  const statusLevel = getDeviceStatusLevel(wsData, name);
+  const statusLevel = getDeviceStatusLevel(wsData, code);
   const statusClass = DEVICE_STATUS_CLASS[statusLevel];
-  const info = wsData?.[name];
+  const info = wsData?.[code];
   const isDisconnected = statusLevel === 'disconnected';
 
   return (
@@ -88,7 +99,7 @@ function DeviceCard({
       className={`card p-4 card-static mb-3 ${statusClass} ${isDisconnected ? 'opacity-60' : ''}`}
     >
       <div className="card-title" style={CARD_TITLE_BETWEEN_STYLE}>
-        <span>{name}</span>
+        <span>{label}</span>
         {isDisconnected && (
           <span className="badge badge-secondary">{UI_COPY.deviceDisconnectedLabel}</span>
         )}
@@ -148,19 +159,21 @@ export function DevicesTab() {
             {UI_COPY.devicesNoneConfigured}
           </div>
         ) : (
-          DEVICE_GROUPS.map(({ key, title, icon, showBatch, showStats }) => {
-            const names = topology?.devices[key] ?? [];
-            if (names.length === 0) return null;
+          DEVICE_GROUPS.map(({ key, typeCode, fallbackTitle, icon, showBatch, showStats }) => {
+            const codes = topology?.devices[key] ?? [];
+            if (codes.length === 0) return null;
+            const title = topology?.typeNames[typeCode] ?? fallbackTitle;
             return (
               <section key={key} className="mb-2">
                 <h2 className="section-header mb-2 flex items-center gap-2">
                   <img src={icon} alt="" aria-hidden="true" className="h-5 w-5" />
                   {title}
                 </h2>
-                {names.map((name) => (
+                {codes.map((code) => (
                   <DeviceCard
-                    key={name}
-                    name={name}
+                    key={code}
+                    code={code}
+                    label={topology?.deviceNames[code] ?? code}
                     wsData={data}
                     showBatch={showBatch}
                     showStats={showStats}
