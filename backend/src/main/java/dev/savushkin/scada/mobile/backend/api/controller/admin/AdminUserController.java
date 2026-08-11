@@ -3,6 +3,7 @@ package dev.savushkin.scada.mobile.backend.api.controller.admin;
 import dev.savushkin.scada.mobile.backend.api.dto.admin.PasswordResetResponseDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.admin.UserCreateResponseDTO;
 import dev.savushkin.scada.mobile.backend.config.AdminBootstrapConfig;
+import dev.savushkin.scada.mobile.backend.config.jwt.JwtPrincipalUtil;
 import dev.savushkin.scada.mobile.backend.exception.UnitAssignmentConflictException;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.RoleEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UnitEntity;
@@ -103,6 +104,13 @@ public class AdminUserController {
         RoleEntity role = roleRepository.findById(request.roleId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Роль не найдена"));
 
+        // Роль самого себя менять нельзя никогда — иначе админ может
+        // понизить сам себя и потерять/получить доступ в середине сессии.
+        Long currentUserId = JwtPrincipalUtil.getCurrentUserId();
+        if (id.equals(currentUserId) && !request.roleId().equals(user.getRoleId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Нельзя изменить роль самому себе");
+        }
+
         if (request.code() != null && !request.code().isBlank() && !request.code().equals(user.getCode())) {
             if (userRepository.findByCode(request.code()).isPresent()) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Табельный номер уже используется");
@@ -116,6 +124,12 @@ public class AdminUserController {
 
         UserEntity saved = userRepository.save(user);
         syncAssignments(saved, request.unitIds(), id);
+        // Деактивация — отзываем refresh-токены в той же транзакции.
+        // Делать это в AFTER_COMMIT-слушателе нельзя: там нет активной
+        // транзакции, и @Modifying-запрос падает с TransactionRequiredException.
+        if (!saved.isActive()) {
+            refreshTokenRepository.revokeAllByUserId(id);
+        }
         eventPublisher.publishEvent(new UserAssignmentsChangedEvent(id));
         eventPublisher.publishEvent(new EmployeeChangedEvent(id, ChangeAction.UPDATE));
         return ResponseEntity.ok(saved);

@@ -1,7 +1,9 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
+import { refreshAccessToken } from '../api/auth';
 import { ADMIN_NOTIFICATION_EVENT, useAdminLiveWs, type AdminEntityType } from './useAdminLiveWs';
+import type { EmployeeChangedMessage, EmployeePayload } from '../schemas';
 
 const ENTITY_TO_RESOURCE: Record<AdminEntityType, string> = {
   employee: 'users',
@@ -37,7 +39,7 @@ const CROSS_RESOURCE_INVALIDATIONS: Partial<Record<AdminEntityType, string[]>> =
  */
 export function AdminLiveUpdater() {
   const queryClient = useQueryClient();
-  const { logout } = useAuth();
+  const { logout, updateRole } = useAuth();
 
   const onEntityChanged = useCallback(
     (entity: AdminEntityType, id?: string) => {
@@ -55,13 +57,36 @@ export function AdminLiveUpdater() {
     [queryClient]
   );
 
+  // Админ изменил учётку текущего пользователя, пока тот в админке:
+  // деактивация/удаление — немедленный выход; смена роли — обновляем роль
+  // в AuthContext (RequireAdmin сам уберёт со страниц админки при понижении)
+  // и перевыпускаем access token, т.к. claim role в старом токене устарел.
+  const onSelfEmployeeChanged = useCallback(
+    (payload: EmployeePayload | null, action: EmployeeChangedMessage['action']) => {
+      if (action === 'DELETE' || payload?.active === false) {
+        logout();
+        return;
+      }
+      if (payload?.roleName) {
+        updateRole(payload.roleName);
+        void refreshAccessToken();
+      }
+    },
+    [logout, updateRole]
+  );
+
   const onAdminNotification = useCallback(() => {
     // Обновить открытый список уведомлений и счётчик непрочитанных в шапке.
     void queryClient.invalidateQueries({ queryKey: ['notifications'] });
     window.dispatchEvent(new CustomEvent(ADMIN_NOTIFICATION_EVENT));
   }, [queryClient]);
 
-  useAdminLiveWs({ onEntityChanged, onAdminNotification, onForceLogout: logout });
+  useAdminLiveWs({
+    onEntityChanged,
+    onAdminNotification,
+    onSelfEmployeeChanged,
+    onForceLogout: logout,
+  });
 
   return null;
 }

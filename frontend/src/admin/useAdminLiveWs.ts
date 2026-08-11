@@ -1,10 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { WS_BASE } from '../config';
-import { getAccessToken } from '../auth/session';
+import { getAccessToken, getStoredUserId } from '../auth/session';
 import { isTokenExpired } from '../auth/token';
 import { refreshAccessToken } from '../api/auth';
 import { createManagedWs } from '../lib/createManagedWs';
 import { LiveWsIncomingMessageSchema } from '../schemas';
+import type { EmployeeChangedMessage, EmployeePayload } from '../schemas';
 
 /**
  * Типы админ-сущностей, чьи изменения приходят по /ws/live.
@@ -41,6 +42,14 @@ export interface AdminLiveWsCallbacks {
   onEntityChanged: (entity: AdminEntityType, id?: string) => void;
   /** Пришло новое админ-уведомление. */
   onAdminNotification: () => void;
+  /**
+   * Изменилась учётка текущего пользователя (EMPLOYEE_CHANGED с его id):
+   * смена роли, деактивация или удаление. Нужно обновить роль/выйти.
+   */
+  onSelfEmployeeChanged: (
+    payload: EmployeePayload | null,
+    action: EmployeeChangedMessage['action']
+  ) => void;
   /** Сервер принудительно разлогинил этого пользователя. */
   onForceLogout: () => void;
 }
@@ -103,6 +112,13 @@ export function useAdminLiveWs(callbacks: AdminLiveWsCallbacks): void {
         const payload = 'payload' in msg ? msg.payload : null;
         const id =
           payload != null && !Array.isArray(payload) && 'id' in payload ? payload.id : undefined;
+
+        // Собственная учётка изменилась — обрабатываем отдельно (роль/доступ),
+        // generic-инвалидация списков при этом тоже выполняется ниже.
+        if (msg.type === 'EMPLOYEE_CHANGED' && id != null && String(id) === getStoredUserId()) {
+          callbacksRef.current.onSelfEmployeeChanged(msg.payload, msg.action);
+        }
+
         callbacksRef.current.onEntityChanged(entity, id != null ? String(id) : undefined);
       },
     });

@@ -119,6 +119,11 @@ public class AuthService {
         }
 
         UserEntity user = existing.getUser();
+        // Деактивированный пользователь не должен продлевать сессию,
+        // даже если отзыв его токенов ещё не добрался до репозитория.
+        if (!user.isActive()) {
+            throw new InvalidRefreshTokenException("User is deactivated");
+        }
         existing.setRevoked(true);
         refreshTokenRepository.save(existing);
 

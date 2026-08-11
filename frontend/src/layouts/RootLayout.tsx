@@ -9,6 +9,7 @@ import { PageHeaderProvider, usePageHeaderContext } from '../context/PageHeaderC
 import { PageHeader } from '../components/PageHeader';
 import { useLiveWs } from '../hooks/useLiveWs';
 import { useHardwareBackGuard } from '../hooks/useHardwareBackGuard';
+import { refreshAccessToken } from '../api/auth';
 import { pushNotificationEvent, syncNotificationSnapshot } from '../lib/notificationSwBridge';
 import type {
   AlertWsMessage,
@@ -165,16 +166,25 @@ function RootLayoutInner() {
   const handleEmployeeChanged = useCallback(
     (msg: EmployeeChangedMessage) => {
       const payload = msg.payload;
-      if (payload == null || msg.action === 'DELETE') return;
+      if (payload == null) return;
       if (String(payload.id) !== userId) return;
+      // Учётку удалили или деактивировали — разлогиниваем сразу,
+      // не дожидаясь истечения access-токена.
+      if (msg.action === 'DELETE' || !payload.active) {
+        logout();
+        return;
+      }
       // Админ изменил данные текущего пользователя — патчим профиль и роль
       // сразу из события, без REST и без перезагрузки страницы.
       applyOwnEmployeeChange(payload);
       if (payload.roleName != null && payload.roleName !== role) {
         updateRole(payload.roleName);
+        // Claim role в access token устарел — перевыпускаем токен сразу,
+        // иначе API будет проверять старую роль до планового рефреша.
+        void refreshAccessToken();
       }
     },
-    [userId, role, applyOwnEmployeeChange, updateRole]
+    [userId, role, applyOwnEmployeeChange, updateRole, logout]
   );
 
   const handleWorkshopChanged = useCallback(

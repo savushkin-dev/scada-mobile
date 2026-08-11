@@ -6,7 +6,6 @@ import dev.savushkin.scada.mobile.backend.domain.model.*;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.adapter.PrintSrvTopologyJpaAdapter;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.*;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.*;
-import dev.savushkin.scada.mobile.backend.services.AuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -27,7 +26,6 @@ public class AdminDataChangeBroadcaster {
     private static final Logger log = LoggerFactory.getLogger(AdminDataChangeBroadcaster.class);
 
     private final LiveWsHandler liveWsHandler;
-    private final AuthService authService;
     private final PrintSrvTopologyJpaAdapter topologyAdapter;
 
     private final UserJpaRepository userRepository;
@@ -41,7 +39,6 @@ public class AdminDataChangeBroadcaster {
 
     public AdminDataChangeBroadcaster(
             LiveWsHandler liveWsHandler,
-            AuthService authService,
             PrintSrvTopologyJpaAdapter topologyAdapter,
             UserJpaRepository userRepository,
             WorkshopJpaRepository workshopRepository,
@@ -53,7 +50,6 @@ public class AdminDataChangeBroadcaster {
             UserNotificationSettingsJpaRepository settingsRepository
     ) {
         this.liveWsHandler = liveWsHandler;
-        this.authService = authService;
         this.topologyAdapter = topologyAdapter;
         this.userRepository = userRepository;
         this.workshopRepository = workshopRepository;
@@ -96,7 +92,8 @@ public class AdminDataChangeBroadcaster {
                     sendToAdminsAndUser(user.getId(), EmployeeChangedMessageDTO.of(payload, event.action().name()));
 
                     if (!user.isActive()) {
-                        authService.revokeAllRefreshTokens(user.getId());
+                        // Refresh-токены уже отозваны в транзакции контроллера;
+                        // здесь немедленно разлогиниваем активные WS-сессии.
                         sendForceLogout(user.getId(), "User deactivated");
                     }
                 },
