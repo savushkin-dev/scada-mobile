@@ -17,8 +17,10 @@ import java.util.*;
  * Реестр реальных TCP-клиентов PrintSrv для prod-профиля.
  * <p>
  * Создаёт по одному {@link TcpPrintSrvClient} на каждый активный инстанс
- * из {@link PrintSrvTopologyRepository}. Клиенты создаются лениво в
- * {@link PostConstruct} после готовности контекста и БД.
+ * из {@link PrintSrvTopologyRepository}. Клиенты создаются в
+ * {@link PostConstruct} после готовности контекста и БД, а при админ-изменениях
+ * автоматов реестр приводится к состоянию БД вызовом {@link #synchronize()}
+ * (без перезапуска приложения).
  * При shutdown приложения закрывает все TCP-соединения.
  */
 @Component
@@ -30,7 +32,11 @@ public class TcpPrintSrvClientRegistry implements PrintSrvClientRegistry {
     private final PrintSrvTopologyRepository topologyRepo;
     private final PrintSrvProperties props;
     private final ObjectMapper objectMapper;
-    private Map<String, TcpPrintSrvClient> clients = Map.of();
+    /**
+     * Атомарно заменяемая карта клиентов: читатели (poller-ы) никогда не наблюдают
+     * промежуточное состояние сверки.
+     */
+    private volatile Map<String, TcpPrintSrvClient> clients = Map.of();
 
     public TcpPrintSrvClientRegistry(
             PrintSrvTopologyRepository topologyRepo,
@@ -44,18 +50,53 @@ public class TcpPrintSrvClientRegistry implements PrintSrvClientRegistry {
 
     @PostConstruct
     public void init() {
+        synchronize();
+        log.info("TcpPrintSrvClientRegistry initialized with {} instances", clients.size());
+    }
+
+    @Override
+    public synchronized PrintSrvClientSyncReport synchronize() {
         int connectTimeout = props.getSocket().getConnectTimeoutMs();
         int readTimeout = props.getSocket().getReadTimeoutMs();
 
-        Map<String, TcpPrintSrvClient> map = new LinkedHashMap<>();
+        Map<String, TcpPrintSrvClient> current = clients;
+        Map<String, TcpPrintSrvClient> next = new LinkedHashMap<>();
+        Set<String> added = new LinkedHashSet<>();
+        Set<String> restarted = new LinkedHashSet<>();
+
         for (PrintSrvInstance inst : topologyRepo.findAllActiveInstances()) {
-            TcpPrintSrvClient client = new TcpPrintSrvClient(
-                    inst.instanceId(), inst.host(), inst.port(),
-                    connectTimeout, readTimeout, objectMapper);
-            map.put(inst.instanceId(), client);
+            String id = inst.instanceId();
+            TcpPrintSrvClient existing = current.get(id);
+            if (existing != null && existing.getHost().equals(inst.host()) && existing.getPort() == inst.port()) {
+                next.put(id, existing);
+                continue;
+            }
+            if (existing != null) {
+                existing.close();
+                restarted.add(id);
+            } else {
+                added.add(id);
+            }
+            next.put(id, new TcpPrintSrvClient(id, inst.host(), inst.port(),
+                    connectTimeout, readTimeout, objectMapper));
         }
-        this.clients = Collections.unmodifiableMap(map);
-        log.info("TcpPrintSrvClientRegistry initialized with {} instances", clients.size());
+
+        Set<String> removed = new LinkedHashSet<>();
+        for (Map.Entry<String, TcpPrintSrvClient> entry : current.entrySet()) {
+            if (!next.containsKey(entry.getKey())) {
+                entry.getValue().close();
+                removed.add(entry.getKey());
+            }
+        }
+
+        clients = Collections.unmodifiableMap(next);
+
+        PrintSrvClientSyncReport report = new PrintSrvClientSyncReport(added, removed, restarted);
+        if (!report.isEmpty()) {
+            log.info("TcpPrintSrvClientRegistry synchronized: added={}, removed={}, restarted={}",
+                    added, removed, restarted);
+        }
+        return report;
     }
 
     @Override
