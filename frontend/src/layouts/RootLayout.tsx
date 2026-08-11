@@ -4,19 +4,18 @@ import { ALERT_VIBRATION_COOLDOWN_MS, ALERT_VIBRATION_PATTERN } from '../config'
 import { AppProvider, useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useAccessControl } from '../context/AccessControlContext';
+import { useUserProfile } from '../context/UserProfileContext';
 import { PageHeaderProvider, usePageHeaderContext } from '../context/PageHeaderContext';
 import { PageHeader } from '../components/PageHeader';
 import { useLiveWs } from '../hooks/useLiveWs';
 import { useHardwareBackGuard } from '../hooks/useHardwareBackGuard';
+import { refreshAccessToken } from '../api/auth';
 import { pushNotificationEvent, syncNotificationSnapshot } from '../lib/notificationSwBridge';
 import type {
   AlertWsMessage,
-  DeviceCatalogChangedMessage,
   DeviceChangedMessage,
-  DeviceTypeChangedMessage,
   EmployeeChangedMessage,
   NotificationWsMessage,
-  RoleChangedMessage,
   UnitsStatusMessage,
   UnitChangedMessage,
   UserAssignmentsMessage,
@@ -29,24 +28,6 @@ type AlertRouteScope =
   | { kind: 'workshop'; workshopId: number }
   | { kind: 'unit'; unitId: string }
   | { kind: 'other' };
-
-type AdminEntityType =
-  | 'employee'
-  | 'workshop'
-  | 'role'
-  | 'unit'
-  | 'device'
-  | 'device-catalog'
-  | 'device-type'
-  | 'user-notification-settings';
-
-function notifyAdminEntityChanged(entity: AdminEntityType, id?: string | number | null) {
-  window.dispatchEvent(
-    new CustomEvent('scada:admin-entity-changed', {
-      detail: { entity, id: id != null ? String(id) : undefined },
-    })
-  );
-}
 
 function resolveAlertRouteScope(pathname: string): AlertRouteScope {
   const segments = pathname.split('/').filter(Boolean);
@@ -102,8 +83,14 @@ function RootLayoutInner() {
     invalidateDevicesTopology,
     bumpTopologyVersion,
   } = useAppContext();
-  const { userId, logout } = useAuth();
-  const { updateAssignedUnitsFromWs, refreshAssignments } = useAccessControl();
+  const { userId, role, logout, updateRole } = useAuth();
+  const { updateAssignedUnitsFromWs } = useAccessControl();
+  const {
+    applyOwnEmployeeChange,
+    applyAssignmentsFromWs,
+    applyUnitTopologyChange,
+    applyOwnSettingsChange,
+  } = useUserProfile();
 
   const { config } = usePageHeaderContext();
   const location = useLocation();
@@ -167,8 +154,9 @@ function RootLayoutInner() {
   const handleUserAssignments = useCallback(
     (msg: UserAssignmentsMessage) => {
       updateAssignedUnitsFromWs(msg);
+      applyAssignmentsFromWs(msg);
     },
-    [updateAssignedUnitsFromWs]
+    [updateAssignedUnitsFromWs, applyAssignmentsFromWs]
   );
 
   const handleForceLogout = useCallback(() => {
@@ -177,13 +165,26 @@ function RootLayoutInner() {
 
   const handleEmployeeChanged = useCallback(
     (msg: EmployeeChangedMessage) => {
-      const payloadId = msg.payload?.id;
-      if (payloadId != null && String(payloadId) === userId) {
-        void refreshAssignments();
+      const payload = msg.payload;
+      if (payload == null) return;
+      if (String(payload.id) !== userId) return;
+      // Учётку удалили или деактивировали — разлогиниваем сразу,
+      // не дожидаясь истечения access-токена.
+      if (msg.action === 'DELETE' || !payload.active) {
+        logout();
+        return;
       }
-      notifyAdminEntityChanged('employee', payloadId);
+      // Админ изменил данные текущего пользователя — патчим профиль и роль
+      // сразу из события, без REST и без перезагрузки страницы.
+      applyOwnEmployeeChange(payload);
+      if (payload.roleName != null && payload.roleName !== role) {
+        updateRole(payload.roleName);
+        // Claim role в access token устарел — перевыпускаем токен сразу,
+        // иначе API будет проверять старую роль до планового рефреша.
+        void refreshAccessToken();
+      }
     },
-    [userId, refreshAssignments]
+    [userId, role, applyOwnEmployeeChange, updateRole, logout]
   );
 
   const handleWorkshopChanged = useCallback(
@@ -192,7 +193,6 @@ function RootLayoutInner() {
         applyWorkshopChange(msg.payload, msg.action);
       }
       bumpTopologyVersion();
-      notifyAdminEntityChanged('workshop', msg.payload?.id);
     },
     [applyWorkshopChange, bumpTopologyVersion]
   );
@@ -201,11 +201,11 @@ function RootLayoutInner() {
     (msg: UnitChangedMessage) => {
       if (msg.payload) {
         applyUnitChange(msg.payload, msg.action);
+        applyUnitTopologyChange(msg.payload, msg.action);
       }
       bumpTopologyVersion();
-      notifyAdminEntityChanged('unit', msg.payload?.id);
     },
-    [applyUnitChange, bumpTopologyVersion]
+    [applyUnitChange, applyUnitTopologyChange, bumpTopologyVersion]
   );
 
   const handleDeviceChanged = useCallback(
@@ -215,36 +215,31 @@ function RootLayoutInner() {
         invalidateDevicesTopology(instanceId);
       }
       bumpTopologyVersion();
-      notifyAdminEntityChanged('device', msg.payload?.id);
     },
     [invalidateDevicesTopology, bumpTopologyVersion]
   );
 
-  const handleRoleChanged = useCallback((msg: RoleChangedMessage) => {
-    notifyAdminEntityChanged('role', msg.payload?.id);
+  const handleRoleChanged = useCallback(() => {
+    // Изменения справочника ролей затрагивают только админку;
+    // роль текущего пользователя обновляется через EMPLOYEE_CHANGED.
   }, []);
 
-  const handleDeviceCatalogChanged = useCallback(
-    (msg: DeviceCatalogChangedMessage) => {
-      bumpTopologyVersion();
-      notifyAdminEntityChanged('device-catalog', msg.payload?.id);
-    },
-    [bumpTopologyVersion]
-  );
+  const handleDeviceCatalogChanged = useCallback(() => {
+    bumpTopologyVersion();
+  }, [bumpTopologyVersion]);
 
-  const handleDeviceTypeChanged = useCallback(
-    (msg: DeviceTypeChangedMessage) => {
-      bumpTopologyVersion();
-      notifyAdminEntityChanged('device-type', msg.payload?.id);
-    },
-    [bumpTopologyVersion]
-  );
+  const handleDeviceTypeChanged = useCallback(() => {
+    bumpTopologyVersion();
+  }, [bumpTopologyVersion]);
 
   const handleUserNotificationSettingsChanged = useCallback(
     (msg: UserNotificationSettingsChangedMessage) => {
-      notifyAdminEntityChanged('user-notification-settings', msg.payload?.id);
+      const payload = msg.payload;
+      if (payload?.userId != null && String(payload.userId) === userId) {
+        applyOwnSettingsChange(payload, msg.action);
+      }
     },
-    []
+    [userId, applyOwnSettingsChange]
   );
 
   // Перехватывает события popstate (кнопка «назад» на Android / в браузере)

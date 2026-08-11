@@ -77,6 +77,15 @@ public final class PrintSrvInstancePoller {
     }
 
     /**
+     * Клиент, с которым связан этот поллер. Используется
+     * {@link PrintSrvPollingRuntime#synchronize()} для детекции пересозданного
+     * клиента (смена host/port): сравнение по ссылке.
+     */
+    PrintSrvClient getClient() {
+        return client;
+    }
+
+    /**
      * Выполняет один poll-цикл для данного инстанса.
      *
      * <p>Опрашивает все устройства, сконфигурированные для данного инстанса. Результаты успешных запросов

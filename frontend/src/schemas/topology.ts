@@ -45,6 +45,10 @@ export const DevicesTopologySchema = z.object({
     /** Камеры проверки */
     checkerCams: z.array(z.string()),
   }),
+  /** Отображаемые имена устройств из справочника: код устройства → device_catalog.name */
+  deviceNames: z.record(z.string(), z.string()),
+  /** Отображаемые имена типов устройств: код типа → device_types.name */
+  typeNames: z.record(z.string(), z.string()),
 });
 
 // ── Выводимые типы ────────────────────────────────────────────────────

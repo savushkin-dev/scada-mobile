@@ -38,6 +38,12 @@ interface AdminEditFormProps {
   rightCardIcon?: ReactNode;
   /** Включить вертикальный скролл правой панели в двухколоночном layout (по умолчанию — да). */
   rightPanelScrollable?: boolean;
+  /**
+   * Финальная трансформация значений формы в момент сохранения
+   * (например, санитизация зависимых полей). На отображаемое
+   * состояние формы не влияет.
+   */
+  transformValues?: (values: Record<string, unknown>) => Record<string, unknown>;
 }
 
 function isRecordDirty(
@@ -68,6 +74,7 @@ export function AdminEditForm({
   leftCardIcon,
   rightCardIcon,
   rightPanelScrollable = true,
+  transformValues,
 }: AdminEditFormProps) {
   const { record, save, saving, isLoading } = useEditController({
     redirect: false,
@@ -102,7 +109,7 @@ export function AdminEditForm({
 
   const handleSave = () => {
     if (!isDirty) return;
-    save?.(values, {
+    save?.(transformValues ? transformValues(values) : values, {
       onSuccess: () => {
         notify('Сохранено', { type: 'info' });
         navigate(getListPath(resource ?? ''));

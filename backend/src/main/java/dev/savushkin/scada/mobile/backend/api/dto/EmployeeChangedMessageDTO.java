@@ -7,7 +7,8 @@ public record EmployeeChangedMessageDTO(String type, EmployeePayload payload, St
 
     public static final String TYPE = "EMPLOYEE_CHANGED";
 
-    public record EmployeePayload(Long id, String fullName, String code, Long roleId, boolean active) {
+    public record EmployeePayload(Long id, String fullName, String code, Long roleId, String roleName,
+                                  boolean active) {
     }
 
     public static EmployeeChangedMessageDTO of(EmployeePayload payload, String action) {

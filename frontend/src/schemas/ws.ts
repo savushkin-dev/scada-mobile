@@ -108,6 +108,8 @@ export const EmployeePayloadSchema = z.object({
   fullName: z.string().nullable(),
   code: z.string().nullable(),
   roleId: z.union([z.string(), z.number()]).nullable(),
+  /** Имя роли (например, "ADMIN") — позволяет обновить роль без REST-запроса. */
+  roleName: z.string().nullable().optional(),
   active: z.boolean(),
 });
 
@@ -214,6 +216,25 @@ export const ForceLogoutMessageSchema = z.object({
   reason: z.string(),
 });
 
+// ── /ws/live — Admin notifications (только для сессий с ролью ADMIN) ────
+
+/**
+ * Уведомление администратора: авто-обнаружение/отключение устройства,
+ * смена пароля сотрудника, длительное бездействие сотрудника.
+ * Сервер рассылает его только сессиям с ролью ADMIN.
+ */
+export const AdminNotificationMessageSchema = z.object({
+  type: z.literal('ADMIN_NOTIFICATION'),
+  notificationType: z.string(),
+  severity: z.string(),
+  instanceId: z.string().nullable(),
+  deviceCode: z.string().nullable(),
+  catalogId: z.number().nullable(),
+  userId: z.number().nullable(),
+  message: z.string(),
+  timestamp: z.string(),
+});
+
 /**
  * Discriminated union всех входящих сообщений /ws/live.
  * Неизвестный type отбрасывается через safeParse (форвард-совместимость).
@@ -234,6 +255,7 @@ export const LiveWsIncomingMessageSchema = z.discriminatedUnion('type', [
   DeviceTypeChangedMessageSchema,
   UserNotificationSettingsChangedMessageSchema,
   ForceLogoutMessageSchema,
+  AdminNotificationMessageSchema,
 ]);
 
 // ── Выводимые типы /ws/live ───────────────────────────────────────────
@@ -267,6 +289,7 @@ export type UserNotificationSettingsChangedMessage = z.infer<
 >;
 
 export type ForceLogoutMessage = z.infer<typeof ForceLogoutMessageSchema>;
+export type AdminNotificationMessage = z.infer<typeof AdminNotificationMessageSchema>;
 
 // ── /ws/unit/{unitId} — входящие сообщения ────────────────────────────
 

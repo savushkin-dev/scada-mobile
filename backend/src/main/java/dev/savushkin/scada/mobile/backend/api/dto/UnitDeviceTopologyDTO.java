@@ -1,5 +1,7 @@
 package dev.savushkin.scada.mobile.backend.api.dto;
 
+import java.util.Map;
+
 /**
  * Статическая топология устройств аппарата
  * ({@code GET /api/.../workshops/{id}/units/{unitId}/devices/topology}).
@@ -9,15 +11,19 @@ package dev.savushkin.scada.mobile.backend.api.dto;
  * Результат поставляется с ETag — клиент кэширует ответ и
  * обновляет его только при изменении конфига.
  *
- * @param unitId     уникальный идентификатор аппарата (instanceId)
- * @param workshopId идентификатор цеха-владельца
- * @param unit       отображаемое название аппарата/линии
- * @param devices    сгруппированный список устройств PrintSrv
+ * @param unitId      уникальный идентификатор аппарата (instanceId)
+ * @param workshopId  идентификатор цеха-владельца
+ * @param unit        отображаемое название аппарата/линии
+ * @param devices     сгруппированный список устройств PrintSrv (коды)
+ * @param deviceNames отображаемые имена устройств из справочника (код → device_catalog.name)
+ * @param typeNames   отображаемые имена типов устройств (код типа → device_types.name)
  */
 public record UnitDeviceTopologyDTO(
         String unitId,
         long workshopId,
         String unit,
-        DeviceGroupsDTO devices
+        DeviceGroupsDTO devices,
+        Map<String, String> deviceNames,
+        Map<String, String> typeNames
 ) {
 }

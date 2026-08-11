@@ -32,6 +32,8 @@ interface AuthContextValue {
   isServerUnavailable: boolean;
   login: (userId: string, role: string, accessToken: string, refreshToken: string) => void;
   logout: () => void;
+  /** Обновляет роль текущего пользователя (например, админ сменил роль — пришло по WS). */
+  updateRole: (role: string) => void;
   checkServerAvailability: () => void;
 }
 
@@ -212,6 +214,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearAllAuthData();
   }, []);
 
+  const updateRole = useCallback((nextRole: string) => {
+    setRole(nextRole);
+    setStoredRole(nextRole);
+  }, []);
+
   /**
    * Повторная проверка доступности сервера.
    * Вызывается из заглушки "сервер недоступен" по кнопке "Повторить".
@@ -256,6 +263,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isServerUnavailable,
       login,
       logout,
+      updateRole,
       checkServerAvailability,
     }),
     [
@@ -267,6 +275,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isServerUnavailable,
       login,
       logout,
+      updateRole,
       checkServerAvailability,
     ]
   );

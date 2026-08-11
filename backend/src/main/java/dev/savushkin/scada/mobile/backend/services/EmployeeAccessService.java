@@ -2,6 +2,7 @@ package dev.savushkin.scada.mobile.backend.services;
 
 import dev.savushkin.scada.mobile.backend.config.AdminBootstrapConfig;
 import dev.savushkin.scada.mobile.backend.domain.auth.EmployeeCredentialsGenerator;
+import dev.savushkin.scada.mobile.backend.domain.model.EmployeePasswordResetEvent;
 import dev.savushkin.scada.mobile.backend.domain.model.UserAssignmentsChangedEvent;
 import dev.savushkin.scada.mobile.backend.exception.UnitAssignmentConflictException;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.RoleEntity;
@@ -121,6 +122,7 @@ public class EmployeeAccessService {
         adminNotificationService.createPasswordChangedNotification(user, true);
 
         authService.revokeAllRefreshTokens(userId);
+        eventPublisher.publishEvent(new EmployeePasswordResetEvent(userId));
 
         return new ResetPassword(user.getCode(), user.getFullName(), rawPassword);
     }

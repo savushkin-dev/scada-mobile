@@ -1,9 +1,11 @@
 package dev.savushkin.scada.mobile.backend.services;
 
 import dev.savushkin.scada.mobile.backend.domain.model.AdminNotificationType;
+import dev.savushkin.scada.mobile.backend.domain.model.ChangeAction;
 import dev.savushkin.scada.mobile.backend.domain.model.CompositionDiff;
+import dev.savushkin.scada.mobile.backend.domain.model.DeviceCatalogChangedEvent;
+import dev.savushkin.scada.mobile.backend.domain.model.DeviceChangedEvent;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceCatalogEntity;
-import dev.savushkin.scada.mobile.backend.domain.model.DeviceCompositionChangedEvent;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UnitEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.adapter.PrintSrvTopologyJpaAdapter;
@@ -18,7 +20,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.Set;
 
 /**
@@ -109,8 +110,11 @@ public class DeviceAutoDiscoveryService {
                 DeviceEntity device = new DeviceEntity();
                 device.setUnit(unit);
                 device.setCatalog(catalog);
-                deviceRepository.save(device);
+                DeviceEntity saved = deviceRepository.save(device);
                 changed = true;
+                // Клиенты получают новую связь по WS без перезагрузки страницы
+                // (слушатель перечитает сущность из БД после коммита).
+                eventPublisher.publishEvent(new DeviceChangedEvent(saved.getId(), null, null, ChangeAction.CREATE));
                 log.info("[{}] Auto-discovered device '{}' linked to unit {}", instanceId, deviceCode, unit.getId());
             }
 
@@ -147,17 +151,6 @@ public class DeviceAutoDiscoveryService {
         if (changed) {
             topologyAdapter.invalidateETag();
         }
-
-        // Событие остаётся для инвалидации кэшей/топологии и потенциальных других слушателей.
-        // Публикуем только при реальном изменении конфигурации (добавлении связи).
-        if (changed) {
-            eventPublisher.publishEvent(new DeviceCompositionChangedEvent(
-                    instanceId,
-                    diff.added(),
-                    diff.removed(),
-                    Instant.now()
-            ));
-        }
     }
 
     /**
@@ -171,6 +164,9 @@ public class DeviceAutoDiscoveryService {
         catalog.setName(code); // Админ должен изменить
         catalog.setType(null);        // Тип неизвестен, админ должен выбрать
         catalog.setActive(false);     // Не отображается на странице деталей
-        return catalogRepository.save(catalog);
+        DeviceCatalogEntity saved = catalogRepository.save(catalog);
+        // Справочник изменился — рассылаем новую запись клиентам по WS.
+        eventPublisher.publishEvent(new DeviceCatalogChangedEvent(saved.getId(), ChangeAction.CREATE));
+        return saved;
     }
 }

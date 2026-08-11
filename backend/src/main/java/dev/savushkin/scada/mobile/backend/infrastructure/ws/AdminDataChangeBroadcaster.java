@@ -6,7 +6,6 @@ import dev.savushkin.scada.mobile.backend.domain.model.*;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.adapter.PrintSrvTopologyJpaAdapter;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.*;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.*;
-import dev.savushkin.scada.mobile.backend.services.AuthService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -27,7 +26,6 @@ public class AdminDataChangeBroadcaster {
     private static final Logger log = LoggerFactory.getLogger(AdminDataChangeBroadcaster.class);
 
     private final LiveWsHandler liveWsHandler;
-    private final AuthService authService;
     private final PrintSrvTopologyJpaAdapter topologyAdapter;
 
     private final UserJpaRepository userRepository;
@@ -41,7 +39,6 @@ public class AdminDataChangeBroadcaster {
 
     public AdminDataChangeBroadcaster(
             LiveWsHandler liveWsHandler,
-            AuthService authService,
             PrintSrvTopologyJpaAdapter topologyAdapter,
             UserJpaRepository userRepository,
             WorkshopJpaRepository workshopRepository,
@@ -53,7 +50,6 @@ public class AdminDataChangeBroadcaster {
             UserNotificationSettingsJpaRepository settingsRepository
     ) {
         this.liveWsHandler = liveWsHandler;
-        this.authService = authService;
         this.topologyAdapter = topologyAdapter;
         this.userRepository = userRepository;
         this.workshopRepository = workshopRepository;
@@ -71,7 +67,7 @@ public class AdminDataChangeBroadcaster {
     public void onEmployeeChanged(EmployeeChangedEvent event) {
         if (event.action() == ChangeAction.DELETE) {
             sendToAdminsAndUser(event.employeeId(), EmployeeChangedMessageDTO.of(
-                    new EmployeeChangedMessageDTO.EmployeePayload(event.employeeId(), null, null, null, false),
+                    new EmployeeChangedMessageDTO.EmployeePayload(event.employeeId(), null, null, null, null, false),
                     event.action().name()
             ));
             sendForceLogout(event.employeeId(), "User deleted");
@@ -80,22 +76,39 @@ public class AdminDataChangeBroadcaster {
 
         userRepository.findById(event.employeeId()).ifPresentOrElse(
                 user -> {
+                    // role — LAZY-связь; после коммита сессия может быть закрыта,
+                    // поэтому имя роли читаем отдельным запросом по FK.
+                    String roleName = user.getRoleId() != null
+                            ? roleRepository.findById(user.getRoleId()).map(RoleEntity::getName).orElse(null)
+                            : null;
                     var payload = new EmployeeChangedMessageDTO.EmployeePayload(
                             user.getId(),
                             user.getFullName(),
                             user.getCode(),
                             user.getRoleId(),
+                            roleName,
                             user.isActive()
                     );
                     sendToAdminsAndUser(user.getId(), EmployeeChangedMessageDTO.of(payload, event.action().name()));
 
                     if (!user.isActive()) {
-                        authService.revokeAllRefreshTokens(user.getId());
+                        // Refresh-токены уже отозваны в транзакции контроллера;
+                        // здесь немедленно разлогиниваем активные WS-сессии.
                         sendForceLogout(user.getId(), "User deactivated");
                     }
                 },
                 () -> log.warn("AdminDataChangeBroadcaster: employee {} not found after commit", event.employeeId())
         );
+    }
+
+    /**
+     * Администратор сбросил пароль сотрудника — refresh-токены уже отозваны
+     * в {@code EmployeeAccessService}; здесь немедленно разлогиниваем
+     * активные WS-сессии сотрудника, не дожидаясь истечения access-токена.
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void onEmployeePasswordReset(EmployeePasswordResetEvent event) {
+        sendForceLogout(event.userId(), "Password reset by administrator");
     }
 
     // ─── Workshops ───────────────────────────────────────────────────────────

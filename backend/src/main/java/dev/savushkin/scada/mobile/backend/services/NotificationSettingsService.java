@@ -3,12 +3,15 @@ package dev.savushkin.scada.mobile.backend.services;
 import dev.savushkin.scada.mobile.backend.application.ports.NotificationSettingsRepository;
 import dev.savushkin.scada.mobile.backend.application.ports.UnitQueryRepository;
 import dev.savushkin.scada.mobile.backend.application.ports.UserProfileRepository;
+import dev.savushkin.scada.mobile.backend.domain.model.ChangeAction;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitNotificationPreference;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitSummary;
 import dev.savushkin.scada.mobile.backend.domain.model.UserNotificationSettings;
+import dev.savushkin.scada.mobile.backend.domain.model.UserNotificationSettingsChangedEvent;
 import dev.savushkin.scada.mobile.backend.domain.model.UserProfile;
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -34,22 +37,26 @@ public class NotificationSettingsService {
     private final NotificationSettingsRepository settingsRepository;
     private final UnitQueryRepository unitQueryRepository;
     private final UserProfileRepository userProfileRepository;
+    private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
     @Autowired
     public NotificationSettingsService(NotificationSettingsRepository settingsRepository,
                                        UnitQueryRepository unitQueryRepository,
-                                       UserProfileRepository userProfileRepository) {
-        this(settingsRepository, unitQueryRepository, userProfileRepository, Clock.systemUTC());
+                                       UserProfileRepository userProfileRepository,
+                                       ApplicationEventPublisher eventPublisher) {
+        this(settingsRepository, unitQueryRepository, userProfileRepository, eventPublisher, Clock.systemUTC());
     }
 
     public NotificationSettingsService(NotificationSettingsRepository settingsRepository,
                                        UnitQueryRepository unitQueryRepository,
                                        UserProfileRepository userProfileRepository,
+                                       ApplicationEventPublisher eventPublisher,
                                        Clock clock) {
         this.settingsRepository = settingsRepository;
         this.unitQueryRepository = unitQueryRepository;
         this.userProfileRepository = userProfileRepository;
+        this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
 
@@ -105,7 +112,14 @@ public class NotificationSettingsService {
                 LocalDateTime.now(clock)
         );
 
-        settingsRepository.save(updated);
+        UserNotificationSettings saved = settingsRepository.save(updated);
+        // Уведомляем самого пользователя (все его сессии) и админов об изменении
+        // настроек — иначе другие вкладки/устройства узнают о нём только после F5.
+        eventPublisher.publishEvent(new UserNotificationSettingsChangedEvent(
+                saved.id(),
+                user.id(),
+                current == null ? ChangeAction.CREATE : ChangeAction.UPDATE
+        ));
     }
 
     private UserProfile loadActiveUser(long userId) {

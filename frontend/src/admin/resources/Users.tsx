@@ -279,14 +279,10 @@ function UserRightFields({
   const getRoleName = useNameMap('roles');
   const isAdmin = getRoleName(record.roleId as number | undefined) === 'ADMIN';
 
-  // Для роли ADMIN закрепление автоматов запрещено (backend отклоняет 409).
-  // Очищаем unitIds, чтобы сохранение воспринималось как «снять привязки»,
-  // а не как попытку добавить автоматы.
-  useEffect(() => {
-    if (isAdmin && Array.isArray(record.unitIds) && record.unitIds.length > 0) {
-      onChange('unitIds', []);
-    }
-  }, [isAdmin, record.unitIds, onChange]);
+  // Для роли ADMIN закрепление автоматов запрещено (backend отклоняет 409):
+  // поле скрыто, а фактическая очистка unitIds происходит в момент
+  // сохранения (transformValues в AdminEditForm) — form-state не трогаем,
+  // чтобы переключение роли туда-обратно не стирало привязки.
 
   if (isAdmin) {
     return (
@@ -356,6 +352,14 @@ export const UserEdit = () => {
       title="Редактирование сотрудника"
       layout="two-column"
       defaultLeftWidth={25}
+      transformValues={(values) =>
+        // Роль ADMIN не может иметь закреплённых автоматов (backend отклоняет
+        // 409): подставляем пустой список только на сохранении, не изменяя
+        // form-state при переключении роли.
+        getRoleName(values.roleId as number | undefined) === 'ADMIN'
+          ? { ...values, unitIds: [] }
+          : values
+      }
       menuItems={(record) =>
         getRoleName(record.roleId as number | undefined) !== 'ADMIN'
           ? [

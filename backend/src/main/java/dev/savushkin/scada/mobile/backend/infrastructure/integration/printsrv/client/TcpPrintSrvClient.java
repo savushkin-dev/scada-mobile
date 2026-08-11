@@ -69,6 +69,21 @@ public class TcpPrintSrvClient implements PrintSrvClient {
         return instanceId;
     }
 
+    /**
+     * Хост, переданный при создании. Используется {@link TcpPrintSrvClientRegistry}
+     * для детекции изменения параметров подключения при сверке с БД.
+     */
+    String getHost() {
+        return host;
+    }
+
+    /**
+     * Порт, переданный при создании. См. {@link #getHost()}.
+     */
+    int getPort() {
+        return port;
+    }
+
     @Override
     public QueryAllResponseDTO queryAll(String deviceName) throws IOException {
         QueryAllRequestDTO request = new QueryAllRequestDTO(deviceName, "QueryAll");
