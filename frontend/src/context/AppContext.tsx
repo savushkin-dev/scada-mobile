@@ -342,17 +342,25 @@ function reducer(state: AppState, action: Action): AppState {
         nextWorkshopTopology = adjustTotalUnits(nextWorkshopTopology, uPayload.workshopId, +1);
       }
 
-      const newList = [...(nextUnitMap[newWorkshopKey] ?? [])];
-      const existingUnitIndex = newList.findIndex((u) => String(u.id) === unitId);
-      if (existingUnitIndex >= 0) {
-        newList[existingUnitIndex] = unitTopology;
-      } else {
-        newList.push(unitTopology);
-        if (action.action === 'CREATE') {
-          nextWorkshopTopology = adjustTotalUnits(nextWorkshopTopology, uPayload.workshopId, +1);
+      // Патчим список только для цеха, чья топология уже загружена из REST.
+      // Иначе WS-дельта материализует частичный список из одного аппарата,
+      // который страница цеха примет за полный снапшот, а conditional GET
+      // по актуальному ETag вернёт 304 и не починит его до перезагрузки.
+      const existingWorkshopList = nextUnitMap[newWorkshopKey];
+      const existingUnitIndex =
+        existingWorkshopList?.findIndex((u) => String(u.id) === unitId) ?? -1;
+      if (existingWorkshopList) {
+        const newList = [...existingWorkshopList];
+        if (existingUnitIndex >= 0) {
+          newList[existingUnitIndex] = unitTopology;
+        } else {
+          newList.push(unitTopology);
         }
+        nextUnitMap[newWorkshopKey] = newList;
       }
-      nextUnitMap[newWorkshopKey] = newList;
+      if (action.action === 'CREATE' && existingUnitIndex < 0) {
+        nextWorkshopTopology = adjustTotalUnits(nextWorkshopTopology, uPayload.workshopId, +1);
+      }
 
       // Переименование аппарата — синхронно обновляем название
       // в активных алёртах и уведомлениях (их ключ — тот же unitId).

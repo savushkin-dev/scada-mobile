@@ -55,7 +55,9 @@ export function WorkshopPage() {
 
   const units = unitsByWorkshop[workshopId] ?? [];
 
-  // Запрашиваем topology аппаратов при каждом открытии цеха и при смене цеха (deps = [workshopId]).
+  // Запрашиваем topology аппаратов при каждом открытии цеха и при смене цеха,
+  // а также ревалидируем conditional GET при любом изменении топологии по WS
+  // (deps = [workshopId, state.topologyVersion]).
   const hasUnitsTopology =
     (state.unitTopologyByWorkshop[workshopId]?.length ?? UI_BEHAVIOR.emptyCollectionSize) >
     UI_BEHAVIOR.emptyCollectionSize;
@@ -64,7 +66,7 @@ export function WorkshopPage() {
       ? (signal) =>
           fetchUnitsTopology(workshopId, signal, hasUnitsTopology ? state.topologyETag : null)
       : null,
-    [workshopId],
+    [workshopId, state.topologyVersion],
     { source: 'topology/units' }
   );
 
