@@ -104,11 +104,16 @@ public class AdminUserController {
         RoleEntity role = roleRepository.findById(request.roleId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Роль не найдена"));
 
-        // Роль самого себя менять нельзя никогда — иначе админ может
-        // понизить сам себя и потерять/получить доступ в середине сессии.
+        // Над собственной учёткой запрещены: смена роли и деактивация —
+        // иначе админ может потерять доступ в середине сессии.
         Long currentUserId = JwtPrincipalUtil.getCurrentUserId();
-        if (id.equals(currentUserId) && !request.roleId().equals(user.getRoleId())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Нельзя изменить роль самому себе");
+        if (id.equals(currentUserId)) {
+            if (!request.roleId().equals(user.getRoleId())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Нельзя изменить роль самому себе");
+            }
+            if (user.isActive() && !request.active()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Нельзя деактивировать самого себя");
+            }
         }
 
         if (request.code() != null && !request.code().isBlank() && !request.code().equals(user.getCode())) {
@@ -140,6 +145,11 @@ public class AdminUserController {
     public ResponseEntity<Void> delete(@PathVariable @NonNull Long id) {
         if (!userRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Пользователь не найден");
+        }
+        // Админ не может удалить собственную учётку — иначе потеряет доступ
+        // в середине сессии, а система может остаться без администратора.
+        if (id.equals(JwtPrincipalUtil.getCurrentUserId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Нельзя удалить самого себя");
         }
         // Составная сущность «Сотрудник»: удаляем все оперативные записи,
         // ссылающиеся на пользователя, до удаления самой записи в users.
