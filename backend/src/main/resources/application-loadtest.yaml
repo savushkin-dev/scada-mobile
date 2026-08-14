@@ -1,0 +1,69 @@
+# Loadtest profile: окружение для нагрузочного тестирования (эпик #51, НТ-1).
+#
+# Идея: поведение максимально близко к prod (минимальные логи, без Swagger),
+# но PrintSrv заменён на in-process mock (те же mock-компоненты, что и в dev).
+# Уровни логов и appenders — как в prod: logback-spring.xml (springProfile "prod | loadtest").
+#
+# Запуск локально: make load-up (postgres на 5433 + backend на 8081).
+# На сервере: переопределить SCADA_MOBILE_DATABASE_* и SCADA_MOBILE_BACKEND_PORT через env.
+
+logging:
+  level:
+    root: WARN
+    dev.savushkin.scada.mobile.backend: INFO
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PrintSrv: polling как в prod, но транспорт — mock.
+# Топология (цеха, инстансы, устройства) читается из БД после сида
+# (scripts/seed_notifications.sql + scripts/seed_loadtest_users.sql).
+# ─────────────────────────────────────────────────────────────────────────────
+printsrv:
+  polling:
+    fixed-delay-ms: 1000
+  socket:
+    connect-timeout-ms: 5000
+    read-timeout-ms: 5000
+
+  # MockPrintSrv — активен в профилях dev и loadtest.
+  # Параметры совпадают с dev: та же частота тиков и вероятности ошибок,
+  # чтобы live-нагрузка (UNITS_STATUS/ALERT каждые ~1 сек) была реалистичной.
+  mock:
+    snapshot-base-dir:
+    tick-interval-ms: 1000
+    offline-instances: []
+    error-flip-probability: 0.01
+    error-clear-probability: 0.2
+    max-errors-per-unit: 1
+    random-seed: 42
+    simulation-enabled: true
+
+# CORS: как в prod — fail-closed, задаётся через env.
+# k6 не браузер и CORS не проверяет; для ручной проверки UI против стенда
+# задать SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS.
+cors:
+  policy:
+    allowed-origins: "${SCADA_MOBILE_CORS_POLICY_ALLOWED_ORIGINS:}"
+
+# OpenAPI/Swagger UI: отключено, как в prod
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+# БД стенда. Локальные дефолты — изолированный postgres на порту 5433
+# (контейнер scada-loadtest-postgres, см. make load-db-up), чтобы не
+# пересекаться с dev-БД на 5432. На сервере переопределяется env без дефолтов.
+spring:
+  datasource:
+    url: ${SCADA_MOBILE_DATABASE_URL:jdbc:postgresql://localhost:5433/scada_mobile}
+    username: ${SCADA_MOBILE_DATABASE_USERNAME:scada_user}
+    password: ${SCADA_MOBILE_DATABASE_PASSWORD:scada_password}
+
+# Actuator: health для проверки готовности, metrics для диагностики узких мест.
+# Prometheus-эндпоинт добавляется в НТ-3 (#65).
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "health,loggers,metrics"

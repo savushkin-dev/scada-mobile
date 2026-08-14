@@ -150,6 +150,15 @@ Docker:
 - По умолчанию `make back-run` использует dev-профиль и порт `8080`.
 - Для prod-режима порт и секреты обязательны в `PROD_ENV_FILE` (`SCADA_MOBILE_BACKEND_PORT`, `SCADA_MOBILE_JWT_ACCESS_SECRET`, `SCADA_MOBILE_JWT_REFRESH_SECRET`).
 
+Нагрузочное тестирование (эпик #51, стенд изолирован от dev — подробности в `load-tests/README.md`):
+
+- `make load-up` — поднять стенд целиком: postgres на `5433` + backend на `8081` в профиле `loadtest` (prod-like логи + mock PrintSrv), с миграциями и сидами (топология + 500 пользователей `20001..20500` / `password`).
+- `make load-down` — остановить backend и удалить контейнер postgres стенда (volume остаётся).
+- `make load-db-backup` — pg_dump стенд-БД в `load-tests/backups/` (обязательно перед прогонами).
+- `make load-db-restore FILE=...` — восстановить стенд-БД из дампа.
+- `make load-db-reset` — удалить контейнер и volume (чистый лист).
+- `make load-back-run` / `load-back-stop` / `load-back-wait` / `load-back-logs` — управление backend стенда.
+
 Frontend:
 
 - `make front-install` — установить зависимости фронтенда.

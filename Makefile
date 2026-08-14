@@ -13,6 +13,21 @@ SEED_DB_PASSWORD ?= scada_password
 SEED_SQL ?= scripts/seed_notifications.sql
 SEED_PROD_SQL ?= scripts/seed_prod_data.sql
 
+# Нагрузочное тестирование (эпик #51, НТ-1): изолированный стенд.
+# Свой postgres (порт 5433) и свой backend (порт 8081, профиль loadtest),
+# чтобы не пересекаться с dev-окружением (5432/8080).
+LOAD_DB_CONTAINER ?= scada-loadtest-postgres
+LOAD_DB_PORT ?= 5433
+LOAD_DB_NAME ?= scada_mobile
+LOAD_DB_USER ?= scada_user
+LOAD_DB_PASSWORD ?= scada_password
+LOAD_DB_VOLUME ?= scada-loadtest-pgdata
+LOAD_BACKEND_PORT ?= 8081
+LOAD_BACKEND_LOG := .backend-loadtest.log
+LOAD_BACKEND_PID := .backend-loadtest.pid
+LOAD_BACKUP_DIR := load-tests/backups
+LOAD_SEED_SQL ?= scripts/seed_notifications.sql scripts/seed_loadtest_users.sql
+
 # Локальный файл с автогенерируемыми dev JWT-секретами (игнорируется git через .env.*)
 DEV_SECRETS_FILE := .env.dev
 DEV_BACKEND_LOG := .backend.log
@@ -34,6 +49,8 @@ endif
 .PHONY: help back-run back-stop back-wait back-logs back-run-prod front-install front-dev front-build db-seed db-seed-prod
 .PHONY: bwa-init bwa-build-apk
 .PHONY: docker-prod-up docker-prod-down docker-ps
+.PHONY: load-up load-down load-db-up load-db-down load-db-reset load-db-seed load-db-backup load-db-restore
+.PHONY: load-back-run load-back-stop load-back-wait load-back-logs
 
 DOCKER_COMPOSE_FILE := -f docker-compose.yml
 PROD_ENV_FILE ?= .env.prod.local
@@ -56,6 +73,19 @@ help:
 	@echo "  make docker-ps        - show container status for the active stack"
 	@echo "  make db-seed          - seed dev database via docker exec (container: $(SEED_DB_CONTAINER_DEV), env: SEED_DB_NAME, SEED_DB_USER, SEED_DB_PASSWORD)"
 	@echo "  make db-seed-prod     - seed production database (container: $(SEED_DB_CONTAINER_PROD), workshops/units/device_types from env vars)"
+	@echo ""
+	@echo "Load testing (stand: postgres :$(LOAD_DB_PORT), backend :$(LOAD_BACKEND_PORT), profile loadtest):"
+	@echo "  make load-up          - start the whole stand (db + migrations + seed + backend with mock PrintSrv)"
+	@echo "  make load-down        - stop backend and remove stand postgres container (volume kept)"
+	@echo "  make load-db-up       - start stand postgres container only"
+	@echo "  make load-db-seed     - apply topology + 500 load users to stand DB"
+	@echo "  make load-db-backup   - pg_dump stand DB into $(LOAD_BACKUP_DIR)/ (run before load tests)"
+	@echo "  make load-db-restore  - restore stand DB: make load-db-restore FILE=$(LOAD_BACKUP_DIR)/xxx.sql"
+	@echo "  make load-db-reset    - remove container AND volume (clean slate)"
+	@echo "  make load-back-run    - start backend in loadtest profile (mock PrintSrv, port $(LOAD_BACKEND_PORT))"
+	@echo "  make load-back-stop   - stop loadtest backend"
+	@echo "  make load-back-wait   - wait until loadtest backend responds"
+	@echo "  make load-back-logs   - tail loadtest backend log ($(BACKEND_DIR)/$(LOAD_BACKEND_LOG))"
 	@echo ""
 	@echo "Frontend:"
 	@echo "  make front-install - install frontend dependencies"
@@ -257,4 +287,166 @@ docker-prod-down:
 
 docker-ps:
 	-docker compose --env-file "$(PROD_ENV_ACTIVE_FILE)" $(DOCKER_COMPOSE_FILE) ps
+endif
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Нагрузочное тестирование (эпик #51): изолированный стенд.
+# Только POSIX (Git Bash/WSL/Linux) — на нативном Windows используйте Git Bash.
+# ─────────────────────────────────────────────────────────────────────────────
+ifeq ($(IS_POSIX),)
+load-up load-down load-db-up load-db-down load-db-reset load-db-seed load-db-backup load-db-restore \
+load-back-run load-back-stop load-back-wait load-back-logs:
+	@echo "Load-test targets поддерживаются только из POSIX-shell (Git Bash / WSL / Linux)."
+	@exit 1
+else
+
+load-up: load-db-up
+	@"$(MAKE)" load-back-run
+	@"$(MAKE)" load-back-wait
+	@"$(MAKE)" load-db-seed
+	@echo "Restarting backend to pick up seeded topology..."
+	@"$(MAKE)" load-back-stop
+	@"$(MAKE)" load-back-run
+	@"$(MAKE)" load-back-wait
+	@echo ""
+	@echo "Load-test stand is UP:"
+	@echo "  backend:  http://localhost:$(LOAD_BACKEND_PORT) (profile: loadtest, mock PrintSrv)"
+	@echo "  postgres: localhost:$(LOAD_DB_PORT) (container: $(LOAD_DB_CONTAINER))"
+	@echo "  users:    20001..20500 / password"
+
+load-down: load-back-stop
+	@docker rm -f "$(LOAD_DB_CONTAINER)" > /dev/null 2>&1 \
+		&& echo "$(LOAD_DB_CONTAINER) removed (volume $(LOAD_DB_VOLUME) kept)" \
+		|| echo "$(LOAD_DB_CONTAINER) not found"
+
+load-db-up:
+	@if docker ps --format '{{.Names}}' | grep -qx "$(LOAD_DB_CONTAINER)"; then \
+		echo "$(LOAD_DB_CONTAINER) already running"; \
+	elif docker ps -a --format '{{.Names}}' | grep -qx "$(LOAD_DB_CONTAINER)"; then \
+		docker start "$(LOAD_DB_CONTAINER)"; \
+	else \
+		docker run -d --name "$(LOAD_DB_CONTAINER)" \
+			-p $(LOAD_DB_PORT):5432 \
+			-e POSTGRES_DB="$(LOAD_DB_NAME)" \
+			-e POSTGRES_USER="$(LOAD_DB_USER)" \
+			-e POSTGRES_PASSWORD="$(LOAD_DB_PASSWORD)" \
+			-v $(LOAD_DB_VOLUME):/var/lib/postgresql/data \
+			postgres:17-alpine; \
+	fi
+	@echo "Waiting for postgres on port $(LOAD_DB_PORT)..."; \
+	for i in $$(seq 1 30); do \
+		if docker exec "$(LOAD_DB_CONTAINER)" pg_isready -U "$(LOAD_DB_USER)" -d "$(LOAD_DB_NAME)" > /dev/null 2>&1; then \
+			echo "postgres is UP"; \
+			exit 0; \
+		fi; \
+		sleep 2; \
+	done; \
+	echo "postgres did not become ready in time"; \
+	exit 1
+
+load-db-down:
+	@docker rm -f "$(LOAD_DB_CONTAINER)" > /dev/null 2>&1 \
+		&& echo "$(LOAD_DB_CONTAINER) removed" \
+		|| echo "$(LOAD_DB_CONTAINER) not found"
+
+load-db-reset: load-db-down
+	@docker volume rm "$(LOAD_DB_VOLUME)" > /dev/null 2>&1 \
+		&& echo "volume $(LOAD_DB_VOLUME) removed" \
+		|| echo "volume $(LOAD_DB_VOLUME) not found"
+
+load-db-seed:
+	@for f in $(LOAD_SEED_SQL); do \
+		if [ ! -f "$$f" ]; then \
+			echo "Missing $$f."; \
+			exit 1; \
+		fi; \
+	done
+	@if ! docker ps --format '{{.Names}}' | grep -qx "$(LOAD_DB_CONTAINER)"; then \
+		echo "Container $(LOAD_DB_CONTAINER) is not running. Start it first: make load-db-up"; \
+		exit 1; \
+	fi
+	@for f in $(LOAD_SEED_SQL); do \
+		echo "Applying $$f ..."; \
+		docker exec -i -e PGPASSWORD="$(LOAD_DB_PASSWORD)" "$(LOAD_DB_CONTAINER)" \
+			psql -U "$(LOAD_DB_USER)" -d "$(LOAD_DB_NAME)" -v ON_ERROR_STOP=1 -f - < "$$f" || exit 1; \
+	done
+	@echo -n "Users in stand DB: "
+	@docker exec -e PGPASSWORD="$(LOAD_DB_PASSWORD)" "$(LOAD_DB_CONTAINER)" \
+		psql -U "$(LOAD_DB_USER)" -d "$(LOAD_DB_NAME)" -tAc "SELECT count(*) FROM users"
+
+load-db-backup:
+	@mkdir -p "$(LOAD_BACKUP_DIR)"
+	@if ! docker ps --format '{{.Names}}' | grep -qx "$(LOAD_DB_CONTAINER)"; then \
+		echo "Container $(LOAD_DB_CONTAINER) is not running. Start it first: make load-db-up"; \
+		exit 1; \
+	fi
+	@file="$(LOAD_BACKUP_DIR)/loadtest-$$(date +%Y%m%d-%H%M%S).sql"; \
+	docker exec -e PGPASSWORD="$(LOAD_DB_PASSWORD)" "$(LOAD_DB_CONTAINER)" \
+		pg_dump -U "$(LOAD_DB_USER)" -d "$(LOAD_DB_NAME)" --clean --if-exists > "$$file" \
+		&& echo "Backup written: $$file"
+
+load-db-restore:
+	@if [ -z "$(FILE)" ]; then \
+		echo "Usage: make load-db-restore FILE=$(LOAD_BACKUP_DIR)/loadtest-YYYYMMDD-HHMMSS.sql"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(FILE)" ]; then \
+		echo "Missing $(FILE)."; \
+		exit 1; \
+	fi
+	@docker exec -i -e PGPASSWORD="$(LOAD_DB_PASSWORD)" "$(LOAD_DB_CONTAINER)" \
+		psql -U "$(LOAD_DB_USER)" -d "$(LOAD_DB_NAME)" -v ON_ERROR_STOP=1 < "$(FILE)" \
+		&& echo "Restored from $(FILE)"
+
+load-back-run:
+	@cd $(BACKEND_DIR) && \
+	if [ -z "$(SCADA_MOBILE_JWT_ACCESS_SECRET)" ] || [ -z "$(SCADA_MOBILE_JWT_REFRESH_SECRET)" ]; then \
+		if [ ! -f "$(DEV_SECRETS_FILE)" ]; then \
+			echo "Generating dev JWT secrets into $(BACKEND_DIR)/$(DEV_SECRETS_FILE) (git-ignored)..."; \
+			umask 077; \
+			printf 'SCADA_MOBILE_JWT_ACCESS_SECRET=%s\n' "$$(openssl rand -base64 48 | tr -d '\n')" > "$(DEV_SECRETS_FILE)"; \
+			printf 'SCADA_MOBILE_JWT_REFRESH_SECRET=%s\n' "$$(openssl rand -base64 48 | tr -d '\n')" >> "$(DEV_SECRETS_FILE)"; \
+		fi; \
+		set -a; . "./$(DEV_SECRETS_FILE)"; set +a; \
+	fi; \
+	chmod +x ./gradlew; \
+	JAVA_TOOL_OPTIONS='$(JAVA_OPTS)' SPRING_PROFILES_ACTIVE=loadtest SERVER_PORT='$(LOAD_BACKEND_PORT)' \
+	SCADA_MOBILE_DATABASE_URL='jdbc:postgresql://localhost:$(LOAD_DB_PORT)/$(LOAD_DB_NAME)' \
+	SCADA_MOBILE_DATABASE_USERNAME='$(LOAD_DB_USER)' \
+	SCADA_MOBILE_DATABASE_PASSWORD='$(LOAD_DB_PASSWORD)' \
+	nohup $(GRADLEW) bootRun > $(LOAD_BACKEND_LOG) 2>&1 & echo $$! > $(LOAD_BACKEND_PID)
+	@echo "Backend (loadtest) starting in background on port $(LOAD_BACKEND_PORT) (log: $(BACKEND_DIR)/$(LOAD_BACKEND_LOG))."
+
+load-back-stop:
+	@if [ -f "$(BACKEND_DIR)/$(LOAD_BACKEND_PID)" ]; then \
+		kill $$(cat "$(BACKEND_DIR)/$(LOAD_BACKEND_PID)") 2>/dev/null || true; \
+		rm -f "$(BACKEND_DIR)/$(LOAD_BACKEND_PID)"; \
+	else \
+		echo "No loadtest backend PID file found."; \
+	fi
+	@# gradlew/bootRun leaves a child JVM holding the port: finish off the listener
+	@if [ -n "$(IS_MINGW)" ]; then \
+		for pid in $$(netstat -ano | grep LISTENING | grep -E ':$(LOAD_BACKEND_PORT)[[:space:]]' | awk '{print $$NF}' | sort -u); do \
+			echo "Killing listener on port $(LOAD_BACKEND_PORT) (PID $$pid)..."; \
+			taskkill //F //PID $$pid > /dev/null 2>&1 || true; \
+		done; \
+	else \
+		fuser -k $(LOAD_BACKEND_PORT)/tcp 2>/dev/null || true; \
+	fi
+
+load-back-wait:
+	@echo "Waiting for loadtest backend on port $(LOAD_BACKEND_PORT)..."; \
+	for i in $$(seq 1 60); do \
+		code=$$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://localhost:$(LOAD_BACKEND_PORT)$(API_BASE_PATH)/auth/login" -H 'Content-Type: application/json' -d '{}' 2>/dev/null); \
+		if [ "$$code" != "000" ]; then \
+			echo "loadtest backend is UP (HTTP $$code)"; \
+			exit 0; \
+		fi; \
+		sleep 5; \
+	done; \
+	echo "loadtest backend did not respond in time"; \
+	exit 1
+
+load-back-logs:
+	tail -n 200 -f "$(BACKEND_DIR)/$(LOAD_BACKEND_LOG)"
 endif

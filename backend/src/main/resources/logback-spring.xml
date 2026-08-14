@@ -147,7 +147,7 @@
         </logger>
     </springProfile>
 
-    <springProfile name="prod">
+    <springProfile name="prod | loadtest">
         <logger name="scada.polling.diagnostic" level="WARN" additivity="false">
             <appender-ref ref="POLLING_JSON"/>
             <appender-ref ref="POLLING_PLAIN"/>
@@ -181,12 +181,12 @@
     </springProfile>
 
     <!-- =========================================================
-         ПРАВИЛА ДЛЯ PROD ПРОФИЛЯ
+         ПРАВИЛА ДЛЯ PROD И LOADTEST ПРОФИЛЕЙ
          - Нет консоли
          - JSON файл через AsyncAppender
          - Минимальный шум: root=WARN, backend=INFO
          ========================================================= -->
-    <springProfile name="prod">
+    <springProfile name="prod | loadtest">
         <!-- Сторонние библиотеки — только ошибки -->
         <logger name="org.springframework" level="WARN"/>
         <logger name="org.apache" level="WARN"/>
@@ -209,8 +209,9 @@
     <!-- =========================================================
          FALLBACK: если профиль не задан (тесты, bare запуск)
          Только консоль — никаких файлов, чтобы не было конфликтов
+         (loadtest исключён: он использует prod-правила выше)
          ========================================================= -->
-    <springProfile name="!dev &amp; !prod">
+    <springProfile name="!dev &amp; !prod &amp; !loadtest">
         <logger name="dev.savushkin.scada.mobile.backend" level="DEBUG"/>
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>

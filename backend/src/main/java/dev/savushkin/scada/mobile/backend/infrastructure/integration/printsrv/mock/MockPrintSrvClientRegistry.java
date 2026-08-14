@@ -19,7 +19,7 @@ import java.nio.file.Path;
 import java.util.*;
 
 /**
- * Реализация {@link PrintSrvClientRegistry} для профиля {@code dev}.
+ * Реализация {@link PrintSrvClientRegistry} для профилей {@code dev} и {@code loadtest}.
  *
  * <p>Создаёт по одному {@link MockPrintSrvClient} для каждого активного инстанса
  * из {@link PrintSrvTopologyRepository} и инициализирует их seed-состояние,
@@ -56,7 +56,7 @@ import java.util.*;
  * пустым и логирует предупреждение.
  */
 @Component
-@Profile("dev")
+@Profile({"dev", "loadtest"})
 public class MockPrintSrvClientRegistry implements PrintSrvClientRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(MockPrintSrvClientRegistry.class);

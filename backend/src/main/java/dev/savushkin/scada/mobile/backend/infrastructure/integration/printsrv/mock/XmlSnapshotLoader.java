@@ -54,7 +54,7 @@ import java.util.regex.Pattern;
  * <p>Все ошибки парсинга перехватываются: метод никогда не кидает исключений вызывающему.
  */
 @Component
-@Profile("dev")
+@Profile({"dev", "loadtest"})
 public class XmlSnapshotLoader {
 
     private static final Logger log = LoggerFactory.getLogger(XmlSnapshotLoader.class);

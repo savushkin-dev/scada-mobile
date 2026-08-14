@@ -51,7 +51,7 @@ import java.util.*;
  * Метод {@link #tickAll()} является единственной точкой мутации.
  */
 @Component
-@Profile("dev")
+@Profile({"dev", "loadtest"})
 public class MockStateSimulator {
 
     private static final Logger log = LoggerFactory.getLogger(MockStateSimulator.class);
