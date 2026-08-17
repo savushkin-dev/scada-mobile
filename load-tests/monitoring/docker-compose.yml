@@ -1,0 +1,45 @@
+name: scada-loadtest-monitoring
+
+# Мониторинг стенда нагрузочного тестирования (эпик #51, НТ-3 #65).
+# Backend стенда работает на хосте (make load-back-run, порт 8081),
+# поэтому Prometheus скрейпит host.docker.internal.
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    container_name: scada-loadtest-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=2d
+      # remote-write receiver — чтобы k6 мог писать метрики (k6 -o experimental-prometheus-rw)
+      - --web.enable-remote-write-receiver
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    extra_hosts:
+      # Для Linux-сервера (в Docker Desktop на Windows/Mac работает из коробки)
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: scada-loadtest-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  grafana-data:

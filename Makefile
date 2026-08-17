@@ -27,6 +27,7 @@ LOAD_BACKEND_LOG := .backend-loadtest.log
 LOAD_BACKEND_PID := .backend-loadtest.pid
 LOAD_BACKUP_DIR := load-tests/backups
 LOAD_RESULTS_DIR := load-tests/results
+LOAD_MON_COMPOSE := load-tests/monitoring/docker-compose.yml
 LOAD_SEED_SQL ?= scripts/seed_notifications.sql scripts/seed_loadtest_users.sql
 
 # Локальный файл с автогенерируемыми dev JWT-секретами (игнорируется git через .env.*)
@@ -51,7 +52,7 @@ endif
 .PHONY: bwa-init bwa-build-apk
 .PHONY: docker-prod-up docker-prod-down docker-ps
 .PHONY: load-up load-down load-db-up load-db-down load-db-reset load-db-seed load-db-backup load-db-restore
-.PHONY: load-back-run load-back-stop load-back-wait load-back-logs load-k6
+.PHONY: load-back-run load-back-stop load-back-wait load-back-logs load-k6 load-mon-up load-mon-down
 
 DOCKER_COMPOSE_FILE := -f docker-compose.yml
 PROD_ENV_FILE ?= .env.prod.local
@@ -88,6 +89,8 @@ help:
 	@echo "  make load-back-wait   - wait until loadtest backend responds"
 	@echo "  make load-back-logs   - tail loadtest backend log ($(BACKEND_DIR)/$(LOAD_BACKEND_LOG))"
 	@echo "  make load-k6          - run k6 script: make load-k6 SCRIPT=load-tests/k6/ws-live.js [BASE_URL=.. STAGES=..]"
+	@echo "  make load-mon-up      - start monitoring stack (Prometheus :9090, Grafana :3000 admin/admin)"
+	@echo "  make load-mon-down    - stop monitoring stack"
 	@echo ""
 	@echo "Frontend:"
 	@echo "  make front-install - install frontend dependencies"
@@ -297,7 +300,7 @@ endif
 # ─────────────────────────────────────────────────────────────────────────────
 ifeq ($(IS_POSIX),)
 load-up load-down load-db-up load-db-down load-db-reset load-db-seed load-db-backup load-db-restore \
-load-back-run load-back-stop load-back-wait load-back-logs load-k6:
+load-back-run load-back-stop load-back-wait load-back-logs load-k6 load-mon-up load-mon-down:
 	@echo "Load-test targets поддерживаются только из POSIX-shell (Git Bash / WSL / Linux)."
 	@exit 1
 else
@@ -473,5 +476,16 @@ load-k6:
 	@name=$$(basename "$(SCRIPT)" .js); ts=$$(date +%Y%m%d-%H%M%S); \
 	out="$(LOAD_RESULTS_DIR)/$$name-$$ts.json"; \
 	echo "Running $(SCRIPT) (summary -> $$out)"; \
-	k6 run --summary-export "$$out" "$(SCRIPT)"
+	k6 run --summary-export "$$out" $(K6_OUT) "$(SCRIPT)"
+
+# Мониторинг стенда (НТ-3): Prometheus + Grafana.
+# k6 может писать метрики в Prometheus: K6_OUT="-o experimental-prometheus-rw"
+# с K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write
+load-mon-up:
+	@docker compose -f "$(LOAD_MON_COMPOSE)" up -d
+	@echo "Prometheus: http://localhost:9090 (target: host.docker.internal:$(LOAD_BACKEND_PORT))"
+	@echo "Grafana:    http://localhost:3000 (admin/admin, dashboard 'SCADA Loadtest (backend)')"
+
+load-mon-down:
+	@docker compose -f "$(LOAD_MON_COMPOSE)" down
 endif

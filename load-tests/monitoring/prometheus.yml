@@ -1,0 +1,16 @@
+# Prometheus конфиг для стенда нагрузочного тестирования (НТ-3, #65).
+
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: scada-backend
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          # backend стенда на хосте (make load-back-run); на сервере — адрес сервера
+          - host.docker.internal:8081
+        labels:
+          app: scada-mobile-backend
+          env: loadtest

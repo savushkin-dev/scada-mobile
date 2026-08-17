@@ -1,0 +1,183 @@
+{
+  "title": "SCADA Loadtest (backend)",
+  "uid": "scada-loadtest",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "browser",
+  "refresh": "5s",
+  "time": { "from": "now-30m", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "title": "CPU usage",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "scada-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "unit": "percentunit", "min": 0 },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "process_cpu_usage{app=\"scada-mobile-backend\"}",
+          "legendFormat": "process"
+        },
+        {
+          "refId": "B",
+          "expr": "system_cpu_usage{app=\"scada-mobile-backend\"}",
+          "legendFormat": "system"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "JVM heap",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "scada-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": { "unit": "decbytes", "min": 0 },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(jvm_memory_used_bytes{app=\"scada-mobile-backend\", area=\"heap\"})",
+          "legendFormat": "used"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(jvm_memory_max_bytes{app=\"scada-mobile-backend\", area=\"heap\"})",
+          "legendFormat": "max"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "GC pauses (per sec)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "scada-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "min": 0 },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (action, cause) (rate(jvm_gc_pause_seconds_sum{app=\"scada-mobile-backend\"}[1m]))",
+          "legendFormat": "{{action}} {{cause}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "WebSocket sessions",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "scada-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "none", "min": 0 },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "scada_ws_live_sessions{app=\"scada-mobile-backend\"}",
+          "legendFormat": "/ws/live"
+        },
+        {
+          "refId": "B",
+          "expr": "scada_ws_unit_sessions{app=\"scada-mobile-backend\"}",
+          "legendFormat": "/ws/unit"
+        },
+        {
+          "refId": "C",
+          "expr": "scada_ws_unit_active{app=\"scada-mobile-backend\"}",
+          "legendFormat": "active units"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "HTTP RPS",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "scada-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "min": 0 },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (uri) (rate(http_server_requests_seconds_count{app=\"scada-mobile-backend\"}[1m]))",
+          "legendFormat": "{{uri}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "HTTP latency p95",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "scada-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "min": 0 },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (uri, le) (rate(http_server_requests_seconds_bucket{app=\"scada-mobile-backend\"}[1m])))",
+          "legendFormat": "{{uri}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "HTTP errors (4xx/5xx per sec)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "scada-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "min": 0 },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (status) (rate(http_server_requests_seconds_count{app=\"scada-mobile-backend\", status=~\"4..|5..\"}[1m]))",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "k6: VUs и RPS (при запуске с -o experimental-prometheus-rw)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "scada-prom" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "fieldConfig": {
+        "defaults": { "unit": "none", "min": 0 },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "k6_vus",
+          "legendFormat": "VUs"
+        },
+        {
+          "refId": "B",
+          "expr": "rate(k6_http_reqs_total[1m])",
+          "legendFormat": "HTTP reqs/s"
+        }
+      ]
+    }
+  ]
+}

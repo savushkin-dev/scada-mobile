@@ -163,6 +163,14 @@ public class UnitWsHandler extends TextWebSocketHandler {
         return sessionsByUnit.size();
     }
 
+    /**
+     * Общее число активных WS-сессий по всем аппаратам.
+     * Используется метриками стенда нагрузочного тестирования (#65).
+     */
+    public int getTotalSessionCount() {
+        return sessionsByUnit.values().stream().mapToInt(Set::size).sum();
+    }
+
     // ─── Private helpers ─────────────────────────────────────────────────────
 
     /**

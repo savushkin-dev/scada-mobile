@@ -9,6 +9,7 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import org.jspecify.annotations.NonNull;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -72,7 +73,11 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(@NonNull HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(@NonNull HttpSecurity http, Environment environment) throws Exception {
+        // Loadtest-стенд изолирован (тестовая БД, mock PrintSrv): Prometheus
+        // скрейпит /actuator/prometheus без токена. В dev/prod — за JWT.
+        boolean loadtestProfile = List.of(environment.getActiveProfiles()).contains("loadtest");
+
         http
             // Stateless JWT — не создаём сессии
             .sessionManagement(session ->
@@ -82,22 +87,25 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
 
             // Авторизация endpoint'ов
-            .authorizeHttpRequests(auth -> auth
+            .authorizeHttpRequests(auth -> {
                 // Публичные эндпоинты — без аутентификации
                 // Используем /api/v1.0.0/... вместо /api/**/... т.к. ** в середине
                 // не поддерживается в Spring Boot 4 / Spring Security 7
-                .requestMatchers("/api/v1.0.0/auth/login",
+                auth.requestMatchers("/api/v1.0.0/auth/login",
                                  "/api/v1.0.0/auth/logout",
-                                 "/api/v1.0.0/auth/refresh").permitAll()
+                                 "/api/v1.0.0/auth/refresh").permitAll();
                 // Actuator health — для Kubernetes probes
-                .requestMatchers("/actuator/health").permitAll()
+                auth.requestMatchers("/actuator/health").permitAll();
                 // WebSocket handshake — auth через отдельный interceptor
-                .requestMatchers("/ws/**").permitAll()
+                auth.requestMatchers("/ws/**").permitAll();
                 // Админ-эндпоинты — только для роли ADMIN
-                .requestMatchers("/api/v1.0.0/admin/**").hasRole("ADMIN")
+                auth.requestMatchers("/api/v1.0.0/admin/**").hasRole("ADMIN");
+                if (loadtestProfile) {
+                    auth.requestMatchers("/actuator/prometheus").permitAll();
+                }
                 // Всё остальное — только с валидным JWT
-                .anyRequest().authenticated()
-            )
+                auth.anyRequest().authenticated();
+            })
 
             // JWT Resource Server — валидация Bearer токенов
             .oauth2ResourceServer(oauth2 -> oauth2

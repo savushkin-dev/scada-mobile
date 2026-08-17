@@ -60,10 +60,10 @@ spring:
     username: ${SCADA_MOBILE_DATABASE_USERNAME:scada_user}
     password: ${SCADA_MOBILE_DATABASE_PASSWORD:scada_password}
 
-# Actuator: health для проверки готовности, metrics для диагностики узких мест.
-# Prometheus-эндпоинт добавляется в НТ-3 (#65).
+# Actuator: health для проверки готовности, metrics для диагностики узких мест,
+# prometheus — скрейп метрик стенда (НТ-3, #65).
 management:
   endpoints:
     web:
       exposure:
-        include: "health,loggers,metrics"
+        include: "health,loggers,metrics,prometheus"

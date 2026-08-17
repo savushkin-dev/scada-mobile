@@ -95,6 +95,32 @@ make load-k6 SCRIPT=load-tests/k6/auth-login.js 'STAGES=[{"duration":"1m","targe
 Дефолтные thresholds зашиты в скриптах (из критериев приёмки эпика):
 REST p95 < 200 мс; WS snapshot p95 < 500 мс; WS ошибки < 0.1%.
 
+## Мониторинг (НТ-3, #65)
+
+Стек Prometheus + Grafana для стенда (`load-tests/monitoring/`):
+
+```bash
+make load-mon-up      # Prometheus :9090, Grafana :3000 (admin/admin)
+make load-mon-down    # остановить
+```
+
+- Backend (профиль `loadtest`) экспонирует `/actuator/prometheus` (без токена —
+  стенд изолирован; в dev/prod endpoint закрыт)
+- Prometheus скрейпит `host.docker.internal:8081` каждые 5 с
+- Кастомные метрики WS: `scada_ws_live_sessions`, `scada_ws_unit_sessions`,
+  `scada_ws_unit_active` — ключевые для поиска утечек сессий (НТ-6)
+- Grafana: дашборд **SCADA Loadtest (backend)** — CPU, heap, GC, WS-сессии,
+  RPS, p95, ошибки (провизионирован автоматически)
+- Ориентиры из #65: CPU < 70% steady state, heap < 80% от max
+
+Метрики k6 в том же Prometheus (remote-write):
+
+```bash
+make load-k6 SCRIPT=load-tests/k6/ws-live.js \
+  K6_OUT="-o experimental-prometheus-rw" \
+  K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write
+```
+
 ## Этап 2 (сервер)
 
 На сервере: те же `make load-*` команды (Linux, POSIX-ветка Makefile) либо
