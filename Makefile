@@ -26,6 +26,7 @@ LOAD_BACKEND_PORT ?= 8081
 LOAD_BACKEND_LOG := .backend-loadtest.log
 LOAD_BACKEND_PID := .backend-loadtest.pid
 LOAD_BACKUP_DIR := load-tests/backups
+LOAD_RESULTS_DIR := load-tests/results
 LOAD_SEED_SQL ?= scripts/seed_notifications.sql scripts/seed_loadtest_users.sql
 
 # Локальный файл с автогенерируемыми dev JWT-секретами (игнорируется git через .env.*)
@@ -50,7 +51,7 @@ endif
 .PHONY: bwa-init bwa-build-apk
 .PHONY: docker-prod-up docker-prod-down docker-ps
 .PHONY: load-up load-down load-db-up load-db-down load-db-reset load-db-seed load-db-backup load-db-restore
-.PHONY: load-back-run load-back-stop load-back-wait load-back-logs
+.PHONY: load-back-run load-back-stop load-back-wait load-back-logs load-k6
 
 DOCKER_COMPOSE_FILE := -f docker-compose.yml
 PROD_ENV_FILE ?= .env.prod.local
@@ -86,6 +87,7 @@ help:
 	@echo "  make load-back-stop   - stop loadtest backend"
 	@echo "  make load-back-wait   - wait until loadtest backend responds"
 	@echo "  make load-back-logs   - tail loadtest backend log ($(BACKEND_DIR)/$(LOAD_BACKEND_LOG))"
+	@echo "  make load-k6          - run k6 script: make load-k6 SCRIPT=load-tests/k6/ws-live.js [BASE_URL=.. STAGES=..]"
 	@echo ""
 	@echo "Frontend:"
 	@echo "  make front-install - install frontend dependencies"
@@ -295,7 +297,7 @@ endif
 # ─────────────────────────────────────────────────────────────────────────────
 ifeq ($(IS_POSIX),)
 load-up load-down load-db-up load-db-down load-db-reset load-db-seed load-db-backup load-db-restore \
-load-back-run load-back-stop load-back-wait load-back-logs:
+load-back-run load-back-stop load-back-wait load-back-logs load-k6:
 	@echo "Load-test targets поддерживаются только из POSIX-shell (Git Bash / WSL / Linux)."
 	@exit 1
 else
@@ -449,4 +451,27 @@ load-back-wait:
 
 load-back-logs:
 	tail -n 200 -f "$(BACKEND_DIR)/$(LOAD_BACKEND_LOG)"
+
+# Прогон k6-скрипта с сохранением summary в load-tests/results/.
+# Параметры скриптов (BASE_URL, STAGES, WS_SESSION_MS, ...) передаются как
+# make-переменные — они попадают в окружение k6 без проблем с кавычками:
+#   make load-k6 SCRIPT=load-tests/k6/ws-live.js
+#   make load-k6 SCRIPT=load-tests/k6/ws-live.js BASE_URL=http://server:8081
+#   make load-k6 SCRIPT=load-tests/k6/auth-login.js 'STAGES=[{"duration":"1m","target":50}]'
+load-k6:
+	@if [ -z "$(SCRIPT)" ]; then \
+		echo "Usage: make load-k6 SCRIPT=load-tests/k6/<script>.js [BASE_URL=.. STAGES=..]"; \
+		echo "Scripts:"; \
+		ls load-tests/k6/*.js 2>/dev/null | sed 's/^/  /'; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SCRIPT)" ]; then \
+		echo "Missing $(SCRIPT)."; \
+		exit 1; \
+	fi
+	@mkdir -p "$(LOAD_RESULTS_DIR)"
+	@name=$$(basename "$(SCRIPT)" .js); ts=$$(date +%Y%m%d-%H%M%S); \
+	out="$(LOAD_RESULTS_DIR)/$$name-$$ts.json"; \
+	echo "Running $(SCRIPT) (summary -> $$out)"; \
+	k6 run --summary-export "$$out" "$(SCRIPT)"
 endif

@@ -158,6 +158,7 @@ Docker:
 - `make load-db-restore FILE=...` — восстановить стенд-БД из дампа.
 - `make load-db-reset` — удалить контейнер и volume (чистый лист).
 - `make load-back-run` / `load-back-stop` / `load-back-wait` / `load-back-logs` — управление backend стенда.
+- `make load-k6 SCRIPT=load-tests/k6/<script>.js [BASE_URL=.. STAGES=..]` — прогон k6-скрипта (summary пишется в `load-tests/results/`); скрипты: `auth-login.js`, `rest-topology.js`, `ws-live.js`, `ws-unit.js`.
 
 Frontend:
 

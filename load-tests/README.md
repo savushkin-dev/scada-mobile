@@ -72,6 +72,29 @@ curl http://localhost:8081/api/v1.0.0/workshops/topology \
 #   сервер→клиент: ALERT_SNAPSHOT, NOTIFICATION_SNAPSHOT, UNITS_STATUS, ALERT
 ```
 
+## k6-скрипты (НТ-2, #69)
+
+Каталог `load-tests/k6/`:
+
+- `lib/common.js` — env-конфиг (`BASE_URL`, `WS_URL`, диапазон пользователей,
+  instance IDs автоматов, `STAGES`, `WS_SESSION_MS`) + хелпер логина
+- `auth-login.js` — массовый login (помним: BCrypt CPU-bound, threshold мягче)
+- `rest-topology.js` — GET /workshops/topology с ETag (200 → 304)
+- `ws-live.js` — WS /ws/live: SUBSCRIBE_WORKSHOP, снапшоты, UNITS_STATUS
+- `ws-unit.js` — WS /ws/unit/{instanceId}: пакет из 4 сообщений + push.
+  **instanceId — строка** (`trepko1`, ...), не числовой unit_id
+
+Запуск (summary всегда падает в `load-tests/results/`):
+
+```bash
+make load-k6 SCRIPT=load-tests/k6/ws-live.js                 # дефолтный профиль
+make load-k6 SCRIPT=load-tests/k6/ws-live.js BASE_URL=http://server:8081   # сервер
+make load-k6 SCRIPT=load-tests/k6/auth-login.js 'STAGES=[{"duration":"1m","target":50}]'
+```
+
+Дефолтные thresholds зашиты в скриптах (из критериев приёмки эпика):
+REST p95 < 200 мс; WS snapshot p95 < 500 мс; WS ошибки < 0.1%.
+
 ## Этап 2 (сервер)
 
 На сервере: те же `make load-*` команды (Linux, POSIX-ветка Makefile) либо
