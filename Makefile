@@ -52,7 +52,7 @@ endif
 .PHONY: bwa-init bwa-build-apk
 .PHONY: docker-prod-up docker-prod-down docker-ps
 .PHONY: load-up load-down load-db-up load-db-down load-db-reset load-db-seed load-db-backup load-db-restore
-.PHONY: load-back-run load-back-stop load-back-wait load-back-logs load-k6 load-mon-up load-mon-down
+.PHONY: load-back-run load-back-stop load-back-wait load-back-logs load-k6 load-mon-up load-mon-down load-smoke
 
 DOCKER_COMPOSE_FILE := -f docker-compose.yml
 PROD_ENV_FILE ?= .env.prod.local
@@ -91,6 +91,7 @@ help:
 	@echo "  make load-k6          - run k6 script: make load-k6 SCRIPT=load-tests/k6/ws-live.js [BASE_URL=.. STAGES=..]"
 	@echo "  make load-mon-up      - start monitoring stack (Prometheus :9090, Grafana :3000 admin/admin)"
 	@echo "  make load-mon-down    - stop monitoring stack"
+	@echo "  make load-smoke       - smoke test: combined.js, 5 VU / 2 min (run before every big load test)"
 	@echo ""
 	@echo "Frontend:"
 	@echo "  make front-install - install frontend dependencies"
@@ -300,7 +301,7 @@ endif
 # ─────────────────────────────────────────────────────────────────────────────
 ifeq ($(IS_POSIX),)
 load-up load-down load-db-up load-db-down load-db-reset load-db-seed load-db-backup load-db-restore \
-load-back-run load-back-stop load-back-wait load-back-logs load-k6 load-mon-up load-mon-down:
+load-back-run load-back-stop load-back-wait load-back-logs load-k6 load-mon-up load-mon-down load-smoke:
 	@echo "Load-test targets поддерживаются только из POSIX-shell (Git Bash / WSL / Linux)."
 	@exit 1
 else
@@ -477,6 +478,12 @@ load-k6:
 	out="$(LOAD_RESULTS_DIR)/$$name-$$ts.json"; \
 	echo "Running $(SCRIPT) (summary -> $$out)"; \
 	k6 run --summary-export "$$out" $(K6_OUT) "$(SCRIPT)"
+
+# Smoke-тест (НТ-8): обязательный sanity-check перед большими прогонами —
+# 5 VU / 2 минуты комбинированного сценария. Если падает — большие тесты
+# запускать бессмысленно.
+load-smoke:
+	@"$(MAKE)" load-k6 SCRIPT=load-tests/k6/combined.js 'STAGES=[{"duration":"2m","target":5}]' WS_SESSION_MS=20000
 
 # Мониторинг стенда (НТ-3): Prometheus + Grafana.
 # k6 может писать метрики в Prometheus: K6_OUT="-o experimental-prometheus-rw"

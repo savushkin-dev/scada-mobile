@@ -47,8 +47,8 @@ export function workerCodeForVu(vu) {
     return String(USER_FIRST + ((vu - 1) % span));
 }
 
-// Логин: POST /auth/login → accessToken. Падает check'ом при неуспехе.
-export function login(workerCode) {
+// Логин: POST /auth/login → полное тело ответа или null. Падает check'ом при неуспехе.
+export function loginFull(workerCode) {
     const res = http.post(
         `${API_URL}/auth/login`,
         JSON.stringify({ workerCode, password: USER_PASSWORD }),
@@ -67,5 +67,25 @@ export function login(workerCode) {
     if (!ok) {
         return null;
     }
-    return res.json('accessToken');
+    return res.json();
+}
+
+// Логин: только accessToken (удобно для WS-сценариев).
+export function login(workerCode) {
+    const body = loginFull(workerCode);
+    return body ? body.accessToken : null;
+}
+
+// Обновление пары токенов: POST /auth/refresh → полное тело ответа или null.
+export function refreshTokens(refreshToken) {
+    const res = http.post(
+        `${API_URL}/auth/refresh`,
+        JSON.stringify({ refreshToken }),
+        { headers: { 'Content-Type': 'application/json' }, tags: { endpoint: 'refresh' } }
+    );
+    const ok = check(res, { 'refresh 200': (r) => r.status === 200 });
+    if (!ok) {
+        return null;
+    }
+    return res.json();
 }

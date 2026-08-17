@@ -83,6 +83,11 @@ curl http://localhost:8081/api/v1.0.0/workshops/topology \
 - `ws-live.js` — WS /ws/live: SUBSCRIBE_WORKSHOP, снапшоты, UNITS_STATUS
 - `ws-unit.js` — WS /ws/unit/{instanceId}: пакет из 4 сообщений + push.
   **instanceId — строка** (`trepko1`, ...), не числовой unit_id
+- `combined.js` — комбинированный production-like тест (НТ-4, #64):
+  4 сценария одновременно — live_watchers 70% VU (/ws/live + SUBSCRIBE_WORKSHOP),
+  unit_viewers 20% (/ws/unit), topology_browsers 8% (REST + ETag),
+  auth_users 2% (login + refresh). Дефолтный профиль 0→100→300→500 VU (~19 мин),
+  `STAGES` масштабирует все сценарии разом.
 
 Запуск (summary всегда падает в `load-tests/results/`):
 
@@ -94,6 +99,15 @@ make load-k6 SCRIPT=load-tests/k6/auth-login.js 'STAGES=[{"duration":"1m","targe
 
 Дефолтные thresholds зашиты в скриптах (из критериев приёмки эпика):
 REST p95 < 200 мс; WS snapshot p95 < 500 мс; WS ошибки < 0.1%.
+
+## Smoke-тест (НТ-8, #70)
+
+Обязательный sanity-check **перед каждым большим прогоном**: 5 VU / 2 минуты
+комбинированного сценария. Если smoke падает — гонять сотни VU бессмысленно.
+
+```bash
+make load-smoke
+```
 
 ## Мониторинг (НТ-3, #65)
 
