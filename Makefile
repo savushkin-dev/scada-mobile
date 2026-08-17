@@ -52,7 +52,7 @@ endif
 .PHONY: bwa-init bwa-build-apk
 .PHONY: docker-prod-up docker-prod-down docker-ps
 .PHONY: load-up load-down load-db-up load-db-down load-db-reset load-db-seed load-db-backup load-db-restore
-.PHONY: load-back-run load-back-stop load-back-wait load-back-logs load-k6 load-mon-up load-mon-down load-smoke
+.PHONY: load-back-run load-back-stop load-back-wait load-back-logs load-k6 load-mon-up load-mon-down load-smoke load-spike
 
 DOCKER_COMPOSE_FILE := -f docker-compose.yml
 PROD_ENV_FILE ?= .env.prod.local
@@ -92,6 +92,7 @@ help:
 	@echo "  make load-mon-up      - start monitoring stack (Prometheus :9090, Grafana :3000 admin/admin)"
 	@echo "  make load-mon-down    - stop monitoring stack"
 	@echo "  make load-smoke       - smoke test: combined.js, 5 VU / 2 min (run before every big load test)"
+	@echo "  make load-spike       - spike test: ws-live.js, 0->500 VU in 10s (shift-start scenario)"
 	@echo ""
 	@echo "Frontend:"
 	@echo "  make front-install - install frontend dependencies"
@@ -301,7 +302,7 @@ endif
 # ─────────────────────────────────────────────────────────────────────────────
 ifeq ($(IS_POSIX),)
 load-up load-down load-db-up load-db-down load-db-reset load-db-seed load-db-backup load-db-restore \
-load-back-run load-back-stop load-back-wait load-back-logs load-k6 load-mon-up load-mon-down load-smoke:
+load-back-run load-back-stop load-back-wait load-back-logs load-k6 load-mon-up load-mon-down load-smoke load-spike:
 	@echo "Load-test targets поддерживаются только из POSIX-shell (Git Bash / WSL / Linux)."
 	@exit 1
 else
@@ -484,6 +485,12 @@ load-k6:
 # запускать бессмысленно.
 load-smoke:
 	@"$(MAKE)" load-k6 SCRIPT=load-tests/k6/combined.js 'STAGES=[{"duration":"2m","target":5}]' WS_SESSION_MS=20000
+
+# Spike-тест (НТ-9, #71): эмуляция начала смены — все операторы разом ломятся
+# в /ws/live. Мгновенный скачок 0→500 VU за 10 сек, плато 2 мин, обратно за
+# 10 сек и 2 мин наблюдения за восстановлением (сессии и heap должны вернуться).
+load-spike:
+	@"$(MAKE)" load-k6 SCRIPT=load-tests/k6/ws-live.js 'STAGES=[{"duration":"10s","target":500},{"duration":"2m","target":500},{"duration":"10s","target":0},{"duration":"2m","target":0}]'
 
 # Мониторинг стенда (НТ-3): Prometheus + Grafana.
 # k6 может писать метрики в Prometheus: K6_OUT="-o experimental-prometheus-rw"
