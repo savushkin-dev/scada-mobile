@@ -420,7 +420,7 @@ load-back-run:
 	SCADA_MOBILE_DATABASE_URL='jdbc:postgresql://localhost:$(LOAD_DB_PORT)/$(LOAD_DB_NAME)' \
 	SCADA_MOBILE_DATABASE_USERNAME='$(LOAD_DB_USER)' \
 	SCADA_MOBILE_DATABASE_PASSWORD='$(LOAD_DB_PASSWORD)' \
-	nohup $(GRADLEW) bootRun > $(LOAD_BACKEND_LOG) 2>&1 & echo $$! > $(LOAD_BACKEND_PID)
+	nohup $(GRADLEW) bootRun $(if $(PRINTSRV_MOCK_OFFLINE_INSTANCES),--args="--printsrv.mock.offline-instances=$(PRINTSRV_MOCK_OFFLINE_INSTANCES)",) > $(LOAD_BACKEND_LOG) 2>&1 & echo $$! > $(LOAD_BACKEND_PID)
 	@echo "Backend (loadtest) starting in background on port $(LOAD_BACKEND_PORT) (log: $(BACKEND_DIR)/$(LOAD_BACKEND_LOG))."
 
 load-back-stop:

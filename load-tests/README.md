@@ -40,6 +40,11 @@ make load-db-seed       # переприменить сиды вручную
 make load-db-backup     # pg_dump в load-tests/backups/ — ОБЯЗАТЕЛЬНО перед прогонами
 make load-db-restore FILE=load-tests/backups/loadtest-YYYYMMDD-HHMMSS.sql
 make load-back-logs     # лог backend стенда (backend/.backend-loadtest.log)
+
+# Деградация PrintSrv (НТ-5): перезапуск backend, где перечисленные автоматы
+# «мёртвы» (mock кидает IOException на опросе):
+make load-back-stop
+make load-back-run PRINTSRV_MOCK_OFFLINE_INSTANCES=bosch,grunwald11,grunwald1
 ```
 
 Все переменные переопределяются снаружи (`LOAD_DB_PORT`, `LOAD_BACKEND_PORT`,
