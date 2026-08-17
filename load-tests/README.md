@@ -158,6 +158,8 @@ make load-k6 SCRIPT=load-tests/k6/ws-live.js \
 k6-скрипты параметризованы через `BASE_URL`/`API_URL` (НТ-2, #69) — перепрогон
 без изменения кода.
 
+**Soak 24 ч на сервере (НТ-6, #68): пошаговый runbook — [SOAK_24H.md](SOAK_24H.md).**
+
 ## Артефакты (не коммитятся)
 
 - `load-tests/backups/` — дампы БД
