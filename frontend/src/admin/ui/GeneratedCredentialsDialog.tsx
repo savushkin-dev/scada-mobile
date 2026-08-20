@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PillButton } from './PillButton';
 import { IconCopy, IconCheck } from './icons';
+import { copyToClipboard } from '../../utils/clipboard';
 
 interface GeneratedCredentialsDialogProps {
   isOpen: boolean;
@@ -40,17 +41,14 @@ export function GeneratedCredentialsDialog({
   if (!isOpen) return null;
 
   const handleCopy = async (text: string, type: 'code' | 'password') => {
-    try {
-      await navigator.clipboard.writeText(text);
-      if (type === 'code') {
-        setCopiedCode(true);
-        setTimeout(() => setCopiedCode(false), 1500);
-      } else {
-        setCopiedPassword(true);
-        setTimeout(() => setCopiedPassword(false), 1500);
-      }
-    } catch {
-      // игнорируем ошибки копирования
+    const ok = await copyToClipboard(text);
+    if (!ok) return;
+    if (type === 'code') {
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 1500);
+    } else {
+      setCopiedPassword(true);
+      setTimeout(() => setCopiedPassword(false), 1500);
     }
   };
 
