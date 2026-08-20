@@ -23,6 +23,18 @@ ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id,
                                    is_active = EXCLUDED.is_active,
                                    password_temporary = EXCLUDED.password_temporary;
 
+-- Администратор для тестового стенда: код 10000, пароль password1.
+-- Upsert по code (users.code UNIQUE): если пользователь с кодом 10000 уже
+-- существует (например, создан bootstrap'ом при первом запуске), его пароль
+-- и роль будут обновлены, а не вызовут ошибку уникальности.
+INSERT INTO users (role_id, code, password, full_name, is_active, password_temporary)
+VALUES (2, '10000', '$2b$10$8PE4XR2/i8CbBZBkFeigTuvmnF/yiDi66xKYOW631JMJHwA7TiMEa', 'System Administrator', true, false)
+ON CONFLICT (code) DO UPDATE SET role_id = EXCLUDED.role_id,
+                                 password = EXCLUDED.password,
+                                 full_name = EXCLUDED.full_name,
+                                 is_active = EXCLUDED.is_active,
+                                 password_temporary = EXCLUDED.password_temporary;
+
 INSERT INTO workshops (workshop_id, name, is_active)
 VALUES (1, 'Цех десертов', true),
        (2, 'Цех розлива', true)
