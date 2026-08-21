@@ -206,10 +206,14 @@ public class LiveWsHandler extends TextWebSocketHandler {
     }
 
     /**
-     * Рассылает {@code NOTIFICATION} всем подключённым клиентам.
+     * Рассылает {@code NOTIFICATION} клиентам, которым разрешено видеть уведомление:
+     * подписчикам аппарата (настройки Android-звонка) и создателю уведомления.
      * <p>
-     * Аналог {@link #broadcastAlert(String)} — используется {@code StatusBroadcaster}
-     * для немедленной рассылки при toggle-событии.
+     * Создатель получает дельту всегда, независимо от своих настроек оповещений:
+     * иначе его собственная сессия не узнает о смене состояния и не обновит
+     * кнопку, список уведомлений и иконку.
+     * <p>
+     * Используется {@code StatusBroadcaster} для немедленной рассылки при toggle-событии.
      *
      * @param notification сериализованный {@link dev.savushkin.scada.mobile.backend.api.dto.NotificationMessageDTO}
      */
@@ -222,7 +226,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
                 allSessions.remove(session);
                 continue;
             }
-            if (!isNotificationAllowed(session, notification.unitId())) {
+            if (!isCreator(session, notification) && !isNotificationAllowed(session, notification.unitId())) {
                 continue;
             }
             try {
@@ -357,18 +361,16 @@ public class LiveWsHandler extends TextWebSocketHandler {
     }
 
     /**
-     * Отправляет снимок всех активных производственных уведомлений новому клиенту.
+     * Отправляет снимок активных производственных уведомлений, видимых новому клиенту:
+     * по подпискам аппаратов (настройки Android-звонка) плюс созданные им самим.
      * Вызывается сразу после {@code ALERT_SNAPSHOT} при установке соединения.
      */
     private void sendNotificationSnapshot(WebSocketSession session) {
         try {
             Set<String> allowedUnitIds = resolveAllowedNotificationUnits(session);
-            List<NotificationMessageDTO> allNotifications = notificationStore.getAll();
-            List<NotificationMessageDTO> filtered = allowedUnitIds.isEmpty()
-                    ? List.of()
-                    : allNotifications.stream()
-                        .filter(n -> allowedUnitIds.contains(n.unitId()))
-                        .toList();
+            List<NotificationMessageDTO> filtered = notificationStore.getAll().stream()
+                    .filter(n -> allowedUnitIds.contains(n.unitId()) || isCreator(session, n))
+                    .toList();
             var snapshotMsg = NotificationSnapshotMessageDTO.of(filtered);
             sendMessageSafely(session, objectMapper.writeValueAsString(snapshotMsg));
             log.debug("WS /live: sent NOTIFICATION_SNAPSHOT, notifications={}, id={}",
@@ -398,6 +400,20 @@ public class LiveWsHandler extends TextWebSocketHandler {
     private boolean isNotificationAllowed(WebSocketSession session, String unitId) {
         Set<String> allowed = resolveAllowedNotificationUnits(session);
         return !allowed.isEmpty() && allowed.contains(unitId);
+    }
+
+    /**
+     * Проверяет, является ли пользователь сессии создателем уведомления.
+     * Создатель всегда видит собственное уведомление, даже если не включал
+     * оповещения для этого аппарата.
+     */
+    private boolean isCreator(WebSocketSession session, NotificationMessageDTO notification) {
+        String creatorId = notification.creatorId();
+        if (creatorId == null || creatorId.isBlank()) {
+            return false;
+        }
+        OptionalLong userId = resolveUserId(session);
+        return userId.isPresent() && creatorId.equals(Long.toString(userId.getAsLong()));
     }
 
     private OptionalLong resolveUserId(WebSocketSession session) {

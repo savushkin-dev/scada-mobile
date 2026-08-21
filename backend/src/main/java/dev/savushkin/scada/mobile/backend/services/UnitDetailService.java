@@ -108,7 +108,8 @@ public class UnitDetailService {
 
     /**
      * Строит статус камеры, используя как device-поля, так и scada-ключ.
-     * Поле {@code st} берётся из поля {@code ST} снапшота устройства (0 — нет ошибки, 1 — ошибка).
+     * Поле {@code st} берётся из поля {@code ST} снапшота устройства
+     * (0 — остановлено, 1 — работает); флаг ошибки — отдельное поле {@code Error}.
      */
     private static DevicesStatusMessageDTO.CameraStatus buildSingleCamStatus(
             String camName,

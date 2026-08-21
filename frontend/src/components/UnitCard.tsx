@@ -207,7 +207,7 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
                   title="Активное уведомление"
                 >
                   <img
-                    src={isActiveByMe ? '/assets/bell.svg' : '/assets/bell-off.svg'}
+                    src="/assets/bell.svg"
                     alt=""
                     aria-hidden="true"
                     className="h-5 w-5"
