@@ -124,23 +124,23 @@ export function LoginPage() {
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-[#f8f9fa]/95 px-5 py-8 backdrop-blur-sm"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-[#f8f9fa]/95 px-4 py-5 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-labelledby="login-title"
     >
       <div className="w-full max-w-[420px] overflow-hidden rounded-[28px] border border-white/70 bg-white/95 shadow-[0_24px_70px_rgba(26,28,30,0.18)]">
-        <div className="border-b border-[#f0f0f0] px-6 pb-4 pt-5 sm:px-7">
+        <div className="border-b border-[#f0f0f0] px-5 pb-3 pt-4 sm:px-6">
           <p className="text-[10px] font-bold uppercase tracking-wider text-[#74777F]">
             {APP_BRAND.subtitle}
           </p>
           <h2 className="mt-1 text-xl font-bold text-[#1A1C1E]">{APP_BRAND.title}</h2>
-          <p id="login-title" className="mt-2 text-sm font-medium text-[#5F6368]">
+          <p id="login-title" className="mt-1.5 text-sm font-medium text-[#5F6368]">
             {AUTH_COPY.title}
           </p>
         </div>
 
-        <form className="space-y-4 px-6 pb-6 pt-5 sm:px-7" onSubmit={handleSubmit}>
+        <form className="space-y-3.5 px-5 pb-5 pt-4 sm:px-6" onSubmit={handleSubmit}>
           <div className="space-y-2">
             <label className="text-xs font-semibold text-[#5F6368]" htmlFor="workerCode">
               {AUTH_COPY.workerCodeLabel}

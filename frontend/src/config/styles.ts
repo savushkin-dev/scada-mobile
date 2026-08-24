@@ -20,6 +20,21 @@ export const PAGE_FADE_SECTION_STYLE: CSSProperties = {
   animation: UI_ANIMATION.fadeInDefault,
 };
 
+/**
+ * Вариант страницы без собственной прокрутки (профиль на терминале 4.2"):
+ * экран зафиксирован, прокручиваются только явно помеченные внутренние
+ * области (data-scroll).
+ */
+export const PAGE_FIXED_SECTION_STYLE: CSSProperties = {
+  flex: 1,
+  overflow: 'hidden',
+  width: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  minHeight: 0,
+  animation: UI_ANIMATION.fadeInDefault,
+};
+
 export const DETAILS_PAGE_STYLE: CSSProperties = {
   flex: 1,
   overflow: 'hidden',
@@ -34,25 +49,11 @@ export const DETAILS_PAGE_STYLE: CSSProperties = {
   flexDirection: 'column',
 };
 
-export const BACK_BUTTON_STYLE: CSSProperties = {
-  width: '40px',
-  height: '40px',
-  borderRadius: '50%',
-  border: 'none',
-  background: UI_PALETTE.softBlue,
-  cursor: 'pointer',
-  fontSize: '1.1rem',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  flexShrink: 0,
-};
-
 export const DETAILS_SCROLL_SECTION_STYLE: CSSProperties = {
   flex: 1,
   overflowY: 'auto',
   overflowX: 'hidden',
-  padding: '0 16px',
+  padding: '0 12px',
   paddingBottom: `calc(${UI_BEHAVIOR.detailsBottomPaddingPx ?? 80}px + var(--bottom-safe-offset, 0px))`,
   /**
    * Важно: minHeight: 0 позволяет flex-элементу сжиматься ниже контентной высоты,
@@ -106,22 +107,6 @@ export const LOGS_ERROR_DESC_STYLE: CSSProperties = {
   marginTop: '4px',
 };
 
-export const LOGS_META_STYLE: CSSProperties = {
-  fontSize: '0.75rem',
-  color: UI_PALETTE.mutedText,
-  marginBottom: '4px',
-};
-
-export const LOGS_GROUP_BADGE_STYLE: CSSProperties = {
-  background: UI_PALETTE.neutralSurface,
-  color: UI_PALETTE.neutralText,
-  padding: '2px 7px',
-  borderRadius: '8px',
-  marginLeft: '6px',
-  fontWeight: 600,
-  fontSize: '0.7rem',
-};
-
 export const LOGS_DESCRIPTION_STYLE: CSSProperties = {
   fontSize: '0.9rem',
   color: UI_PALETTE.brandText,
@@ -135,14 +120,6 @@ export const FAB_ICON_STYLE: CSSProperties = {
   justifyContent: 'center',
   flexShrink: 0,
   lineHeight: 1,
-};
-
-export const FAB_LABEL_STYLE: CSSProperties = {
-  overflow: 'hidden',
-  display: 'block',
-  whiteSpace: 'nowrap',
-  textOverflow: 'ellipsis',
-  willChange: 'max-width, opacity, margin-left, transform',
 };
 
 export const ERROR_FALLBACK_CONTAINER_STYLE: CSSProperties = {
@@ -242,83 +219,31 @@ export const SKELETON_BLOCK_DEFAULTS = Object.freeze({
   animation: 'skeleton-shimmer 1.6s ease-in-out infinite',
 });
 
-const FAB_COLLAPSED_SIZE_PX = 52;
-const FAB_EXPANDED_MIN_WIDTH_PX = 168;
-const FAB_EXPANDED_MAX_WIDTH_PX = 210;
-const FAB_HORIZONTAL_PADDING_PX = 18;
-const FAB_LABEL_GAP_PX = 8;
-const FAB_LABEL_MAX_WIDTH_PX = 160;
-const FAB_LABEL_VIEWPORT_OFFSET_PX = 140;
+const FAB_SIZE_PX = 52;
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
-function getFabExpandedWidthPx(viewportWidth: number): number {
-  const availableWidth = Math.max(0, viewportWidth - 32);
-  return clamp(availableWidth, FAB_EXPANDED_MIN_WIDTH_PX, FAB_EXPANDED_MAX_WIDTH_PX);
-}
-
-export function getFabButtonStyle(
-  collapseProgress: number,
-  sent: boolean,
-  viewportWidth: number
-): CSSProperties {
-  const progress = clamp(collapseProgress, 0, 1);
-  const expandedWidthPx = getFabExpandedWidthPx(viewportWidth);
-  const widthPx =
-    FAB_COLLAPSED_SIZE_PX + (expandedWidthPx - FAB_COLLAPSED_SIZE_PX) * (1 - progress);
-  const horizontalPaddingPx = FAB_HORIZONTAL_PADDING_PX * (1 - progress);
-  const shadowBlurPx = 14 + (20 - 14) * (1 - progress);
-  const shadowOpacity = 0.4 + 0.1 * progress;
-
+/**
+ * FAB всегда компактный (круг 52px, только иконка) — см. {@link ../components/Fab.tsx}.
+ */
+export function getFabButtonStyle(sent: boolean): CSSProperties {
   return {
     position: 'fixed',
     bottom: 'calc(64px + var(--bottom-safe-offset, 0px) + 16px)',
     right: '16px',
-    width: `${widthPx}px`,
-    maxWidth: `${widthPx}px`,
-    minWidth: `${widthPx}px`,
-    height: '52px',
-    padding: `0 ${horizontalPaddingPx}px`,
-    borderRadius: '26px',
+    width: `${FAB_SIZE_PX}px`,
+    height: `${FAB_SIZE_PX}px`,
+    padding: 0,
+    borderRadius: '50%',
     justifyContent: 'center',
     background: sent ? UI_PALETTE.success : '#3B82F6',
-    boxShadow: sent
-      ? '0 4px 20px rgba(52,168,83,0.4)'
-      : `0 4px ${shadowBlurPx}px rgba(59,130,246,${shadowOpacity})`,
+    boxShadow: sent ? '0 4px 20px rgba(52,168,83,0.4)' : '0 4px 20px rgba(59,130,246,0.5)',
     zIndex: 9,
     display: 'flex',
     alignItems: 'center',
     overflow: 'hidden',
-    whiteSpace: 'nowrap',
     border: 'none',
     cursor: 'pointer',
-    fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-    fontSize: '0.85rem',
-    fontWeight: 700,
-    letterSpacing: '0.01em',
     color: UI_PALETTE.white,
     transform: 'translateZ(0)',
-    willChange: 'width, padding, box-shadow',
     transition: 'background-color 0.2s ease, box-shadow 0.2s ease',
-  };
-}
-
-export function getFabLabelStyle(collapseProgress: number, viewportWidth: number): CSSProperties {
-  const progress = clamp(collapseProgress, 0, 1);
-  const revealProgress = 1 - progress;
-  const fullLabelWidthPx = clamp(
-    viewportWidth - FAB_LABEL_VIEWPORT_OFFSET_PX,
-    0,
-    FAB_LABEL_MAX_WIDTH_PX
-  );
-
-  return {
-    ...FAB_LABEL_STYLE,
-    maxWidth: `${fullLabelWidthPx * revealProgress}px`,
-    opacity: revealProgress,
-    marginLeft: `${FAB_LABEL_GAP_PX * revealProgress}px`,
-    transform: `translateX(${6 * progress}px)`,
   };
 }

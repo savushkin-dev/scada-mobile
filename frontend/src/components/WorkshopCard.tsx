@@ -43,7 +43,7 @@ export function WorkshopCard({
       : [];
 
   return (
-    <div className={`card p-5 md:h-full ${statusClass}`} onClick={onClick}>
+    <div className={`card p-4 md:h-full ${statusClass}`} onClick={onClick}>
       <h2 className="text-xl font-bold mb-1">{workshop.name}</h2>
       <p className="text-xs text-gray-500 font-medium">
         {UI_COPY.workshopTotalUnitsLabel}:{' '}

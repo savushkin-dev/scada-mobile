@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import {
   DEFAULT_DETAIL_TAB,
@@ -126,8 +126,6 @@ export function DetailsLayout() {
   const [devicesData, setDevicesData] = useState<DevicesStatusPayload | null>(null);
   const [queueData, setQueueData] = useState<QueuePayload | null>(null);
   const [errorsData, setErrorsData] = useState<ErrorsPayload | null>(null);
-
-  const scrollRef = useRef<HTMLElement | null>(null);
 
   const handleMessage = useCallback((msg: UnitWsMessage) => {
     switch (msg.type) {
@@ -257,11 +255,7 @@ export function DetailsLayout() {
   const currentUnit = units.find((u) => u.id === unitId);
   const unitName = currentUnit?.unit ?? DOMAIN_DEFAULTS.unitName;
 
-  const handleBack = useCallback(() => {
-    navigate(`/workshops/${workshopId}`, { state: { workshopName } });
-  }, [navigate, workshopId, workshopName]);
-
-  usePageHeader(unitName, workshopName, 'compact', handleBack);
+  usePageHeader(unitName, workshopName, 'compact');
 
   // ── Навигация по табам ────────────────────────────────────────────────
   const errorCount = (errorsData?.deviceErrors ?? []).filter(
@@ -315,14 +309,7 @@ export function DetailsLayout() {
 
   return (
     <div className="details-layout-root" style={DETAILS_PAGE_STYLE}>
-      <section
-        ref={(el) => {
-          scrollRef.current = el;
-        }}
-        data-scroll
-        className="details-content"
-        style={DETAILS_SCROLL_SECTION_STYLE}
-      >
+      <section data-scroll className="details-content" style={DETAILS_SCROLL_SECTION_STYLE}>
         <DetailsProvider value={detailsValue}>
           <Outlet />
         </DetailsProvider>
@@ -331,7 +318,6 @@ export function DetailsLayout() {
       <Fab
         visible={canUseLastBatch}
         unitId={unitId || null}
-        scrollContainer={scrollRef.current}
         notification={state.notifications.get(unitId ?? '') ?? null}
       />
 

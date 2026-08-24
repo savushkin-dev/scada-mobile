@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { BACK_BUTTON_STYLE, UI_COPY } from '../config';
+import { UI_COPY } from '../config';
 import { useAuth } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
 import { HeaderErrorIndicator } from './HeaderErrorIndicator';
@@ -13,6 +13,10 @@ import { HeaderErrorIndicator } from './HeaderErrorIndicator';
  *
  * Визуально шапка всегда закреплена в верхней части экрана (flex-shrink: 0)
  * и не прокручивается вместе с контентом.
+ *
+ * Кнопки «назад» в шапке нет осознанно: возврат выполняется физической
+ * кнопкой терминала (см. useHardwareBackGuard), а на экране 4.2" каждый
+ * элемент шапки отнимает место у контента.
  */
 
 interface PageHeaderProps {
@@ -22,20 +26,15 @@ interface PageHeaderProps {
   subtitle?: string;
   /** Компактный режим для вложенных/детальных экранов. */
   variant?: 'default' | 'compact';
-  /**
-   * Если передан — рендерится кнопка «←» и вызывается при клике.
-   * Отсутствие пропа означает корневую страницу без кнопки назад.
-   */
-  onBack?: () => void;
 }
 
-export function PageHeader({ title, subtitle, onBack }: PageHeaderProps) {
+export function PageHeader({ title, subtitle }: PageHeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
   const { state } = useAppContext();
   const headerClassName =
-    'z-10 h-[88px] backdrop-blur-md bg-[#f8f9fa]/30 border-b border-white/15 flex items-center gap-3 flex-shrink-0 px-6 py-4 sm:px-8 lg:px-10';
+    'z-10 h-[60px] backdrop-blur-md bg-[#f8f9fa]/30 border-b border-white/15 flex items-center gap-3 flex-shrink-0 px-4 py-2 sm:px-6 lg:px-8';
 
   const titleClassName = 'text-xl font-bold text-[#1A1C1E] leading-tight truncate';
 
@@ -58,20 +57,9 @@ export function PageHeader({ title, subtitle, onBack }: PageHeaderProps) {
   return (
     <header className={headerClassName}>
       <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
-        {onBack ? (
-          <button
-            onClick={onBack}
-            style={BACK_BUTTON_STYLE}
-            aria-label={UI_COPY.backButtonAriaLabel}
-          >
-            {UI_COPY.backIcon}
-          </button>
-        ) : (
-          <div aria-hidden="true" className="h-10 w-10 flex-shrink-0" />
-        )}
-        <div className="min-w-0 overflow-hidden flex flex-col justify-center min-h-[40px]">
+        <div className="min-w-0 overflow-hidden flex flex-col justify-center">
           {subtitle ? (
-            <p className="text-[10px] font-bold tracking-wider text-[#74777F] uppercase mb-1">
+            <p className="text-[10px] font-bold tracking-wider text-[#74777F] uppercase">
               {subtitle}
             </p>
           ) : null}

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { DOMAIN_DEFAULTS, PAGE_FADE_SECTION_STYLE, UI_BEHAVIOR, UI_COPY } from '../config';
 import { fetchUnitsTopology, type TopologyFetchResult } from '../api/workshops';
@@ -46,12 +46,8 @@ export function WorkshopPage() {
     state.workshopTopology.find((w) => w.id === workshopId)?.name ??
     DOMAIN_DEFAULTS.workshopName;
 
-  // Явная иерархическая навигация к корневой странице — независимо от
-  // состояния браузерной истории (прямые ссылки, обновление страницы).
-  const handleBack = useCallback(() => navigate('/'), [navigate]);
-
-  // Шапка: имя цеха + кнопка «назад».
-  usePageHeader(workshopName, UI_COPY.workshopSubtitle, undefined, handleBack);
+  // Шапка: имя цеха (без кнопки «назад» — возврат через физическую кнопку терминала).
+  usePageHeader(workshopName, UI_COPY.workshopSubtitle);
 
   const units = unitsByWorkshop[workshopId] ?? [];
 
@@ -84,7 +80,7 @@ export function WorkshopPage() {
 
   return (
     <section data-scroll style={PAGE_FADE_SECTION_STYLE}>
-      <main className="px-4 space-y-4 pb-10 sm:px-6 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 lg:grid-cols-3 lg:px-8">
+      <main className="px-3 space-y-3 pb-6 sm:px-6 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 lg:grid-cols-3 lg:px-8">
         {isErrorState ? (
           <p className="text-center text-[#74777F] py-10 text-[0.88rem] col-span-full">
             {getErrorBodyMessage(pageError)}

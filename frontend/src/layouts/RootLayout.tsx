@@ -292,12 +292,7 @@ function RootLayoutInner() {
 
   return (
     <>
-      <PageHeader
-        title={config.title}
-        subtitle={config.subtitle}
-        variant={config.variant}
-        onBack={config.onBack}
-      />
+      <PageHeader title={config.title} subtitle={config.subtitle} variant={config.variant} />
       <Outlet />
     </>
   );
