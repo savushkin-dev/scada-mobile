@@ -84,9 +84,23 @@ const LogsTab = lazy(async () => {
   return { default: module.LogsTab };
 });
 
+/*
+  Индикатор загрузки ленивого чанка маршрута.
+  Спиннер — чистый CSS (border + animate-spin), без inline SVG.
+  Визуально повторяет boot-splash из index.html, чтобы переход
+  «загрузка бандла → загрузка чанка» был бесшовным для пользователя.
+*/
 const routeFallback = (
-  <section className="px-4 py-6 text-center text-[#74777F] text-sm sm:px-6 lg:px-8">
-    Loading...
+  <section
+    className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-6"
+    role="status"
+    aria-live="polite"
+  >
+    <div
+      className="h-8 w-8 animate-spin rounded-full border-[3px] border-[#e8eaed] border-t-[#3b82f6]"
+      aria-hidden="true"
+    />
+    <p className="text-sm text-[#74777F]">Загрузка…</p>
   </section>
 );
 

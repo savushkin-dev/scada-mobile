@@ -294,7 +294,7 @@ export function getFabButtonStyle(
     whiteSpace: 'nowrap',
     border: 'none',
     cursor: 'pointer',
-    fontFamily: 'Inter, sans-serif',
+    fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
     fontSize: '0.85rem',
     fontWeight: 700,
     letterSpacing: '0.01em',
