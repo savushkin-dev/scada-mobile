@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { BACK_BUTTON_STYLE, UI_COPY } from '../config';
+import { UI_COPY } from '../config';
 import { useAuth } from '../context/AuthContext';
 import { useAppContext } from '../context/AppContext';
 import { HeaderErrorIndicator } from './HeaderErrorIndicator';
@@ -13,7 +13,35 @@ import { HeaderErrorIndicator } from './HeaderErrorIndicator';
  *
  * Визуально шапка всегда закреплена в верхней части экрана (flex-shrink: 0)
  * и не прокручивается вместе с контентом.
+ *
+ * Кнопки «назад» в шапке нет осознанно: возврат выполняется физической
+ * кнопкой терминала (см. useHardwareBackGuard), а на экране 4.2" каждый
+ * элемент шапки отнимает место у контента.
+ *
+ * Иконки уведомлений/профиля работают как toggle: повторный тап при
+ * открытой соответствующей странице закрывает её и возвращает на экран,
+ * с которого она была открыта.
  */
+
+/** Служебные страницы, которые пропускаются при закрытии служебного экрана. */
+const TRANSIENT_ROUTES = ['/profile', '/notifications', '/login'];
+
+function isTransientRoute(pathname: string): boolean {
+  return TRANSIENT_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+}
+
+/**
+ * Возвращает ближайшую неслужебную страницу из location.state.from.
+ * Если такой нет — возвращает fallback.
+ */
+function findNonTransientBackTarget(locationState: unknown, fallback: string): string {
+  const state = locationState as { from?: { pathname?: string } } | null;
+  const fromPath = state?.from?.pathname;
+  if (fromPath && !isTransientRoute(fromPath)) {
+    return fromPath;
+  }
+  return fallback;
+}
 
 interface PageHeaderProps {
   /** Основной заголовок страницы */
@@ -22,20 +50,15 @@ interface PageHeaderProps {
   subtitle?: string;
   /** Компактный режим для вложенных/детальных экранов. */
   variant?: 'default' | 'compact';
-  /**
-   * Если передан — рендерится кнопка «←» и вызывается при клике.
-   * Отсутствие пропа означает корневую страницу без кнопки назад.
-   */
-  onBack?: () => void;
 }
 
-export function PageHeader({ title, subtitle, onBack }: PageHeaderProps) {
+export function PageHeader({ title, subtitle }: PageHeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
   const { state } = useAppContext();
   const headerClassName =
-    'z-10 h-[88px] backdrop-blur-md bg-[#f8f9fa]/30 border-b border-white/15 flex items-center gap-3 flex-shrink-0 px-6 py-4 sm:px-8 lg:px-10';
+    'z-10 h-[60px] backdrop-blur-md bg-[#f8f9fa]/30 border-b border-white/15 flex items-center gap-3 flex-shrink-0 px-4 py-2 sm:px-6 lg:px-8';
 
   const titleClassName = 'text-xl font-bold text-[#1A1C1E] leading-tight truncate';
 
@@ -45,33 +68,30 @@ export function PageHeader({ title, subtitle, onBack }: PageHeaderProps) {
   const activeNotificationCount = state.notifications.size;
 
   const handleProfileClick = useCallback(() => {
-    if (isProfileRoute) return;
+    if (isProfileRoute) {
+      // Повторный тап закрывает страницу профиля — назад к экрану-источнику.
+      navigate(findNonTransientBackTarget(location.state, '/'), { replace: true });
+      return;
+    }
     const target = isAuthenticated ? '/profile' : '/login';
     navigate(target, { state: { from: location } });
   }, [navigate, location, isAuthenticated, isProfileRoute]);
 
   const handleNotificationClick = useCallback(() => {
-    if (isNotificationsRoute) return;
+    if (isNotificationsRoute) {
+      // Повторный тап закрывает страницу уведомлений — назад к экрану-источнику.
+      navigate(findNonTransientBackTarget(location.state, '/'), { replace: true });
+      return;
+    }
     navigate('/notifications', { state: { from: location } });
   }, [navigate, location, isNotificationsRoute]);
 
   return (
     <header className={headerClassName}>
       <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
-        {onBack ? (
-          <button
-            onClick={onBack}
-            style={BACK_BUTTON_STYLE}
-            aria-label={UI_COPY.backButtonAriaLabel}
-          >
-            {UI_COPY.backIcon}
-          </button>
-        ) : (
-          <div aria-hidden="true" className="h-10 w-10 flex-shrink-0" />
-        )}
-        <div className="min-w-0 overflow-hidden flex flex-col justify-center min-h-[40px]">
+        <div className="min-w-0 overflow-hidden flex flex-col justify-center">
           {subtitle ? (
-            <p className="text-[10px] font-bold tracking-wider text-[#74777F] uppercase mb-1">
+            <p className="text-[10px] font-bold tracking-wider text-[#74777F] uppercase">
               {subtitle}
             </p>
           ) : null}

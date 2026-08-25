@@ -155,7 +155,7 @@ export function DevicesTab() {
     >
       <>
         {allEmpty ? (
-          <div className="card p-5 card-static text-center text-secondary">
+          <div className="card p-4 card-static text-center text-secondary">
             {UI_COPY.devicesNoneConfigured}
           </div>
         ) : (

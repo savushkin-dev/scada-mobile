@@ -198,9 +198,9 @@
   .card-title {
     font-size: 0.95rem;
     font-weight: 700;
-    margin-bottom: 12px;
+    margin-bottom: 9px;
     border-bottom: 1px solid var(--clr-divider);
-    padding-bottom: 10px;
+    padding-bottom: 8px;
     color: var(--clr-text);
     display: flex;
     align-items: center;
@@ -211,9 +211,9 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 9px 0;
+    padding: 7px 0;
     border-bottom: 1px solid var(--clr-divider);
-    font-size: 0.88rem;
+    font-size: 0.9rem;
   }
   .kv-row:last-child {
     border-bottom: none;
@@ -225,8 +225,13 @@
     font-size: 0.82rem;
     font-weight: 400;
   }
+  /*
+    Значения — самая важная информация на экране терминала 4.2":
+    чуть крупнее и жирнее остального текста строки.
+  */
   .kv-val {
-    font-weight: 500;
+    font-weight: 600;
+    font-size: 0.92rem;
     text-align: right;
     flex: 1.5;
     word-break: break-word;
@@ -236,12 +241,12 @@
   .device-stats {
     display: flex;
     gap: 8px;
-    margin-top: 14px;
+    margin-top: 10px;
   }
   .stat-box {
     flex: 1;
     text-align: center;
-    padding: 12px 4px;
+    padding: 10px 4px;
     background: var(--clr-blue-light);
     border-radius: 14px;
   }
@@ -278,7 +283,7 @@
   .nav-item {
     flex: 1;
     text-align: center;
-    padding: 10px 0;
+    padding: 8px 0;
     color: var(--clr-text-muted);
     font-size: 0.7rem;
     cursor: pointer;
@@ -321,7 +326,7 @@
   .queue-item {
     display: flex;
     align-items: center;
-    padding: 12px 0;
+    padding: 10px 0;
     border-bottom: 1px solid var(--clr-divider);
   }
   .queue-item:last-child {
@@ -346,19 +351,11 @@
   }
 
   .error-item {
-    padding: 12px 14px;
+    padding: 10px 12px;
     border-left: 4px solid var(--clr-crit-border);
     background: var(--clr-crit-bg);
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     border-radius: 0 16px 16px 0;
-  }
-
-  .log-item {
-    padding: 10px 0;
-    border-bottom: 1px solid var(--clr-divider);
-  }
-  .log-item:last-child {
-    border-bottom: none;
   }
 
   /*
@@ -370,14 +367,12 @@
     разделители и выравнивание не «прыгали».
   */
   .zebra-list > .kv-row,
-  .zebra-list > .queue-item,
-  .zebra-list > .log-item {
+  .zebra-list > .queue-item {
     padding-inline: 10px;
     margin-inline: -10px;
   }
   .zebra-list > .kv-row:nth-child(even),
-  .zebra-list > .queue-item:nth-child(even),
-  .zebra-list > .log-item:nth-child(even) {
+  .zebra-list > .queue-item:nth-child(even) {
     background: var(--clr-row-alt);
     border-radius: 10px;
   }
@@ -387,13 +382,13 @@
     text-align: center;
     background: var(--clr-bg-app);
     border: 1.5px solid var(--clr-border-soft);
-    padding: 12px;
+    padding: 10px;
     font-size: 0.88rem;
     color: var(--clr-text);
     font-weight: 600;
     border-radius: 14px;
     cursor: pointer;
-    margin-top: 16px;
+    margin-top: 12px;
     transition: background 0.2s;
     font-family:
       'Inter',

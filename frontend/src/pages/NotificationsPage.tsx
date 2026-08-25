@@ -1,5 +1,3 @@
-import { useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 import { PAGE_FADE_SECTION_STYLE } from '../config';
 import { useAppContext } from '../context/AppContext';
 import { usePageHeader } from '../context/PageHeaderContext';
@@ -11,29 +9,9 @@ const NOTIFICATIONS_COPY = Object.freeze({
   empty: 'Нет активных уведомлений',
 });
 
-/** Служебные страницы, которые пропускаются при навигации назад. */
-const TRANSIENT_ROUTES = ['/profile', '/notifications', '/login'];
-
-function isTransientRoute(pathname: string): boolean {
-  return TRANSIENT_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
-}
-
-/**
- * Возвращает ближайшую неслужебную страницу из истории.
- * Если такой нет — возвращает fallback.
- */
-function findNonTransientBackTarget(locationState: unknown, fallback: string): string {
-  const state = locationState as { from?: { pathname?: string } } | null;
-  const fromPath = state?.from?.pathname;
-  if (fromPath && !isTransientRoute(fromPath)) {
-    return fromPath;
-  }
-  return fallback;
-}
-
 function NotificationsSkeleton() {
   return (
-    <div className="mx-auto flex w-full max-w-[520px] flex-col gap-4" aria-hidden="true">
+    <div className="mx-auto flex w-full max-w-[520px] flex-col gap-3" aria-hidden="true">
       {Array.from({ length: 3 }, (_, i) => (
         <div
           key={i}
@@ -65,16 +43,9 @@ function NotificationsSkeleton() {
  * в виде плиточных карточек жёлтого (warning) цвета.
  */
 export function NotificationsPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
   const { state } = useAppContext();
 
-  const handleBack = useCallback(() => {
-    const target = findNonTransientBackTarget(location.state, '/');
-    navigate(target, { replace: true });
-  }, [navigate, location.state]);
-
-  usePageHeader(NOTIFICATIONS_COPY.title, undefined, 'default', handleBack);
+  usePageHeader(NOTIFICATIONS_COPY.title, undefined, 'default');
 
   const notifications = Array.from(state.notifications.entries()).map(([unitId, data]) => ({
     unitId,
@@ -85,8 +56,8 @@ export function NotificationsPage() {
 
   return (
     <section data-scroll style={PAGE_FADE_SECTION_STYLE}>
-      <main className="px-5 pb-12 pt-6 sm:px-7">
-        <div className="mx-auto flex w-full max-w-[520px] flex-col gap-4">
+      <main className="px-4 pb-6 pt-4 sm:px-6">
+        <div className="mx-auto flex w-full max-w-[520px] flex-col gap-3">
           {isLoading ? (
             <NotificationsSkeleton />
           ) : notifications.length === 0 ? (

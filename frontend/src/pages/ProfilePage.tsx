@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { PAGE_FADE_SECTION_STYLE } from '../config';
+import { PAGE_FIXED_SECTION_STYLE } from '../config';
 import { updateNotificationSetting } from '../api/profile';
 import { logoutUser } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
@@ -16,7 +16,7 @@ import { UnitCardSkeleton } from '../components/skeleton/UnitCardSkeleton';
 const PROFILE_COPY = Object.freeze({
   title: 'Профиль',
   roleLabel: 'Роль',
-  workerCodeLabel: 'Табельный номер',
+  workerCodeBadgeLabel: 'Таб. №',
   assignedUnitsLabel: 'Закрепленное оборудование',
   assignedUnitsEmpty: 'Нет закрепленного оборудования',
   notificationButton: 'Настроить уведомления',
@@ -34,6 +34,17 @@ const PROFILE_COPY = Object.freeze({
   logoutOverlayConfirm: 'Выйти',
 });
 
+/** CSS filter: перекраска иконок toggle в белый (включённое состояние, синий фон). */
+const ICON_WHITE_FILTER =
+  'brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%)';
+
+/**
+ * CSS filter: перекраска иконок toggle в фирменный синий (#0b5da4).
+ * Выключенная кнопка белая — белая иконка на ней не читалась (см. issue #83).
+ */
+const ICON_BLUE_FILTER =
+  'brightness(0) saturate(100%) invert(30%) sepia(96%) saturate(1180%) hue-rotate(195deg) brightness(95%) contrast(102%)';
+
 function getInitials(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '-';
@@ -46,26 +57,6 @@ function mergePending(prev: string[], unitId: string, pending: boolean): string[
   return prev.filter((id) => id !== unitId);
 }
 
-/** Служебные страницы, которые пропускаются при навигации назад. */
-const TRANSIENT_ROUTES = ['/profile', '/notifications', '/login', '/admin'];
-
-function isTransientRoute(pathname: string): boolean {
-  return TRANSIENT_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
-}
-
-/**
- * Возвращает ближайшую неслужебную страницу из истории.
- * Если такой нет — возвращает fallback.
- */
-function findNonTransientBackTarget(locationState: unknown, fallback: string): string {
-  const state = locationState as { from?: { pathname?: string } } | null;
-  const fromPath = state?.from?.pathname;
-  if (fromPath && !isTransientRoute(fromPath)) {
-    return fromPath;
-  }
-  return fallback;
-}
-
 export function ProfilePage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -76,12 +67,7 @@ export function ProfilePage() {
   const fromPath = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
   const fromAdmin = fromPath?.startsWith('/admin') ?? false;
 
-  const handleBack = useCallback(() => {
-    const target = findNonTransientBackTarget(location.state, fromAdmin ? '/admin' : '/');
-    navigate(target, { replace: true });
-  }, [navigate, location.state, fromAdmin]);
-
-  usePageHeader(PROFILE_COPY.title, undefined, 'default', handleBack);
+  usePageHeader(PROFILE_COPY.title, undefined, 'default');
 
   // Профиль и настройки живут в UserProfileContext: первоначальная загрузка — REST,
   // все дальнейшие изменения приходят по /ws/live (см. RootLayout).
@@ -171,81 +157,77 @@ export function ProfilePage() {
 
   function ProfileSkeleton() {
     return (
-      <div className="mx-auto flex w-full max-w-[520px] flex-col gap-4" aria-hidden="true">
-        <div className="flex flex-col items-center gap-3">
-          <SkeletonBlock height="64px" width="64px" borderRadius="14px" />
+      <div className="mx-auto flex h-full w-full max-w-[520px] flex-col gap-3" aria-hidden="true">
+        <div className="flex flex-col items-center gap-2">
+          <SkeletonBlock height="56px" width="56px" borderRadius="14px" />
           <div className="text-center">
             <SkeletonBlock height="22px" width="220px" borderRadius="6px" />
             <div className="mt-2 inline-flex items-center gap-2">
-              <SkeletonBlock height="18px" width="120px" borderRadius="999px" />
+              <SkeletonBlock height="18px" width="90px" borderRadius="999px" />
+              <SkeletonBlock height="18px" width="90px" borderRadius="999px" />
             </div>
           </div>
         </div>
 
-        <div className="rounded-[22px] border border-white/70 bg-white/90 px-4 py-4 shadow-[0_14px_40px_rgba(20,30,50,0.06)]">
-          <SkeletonBlock height="12px" width="140px" borderRadius="6px" />
-          <div className="mt-2">
-            <SkeletonBlock height="18px" width="60%" borderRadius="6px" />
-          </div>
-        </div>
-
-        <div className="rounded-[22px] border border-white/70 bg-white/90 px-4 py-4 shadow-[0_14px_40px_rgba(20,30,50,0.06)]">
+        <div className="rounded-[22px] border border-white/70 bg-white/90 px-4 py-3 shadow-[0_14px_40px_rgba(20,30,50,0.06)]">
           <SkeletonBlock height="12px" width="180px" borderRadius="6px" />
           <div className="mt-3">
             <SkeletonBlock height="16px" width="40%" borderRadius="6px" />
           </div>
         </div>
 
-        <div>
+        <div className="mt-auto">
           <SkeletonBlock height="44px" width="100%" borderRadius="12px" />
         </div>
       </div>
     );
   }
 
+  /*
+   * Экран профиля зафиксирован целиком (без прокрутки страницы): шапка с
+   * иконкой/ФИО/бейджами и нижние кнопки всегда на экране терминала 4.2".
+   * Прокручивается только внутренний фрейм списка закреплённого оборудования;
+   * надпись «Закрепленное оборудование» вынесена из прокручиваемой области
+   * и работает как sticky-заголовок карточки.
+   */
   return (
-    <section data-scroll style={PAGE_FADE_SECTION_STYLE}>
-      <main className="px-5 pb-12 pt-6 sm:px-7">
-        <div className="mx-auto flex w-full max-w-[520px] flex-col gap-4">
-          {isProfileLoading ? (
-            <ProfileSkeleton />
-          ) : profileError ? (
-            <p className="py-10 text-center text-sm text-[#74777F]">
-              {getErrorBodyMessage(profileError)}
-            </p>
-          ) : (
-            <>
-              <div className="flex flex-col items-center gap-3">
-                <div className="flex h-16 w-16 items-center justify-center rounded-[20px] bg-[#0b5da4] text-xl font-semibold text-white shadow-sm">
-                  {profileInitials}
-                </div>
-                <div className="text-center">
-                  <h2 className="text-lg font-semibold text-[#1A1C1E]">
-                    {profile?.fullName ?? '—'}
-                  </h2>
-                  <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-[#eaf2ff] px-3 py-1 text-xs font-semibold text-[#1c4f8a]">
+    <section style={PAGE_FIXED_SECTION_STYLE}>
+      <main className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-4 sm:px-6">
+        {isProfileLoading ? (
+          <ProfileSkeleton />
+        ) : profileError ? (
+          <p className="py-10 text-center text-sm text-[#74777F]">
+            {getErrorBodyMessage(profileError)}
+          </p>
+        ) : (
+          <div className="mx-auto flex h-full w-full max-w-[520px] min-h-0 flex-col gap-3">
+            <div className="flex flex-shrink-0 flex-col items-center gap-2">
+              <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-[#0b5da4] text-xl font-semibold text-white shadow-sm">
+                {profileInitials}
+              </div>
+              <div className="text-center">
+                <h2 className="text-lg font-semibold text-[#1A1C1E]">{profile?.fullName ?? '—'}</h2>
+                <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eaf2ff] px-3 py-1 text-xs font-semibold text-[#1c4f8a]">
                     <span>{PROFILE_COPY.roleLabel}:</span>
                     <span>{profile?.role ?? '—'}</span>
-                  </div>
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#eaf2ff] px-3 py-1 text-xs font-semibold text-[#1c4f8a]">
+                    <span>{PROFILE_COPY.workerCodeBadgeLabel}:</span>
+                    <span>{profile?.workerCode ?? '—'}</span>
+                  </span>
                 </div>
               </div>
+            </div>
 
-              <div className="rounded-[22px] border border-white/70 bg-white/90 px-4 py-4 shadow-[0_14px_40px_rgba(20,30,50,0.06)]">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8a8f98]">
-                  {PROFILE_COPY.workerCodeLabel}
+            {!isAdmin && (
+              <div className="flex min-h-0 flex-1 flex-col rounded-[22px] border border-white/70 bg-white/90 px-4 py-3 shadow-[0_14px_40px_rgba(20,30,50,0.06)]">
+                <p className="flex-shrink-0 text-[10px] font-bold uppercase tracking-[0.2em] text-[#8a8f98]">
+                  {PROFILE_COPY.assignedUnitsLabel}
                 </p>
-                <p className="mt-2 text-base font-semibold text-[#1A1C1E]">
-                  {profile?.workerCode ?? '—'}
-                </p>
-              </div>
-
-              {!isAdmin && (
-                <div className="rounded-[22px] border border-white/70 bg-white/90 px-4 py-4 shadow-[0_14px_40px_rgba(20,30,50,0.06)]">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8a8f98]">
-                    {PROFILE_COPY.assignedUnitsLabel}
-                  </p>
+                <div data-scroll className="mt-2 min-h-0 flex-1 overflow-y-auto">
                   {profile?.assignedUnits?.length ? (
-                    <ul className="mt-3 space-y-2 text-sm font-semibold text-[#1A1C1E]">
+                    <ul className="space-y-2 pr-1 text-sm font-semibold text-[#1A1C1E]">
                       {profile.assignedUnits.map((unit) => (
                         <li key={unit.unitId} className="flex items-start gap-2">
                           <span className="text-[#1c6fe8]">•</span>
@@ -254,112 +236,111 @@ export function ProfilePage() {
                       ))}
                     </ul>
                   ) : (
-                    <p className="mt-3 text-sm font-medium text-[#74777F]">
+                    <p className="text-sm font-medium text-[#74777F]">
                       {PROFILE_COPY.assignedUnitsEmpty}
                     </p>
                   )}
                 </div>
-              )}
+              </div>
+            )}
 
-              <div className="mt-2 flex items-center gap-3">
-                {isAdmin ? (
-                  fromAdmin ? (
-                    <button
-                      type="button"
-                      onClick={() => navigate('/')}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-[18px] bg-[#0b5da4] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(11,93,164,0.32)]"
-                    >
-                      <span>Мониторинг</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => navigate('/admin')}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-[18px] bg-[#111827] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(15,23,42,0.32)]"
-                    >
-                      <span>Администрирование</span>
-                    </button>
-                  )
+            <div className="mt-auto flex flex-shrink-0 items-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={handleLogoutClick}
+                aria-label={PROFILE_COPY.logoutButtonAriaLabel}
+                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#EA4335] text-white shadow-[0_0_10px_rgba(234,67,53,0.18)] transition-all duration-200 ease-in-out active:scale-[0.98]"
+              >
+                <img
+                  src="/assets/logout.svg"
+                  alt=""
+                  aria-hidden="true"
+                  className="h-5 w-5 invert"
+                />
+              </button>
+              {isAdmin ? (
+                fromAdmin ? (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/')}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-[18px] bg-[#0b5da4] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(11,93,164,0.32)]"
+                  >
+                    <span>Мониторинг</span>
+                  </button>
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setSettingsOpen(true)}
+                    onClick={() => navigate('/admin')}
                     className="flex flex-1 items-center justify-center gap-2 rounded-[18px] bg-[#111827] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(15,23,42,0.32)]"
                   >
-                    <span>{PROFILE_COPY.notificationButton}</span>
+                    <span>Администрирование</span>
                   </button>
-                )}
+                )
+              ) : (
                 <button
                   type="button"
-                  onClick={handleLogoutClick}
-                  aria-label={PROFILE_COPY.logoutButtonAriaLabel}
-                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#EA4335] text-white shadow-[0_0_10px_rgba(234,67,53,0.18)] transition-all duration-200 ease-in-out active:scale-[0.98]"
+                  onClick={() => setSettingsOpen(true)}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-[18px] bg-[#111827] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(15,23,42,0.32)]"
                 >
-                  <img
-                    src="/assets/logout.svg"
-                    alt=""
-                    aria-hidden="true"
-                    className="h-5 w-5 invert"
-                  />
+                  <span>{PROFILE_COPY.notificationButton}</span>
                 </button>
-              </div>
-            </>
-          )}
-        </div>
+              )}
+            </div>
+          </div>
+        )}
       </main>
 
       {settingsOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-6 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-4 backdrop-blur-[2px]">
           <div
             role="dialog"
             aria-modal="true"
             aria-label={PROFILE_COPY.overlayTitle}
-            className="flex h-full max-h-[80vh] w-full max-w-[520px] flex-col overflow-hidden rounded-[26px] bg-[#f8fafc] shadow-[0_30px_80px_rgba(17,24,39,0.25)]"
+            className="flex h-full max-h-[85vh] w-full max-w-[520px] flex-col overflow-hidden rounded-[26px] bg-[#f8fafc] shadow-[0_30px_80px_rgba(17,24,39,0.25)]"
           >
-            <div className="flex items-center justify-between border-b border-white/70 px-5 py-4">
-              <h3 className="text-base font-semibold text-[#1A1C1E]">
-                {PROFILE_COPY.overlayTitle}
-              </h3>
+            <div className="flex items-center justify-between border-b border-white/70 px-4 py-2.5">
+              <h3 className="text-sm font-semibold text-[#1A1C1E]">{PROFILE_COPY.overlayTitle}</h3>
               <button
                 type="button"
                 onClick={() => setSettingsOpen(false)}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[#5f6368]"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[#5f6368]"
                 aria-label="Закрыть"
               >
                 ✕
               </button>
             </div>
 
-            <div className="px-5 py-4">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-[11px] font-semibold text-[#374151] shadow-sm">
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#0b5da4] text-white">
-                  <img
-                    src="/assets/lightning.svg"
-                    alt=""
-                    aria-hidden="true"
-                    className="h-4 w-4 invert"
-                  />
-                </span>
+            {/* Легенда типов — строго одна строка: на терминале CSS-viewport уже
+                физических 480px, поэтому пилюли с подложкой не помещались и
+                переносились. Иконки синие — в цвет включённого toggle. */}
+            <div className="flex items-center justify-evenly gap-2 overflow-hidden whitespace-nowrap border-b border-white/70 px-4 py-2 text-[11px] font-semibold text-[#374151]">
+              <span className="inline-flex items-center gap-1.5">
+                <img
+                  src="/assets/lightning.svg"
+                  alt=""
+                  aria-hidden="true"
+                  className="h-4 w-4"
+                  style={{ filter: ICON_BLUE_FILTER }}
+                />
                 <span>{PROFILE_COPY.overlayTechLabel}</span>
-                <span className="text-[#7b8190]">{PROFILE_COPY.overlayTechHint}</span>
-              </div>
-              <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-[11px] font-semibold text-[#374151] shadow-sm">
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#0b5da4] text-white">
-                  <img
-                    src="/assets/message.svg"
-                    alt=""
-                    aria-hidden="true"
-                    className="h-4 w-4 invert"
-                  />
-                </span>
+                <span className="font-medium text-[#7b8190]">{PROFILE_COPY.overlayTechHint}</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <img
+                  src="/assets/message.svg"
+                  alt=""
+                  aria-hidden="true"
+                  className="h-4 w-4"
+                  style={{ filter: ICON_BLUE_FILTER }}
+                />
                 <span>{PROFILE_COPY.overlayMasterLabel}</span>
-                <span className="text-[#7b8190]">{PROFILE_COPY.overlayMasterHint}</span>
-              </div>
+                <span className="font-medium text-[#7b8190]">{PROFILE_COPY.overlayMasterHint}</span>
+              </span>
             </div>
 
-            <div data-scroll className="flex-1 overflow-y-auto px-5 pb-5">
+            <div data-scroll className="flex-1 overflow-y-auto px-4 pb-4">
               {settingsStatus === 'loading' || settingsStatus === 'idle' ? (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   <UnitCardSkeleton />
                   <UnitCardSkeleton />
                   <UnitCardSkeleton />
@@ -373,7 +354,7 @@ export function ProfilePage() {
                   {PROFILE_COPY.notificationEmpty}
                 </p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2.5">
                   {updateError && (
                     <div className="rounded-[18px] border border-[#f1d4d6] bg-[#fff8f8] px-4 py-3 text-xs font-semibold text-[#9f3138]">
                       {PROFILE_COPY.updateErrorLabel}: {updateError.message}
@@ -386,20 +367,20 @@ export function ProfilePage() {
                     const isAssigned = assignedUnitIds.has(item.unitId);
 
                     const buttonBase =
-                      'flex h-11 w-11 items-center justify-center rounded-full border text-base font-semibold transition';
+                      'flex h-10 w-10 items-center justify-center rounded-full border text-base font-semibold transition';
 
                     const techClass = techActive
-                      ? 'border-[#0b5da4] bg-[#0b5da4] text-white'
-                      : 'border-[#dce2ea] bg-white text-[#7b8190]';
+                      ? 'border-[#0b5da4] bg-[#0b5da4]'
+                      : 'border-[#dce2ea] bg-white';
 
                     const masterClass = masterActive
-                      ? 'border-[#0b5da4] bg-[#0b5da4] text-white'
-                      : 'border-[#dce2ea] bg-white text-[#7b8190]';
+                      ? 'border-[#0b5da4] bg-[#0b5da4]'
+                      : 'border-[#dce2ea] bg-white';
 
                     return (
                       <div
                         key={item.unitId}
-                        className="flex items-center justify-between gap-3 rounded-[20px] border border-white/70 bg-white px-4 py-3 shadow-sm"
+                        className="flex items-center justify-between gap-3 rounded-[20px] border border-white/70 bg-white px-3.5 py-2.5 shadow-sm"
                       >
                         <div className="text-sm font-semibold text-[#1A1C1E]">
                           <span>{item.unitName}</span>
@@ -423,7 +404,8 @@ export function ProfilePage() {
                               src="/assets/lightning.svg"
                               alt=""
                               aria-hidden="true"
-                              className="h-5 w-5 invert"
+                              className="h-5 w-5"
+                              style={{ filter: techActive ? ICON_WHITE_FILTER : ICON_BLUE_FILTER }}
                             />
                           </button>
                           <button
@@ -439,7 +421,10 @@ export function ProfilePage() {
                               src="/assets/message.svg"
                               alt=""
                               aria-hidden="true"
-                              className="h-5 w-5 invert"
+                              className="h-5 w-5"
+                              style={{
+                                filter: masterActive ? ICON_WHITE_FILTER : ICON_BLUE_FILTER,
+                              }}
                             />
                           </button>
                         </div>

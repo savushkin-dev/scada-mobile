@@ -6,7 +6,7 @@ import { SkeletonBlock } from './SkeletonBlock';
  */
 export function QueueTabSkeleton() {
   return (
-    <div aria-hidden="true" className="card p-5 card-static mb-4">
+    <div aria-hidden="true" className="card p-4 card-static mb-3">
       <SkeletonBlock
         height="18px"
         width="45%"
