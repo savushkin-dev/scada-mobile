@@ -245,6 +245,19 @@ export function ProfilePage() {
             )}
 
             <div className="mt-auto flex flex-shrink-0 items-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={handleLogoutClick}
+                aria-label={PROFILE_COPY.logoutButtonAriaLabel}
+                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#EA4335] text-white shadow-[0_0_10px_rgba(234,67,53,0.18)] transition-all duration-200 ease-in-out active:scale-[0.98]"
+              >
+                <img
+                  src="/assets/logout.svg"
+                  alt=""
+                  aria-hidden="true"
+                  className="h-5 w-5 invert"
+                />
+              </button>
               {isAdmin ? (
                 fromAdmin ? (
                   <button
@@ -272,19 +285,6 @@ export function ProfilePage() {
                   <span>{PROFILE_COPY.notificationButton}</span>
                 </button>
               )}
-              <button
-                type="button"
-                onClick={handleLogoutClick}
-                aria-label={PROFILE_COPY.logoutButtonAriaLabel}
-                className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#EA4335] text-white shadow-[0_0_10px_rgba(234,67,53,0.18)] transition-all duration-200 ease-in-out active:scale-[0.98]"
-              >
-                <img
-                  src="/assets/logout.svg"
-                  alt=""
-                  aria-hidden="true"
-                  className="h-5 w-5 invert"
-                />
-              </button>
             </div>
           </div>
         )}
@@ -298,44 +298,43 @@ export function ProfilePage() {
             aria-label={PROFILE_COPY.overlayTitle}
             className="flex h-full max-h-[85vh] w-full max-w-[520px] flex-col overflow-hidden rounded-[26px] bg-[#f8fafc] shadow-[0_30px_80px_rgba(17,24,39,0.25)]"
           >
-            <div className="flex items-center justify-between border-b border-white/70 px-4 py-3">
-              <h3 className="text-base font-semibold text-[#1A1C1E]">
-                {PROFILE_COPY.overlayTitle}
-              </h3>
+            <div className="flex items-center justify-between border-b border-white/70 px-4 py-2.5">
+              <h3 className="text-sm font-semibold text-[#1A1C1E]">{PROFILE_COPY.overlayTitle}</h3>
               <button
                 type="button"
                 onClick={() => setSettingsOpen(false)}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[#5f6368]"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[#5f6368]"
                 aria-label="Закрыть"
               >
                 ✕
               </button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 px-4 py-2.5">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#374151] shadow-sm">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#0b5da4] text-white">
-                  <img
-                    src="/assets/lightning.svg"
-                    alt=""
-                    aria-hidden="true"
-                    className="h-3 w-3 invert"
-                  />
-                </span>
+            {/* Легенда типов — строго одна строка: на терминале CSS-viewport уже
+                физических 480px, поэтому пилюли с подложкой не помещались и
+                переносились. Иконки синие — в цвет включённого toggle. */}
+            <div className="flex items-center justify-evenly gap-2 overflow-hidden whitespace-nowrap border-b border-white/70 px-4 py-2 text-[11px] font-semibold text-[#374151]">
+              <span className="inline-flex items-center gap-1.5">
+                <img
+                  src="/assets/lightning.svg"
+                  alt=""
+                  aria-hidden="true"
+                  className="h-4 w-4"
+                  style={{ filter: ICON_BLUE_FILTER }}
+                />
                 <span>{PROFILE_COPY.overlayTechLabel}</span>
-                <span className="text-[#7b8190]">{PROFILE_COPY.overlayTechHint}</span>
+                <span className="font-medium text-[#7b8190]">{PROFILE_COPY.overlayTechHint}</span>
               </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#374151] shadow-sm">
-                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#0b5da4] text-white">
-                  <img
-                    src="/assets/message.svg"
-                    alt=""
-                    aria-hidden="true"
-                    className="h-3 w-3 invert"
-                  />
-                </span>
+              <span className="inline-flex items-center gap-1.5">
+                <img
+                  src="/assets/message.svg"
+                  alt=""
+                  aria-hidden="true"
+                  className="h-4 w-4"
+                  style={{ filter: ICON_BLUE_FILTER }}
+                />
                 <span>{PROFILE_COPY.overlayMasterLabel}</span>
-                <span className="text-[#7b8190]">{PROFILE_COPY.overlayMasterHint}</span>
+                <span className="font-medium text-[#7b8190]">{PROFILE_COPY.overlayMasterHint}</span>
               </span>
             </div>
 

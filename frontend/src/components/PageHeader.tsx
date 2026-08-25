@@ -17,7 +17,31 @@ import { HeaderErrorIndicator } from './HeaderErrorIndicator';
  * Кнопки «назад» в шапке нет осознанно: возврат выполняется физической
  * кнопкой терминала (см. useHardwareBackGuard), а на экране 4.2" каждый
  * элемент шапки отнимает место у контента.
+ *
+ * Иконки уведомлений/профиля работают как toggle: повторный тап при
+ * открытой соответствующей странице закрывает её и возвращает на экран,
+ * с которого она была открыта.
  */
+
+/** Служебные страницы, которые пропускаются при закрытии служебного экрана. */
+const TRANSIENT_ROUTES = ['/profile', '/notifications', '/login'];
+
+function isTransientRoute(pathname: string): boolean {
+  return TRANSIENT_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+}
+
+/**
+ * Возвращает ближайшую неслужебную страницу из location.state.from.
+ * Если такой нет — возвращает fallback.
+ */
+function findNonTransientBackTarget(locationState: unknown, fallback: string): string {
+  const state = locationState as { from?: { pathname?: string } } | null;
+  const fromPath = state?.from?.pathname;
+  if (fromPath && !isTransientRoute(fromPath)) {
+    return fromPath;
+  }
+  return fallback;
+}
 
 interface PageHeaderProps {
   /** Основной заголовок страницы */
@@ -44,13 +68,21 @@ export function PageHeader({ title, subtitle }: PageHeaderProps) {
   const activeNotificationCount = state.notifications.size;
 
   const handleProfileClick = useCallback(() => {
-    if (isProfileRoute) return;
+    if (isProfileRoute) {
+      // Повторный тап закрывает страницу профиля — назад к экрану-источнику.
+      navigate(findNonTransientBackTarget(location.state, '/'), { replace: true });
+      return;
+    }
     const target = isAuthenticated ? '/profile' : '/login';
     navigate(target, { state: { from: location } });
   }, [navigate, location, isAuthenticated, isProfileRoute]);
 
   const handleNotificationClick = useCallback(() => {
-    if (isNotificationsRoute) return;
+    if (isNotificationsRoute) {
+      // Повторный тап закрывает страницу уведомлений — назад к экрану-источнику.
+      navigate(findNonTransientBackTarget(location.state, '/'), { replace: true });
+      return;
+    }
     navigate('/notifications', { state: { from: location } });
   }, [navigate, location, isNotificationsRoute]);
 
