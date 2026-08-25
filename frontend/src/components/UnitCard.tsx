@@ -57,6 +57,8 @@ const SWIPE_CLICK_GUARD_PX = 10;
 const HAPTIC_MS = 10;
 /** easeOutCubic — плавный «мягкий» возврат карточки и «пилюли» после свайпа. */
 const EASE_OUT_CUBIC = 'cubic-bezier(0.215, 0.61, 0.355, 1)';
+/** Длительность анимации возврата после свайпа. */
+const RETURN_TRANSITION = `0.45s ${EASE_OUT_CUBIC}`;
 
 /** CSS filter для перекраски bell.svg в белый цвет. */
 const BELL_WHITE_FILTER =
@@ -209,7 +211,7 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
                 boxShadow: swipeOffset > 0 ? '0 10px 24px rgba(59, 130, 246, 0.35)' : undefined,
                 transition: isTouching.current
                   ? undefined
-                  : `width 0.3s ${EASE_OUT_CUBIC}, opacity 0.3s ${EASE_OUT_CUBIC}`,
+                  : `width ${RETURN_TRANSITION}, opacity ${RETURN_TRANSITION}`,
               }}
             >
               <img
