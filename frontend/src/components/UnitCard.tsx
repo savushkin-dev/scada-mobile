@@ -22,10 +22,19 @@ import type { AlertData, NotificationData, Unit } from '../types';
  * Слой уведомлений: если для аппарата есть активное notification —
  * на карточке показывается индикатор-колокольчик (жёлтый).
  *
- * Свайп вправо (только для закреплённых автоматов):
- * - карточка сдвигается вправо;
- * - слева под ней появляется статический синий эмбиент с иконкой колокольчика;
- * - тап по эмбиенту вызывает overlay подтверждения.
+ * Свайп вправо (только для закреплённых автоматов), поведение в духе iOS:
+ * - жест начинается строго из левой зоны карточки
+ *   ({@link SWIPE_ACTIVATION_RATIO}); свайп из центра игнорируется;
+ * - карточка движется с сопротивлением ({@link SWIPE_RESISTANCE}) — свайп
+ *   требует осознанного движения, случайные касания не срабатывают;
+ * - слева под карточкой растёт синяя «пилюля» с иконкой колокольчика
+ *   и подписью действия;
+ * - карточка жёстко ограничена «точкой невозврата»
+ *   ({@link SWIPE_COMMIT_RATIO}) — дальше неё не двигается; при достижении
+ *   точки срабатывает лёгкий тактильный отклик (вибрация);
+ * - отпускание ДО точки — карточка возвращается в исходное положение;
+ * - отпускание В точке — открывается overlay подтверждения, а карточка
+ *   возвращается в исходное положение.
  */
 
 interface Props {
@@ -36,8 +45,20 @@ interface Props {
   onClick: () => void;
 }
 
-const SWIPE_THRESHOLD_PX = 80;
-const SWIPE_MAX_PX = 140;
+/** Доля ширины карточки слева, из которой должен начинаться свайп. */
+const SWIPE_ACTIVATION_RATIO = 0.3;
+/** «Точка невозврата» — доля ширины карточки (позиция как на iOS-референсе). */
+const SWIPE_COMMIT_RATIO = 0.55;
+/** Сопротивление движению карточки (< 1) — визуально «утяжеляет» свайп. */
+const SWIPE_RESISTANCE = 0.7;
+/** Минимальное смещение, после которого тап по карточке игнорируется. */
+const SWIPE_CLICK_GUARD_PX = 10;
+/** Длительность тактильного отклика при достижении «точки невозврата», мс. */
+const HAPTIC_MS = 10;
+/** easeOutCubic — плавный «мягкий» возврат карточки и «пилюли» после свайпа. */
+const EASE_OUT_CUBIC = 'cubic-bezier(0.215, 0.61, 0.355, 1)';
+/** Длительность анимации возврата после свайпа. */
+const RETURN_TRANSITION = `0.45s ${EASE_OUT_CUBIC}`;
 
 /** CSS filter для перекраски bell.svg в белый цвет. */
 const BELL_WHITE_FILTER =
@@ -61,18 +82,18 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
   const isActiveByMe = notification != null && userId != null && notification.creatorId === userId;
 
   const statusClass = UNIT_STATUS_CLASS[statusLevel];
-  // offline: карточка некликабельна; card-static отключает cursor:pointer и :active-scale.
-  const interactiveProps = isOffline
-    ? { 'aria-disabled': true as const }
-    : { onClick, role: 'button' as const };
 
   const errorGroups = isCritical ? getUnitErrorGroups(unit.id, alerts) : [];
 
   // ── Swipe state ────────────────────────────────────────────────────────
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const touchStartX = useRef<number | null>(null);
-  const currentOffset = useRef(0);
+  const thresholdPx = useRef(0);
   const isTouching = useRef(false);
+  const hapticFired = useRef(false);
+  // Защита от «сквозного» клика после свайпа (click приходит после touchend)
+  const justSwiped = useRef(false);
 
   // ── Confirmation overlay ───────────────────────────────────────────────
   const [overlayOpen, setOverlayOpen] = useState(false);
@@ -81,26 +102,36 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
       if (!isAssigned) return;
-      touchStartX.current = e.touches[0].clientX;
-      currentOffset.current = swipeOffset;
+      const container = containerRef.current;
+      if (!container) return;
+      const width = container.offsetWidth;
+      const x = e.touches[0].clientX;
+      // Свайп активируется только из левой зоны карточки
+      if (x - container.getBoundingClientRect().left > width * SWIPE_ACTIVATION_RATIO) return;
+      touchStartX.current = x;
+      thresholdPx.current = width * SWIPE_COMMIT_RATIO;
+      hapticFired.current = false;
       isTouching.current = true;
     },
-    [isAssigned, swipeOffset]
+    [isAssigned]
   );
 
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
       if (!isAssigned || touchStartX.current == null) return;
       const delta = e.touches[0].clientX - touchStartX.current;
-      // Свайп вправо (delta > 0) → карточка сдвигается ВПРАВО (положительный offset)
-      if (delta > 0) {
-        const offset = Math.min(SWIPE_MAX_PX, Math.max(0, currentOffset.current + delta));
-        setSwipeOffset(offset);
-      } else if (delta < 0) {
-        // Свайп влево — возвращаем карточку
-        const offset = Math.max(0, currentOffset.current + delta);
-        setSwipeOffset(offset);
+      if (delta <= 0) {
+        setSwipeOffset(0);
+        return;
       }
+      // Сопротивление делает карточку «тяжелее»; дальше точки невозврата — не двигается
+      const offset = Math.min(thresholdPx.current, delta * SWIPE_RESISTANCE);
+      // Лёгкая вибрация при первом достижении точки невозврата
+      if (offset >= thresholdPx.current && !hapticFired.current) {
+        hapticFired.current = true;
+        navigator.vibrate?.(HAPTIC_MS);
+      }
+      setSwipeOffset(offset);
     },
     [isAssigned]
   );
@@ -108,16 +139,28 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
   const handleTouchEnd = useCallback(() => {
     touchStartX.current = null;
     isTouching.current = false;
-    if (swipeOffset > SWIPE_THRESHOLD_PX) {
-      setSwipeOffset(SWIPE_MAX_PX);
-    } else {
-      setSwipeOffset(0);
+    justSwiped.current = swipeOffset > SWIPE_CLICK_GUARD_PX;
+    if (thresholdPx.current > 0 && swipeOffset >= thresholdPx.current) {
+      // Точка невозврата: overlay открывается сразу, карточка возвращается назад
+      setOverlayOpen(true);
     }
+    setSwipeOffset(0);
   }, [swipeOffset]);
 
-  const handleRevealClick = useCallback(() => {
-    setOverlayOpen(true);
+  const handleTouchCancel = useCallback(() => {
+    touchStartX.current = null;
+    isTouching.current = false;
+    setSwipeOffset(0);
   }, []);
+
+  const handleCardClick = useCallback(() => {
+    // Тап сразу после свайпа не должен открывать детали автомата
+    if (justSwiped.current) {
+      justSwiped.current = false;
+      return;
+    }
+    onClick();
+  }, [onClick]);
 
   const handleConfirm = useCallback(async () => {
     setOverlayOpen(false);
@@ -133,41 +176,65 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
     setSwipeOffset(0);
   }, []);
 
-  // Прогресс свайпа 0..1 для анимации фона
-  const swipeProgress = Math.min(1, swipeOffset / SWIPE_MAX_PX);
+  // offline: карточка некликабельна; card-static отключает cursor:pointer и :active-scale.
+  const interactiveProps = isOffline
+    ? { 'aria-disabled': true as const }
+    : { onClick: handleCardClick, role: 'button' as const };
+
+  // Прогресс свайпа 0..1 до «точки невозврата»; «пилюля» растёт вслед за карточкой
+  const threshold = thresholdPx.current;
+  const revealProgress = threshold > 0 ? Math.min(1, swipeOffset / (threshold * 0.6)) : 0;
+  const pillWidth = Math.max(0, Math.min(swipeOffset, threshold) - 24);
 
   return (
     <>
       <div
+        ref={containerRef}
         className="relative select-none overflow-hidden rounded-[24px]"
         style={{ touchAction: 'pan-y' }}
       >
-        {/* Фоновый слой с эмбиентом и колокольчиком — статичен, карточка сдвигается поверх */}
+        {/* Фоновый слой: «пилюля» действия в духе iOS — растёт за карточкой */}
         {isAssigned && (
           <div
-            className="absolute inset-0 flex items-center justify-start rounded-[24px]"
-            style={{
-              zIndex: 0,
-              opacity: swipeProgress,
-              transition: isTouching.current ? undefined : 'opacity 0.25s ease',
-              background:
-                'radial-gradient(ellipse 55% 100% at 70px 50%, rgba(59,130,246,0.55) 0%, rgba(59,130,246,0.22) 40%, rgba(59,130,246,0.06) 70%, transparent 100%)',
-            }}
-            onClick={handleRevealClick}
-            role="button"
-            aria-label={isActiveByMe ? 'Снять уведомление' : 'Последняя партия'}
+            className="absolute inset-0 flex flex-col justify-center px-3"
+            style={{ zIndex: 0 }}
+            aria-hidden="true"
           >
             <div
               className="flex items-center justify-center"
-              style={{ width: `${SWIPE_MAX_PX}px`, flexShrink: 0 }}
+              style={{
+                height: '56px',
+                width: `${pillWidth}px`,
+                borderRadius: '18px',
+                backgroundColor: '#3B82F6',
+                opacity: revealProgress,
+                boxShadow: swipeOffset > 0 ? '0 10px 24px rgba(59, 130, 246, 0.35)' : undefined,
+                transition: isTouching.current
+                  ? undefined
+                  : `width ${RETURN_TRANSITION}, opacity ${RETURN_TRANSITION}`,
+              }}
             >
               <img
                 src={isActiveByMe ? '/assets/bell-off.svg' : '/assets/bell.svg'}
                 alt=""
                 aria-hidden="true"
-                className="h-8 w-8"
+                className="h-7 w-7"
                 style={{ filter: BELL_WHITE_FILTER }}
               />
+            </div>
+            <div
+              className="mt-1 text-center"
+              style={{
+                width: `${pillWidth}px`,
+                opacity: revealProgress,
+                transition: isTouching.current
+                  ? undefined
+                  : `width 0.3s ${EASE_OUT_CUBIC}, opacity 0.3s ${EASE_OUT_CUBIC}`,
+              }}
+            >
+              <span className="text-[11px] font-medium leading-none text-gray-500">
+                {isActiveByMe ? 'Снять' : 'Уведомить'}
+              </span>
             </div>
           </div>
         )}
@@ -178,13 +245,17 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
           {...interactiveProps}
           style={{
             transform: `translateX(${swipeOffset}px)`,
-            transition: isTouching.current ? 'none' : 'transform 0.25s ease',
+            transition: isTouching.current
+              ? 'none'
+              : `transform 0.3s ${EASE_OUT_CUBIC}, box-shadow 0.3s ${EASE_OUT_CUBIC}`,
+            boxShadow: swipeOffset > 0 ? '0 14px 30px rgba(15, 23, 42, 0.18)' : undefined,
             position: 'relative',
             zIndex: 1,
           }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchCancel}
         >
           <div className="mb-1 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
