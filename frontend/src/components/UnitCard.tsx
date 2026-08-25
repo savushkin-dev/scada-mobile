@@ -55,6 +55,8 @@ const SWIPE_RESISTANCE = 0.7;
 const SWIPE_CLICK_GUARD_PX = 10;
 /** Длительность тактильного отклика при достижении «точки невозврата», мс. */
 const HAPTIC_MS = 10;
+/** easeOutCubic — плавный «мягкий» возврат карточки и «пилюли» после свайпа. */
+const EASE_OUT_CUBIC = 'cubic-bezier(0.215, 0.61, 0.355, 1)';
 
 /** CSS filter для перекраски bell.svg в белый цвет. */
 const BELL_WHITE_FILTER =
@@ -205,7 +207,9 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
                 backgroundColor: '#3B82F6',
                 opacity: revealProgress,
                 boxShadow: swipeOffset > 0 ? '0 10px 24px rgba(59, 130, 246, 0.35)' : undefined,
-                transition: isTouching.current ? undefined : 'width 0.25s ease, opacity 0.25s ease',
+                transition: isTouching.current
+                  ? undefined
+                  : `width 0.3s ${EASE_OUT_CUBIC}, opacity 0.3s ${EASE_OUT_CUBIC}`,
               }}
             >
               <img
@@ -221,7 +225,9 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
               style={{
                 width: `${pillWidth}px`,
                 opacity: revealProgress,
-                transition: isTouching.current ? undefined : 'width 0.25s ease, opacity 0.25s ease',
+                transition: isTouching.current
+                  ? undefined
+                  : `width 0.3s ${EASE_OUT_CUBIC}, opacity 0.3s ${EASE_OUT_CUBIC}`,
               }}
             >
               <span className="text-[11px] font-medium leading-none text-gray-500">
@@ -237,7 +243,9 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
           {...interactiveProps}
           style={{
             transform: `translateX(${swipeOffset}px)`,
-            transition: isTouching.current ? 'none' : 'transform 0.25s ease, box-shadow 0.25s ease',
+            transition: isTouching.current
+              ? 'none'
+              : `transform 0.3s ${EASE_OUT_CUBIC}, box-shadow 0.3s ${EASE_OUT_CUBIC}`,
             boxShadow: swipeOffset > 0 ? '0 14px 30px rgba(15, 23, 42, 0.18)' : undefined,
             position: 'relative',
             zIndex: 1,
