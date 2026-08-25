@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   getUnitErrorGroups,
   getUnitStatusLevel,
@@ -23,15 +23,18 @@ import type { AlertData, NotificationData, Unit } from '../types';
  * на карточке показывается индикатор-колокольчик (жёлтый).
  *
  * Свайп вправо (только для закреплённых автоматов), поведение в духе iOS:
+ * - жест начинается строго из левой зоны карточки
+ *   ({@link SWIPE_ACTIVATION_RATIO}); свайп из центра игнорируется;
  * - карточка движется с сопротивлением ({@link SWIPE_RESISTANCE}) — свайп
  *   требует осознанного движения, случайные касания не срабатывают;
  * - слева под карточкой растёт синяя «пилюля» с иконкой колокольчика
  *   и подписью действия;
- * - как только карточка проходит «точку невозврата»
- *   ({@link SWIPE_COMMIT_THRESHOLD_PX}), при отпускании overlay подтверждения
- *   открывается сразу, без тапа по раскрытой области;
- * - неполный свайп оставляет «пилюлю» раскрытой — тап по ней также
- *   вызывает overlay; тап по сдвинутой карточке возвращает её на место.
+ * - карточка жёстко ограничена «точкой невозврата»
+ *   ({@link SWIPE_COMMIT_RATIO}) — дальше неё не двигается; при достижении
+ *   точки срабатывает лёгкий тактильный отклик (вибрация);
+ * - отпускание ДО точки — карточка возвращается в исходное положение;
+ * - отпускание В точке — открывается overlay подтверждения, а карточка
+ *   возвращается в исходное положение.
  */
 
 interface Props {
@@ -42,14 +45,16 @@ interface Props {
   onClick: () => void;
 }
 
-/** «Точка невозврата»: отпускание за этим смещением сразу открывает overlay. */
-const SWIPE_COMMIT_THRESHOLD_PX = 120;
-/** Ширина раскрытой «пилюли» действия после неполного свайпа. */
-const SWIPE_REVEAL_PX = 108;
+/** Доля ширины карточки слева, из которой должен начинаться свайп. */
+const SWIPE_ACTIVATION_RATIO = 0.3;
+/** «Точка невозврата» — доля ширины карточки (позиция как на iOS-референсе). */
+const SWIPE_COMMIT_RATIO = 0.55;
 /** Сопротивление движению карточки (< 1) — визуально «утяжеляет» свайп. */
 const SWIPE_RESISTANCE = 0.7;
-/** Длительность анимации «улёта» карточки перед открытием overlay. */
-const COMMIT_ANIMATION_MS = 180;
+/** Минимальное смещение, после которого тап по карточке игнорируется. */
+const SWIPE_CLICK_GUARD_PX = 10;
+/** Длительность тактильного отклика при достижении «точки невозврата», мс. */
+const HAPTIC_MS = 10;
 
 /** CSS filter для перекраски bell.svg в белый цвет. */
 const BELL_WHITE_FILTER =
@@ -79,74 +84,64 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
   // ── Swipe state ────────────────────────────────────────────────────────
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
-  const [completing, setCompleting] = useState(false);
   const touchStartX = useRef<number | null>(null);
-  const startOffset = useRef(0);
-  const containerWidth = useRef(0);
+  const thresholdPx = useRef(0);
   const isTouching = useRef(false);
-  const commitTimer = useRef<number | null>(null);
+  const hapticFired = useRef(false);
+  // Защита от «сквозного» клика после свайпа (click приходит после touchend)
+  const justSwiped = useRef(false);
 
   // ── Confirmation overlay ───────────────────────────────────────────────
   const [overlayOpen, setOverlayOpen] = useState(false);
   const { sendLastBatch, reset: resetLastBatch } = useLastBatch();
 
-  useEffect(
-    () => () => {
-      if (commitTimer.current != null) window.clearTimeout(commitTimer.current);
-    },
-    []
-  );
-
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
-      if (!isAssigned || completing) return;
-      touchStartX.current = e.touches[0].clientX;
-      startOffset.current = swipeOffset;
-      containerWidth.current = containerRef.current?.offsetWidth ?? 0;
+      if (!isAssigned) return;
+      const container = containerRef.current;
+      if (!container) return;
+      const width = container.offsetWidth;
+      const x = e.touches[0].clientX;
+      // Свайп активируется только из левой зоны карточки
+      if (x - container.getBoundingClientRect().left > width * SWIPE_ACTIVATION_RATIO) return;
+      touchStartX.current = x;
+      thresholdPx.current = width * SWIPE_COMMIT_RATIO;
+      hapticFired.current = false;
       isTouching.current = true;
     },
-    [isAssigned, completing, swipeOffset]
+    [isAssigned]
   );
 
   const handleTouchMove = useCallback(
     (e: React.TouchEvent) => {
       if (!isAssigned || touchStartX.current == null) return;
       const delta = e.touches[0].clientX - touchStartX.current;
-      const raw = startOffset.current + delta;
-      if (raw <= 0) {
+      if (delta <= 0) {
         setSwipeOffset(0);
         return;
       }
-      // Свайп вправо: сопротивление делает карточку «тяжелее»
-      const max = containerWidth.current > 0 ? containerWidth.current : Number.POSITIVE_INFINITY;
-      setSwipeOffset(Math.min(max, raw * SWIPE_RESISTANCE));
+      // Сопротивление делает карточку «тяжелее»; дальше точки невозврата — не двигается
+      const offset = Math.min(thresholdPx.current, delta * SWIPE_RESISTANCE);
+      // Лёгкая вибрация при первом достижении точки невозврата
+      if (offset >= thresholdPx.current && !hapticFired.current) {
+        hapticFired.current = true;
+        navigator.vibrate?.(HAPTIC_MS);
+      }
+      setSwipeOffset(offset);
     },
     [isAssigned]
   );
 
-  /** Карточка «улетает» вправо, затем overlay открывается без дополнительного тапа. */
-  const commitSwipe = useCallback(() => {
-    const width = containerWidth.current > 0 ? containerWidth.current : SWIPE_REVEAL_PX;
-    setCompleting(true);
-    setSwipeOffset(width);
-    commitTimer.current = window.setTimeout(() => {
-      commitTimer.current = null;
-      setCompleting(false);
-      setOverlayOpen(true);
-    }, COMMIT_ANIMATION_MS);
-  }, []);
-
   const handleTouchEnd = useCallback(() => {
     touchStartX.current = null;
     isTouching.current = false;
-    if (swipeOffset >= SWIPE_COMMIT_THRESHOLD_PX) {
-      commitSwipe();
-    } else if (swipeOffset > SWIPE_REVEAL_PX / 2) {
-      setSwipeOffset(SWIPE_REVEAL_PX);
-    } else {
-      setSwipeOffset(0);
+    justSwiped.current = swipeOffset > SWIPE_CLICK_GUARD_PX;
+    if (thresholdPx.current > 0 && swipeOffset >= thresholdPx.current) {
+      // Точка невозврата: overlay открывается сразу, карточка возвращается назад
+      setOverlayOpen(true);
     }
-  }, [swipeOffset, commitSwipe]);
+    setSwipeOffset(0);
+  }, [swipeOffset]);
 
   const handleTouchCancel = useCallback(() => {
     touchStartX.current = null;
@@ -154,20 +149,14 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
     setSwipeOffset(0);
   }, []);
 
-  const handleRevealClick = useCallback(() => {
-    if (completing) return;
-    if (swipeOffset > 0) setOverlayOpen(true);
-  }, [completing, swipeOffset]);
-
   const handleCardClick = useCallback(() => {
-    if (completing) return;
-    // Тап по сдвинутой карточке просто возвращает её на место
-    if (swipeOffset > 0) {
-      setSwipeOffset(0);
+    // Тап сразу после свайпа не должен открывать детали автомата
+    if (justSwiped.current) {
+      justSwiped.current = false;
       return;
     }
     onClick();
-  }, [completing, swipeOffset, onClick]);
+  }, [onClick]);
 
   const handleConfirm = useCallback(async () => {
     setOverlayOpen(false);
@@ -188,21 +177,10 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
     ? { 'aria-disabled': true as const }
     : { onClick: handleCardClick, role: 'button' as const };
 
-  // Прогресс раскрытия «пилюли» (0..1) и прогресс за «точкой невозврата» (0..1)
-  const revealProgress = Math.min(1, swipeOffset / SWIPE_REVEAL_PX);
-  const fullWidth = containerWidth.current;
-  const overProgress =
-    fullWidth > 0
-      ? Math.min(
-          1,
-          Math.max(
-            0,
-            (swipeOffset - SWIPE_COMMIT_THRESHOLD_PX) /
-              Math.max(1, fullWidth - SWIPE_COMMIT_THRESHOLD_PX)
-          )
-        )
-      : 0;
-  const pillWidth = SWIPE_REVEAL_PX + overProgress * Math.max(0, fullWidth - SWIPE_REVEAL_PX - 24);
+  // Прогресс свайпа 0..1 до «точки невозврата»; «пилюля» растёт вслед за карточкой
+  const threshold = thresholdPx.current;
+  const revealProgress = threshold > 0 ? Math.min(1, swipeOffset / (threshold * 0.6)) : 0;
+  const pillWidth = Math.max(0, Math.min(swipeOffset, threshold) - 24);
 
   return (
     <>
@@ -216,9 +194,7 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
           <div
             className="absolute inset-0 flex flex-col justify-center px-3"
             style={{ zIndex: 0 }}
-            onClick={handleRevealClick}
-            role="button"
-            aria-label={isActiveByMe ? 'Снять уведомление' : 'Последняя партия'}
+            aria-hidden="true"
           >
             <div
               className="flex items-center justify-center"
@@ -244,7 +220,7 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
               className="mt-1 text-center"
               style={{
                 width: `${pillWidth}px`,
-                opacity: revealProgress * (1 - overProgress),
+                opacity: revealProgress,
                 transition: isTouching.current ? undefined : 'width 0.25s ease, opacity 0.25s ease',
               }}
             >
