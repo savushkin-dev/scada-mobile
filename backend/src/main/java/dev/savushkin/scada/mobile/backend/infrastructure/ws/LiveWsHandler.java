@@ -213,6 +213,9 @@ public class LiveWsHandler extends TextWebSocketHandler {
      * иначе его собственная сессия не узнает о смене состояния и не обновит
      * кнопку, список уведомлений и иконку.
      * <p>
+    * Machine-сессии (СКАДА) получают уведомления всех аппаратов и фильтруют их
+    * на своей стороне.
+     * <p>
      * Используется {@code StatusBroadcaster} для немедленной рассылки при toggle-событии.
      *
      * @param notification сериализованный {@link dev.savushkin.scada.mobile.backend.api.dto.NotificationMessageDTO}
@@ -226,7 +229,9 @@ public class LiveWsHandler extends TextWebSocketHandler {
                 allSessions.remove(session);
                 continue;
             }
-            if (!isCreator(session, notification) && !isNotificationAllowed(session, notification.unitId())) {
+            if (!isMachineSession(session)
+                    && !isCreator(session, notification)
+                    && !isNotificationAllowed(session, notification.unitId())) {
                 continue;
             }
             try {
@@ -363,14 +368,20 @@ public class LiveWsHandler extends TextWebSocketHandler {
     /**
      * Отправляет снимок активных производственных уведомлений, видимых новому клиенту:
      * по подпискам аппаратов (настройки Android-звонка) плюс созданные им самим.
+    * Machine-сессии (СКАДА) получают полный снимок и фильтруют его на своей стороне.
      * Вызывается сразу после {@code ALERT_SNAPSHOT} при установке соединения.
      */
     private void sendNotificationSnapshot(WebSocketSession session) {
         try {
-            Set<String> allowedUnitIds = resolveAllowedNotificationUnits(session);
-            List<NotificationMessageDTO> filtered = notificationStore.getAll().stream()
-                    .filter(n -> allowedUnitIds.contains(n.unitId()) || isCreator(session, n))
-                    .toList();
+            List<NotificationMessageDTO> filtered;
+            if (isMachineSession(session)) {
+                filtered = notificationStore.getAll();
+            } else {
+                Set<String> allowedUnitIds = resolveAllowedNotificationUnits(session);
+                filtered = notificationStore.getAll().stream()
+                        .filter(n -> allowedUnitIds.contains(n.unitId()) || isCreator(session, n))
+                        .toList();
+            }
             var snapshotMsg = NotificationSnapshotMessageDTO.of(filtered);
             sendMessageSafely(session, objectMapper.writeValueAsString(snapshotMsg));
             log.debug("WS /live: sent NOTIFICATION_SNAPSHOT, notifications={}, id={}",
@@ -379,6 +390,22 @@ public class LiveWsHandler extends TextWebSocketHandler {
             log.warn("WS /live: failed to send NOTIFICATION_SNAPSHOT, id={}: {}",
                     session.getId(), e.getMessage());
         }
+    }
+
+    /**
+     * {@code true}, если сессия аутентифицирована machine-JWT (автомат / СКАДА).
+     */
+    private boolean isMachineSession(WebSocketSession session) {
+        Object raw = session.getAttributes().get(WebSocketJwtInterceptor.ATTR_SUBJECT_TYPE);
+        return "machine".equals(raw);
+    }
+
+    /**
+     * PrintSrv instance id автомата для machine-сессии; {@code null} для пользовательских.
+     */
+    private String machineUnitId(WebSocketSession session) {
+        Object raw = session.getAttributes().get(WebSocketJwtInterceptor.ATTR_MACHINE_UNIT);
+        return raw instanceof String text && !text.isBlank() ? text : null;
     }
 
     private Set<String> resolveAllowedNotificationUnits(WebSocketSession session) {

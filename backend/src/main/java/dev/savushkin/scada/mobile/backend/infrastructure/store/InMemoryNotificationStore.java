@@ -3,7 +3,6 @@ package dev.savushkin.scada.mobile.backend.infrastructure.store;
 import dev.savushkin.scada.mobile.backend.application.ports.NotificationRepository;
 import dev.savushkin.scada.mobile.backend.domain.model.ProductionNotification;
 import org.jspecify.annotations.NonNull;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,9 +14,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * Реализует {@link NotificationRepository} — порт слоя application.
  * Данные хранятся в {@link ConcurrentHashMap} (ключ — {@code unitId}).
  * <p>
- * <b>Архитектурная роль:</b> временная реализация порта persistence для dev/prototyping.
- * При переходе на PostgreSQL заменяется на JPA-реализацию без изменения бизнес-логики
- * (подключается через Spring profile или условный бин).
+ * <b>Архитектурная роль:</b> бывшая временная реализация порта persistence для
+ * dev/prototyping. С миграции V13 заменена на перманентную
+ * {@code ProductionNotificationJpaAdapter} (PostgreSQL, {@code @Primary}) и больше
+ * не регистрируется как Spring-бин. Класс сохранён для использования в unit-тестах.
  *
  * <h3>Потокобезопасность</h3>
  * {@link ConcurrentHashMap} гарантирует видимость между потоками.
@@ -30,7 +30,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * благодаря toggle-семантике: деактивированное уведомление на том же unitId заменяется
  * новым активным при следующем toggle).
  */
-@Component
 public class InMemoryNotificationStore implements NotificationRepository {
 
     /**

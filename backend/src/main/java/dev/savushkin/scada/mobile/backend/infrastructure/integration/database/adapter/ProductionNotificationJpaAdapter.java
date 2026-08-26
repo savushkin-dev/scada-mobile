@@ -1,0 +1,115 @@
+package dev.savushkin.scada.mobile.backend.infrastructure.integration.database.adapter;
+
+import dev.savushkin.scada.mobile.backend.application.ports.NotificationRepository;
+import dev.savushkin.scada.mobile.backend.domain.model.ProductionNotification;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.ProductionNotificationEntity;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.ProductionNotificationJpaRepository;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UnitJpaRepository;
+import org.jspecify.annotations.NonNull;
+import org.springframework.context.annotation.Primary;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * JPA-реализация {@link NotificationRepository} — перманентное хранение состояния
+ * «последняя партия» в PostgreSQL (таблица {@code production_notifications}).
+ * <p>
+ * Заменяет in-memory реализацию ({@code InMemoryNotificationStore}): состояние
+ * переживает рестарт backend и является единым источником истины для фронтенда
+ * и СКАДА-систем.
+ * <p>
+ * Порт оперирует PrintSrv instance id (строка, напр. {@code "hassia1"}), а таблица
+ * ключевана по числовому {@code unit_id} — маппинг выполняется через
+ * {@link UnitJpaRepository}.
+ */
+@Component
+@Primary
+public class ProductionNotificationJpaAdapter implements NotificationRepository {
+
+    private final ProductionNotificationJpaRepository notificationRepository;
+    private final UnitJpaRepository unitRepository;
+
+    public ProductionNotificationJpaAdapter(ProductionNotificationJpaRepository notificationRepository,
+                                            UnitJpaRepository unitRepository) {
+        this.notificationRepository = notificationRepository;
+        this.unitRepository = unitRepository;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public @NonNull Optional<ProductionNotification> findActiveByUnitId(@NonNull String unitId) {
+        return unitRepository.findUnitIdByPrintsrvInstanceId(unitId)
+                .flatMap(notificationRepository::findByUnitId)
+                .filter(ProductionNotificationEntity::isActive)
+                .flatMap(this::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public @NonNull List<ProductionNotification> findAllActive() {
+        return notificationRepository.findAllByActiveTrue().stream()
+                .map(this::toDomain)
+                .flatMap(Optional::stream)
+                .toList();
+    }
+
+    /**
+     * Сохраняет состояние уведомления: одна строка на аппарат, обновление на месте.
+     * Если аппарат с данным PrintSrv instance id не найден в БД — операция игнорируется
+     * (контроллер заранее валидирует аппарат через {@code UnitMappingService}).
+     */
+    @Override
+    @Transactional
+    public void save(@NonNull ProductionNotification notification) {
+        unitRepository.findUnitIdByPrintsrvInstanceId(notification.unitId()).ifPresent(unitId -> {
+            ProductionNotificationEntity entity = notificationRepository.findByUnitId(unitId)
+                    .orElseGet(ProductionNotificationEntity::new);
+            entity.setUnitId(unitId);
+            entity.setCreatorType(notification.creatorType());
+            entity.setCreatorId(notification.creatorId());
+            entity.setActive(notification.active());
+            entity.setActivatedAt(toLocalDateTime(notification.activatedAt()));
+            entity.setDeactivatedAt(toLocalDateTime(notification.deactivatedAt()));
+            notificationRepository.save(entity);
+        });
+    }
+
+    @Override
+    @Transactional
+    public void deactivateByUnitId(@NonNull String unitId) {
+        unitRepository.findUnitIdByPrintsrvInstanceId(unitId)
+                .flatMap(notificationRepository::findByUnitId)
+                .filter(ProductionNotificationEntity::isActive)
+                .ifPresent(entity -> {
+                    entity.setActive(false);
+                    entity.setDeactivatedAt(LocalDateTime.now(ZoneOffset.UTC));
+                    notificationRepository.save(entity);
+                });
+    }
+
+    private @NonNull Optional<ProductionNotification> toDomain(@NonNull ProductionNotificationEntity entity) {
+        return unitRepository.findPrintsrvInstanceIdById(entity.getUnitId())
+                .map(printsrvInstanceId -> new ProductionNotification(
+                        printsrvInstanceId,
+                        entity.getCreatorId(),
+                        entity.getCreatorType(),
+                        entity.isActive(),
+                        toInstant(entity.getActivatedAt()),
+                        toInstant(entity.getDeactivatedAt())
+                ));
+    }
+
+    private static LocalDateTime toLocalDateTime(Instant instant) {
+        return instant == null ? null : LocalDateTime.ofInstant(instant, ZoneOffset.UTC);
+    }
+
+    private static Instant toInstant(LocalDateTime dateTime) {
+        return dateTime == null ? null : dateTime.toInstant(ZoneOffset.UTC);
+    }
+}
