@@ -138,6 +138,11 @@
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
+
+  :focus-visible {
+    outline: 3px solid #4285f4;
+    outline-offset: 3px;
+  }
 }
 
 @layer components {

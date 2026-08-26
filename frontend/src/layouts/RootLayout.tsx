@@ -290,6 +290,26 @@ function RootLayoutInner() {
     return () => document.body.removeEventListener('touchmove', handler);
   }, []);
 
+  useEffect(() => {
+    const handleKeyboardScroll = (event: KeyboardEvent) => {
+      if (
+        event.target instanceof HTMLElement &&
+        event.target.matches('input, textarea, select, [contenteditable="true"]')
+      ) {
+        return;
+      }
+      if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+
+      const scrollContainer = document.querySelector<HTMLElement>('[data-scroll]');
+      if (!scrollContainer) return;
+      event.preventDefault();
+      scrollContainer.scrollBy({ top: event.key === 'ArrowDown' ? 160 : -160, behavior: 'smooth' });
+    };
+
+    window.addEventListener('keydown', handleKeyboardScroll);
+    return () => window.removeEventListener('keydown', handleKeyboardScroll);
+  }, []);
+
   return (
     <>
       <PageHeader title={config.title} subtitle={config.subtitle} variant={config.variant} />

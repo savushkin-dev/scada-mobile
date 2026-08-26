@@ -162,6 +162,15 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
     onClick();
   }, [onClick]);
 
+  const handleCardKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== 'Enter' || !isAssigned || overlayOpen) return;
+      event.preventDefault();
+      setOverlayOpen(true);
+    },
+    [isAssigned, overlayOpen]
+  );
+
   const handleConfirm = useCallback(async () => {
     setOverlayOpen(false);
     await sendLastBatch(String(unit.id));
@@ -243,6 +252,8 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
         <div
           className={`card p-4 md:h-full ${statusClass}${isOffline ? ' card-static' : ''}`}
           {...interactiveProps}
+          tabIndex={isOffline ? -1 : 0}
+          onKeyDown={handleCardKeyDown}
           style={{
             transform: `translateX(${swipeOffset}px)`,
             transition: isTouching.current

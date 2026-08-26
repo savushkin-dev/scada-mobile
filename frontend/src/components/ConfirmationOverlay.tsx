@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 interface Props {
   open: boolean;
@@ -38,6 +38,21 @@ export function ConfirmationOverlay({
   confirmColor = 'blue',
   children,
 }: Props) {
+  const confirmButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    confirmButtonRef.current?.focus();
+    const handleKeyboard = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCancel();
+      }
+    };
+    window.addEventListener('keydown', handleKeyboard);
+    return () => window.removeEventListener('keydown', handleKeyboard);
+  }, [onCancel, open]);
+
   if (!open) return null;
 
   return (
@@ -67,6 +82,7 @@ export function ConfirmationOverlay({
           <button
             type="button"
             onClick={onConfirm}
+            ref={confirmButtonRef}
             className={`rounded-2xl px-5 py-2.5 text-sm font-semibold text-white transition active:scale-[0.98] ${CONFIRM_COLOR_CLASS[confirmColor]}`}
           >
             {confirmLabel}

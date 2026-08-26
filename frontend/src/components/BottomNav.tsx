@@ -19,6 +19,14 @@ export function BottomNav({ activeTab, onTabChange, errorCount, className }: Pro
             key={tab}
             className={`nav-item ${activeTab === tab ? 'active' : ''}`}
             onClick={() => onTabChange(tab)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' && event.key !== ' ') return;
+              event.preventDefault();
+              onTabChange(tab);
+            }}
+            role="button"
+            tabIndex={0}
+            aria-current={activeTab === tab ? 'page' : undefined}
           >
             <span className="nav-icon">
               <img src={icon} alt="" aria-hidden="true" className="h-5 w-5" />

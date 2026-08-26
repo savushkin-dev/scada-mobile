@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useListContext, useResourceContext } from 'react-admin';
+import { useEffect } from 'react';
 import { AdminCard } from './AdminCard';
 import { PillButton } from './PillButton';
 import { PaginationPills } from './PaginationPills';
@@ -42,7 +43,22 @@ export function AdminListContainer<T>({
   showCreate = true,
   children,
 }: AdminListContainerProps<T>) {
-  const { total, page, perPage, setPage, isLoading } = useListContext();
+  const { total, page, perPage, setPage, setPerPage, isLoading } = useListContext();
+
+  useEffect(() => {
+    const updatePageSize = () => {
+      const availableHeight = Math.max(0, window.innerHeight - 260);
+      const nextPageSize = Math.max(10, Math.floor(availableHeight / 52));
+      if (nextPageSize !== perPage) {
+        setPerPage(nextPageSize);
+        setPage(1);
+      }
+    };
+
+    updatePageSize();
+    window.addEventListener('resize', updatePageSize);
+    return () => window.removeEventListener('resize', updatePageSize);
+  }, [perPage, setPage, setPerPage]);
 
   if (isLoading) {
     return (
