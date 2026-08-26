@@ -25,7 +25,7 @@ export function BottomNav({ activeTab, onTabChange, errorCount, className }: Pro
               onTabChange(tab);
             }}
             role="button"
-            tabIndex={0}
+            tabIndex={-1}
             aria-current={activeTab === tab ? 'page' : undefined}
           >
             <span className="nav-icon">

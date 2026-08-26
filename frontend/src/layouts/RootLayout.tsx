@@ -291,6 +291,31 @@ function RootLayoutInner() {
   }, []);
 
   useEffect(() => {
+    const pressedKeys = new Set<'ArrowUp' | 'ArrowDown'>();
+    let animationFrame: number | null = null;
+
+    const getScrollContainer = () => {
+      const scrollContainers = [...document.querySelectorAll<HTMLElement>('[data-scroll]')].filter(
+        (container) => container.scrollHeight > container.clientHeight
+      );
+      return (
+        scrollContainers.find((container) => container.contains(document.activeElement)) ??
+        scrollContainers[scrollContainers.length - 1]
+      );
+    };
+
+    const animateScroll = () => {
+      const scrollContainer = getScrollContainer();
+      if (!scrollContainer || pressedKeys.size === 0) {
+        animationFrame = null;
+        return;
+      }
+      const direction = pressedKeys.has('ArrowDown') ? 1 : -1;
+      const amount = Math.max(3, Math.min(12, scrollContainer.clientHeight * 0.025));
+      scrollContainer.scrollTop += direction * amount;
+      animationFrame = requestAnimationFrame(animateScroll);
+    };
+
     const handleKeyboardScroll = (event: KeyboardEvent) => {
       if (
         event.target instanceof HTMLElement &&
@@ -301,23 +326,31 @@ function RootLayoutInner() {
       }
       if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
 
-      const scrollContainers = [...document.querySelectorAll<HTMLElement>('[data-scroll]')].filter(
-        (container) => container.scrollHeight > container.clientHeight
-      );
-      const scrollContainer =
-        scrollContainers.find((container) => container.contains(document.activeElement)) ??
-        scrollContainers[scrollContainers.length - 1];
-      if (!scrollContainer) return;
       event.preventDefault();
-      const amount = Math.max(96, Math.min(240, scrollContainer.clientHeight * 0.45));
-      scrollContainer.scrollBy({
-        top: event.key === 'ArrowDown' ? amount : -amount,
-        behavior: 'smooth',
-      });
+      const scrollContainer = getScrollContainer();
+      if (!scrollContainer) return;
+      const amount = Math.max(3, Math.min(12, scrollContainer.clientHeight * 0.025));
+      if (!pressedKeys.has(event.key)) {
+        scrollContainer.scrollTop += event.key === 'ArrowDown' ? amount : -amount;
+      }
+      pressedKeys.add(event.key);
+      if (animationFrame == null) animationFrame = requestAnimationFrame(animateScroll);
     };
 
+    const stopKeyboardScroll = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') pressedKeys.delete(event.key);
+    };
+    const stopOnBlur = () => pressedKeys.clear();
+
     window.addEventListener('keydown', handleKeyboardScroll);
-    return () => window.removeEventListener('keydown', handleKeyboardScroll);
+    window.addEventListener('keyup', stopKeyboardScroll);
+    window.addEventListener('blur', stopOnBlur);
+    return () => {
+      window.removeEventListener('keydown', handleKeyboardScroll);
+      window.removeEventListener('keyup', stopKeyboardScroll);
+      window.removeEventListener('blur', stopOnBlur);
+      if (animationFrame != null) cancelAnimationFrame(animationFrame);
+    };
   }, []);
 
   return (

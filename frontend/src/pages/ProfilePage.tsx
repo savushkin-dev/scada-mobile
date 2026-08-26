@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { PAGE_FIXED_SECTION_STYLE } from '../config';
 import { updateNotificationSetting } from '../api/profile';
@@ -57,6 +57,31 @@ function mergePending(prev: string[], unitId: string, pending: boolean): string[
   return prev.filter((id) => id !== unitId);
 }
 
+function getFocusable(container: Element): HTMLElement[] {
+  return [
+    ...container.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    ),
+  ].filter((element) => !element.hasAttribute('disabled'));
+}
+
+function cycleDialogFocus(event: KeyboardEvent<HTMLElement>, onClose: () => void): void {
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    onClose();
+    return;
+  }
+  if (event.key !== 'Tab') return;
+  const focusable = getFocusable(event.currentTarget);
+  if (focusable.length === 0) return;
+  const currentIndex = focusable.indexOf(document.activeElement as HTMLElement);
+  const nextIndex = event.shiftKey
+    ? (currentIndex - 1 + focusable.length) % focusable.length
+    : (currentIndex + 1) % focusable.length;
+  event.preventDefault();
+  focusable[nextIndex].focus();
+}
+
 export function ProfilePage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -85,6 +110,12 @@ export function ProfilePage() {
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [pendingUnits, setPendingUnits] = useState<string[]>([]);
   const [updateError, setUpdateError] = useState<AppError | null>(null);
+  const settingsTriggerRef = useRef<HTMLButtonElement>(null);
+  const settingsPreviousFocusRef = useRef<HTMLElement | null>(null);
+  const settingsCloseRef = useRef<HTMLButtonElement>(null);
+  const logoutTriggerRef = useRef<HTMLButtonElement>(null);
+  const logoutPreviousFocusRef = useRef<HTMLElement | null>(null);
+  const logoutConfirmRef = useRef<HTMLButtonElement>(null);
 
   const handleLogoutClick = useCallback(() => {
     setLogoutOpen(true);
@@ -105,12 +136,28 @@ export function ProfilePage() {
 
   useEffect(() => {
     if (!settingsOpen) return;
+    settingsPreviousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    const frame = window.setTimeout(() => settingsCloseRef.current?.focus(), 0);
     return () => {
+      window.clearTimeout(frame);
       document.body.style.overflow = previousOverflow;
+      settingsPreviousFocusRef.current?.focus();
     };
   }, [settingsOpen]);
+
+  useEffect(() => {
+    if (!logoutOpen) return;
+    logoutPreviousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const frame = window.setTimeout(() => logoutConfirmRef.current?.focus(), 0);
+    return () => {
+      window.clearTimeout(frame);
+      logoutPreviousFocusRef.current?.focus();
+    };
+  }, [logoutOpen]);
 
   const profileInitials = useMemo(() => {
     if (!profile?.fullName) return '—';
@@ -248,6 +295,7 @@ export function ProfilePage() {
               <button
                 type="button"
                 onClick={handleLogoutClick}
+                ref={logoutTriggerRef}
                 aria-label={PROFILE_COPY.logoutButtonAriaLabel}
                 className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[#EA4335] text-white shadow-[0_0_10px_rgba(234,67,53,0.18)] transition-all duration-200 ease-in-out active:scale-[0.98]"
               >
@@ -280,6 +328,7 @@ export function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => setSettingsOpen(true)}
+                  ref={settingsTriggerRef}
                   className="flex flex-1 items-center justify-center gap-2 rounded-[18px] bg-[#111827] px-4 py-3 text-sm font-semibold text-white shadow-[0_10px_26px_rgba(15,23,42,0.32)]"
                 >
                   <span>{PROFILE_COPY.notificationButton}</span>
@@ -291,18 +340,24 @@ export function ProfilePage() {
       </main>
 
       {settingsOpen && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-4 backdrop-blur-[2px]">
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-4 backdrop-blur-[2px]"
+          onClick={() => setSettingsOpen(false)}
+        >
           <div
             role="dialog"
             aria-modal="true"
             aria-label={PROFILE_COPY.overlayTitle}
             className="flex h-full max-h-[85vh] w-full max-w-[520px] flex-col overflow-hidden rounded-[26px] bg-[#f8fafc] shadow-[0_30px_80px_rgba(17,24,39,0.25)]"
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => cycleDialogFocus(event, () => setSettingsOpen(false))}
           >
             <div className="flex items-center justify-between border-b border-white/70 px-4 py-2.5">
               <h3 className="text-sm font-semibold text-[#1A1C1E]">{PROFILE_COPY.overlayTitle}</h3>
               <button
                 type="button"
                 onClick={() => setSettingsOpen(false)}
+                ref={settingsCloseRef}
                 className="flex h-8 w-8 items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[#5f6368]"
                 aria-label="Закрыть"
               >
@@ -394,6 +449,7 @@ export function ProfilePage() {
                           <button
                             type="button"
                             aria-pressed={techActive}
+                            aria-label={`${PROFILE_COPY.overlayTechLabel}: ${techActive ? 'включено' : 'выключено'}`}
                             disabled={isPending}
                             onClick={() => handleToggle(item.unitId, 'techEnabled')}
                             className={`${buttonBase} ${techClass} ${
@@ -411,6 +467,7 @@ export function ProfilePage() {
                           <button
                             type="button"
                             aria-pressed={masterActive}
+                            aria-label={`${PROFILE_COPY.overlayMasterLabel}: ${masterActive ? 'включено' : 'выключено'}`}
                             disabled={isPending}
                             onClick={() => handleToggle(item.unitId, 'masterEnabled')}
                             className={`${buttonBase} ${masterClass} ${
@@ -450,6 +507,7 @@ export function ProfilePage() {
             aria-label={PROFILE_COPY.logoutOverlayTitle}
             className="w-full max-w-[360px] rounded-[26px] bg-[#f8fafc] p-6 shadow-[0_30px_80px_rgba(17,24,39,0.25)]"
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(event) => cycleDialogFocus(event, handleLogoutCancel)}
           >
             <h3 className="text-base font-semibold text-[#1A1C1E]">
               {PROFILE_COPY.logoutOverlayTitle}
@@ -466,6 +524,7 @@ export function ProfilePage() {
               <button
                 type="button"
                 onClick={handleLogoutConfirm}
+                ref={logoutConfirmRef}
                 className="rounded-2xl bg-[#EA4335] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(234,67,53,0.35)] transition active:scale-[0.98]"
               >
                 {PROFILE_COPY.logoutOverlayConfirm}
