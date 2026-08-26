@@ -43,7 +43,6 @@ interface Props {
   /** Активные производственные уведомления (из AppContext). */
   notifications?: Map<string, NotificationData>;
   onClick: () => void;
-  autoFocus?: boolean;
 }
 
 /** Доля ширины карточки слева, из которой должен начинаться свайп. */
@@ -69,7 +68,7 @@ const BELL_WHITE_FILTER =
 const BELL_AMBER_FILTER =
   'brightness(0) saturate(100%) invert(59%) sepia(97%) saturate(1214%) hue-rotate(359deg) brightness(101%) contrast(96%)';
 
-export function UnitCard({ unit, alerts, notifications, onClick, autoFocus = false }: Props) {
+export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
   const { userId } = useAuth();
   const { isAssignedUnit } = useAccessControl();
   const statusLevel = getUnitStatusLevel(unit, alerts);
@@ -211,13 +210,6 @@ export function UnitCard({ unit, alerts, notifications, onClick, autoFocus = fal
 
   useEffect(() => () => stopKeyboardSwipe(false), [stopKeyboardSwipe]);
 
-  useEffect(() => {
-    if (autoFocus && !isOffline) {
-      cardRef.current?.focus();
-      setIsFocused(true);
-    }
-  }, [autoFocus, isOffline]);
-
   const handleCardClick = useCallback(() => {
     // Тап сразу после свайпа не должен открывать детали автомата
     if (justSwiped.current) {
@@ -310,7 +302,6 @@ export function UnitCard({ unit, alerts, notifications, onClick, autoFocus = fal
           {...interactiveProps}
           className={`card p-4 md:h-full ${statusClass}${isOffline ? ' card-static' : ''}${isFocused ? ' ring-4 ring-[#4285f4] ring-offset-2' : ''}`}
           tabIndex={isOffline ? -1 : 0}
-          autoFocus={autoFocus && !isOffline}
           onFocus={() => setIsFocused(true)}
           onBlur={() => {
             setIsFocused(false);

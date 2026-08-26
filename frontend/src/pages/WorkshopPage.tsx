@@ -50,26 +50,36 @@ export function WorkshopPage() {
   usePageHeader(workshopName, UI_COPY.workshopSubtitle);
 
   const units = unitsByWorkshop[workshopId] ?? [];
-  const firstFocusableUnitIndex = units.findIndex(
-    (unit) => getUnitStatusLevel(unit, state.alerts) !== 'offline'
-  );
   const listRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    const list = listRef.current;
-    if (!list) return;
     const handleListKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Tab' || event.shiftKey) return;
-      const activeElement = document.activeElement;
-      if (activeElement !== document.body && activeElement !== list) return;
-      const firstCard = list.querySelector<HTMLElement>('[role="button"][tabindex="0"]');
-      if (!firstCard) return;
+      if (event.key !== 'Tab') return;
+      const list = listRef.current;
+      if (!list) return;
+      const cards = [...list.querySelectorAll<HTMLElement>('[role="button"][tabindex="0"]')];
+      if (cards.length === 0) return;
+      const currentIndex = cards.indexOf(document.activeElement as HTMLElement);
+      const isFromOutsideList = currentIndex === -1;
+      const nextIndex = event.shiftKey
+        ? isFromOutsideList
+          ? cards.length - 1
+          : Math.max(0, currentIndex - 1)
+        : isFromOutsideList
+          ? 0
+          : Math.min(cards.length - 1, currentIndex + 1);
+      if (!isFromOutsideList && nextIndex === currentIndex) return;
       event.preventDefault();
-      firstCard.focus();
+      cards[nextIndex].focus({ preventScroll: true });
+      const cardRect = cards[nextIndex].getBoundingClientRect();
+      const listRect = list.getBoundingClientRect();
+      if (cardRect.top < listRect.top || cardRect.bottom > listRect.bottom) {
+        cards[nextIndex].scrollIntoView({ block: 'nearest', behavior: 'auto' });
+      }
     };
     window.addEventListener('keydown', handleListKeyDown);
     return () => window.removeEventListener('keydown', handleListKeyDown);
-  }, [units.length]);
+  }, []);
 
   // Запрашиваем topology аппаратов при каждом открытии цеха и при смене цеха,
   // а также ревалидируем conditional GET при любом изменении топологии по WS
@@ -121,13 +131,12 @@ export function WorkshopPage() {
               <UnitCardSkeleton count={Math.max(units.length, UI_BEHAVIOR.workshopSkeletonCount)} />
             }
           >
-            {units.map((u, index) => (
+            {units.map((u) => (
               <UnitCard
                 key={u.id}
                 unit={u}
                 alerts={state.alerts}
                 notifications={state.notifications}
-                autoFocus={index === firstFocusableUnitIndex}
                 onClick={() => {
                   const targetTab =
                     getUnitStatusLevel(u, state.alerts) === 'critical'
