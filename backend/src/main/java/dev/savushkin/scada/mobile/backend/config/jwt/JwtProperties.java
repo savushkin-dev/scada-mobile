@@ -17,6 +17,7 @@ public class JwtProperties {
     private String refreshSecret = "";
     private long accessExpirationMinutes = 15;
     private long refreshExpirationDays = 7;
+    private long machineTokenExpirationDays = 365;
 
     public String getAccessSecret() { return accessSecret; }
     public void setAccessSecret(String accessSecret) { this.accessSecret = accessSecret; }
@@ -29,4 +30,7 @@ public class JwtProperties {
 
     public long getRefreshExpirationDays() { return refreshExpirationDays; }
     public void setRefreshExpirationDays(long refreshExpirationDays) { this.refreshExpirationDays = refreshExpirationDays; }
+
+    public long getMachineTokenExpirationDays() { return machineTokenExpirationDays; }
+    public void setMachineTokenExpirationDays(long machineTokenExpirationDays) { this.machineTokenExpirationDays = machineTokenExpirationDays; }
 }

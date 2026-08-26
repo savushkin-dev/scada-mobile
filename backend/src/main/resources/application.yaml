@@ -65,6 +65,9 @@ jwt:
   refresh-secret: "${SCADA_MOBILE_JWT_REFRESH_SECRET:}"
   access-expiration-minutes: 1440
   refresh-expiration-days: 7
+  # Срок жизни machine-JWT (автоматы / СКАДА). Токены долгоживущие,
+  # отзыв — через реестр machine_tokens (DELETE /admin/machine-tokens/{jti}).
+  machine-token-expiration-days: ${SCADA_MOBILE_JWT_MACHINE_TOKEN_EXPIRATION_DAYS:365}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Админ-уведомления — retention прочитанных записей и порог бездействия сотрудников.

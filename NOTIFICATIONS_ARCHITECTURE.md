@@ -37,12 +37,13 @@
 
 Производственные уведомления ("последняя партия") — отдельный механизм от алертов:
 
-- **Активация**: пользователь нажимает FAB-кнопку "Последняя партия" на вкладке "Партия" (только если назначен на автомат).
+- **Активация**: пользователь нажимает FAB-кнопку "Последняя партия" на вкладке "Партия" (только если назначен на автомат), либо СКАДА-система автомата отправляет toggle с machine-JWT (см. [SCADA_MACHINE_API.md](SCADA_MACHINE_API.md)).
 - **Backend**: `NotificationService` создает `ProductionNotification`, публикует `NotificationStateChangedEvent`.
-- **Рассылка**: `StatusBroadcaster` → `LiveWsHandler` отправляет `NOTIFICATION` всем подключенным клиентам.
-- **Деактивация**: повторное нажатие кнопки или автоматическая деактивация.
-- **Хранение**: `InMemoryNotificationStore` (in-memory, не персистентно).
-- **Права**: кнопка видна только пользователям, назначенным на данный автомат (`AccessControlContext`).
+- **Рассылка**: `StatusBroadcaster` → `LiveWsHandler` отправляет `NOTIFICATION` ответственным сотрудникам (создатель + подписчики аппарата) и machine-сессии самого автомата.
+- **Деактивация**: повторное нажатие кнопки создателем (или toggle тем же автоматом).
+- **Хранение**: перманентно в PostgreSQL, таблица `production_notifications` (миграция V13, `ProductionNotificationJpaAdapter`); состояние переживает рестарт backend. WS-projection (`ActiveNotificationStore`) прогревается из БД при старте (`NotificationProjectionInitializer`).
+- **Чтение состояния**: единый `GET /api/v1.0.0/line/{unitId}/last-batch` для фронтенда и СКАДА.
+- **Права**: кнопка видна только пользователям, назначенным на данный автомат (`AccessControlContext`); автомат управляет только собственным аппаратом (sub machine-JWT обязан совпадать с аппаратом запроса).
 
 ## Service worker scope
 
@@ -52,4 +53,4 @@
 
 - Алерты отправляются только по WebSocket, системные push-уведомления не реализованы (см. [frontend/public/service-worker.js](frontend/public/service-worker.js#L1-L77)).
 - Дельта-логика `ActiveAlertStore` фиксирует только появление и исчезновение алерта; изменение состава ошибок при активном алерте не порождает новое сообщение ([backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/store/ActiveAlertStore.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/store/ActiveAlertStore.java#L52-L69)).
-- Производственные уведомления хранятся только в памяти и теряются при перезапуске backend.
+- Снять активное уведомление «последняя партия» может только его создатель (работник или автомат); административного сброса пока нет.

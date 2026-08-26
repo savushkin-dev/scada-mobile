@@ -79,6 +79,49 @@ HTTP ответы: `200`.
 
 HTTP ответы: `200`, `503`.
 
+### POST /api/v1.0.0/line/{unitId}/last-batch
+Назначение: toggle состояния «последняя партия» по автомату (установка/снятие флага). Принимает пользовательский JWT (фронтенд) и machine-JWT (СКАДА) — единая точка записи. Логика в `NotificationService` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/services/NotificationService.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/services/NotificationService.java)).
+
+Параметр пути `unitId` — числовой id автомата или PrintSrv instance id (например, `hassia1`).
+
+Схема ответа: `NotificationToggleResponseDTO` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/NotificationToggleResponseDTO.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/NotificationToggleResponseDTO.java)).
+
+| Поле | Тип | Описание |
+| --- | --- | --- |
+| `status` | string | `activated`, `deactivated`, `already_active` |
+| `unitId` | string | Идентификатор автомата |
+| `creatorId` | string? | Идентификатор создателя (при `activated`/`already_active`) |
+| `timestamp` | string? | ISO-8601 время операции (UTC, при `activated`) |
+
+HTTP ответы: `200`, `401`, `403`, `404`, `409`.
+
+### GET /api/v1.0.0/line/{unitId}/last-batch
+Назначение: чтение текущего состояния «последняя партия» — единый источник истины для фронтенда и СКАДА. Доступно любому аутентифицированному работнику; machine-JWT — только для собственного автомата.
+
+Схема ответа: `LastBatchStateDTO` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/LastBatchStateDTO.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/LastBatchStateDTO.java)).
+
+| Поле | Тип | Описание |
+| --- | --- | --- |
+| `unitId` | string | Числовой id автомата |
+| `printsrvInstanceId` | string | PrintSrv instance id автомата |
+| `active` | boolean | Установлен ли флаг «последняя партия» |
+| `creatorType` | string? | `USER` или `MACHINE` (при `active = true`) |
+| `creatorId` | string? | Идентификатор создателя (при `active = true`) |
+| `activatedAt` | string? | ISO-8601 время установки флага (UTC, при `active = true`) |
+
+HTTP ответы: `200`, `401`, `403`, `404`.
+
+### Machine-токены (СКАДА)
+Управление долгоживущими JWT для автоматов — админ-эндпоинты `AdminMachineTokenController` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/controller/admin/AdminMachineTokenController.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/controller/admin/AdminMachineTokenController.java)), роль `ADMIN`:
+
+| Эндпоинт | Назначение |
+| --- | --- |
+| `POST /api/v1.0.0/admin/machine-tokens` | Выпуск токена: тело `{ "unitId": 1, "ttlDays": 365 }`; ответ содержит сам токен (возвращается один раз) |
+| `GET /api/v1.0.0/admin/machine-tokens` | Реестр выданных токенов (метаданные, без значений) |
+| `DELETE /api/v1.0.0/admin/machine-tokens/{jti}` | Отзыв токена — дальнейшие запросы с ним получают `401` |
+
+Формат machine-JWT и протокол для СКАДА: [SCADA_MACHINE_API.md](SCADA_MACHINE_API.md).
+
 ## WebSocket /ws/live
 Единый канал live-данных. Обработчик и протокол описаны в `LiveWsHandler` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/ws/LiveWsHandler.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/infrastructure/ws/LiveWsHandler.java#L25-L239)).
 
@@ -97,6 +140,8 @@ HTTP ответы: `200`, `503`.
 | `ALERT_SNAPSHOT` | при подключении | `AlertSnapshotMessageDTO` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/AlertSnapshotMessageDTO.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/AlertSnapshotMessageDTO.java#L34-L44)) |
 | `ALERT` | при дельте алерта | `AlertMessageDTO` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/AlertMessageDTO.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/AlertMessageDTO.java#L39-L47)) |
 | `UNITS_STATUS` | при изменении статуса автоматов подписанного цеха | `UnitsStatusMessageDTO` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/UnitsStatusMessageDTO.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/UnitsStatusMessageDTO.java#L23-L34)) |
+| `NOTIFICATION_SNAPSHOT` | при подключении (активные «последняя партия», видимые клиенту) | `NotificationSnapshotMessageDTO` |
+| `NOTIFICATION` | при toggle «последняя партия» | `NotificationMessageDTO` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/NotificationMessageDTO.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/dto/NotificationMessageDTO.java#L38-L46)) |
 
 #### ALERT_SNAPSHOT
 | Поле | Тип | Описание |

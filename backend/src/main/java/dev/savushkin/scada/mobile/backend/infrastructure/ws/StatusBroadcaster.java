@@ -8,8 +8,6 @@ import dev.savushkin.scada.mobile.backend.api.dto.UnitStatusDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.UserAssignmentsMessageDTO;
 import dev.savushkin.scada.mobile.backend.domain.model.UserAssignmentsChangedEvent;
 import dev.savushkin.scada.mobile.backend.api.dto.UnitsStatusMessageDTO;
-import dev.savushkin.scada.mobile.backend.application.ports.PrintSrvTopologyRepository;
-import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
 import dev.savushkin.scada.mobile.backend.infrastructure.polling.PrintSrvInstancePolledEvent;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveAlertStore;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveNotificationStore;
@@ -62,8 +60,8 @@ public class StatusBroadcaster {
     private final UnitDetailService unitDetailService;
     private final LiveWsHandler liveWsHandler;
     private final UnitWsHandler unitWsHandler;
-    private final PrintSrvTopologyRepository topologyRepo;
     private final UserProfileService userProfileService;
+    private final NotificationMessageFactory notificationMessageFactory;
     private final DeviceAutoDiscoveryService deviceAutoDiscoveryService;
     private final AdminNotificationService adminNotificationService;
 
@@ -76,8 +74,8 @@ public class StatusBroadcaster {
             UnitDetailService unitDetailService,
             LiveWsHandler liveWsHandler,
             UnitWsHandler unitWsHandler,
-            PrintSrvTopologyRepository topologyRepo,
             UserProfileService userProfileService,
+            NotificationMessageFactory notificationMessageFactory,
             DeviceAutoDiscoveryService deviceAutoDiscoveryService,
             AdminNotificationService adminNotificationService
     ) {
@@ -89,8 +87,8 @@ public class StatusBroadcaster {
         this.unitDetailService = unitDetailService;
         this.liveWsHandler = liveWsHandler;
         this.unitWsHandler = unitWsHandler;
-        this.topologyRepo = topologyRepo;
         this.userProfileService = userProfileService;
+        this.notificationMessageFactory = notificationMessageFactory;
         this.deviceAutoDiscoveryService = deviceAutoDiscoveryService;
         this.adminNotificationService = adminNotificationService;
     }
@@ -196,30 +194,17 @@ public class StatusBroadcaster {
      */
     @EventListener
     public void onNotificationChanged(NotificationStateChangedEvent event) {
+        NotificationMessageDTO dto = notificationMessageFactory.fromNotification(
+                event.notification(), event.type());
+
+        // Projection store обновляется всегда, даже без активных WS-сессий:
+        // иначе NOTIFICATION_SNAPSHOT для будущих подключений рассинхронизируется
+        // с перманентным состоянием (PostgreSQL) до следующего toggle.
+        ActiveNotificationStore.Delta delta = notificationStore.updateAndDiff(event.unitId(), dto);
+
         if (liveWsHandler.getTotalSessionCount() == 0) {
             return;
         }
-
-        String unitName = topologyRepo.findByInstanceId(event.unitId())
-                .map(PrintSrvInstance::displayName)
-                .orElse(event.unitId());
-
-        String timestamp = java.time.Instant.now()
-                .atOffset(ZoneOffset.UTC)
-                .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-
-        String creatorName = userProfileService.resolveFullName(event.notification().creatorId());
-
-        NotificationMessageDTO dto;
-        if (event.type() == NotificationStateChangedEvent.EventType.ACTIVATED) {
-            dto = NotificationMessageDTO.activated(
-                    event.unitId(), unitName, event.notification().creatorId(), creatorName, timestamp);
-        } else {
-            dto = NotificationMessageDTO.deactivated(
-                    event.unitId(), unitName, event.notification().creatorId(), creatorName, timestamp);
-        }
-
-        ActiveNotificationStore.Delta delta = notificationStore.updateAndDiff(event.unitId(), dto);
 
         if (delta.added().isEmpty() && delta.removed().isEmpty()) {
             return;

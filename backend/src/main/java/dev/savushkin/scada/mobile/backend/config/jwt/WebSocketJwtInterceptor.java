@@ -1,5 +1,7 @@
 package dev.savushkin.scada.mobile.backend.config.jwt;
 
+import dev.savushkin.scada.mobile.backend.services.MachineTokenService;
+import io.jsonwebtoken.Claims;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -20,8 +22,14 @@ import java.util.Map;
  * Извлекает access-токен из query-параметра {@code ?token=<jwt>}
  * (браузер не может задать кастомные HTTP-заголовки в {@code new WebSocket()}).
  * <p>
- * Валидирует токен через {@link JwtTokenProvider} и кладёт userId (Long)
- * в session attributes под ключом {@value #ATTR_USER_ID}.
+ * Поддерживает два типа субъектов (claim {@code subject_type}):
+ * <ul>
+ *   <li>{@code "user"} (или claim отсутствует) — работник; в session attributes
+ *       кладутся {@value #ATTR_USER_ID} (Long) и {@value #ATTR_ROLE};</li>
+ *   <li>{@code "machine"} — автомат / СКАДА; кладутся {@value #ATTR_SUBJECT_TYPE}
+ *       и {@value #ATTR_MACHINE_UNIT} (PrintSrv instance id из sub). Токен дополнительно
+ *       проверяется в реестре {@code machine_tokens} (не отозван, не истёк).</li>
+ * </ul>
  * <p>
  * Если токен отсутствует или невалиден — handshake ОТКЛОНЯЕТСЯ с 401.
  * Анонимные WebSocket-соединения не допускаются.
@@ -33,12 +41,19 @@ public class WebSocketJwtInterceptor implements HandshakeInterceptor {
 
     public static final String ATTR_USER_ID = "userId";
     public static final String ATTR_ROLE = "role";
+    /** Тип субъекта сессии: {@code "user"} (по умолчанию) или {@code "machine"}. */
+    public static final String ATTR_SUBJECT_TYPE = "subjectType";
+    /** PrintSrv instance id автомата — только для machine-сессий. */
+    public static final String ATTR_MACHINE_UNIT = "machineUnit";
     private static final String QUERY_PARAM = "token";
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final MachineTokenService machineTokenService;
 
-    public WebSocketJwtInterceptor(JwtTokenProvider jwtTokenProvider) {
+    public WebSocketJwtInterceptor(JwtTokenProvider jwtTokenProvider,
+                                   MachineTokenService machineTokenService) {
         this.jwtTokenProvider = jwtTokenProvider;
+        this.machineTokenService = machineTokenService;
     }
 
     @Override
@@ -66,6 +81,11 @@ public class WebSocketJwtInterceptor implements HandshakeInterceptor {
             return false;
         }
 
+        if (JwtTokenProvider.SUBJECT_TYPE_MACHINE.equals(
+                claims.get(JwtTokenProvider.SUBJECT_TYPE_CLAIM, String.class))) {
+            return acceptMachine(request, response, attributes, claims);
+        }
+
         Long userId = parseUserId(claims.getSubject());
         if (userId == null) {
             log.warn("WS handshake rejected: invalid subject, URI='{}'", request.getURI());
@@ -76,6 +96,30 @@ public class WebSocketJwtInterceptor implements HandshakeInterceptor {
         attributes.put(ATTR_USER_ID, userId);
         attributes.put(ATTR_ROLE, claims.get("role", String.class));
         log.debug("WS handshake: authenticated userId='{}' URI='{}'", userId, request.getURI());
+        return true;
+    }
+
+    /**
+     * Аутентификация автомата (СКАДА): проверяет, что machine-токен
+     * зарегистрирован в {@code machine_tokens}, не отозван и не истёк.
+     */
+    private boolean acceptMachine(ServerHttpRequest request,
+                                  ServerHttpResponse response,
+                                  Map<String, Object> attributes,
+                                  Claims claims) {
+        String jti = claims.getId();
+        String machineUnit = claims.getSubject();
+        if (jti == null || machineUnit == null || machineUnit.isBlank()
+                || !machineTokenService.isTokenActive(jti)) {
+            log.warn("WS handshake rejected: machine token revoked/unknown, jti='{}', URI='{}'",
+                    jti, request.getURI());
+            response.setStatusCode(HttpStatusCode.valueOf(401));
+            return false;
+        }
+
+        attributes.put(ATTR_SUBJECT_TYPE, JwtTokenProvider.SUBJECT_TYPE_MACHINE);
+        attributes.put(ATTR_MACHINE_UNIT, machineUnit);
+        log.debug("WS handshake: authenticated machine='{}' URI='{}'", machineUnit, request.getURI());
         return true;
     }
 
