@@ -277,7 +277,8 @@ export function DetailsLayout() {
     const handleTabShortcut = (event: KeyboardEvent) => {
       if (
         event.target instanceof HTMLElement &&
-        event.target.matches('input, textarea, select, [contenteditable="true"]')
+        (event.target.matches('input, textarea, select, [contenteditable="true"]') ||
+          event.target.closest('[role="dialog"]'))
       ) {
         return;
       }

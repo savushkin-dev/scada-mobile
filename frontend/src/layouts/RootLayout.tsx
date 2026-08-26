@@ -294,16 +294,26 @@ function RootLayoutInner() {
     const handleKeyboardScroll = (event: KeyboardEvent) => {
       if (
         event.target instanceof HTMLElement &&
-        event.target.matches('input, textarea, select, [contenteditable="true"]')
+        (event.target.matches('input, textarea, select, [contenteditable="true"]') ||
+          event.target.closest('[role="dialog"]'))
       ) {
         return;
       }
       if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
 
-      const scrollContainer = document.querySelector<HTMLElement>('[data-scroll]');
+      const scrollContainers = [...document.querySelectorAll<HTMLElement>('[data-scroll]')].filter(
+        (container) => container.scrollHeight > container.clientHeight
+      );
+      const scrollContainer =
+        scrollContainers.find((container) => container.contains(document.activeElement)) ??
+        scrollContainers[scrollContainers.length - 1];
       if (!scrollContainer) return;
       event.preventDefault();
-      scrollContainer.scrollBy({ top: event.key === 'ArrowDown' ? 160 : -160, behavior: 'smooth' });
+      const amount = Math.max(96, Math.min(240, scrollContainer.clientHeight * 0.45));
+      scrollContainer.scrollBy({
+        top: event.key === 'ArrowDown' ? amount : -amount,
+        behavior: 'smooth',
+      });
     };
 
     window.addEventListener('keydown', handleKeyboardScroll);

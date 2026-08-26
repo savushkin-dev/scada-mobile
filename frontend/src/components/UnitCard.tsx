@@ -94,6 +94,7 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
   const hapticFired = useRef(false);
   // Защита от «сквозного» клика после свайпа (click приходит после touchend)
   const justSwiped = useRef(false);
+  const keyboardEnterStartedAt = useRef<number | null>(null);
 
   // ── Confirmation overlay ───────────────────────────────────────────────
   const [overlayOpen, setOverlayOpen] = useState(false);
@@ -164,11 +165,29 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
 
   const handleCardKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key !== 'Enter' || !isAssigned || overlayOpen) return;
+      if (event.key !== 'Enter' || !isAssigned || overlayOpen || event.repeat) return;
       event.preventDefault();
-      setOverlayOpen(true);
+      keyboardEnterStartedAt.current = performance.now();
     },
     [isAssigned, overlayOpen]
+  );
+
+  const handleCardKeyUp = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+      if (!isAssigned || overlayOpen) return;
+      const heldFor = keyboardEnterStartedAt.current
+        ? performance.now() - keyboardEnterStartedAt.current
+        : 0;
+      keyboardEnterStartedAt.current = null;
+      if (heldFor >= 450) {
+        setOverlayOpen(true);
+      } else {
+        onClick();
+      }
+    },
+    [isAssigned, onClick, overlayOpen]
   );
 
   const handleConfirm = useCallback(async () => {
@@ -254,6 +273,10 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
           {...interactiveProps}
           tabIndex={isOffline ? -1 : 0}
           onKeyDown={handleCardKeyDown}
+          onKeyUp={handleCardKeyUp}
+          onBlur={() => {
+            keyboardEnterStartedAt.current = null;
+          }}
           style={{
             transform: `translateX(${swipeOffset}px)`,
             transition: isTouching.current

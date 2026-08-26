@@ -151,6 +151,7 @@ export function LoginPage() {
               type="text"
               autoComplete="username"
               inputMode="text"
+              autoFocus
               value={workerCode}
               onChange={handleWorkerCodeChange}
               onKeyDown={handleWorkerCodeKeyDown}

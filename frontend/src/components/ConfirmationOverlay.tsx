@@ -39,18 +39,42 @@ export function ConfirmationOverlay({
   children,
 }: Props) {
   const confirmButtonRef = useRef<HTMLButtonElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const focusFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!open) return;
-    confirmButtonRef.current?.focus();
+    previousFocusRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    focusFrameRef.current = requestAnimationFrame(() => confirmButtonRef.current?.focus());
     const handleKeyboard = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
         onCancel();
+        return;
       }
+      if (event.key !== 'Tab') return;
+      const dialog = confirmButtonRef.current?.closest('[role="dialog"]');
+      if (!dialog) return;
+      const focusable = [
+        ...dialog.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        ),
+      ].filter((element) => !element.hasAttribute('disabled'));
+      if (focusable.length === 0) return;
+      const currentIndex = focusable.indexOf(document.activeElement as HTMLElement);
+      const nextIndex = event.shiftKey
+        ? (currentIndex - 1 + focusable.length) % focusable.length
+        : (currentIndex + 1) % focusable.length;
+      event.preventDefault();
+      focusable[nextIndex].focus();
     };
     window.addEventListener('keydown', handleKeyboard);
-    return () => window.removeEventListener('keydown', handleKeyboard);
+    return () => {
+      window.removeEventListener('keydown', handleKeyboard);
+      if (focusFrameRef.current != null) cancelAnimationFrame(focusFrameRef.current);
+      previousFocusRef.current?.focus();
+    };
   }, [onCancel, open]);
 
   if (!open) return null;
