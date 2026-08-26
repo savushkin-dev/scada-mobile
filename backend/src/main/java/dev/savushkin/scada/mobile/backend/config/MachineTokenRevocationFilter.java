@@ -2,7 +2,7 @@ package dev.savushkin.scada.mobile.backend.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.savushkin.scada.mobile.backend.config.jwt.JwtTokenProvider;
-import dev.savushkin.scada.mobile.backend.services.MachineTokenService;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UnitJpaRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,8 +23,8 @@ import java.util.Map;
  * <p>
  * Выполняется после {@code BearerTokenAuthenticationFilter}: если запрос
  * аутентифицирован токеном с {@code subject_type = "machine"}, проверяет,
- * что {@code jti} токена зарегистрирован в {@code machine_tokens}, не отозван
- * и не истёк. Иначе — 401.
+ * что {@code sub} и {@code unitId} токена соответствуют активной записи
+ * автомата в {@code units}. Иначе — 401.
  * <p>
  * Пользовательские токены ({@code subject_type = "user}" или без claim)
  * проходят без дополнительной проверки.
@@ -32,12 +32,12 @@ import java.util.Map;
 @Component
 public class MachineTokenRevocationFilter extends OncePerRequestFilter {
 
-    private final MachineTokenService machineTokenService;
+    private final UnitJpaRepository unitRepository;
     private final ObjectMapper objectMapper;
 
-    public MachineTokenRevocationFilter(MachineTokenService machineTokenService,
+    public MachineTokenRevocationFilter(UnitJpaRepository unitRepository,
                                         ObjectMapper objectMapper) {
-        this.machineTokenService = machineTokenService;
+        this.unitRepository = unitRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -51,7 +51,7 @@ public class MachineTokenRevocationFilter extends OncePerRequestFilter {
             response.setCharacterEncoding("UTF-8");
             objectMapper.writeValue(response.getWriter(), Map.of(
                     "error", "machine_token_revoked",
-                    "message", "Machine-токен отозван, истёк или не зарегистрирован"
+                    "message", "Machine-токен недействителен или автомат удалён"
             ));
             return;
         }
@@ -72,7 +72,12 @@ public class MachineTokenRevocationFilter extends OncePerRequestFilter {
                 jwt.getClaimAsString(JwtTokenProvider.SUBJECT_TYPE_CLAIM))) {
             return false;
         }
-        String jti = jwt.getId();
-        return jti == null || !machineTokenService.isTokenActive(jti);
+        Object rawUnitId = jwt.getClaim(JwtTokenProvider.MACHINE_UNIT_ID_CLAIM);
+        Long unitId = rawUnitId instanceof Number number ? number.longValue() : null;
+        String printSrvId = jwt.getSubject();
+        return unitId == null || printSrvId == null
+            || unitRepository.findByPrintsrvInstanceId(printSrvId)
+            .filter(unit -> unit.isActive() && unit.getId().equals(unitId))
+            .isEmpty();
     }
 }

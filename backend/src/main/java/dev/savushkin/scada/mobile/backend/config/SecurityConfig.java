@@ -91,7 +91,8 @@ public class SecurityConfig {
                 // не поддерживается в Spring Boot 4 / Spring Security 7
                 .requestMatchers("/api/v1.0.0/auth/login",
                                  "/api/v1.0.0/auth/logout",
-                                 "/api/v1.0.0/auth/refresh").permitAll()
+                                 "/api/v1.0.0/auth/refresh",
+                                 "/api/v1.0.0/machine/register").permitAll()
                 // Actuator health — для Kubernetes probes
                 .requestMatchers("/actuator/health").permitAll()
                 // WebSocket handshake — auth через отдельный interceptor

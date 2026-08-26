@@ -43,6 +43,7 @@ public class JwtTokenProvider {
     public static final String SUBJECT_TYPE_USER = "user";
     /** Субъект — автомат / СКАДА (machine-JWT). */
     public static final String SUBJECT_TYPE_MACHINE = "machine";
+    public static final String MACHINE_UNIT_ID_CLAIM = "unitId";
 
     private final JwtProperties jwtProperties;
 
@@ -94,13 +95,12 @@ public class JwtTokenProvider {
      *   <li>{@code sub} — PrintSrv instance id автомата (напр. {@code "hassia1"});</li>
      *   <li>{@code subject_type} = {@value #SUBJECT_TYPE_MACHINE};</li>
      *   <li>{@code role} = {@code "MACHINE"} (authorities: {@code ROLE_MACHINE});</li>
-     *   <li>{@code jti} — уникальный идентификатор токена, регистрируется в таблице
-     *       {@code machine_tokens} для последующего отзыва.</li>
+    *   <li>{@code jti} — уникальный идентификатор токена;</li>
      * </ul>
      *
      * @param printsrvInstanceId PrintSrv instance id автомата (subject токена)
      * @param expirationDays     срок жизни токена в днях
-     * @return токен вместе с {@code jti} и временем истечения (для регистрации в БД)
+    * @return токен вместе с {@code jti} и временем истечения
      */
     public @NonNull MachineToken generateMachineToken(@NonNull String printsrvInstanceId, long expirationDays) {
         Instant now = Instant.now();
@@ -110,6 +110,29 @@ public class JwtTokenProvider {
         String token = Jwts.builder()
                 .subject(printsrvInstanceId)
                 .claim("role", "MACHINE")
+                .claim("typ", SUBJECT_TYPE_MACHINE)
+                .claim(SUBJECT_TYPE_CLAIM, SUBJECT_TYPE_MACHINE)
+                .id(jti)
+                .issuer("scada-mobile")
+                .audience().add("scada-mobile-api").and()
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(expiry))
+                .signWith(getAccessKey(), SignatureAlgorithm.HS256)
+                .compact();
+
+        return new MachineToken(token, jti, expiry);
+    }
+
+    public @NonNull MachineToken generateAutoProvisionedMachineToken(@NonNull String printsrvInstanceId, long unitId) {
+        Instant now = Instant.now();
+        Instant expiry = Instant.parse("2030-12-31T23:59:59Z");
+        String jti = UUID.randomUUID().toString();
+
+        String token = Jwts.builder()
+                .subject(printsrvInstanceId)
+                .claim(MACHINE_UNIT_ID_CLAIM, unitId)
+                .claim("role", "MACHINE")
+                .claim("typ", SUBJECT_TYPE_MACHINE)
                 .claim(SUBJECT_TYPE_CLAIM, SUBJECT_TYPE_MACHINE)
                 .id(jti)
                 .issuer("scada-mobile")

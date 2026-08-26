@@ -42,7 +42,8 @@ public record NotificationMessageDTO(
         @Nullable String creatorId,
         @Nullable String creatorName,
         boolean active,
-        @Nullable String timestamp
+        @Nullable String timestamp,
+        @Nullable String sourceMachine
 ) {
     /**
      * Создаёт сообщение об активном (созданном) уведомлении.
@@ -55,7 +56,7 @@ public record NotificationMessageDTO(
             String creatorName,
             String timestamp
     ) {
-        return new NotificationMessageDTO("NOTIFICATION", unitId, unitName, creatorId, creatorName, true, timestamp);
+        return new NotificationMessageDTO("NOTIFICATION", unitId, unitName, creatorId, creatorName, true, timestamp, unitId);
     }
 
     /**
@@ -69,6 +70,6 @@ public record NotificationMessageDTO(
             String creatorName,
             String timestamp
     ) {
-        return new NotificationMessageDTO("NOTIFICATION", unitId, unitName, creatorId, creatorName, false, timestamp);
+        return new NotificationMessageDTO("NOTIFICATION", unitId, unitName, creatorId, creatorName, false, timestamp, unitId);
     }
 }

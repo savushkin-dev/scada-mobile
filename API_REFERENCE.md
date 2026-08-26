@@ -112,13 +112,11 @@ HTTP ответы: `200`, `401`, `403`, `404`, `409`.
 HTTP ответы: `200`, `401`, `403`, `404`.
 
 ### Machine-токены (СКАДА)
-Управление долгоживущими JWT для автоматов — админ-эндпоинты `AdminMachineTokenController` ([backend/src/main/java/dev/savushkin/scada/mobile/backend/api/controller/admin/AdminMachineTokenController.java](backend/src/main/java/dev/savushkin/scada/mobile/backend/api/controller/admin/AdminMachineTokenController.java)), роль `ADMIN`:
+Auto-provisioning долгоживущего JWT для автомата выполняется по `printSrvId`:
 
 | Эндпоинт | Назначение |
 | --- | --- |
-| `POST /api/v1.0.0/admin/machine-tokens` | Выпуск токена: тело `{ "unitId": 1, "ttlDays": 365 }`; ответ содержит сам токен (возвращается один раз) |
-| `GET /api/v1.0.0/admin/machine-tokens` | Реестр выданных токенов (метаданные, без значений) |
-| `DELETE /api/v1.0.0/admin/machine-tokens/{jti}` | Отзыв токена — дальнейшие запросы с ним получают `401` |
+| `POST /api/v1.0.0/machine/register` | Регистрация по телу `{ "printSrvId": "hassia1" }`; для неизвестного или неактивного автомата `404` |
 
 Формат machine-JWT и протокол для СКАДА: [SCADA_MACHINE_API.md](SCADA_MACHINE_API.md).
 

@@ -213,7 +213,8 @@ public class LiveWsHandler extends TextWebSocketHandler {
      * иначе его собственная сессия не узнает о смене состояния и не обновит
      * кнопку, список уведомлений и иконку.
      * <p>
-     * Machine-сессии (СКАДА) получают уведомления только собственного аппарата.
+    * Machine-сессии (СКАДА) получают уведомления всех аппаратов и фильтруют их
+    * на своей стороне.
      * <p>
      * Используется {@code StatusBroadcaster} для немедленной рассылки при toggle-событии.
      *
@@ -228,11 +229,9 @@ public class LiveWsHandler extends TextWebSocketHandler {
                 allSessions.remove(session);
                 continue;
             }
-            if (isMachineSession(session)) {
-                if (!notification.unitId().equals(machineUnitId(session))) {
-                    continue;
-                }
-            } else if (!isCreator(session, notification) && !isNotificationAllowed(session, notification.unitId())) {
+            if (!isMachineSession(session)
+                    && !isCreator(session, notification)
+                    && !isNotificationAllowed(session, notification.unitId())) {
                 continue;
             }
             try {
@@ -369,17 +368,14 @@ public class LiveWsHandler extends TextWebSocketHandler {
     /**
      * Отправляет снимок активных производственных уведомлений, видимых новому клиенту:
      * по подпискам аппаратов (настройки Android-звонка) плюс созданные им самим.
-     * Machine-сессии (СКАДА) получают снимок только по собственному аппарату.
+    * Machine-сессии (СКАДА) получают полный снимок и фильтруют его на своей стороне.
      * Вызывается сразу после {@code ALERT_SNAPSHOT} при установке соединения.
      */
     private void sendNotificationSnapshot(WebSocketSession session) {
         try {
             List<NotificationMessageDTO> filtered;
             if (isMachineSession(session)) {
-                String machineUnit = machineUnitId(session);
-                filtered = notificationStore.getAll().stream()
-                        .filter(n -> n.unitId().equals(machineUnit))
-                        .toList();
+                filtered = notificationStore.getAll();
             } else {
                 Set<String> allowedUnitIds = resolveAllowedNotificationUnits(session);
                 filtered = notificationStore.getAll().stream()

@@ -1,6 +1,6 @@
 package dev.savushkin.scada.mobile.backend.config.jwt;
 
-import dev.savushkin.scada.mobile.backend.services.MachineTokenService;
+import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UnitJpaRepository;
 import io.jsonwebtoken.Claims;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -28,7 +28,7 @@ import java.util.Map;
  *       кладутся {@value #ATTR_USER_ID} (Long) и {@value #ATTR_ROLE};</li>
  *   <li>{@code "machine"} — автомат / СКАДА; кладутся {@value #ATTR_SUBJECT_TYPE}
  *       и {@value #ATTR_MACHINE_UNIT} (PrintSrv instance id из sub). Токен дополнительно
- *       проверяется в реестре {@code machine_tokens} (не отозван, не истёк).</li>
+ *       проверяется по актуальной записи автомата в {@code units}.</li>
  * </ul>
  * <p>
  * Если токен отсутствует или невалиден — handshake ОТКЛОНЯЕТСЯ с 401.
@@ -48,12 +48,12 @@ public class WebSocketJwtInterceptor implements HandshakeInterceptor {
     private static final String QUERY_PARAM = "token";
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final MachineTokenService machineTokenService;
+    private final UnitJpaRepository unitRepository;
 
     public WebSocketJwtInterceptor(JwtTokenProvider jwtTokenProvider,
-                                   MachineTokenService machineTokenService) {
+                                   UnitJpaRepository unitRepository) {
         this.jwtTokenProvider = jwtTokenProvider;
-        this.machineTokenService = machineTokenService;
+        this.unitRepository = unitRepository;
     }
 
     @Override
@@ -101,7 +101,7 @@ public class WebSocketJwtInterceptor implements HandshakeInterceptor {
 
     /**
      * Аутентификация автомата (СКАДА): проверяет, что machine-токен
-     * зарегистрирован в {@code machine_tokens}, не отозван и не истёк.
+    * существует и активен в {@code units}, а claim {@code unitId} согласован с ним.
      */
     private boolean acceptMachine(ServerHttpRequest request,
                                   ServerHttpResponse response,
@@ -109,8 +109,11 @@ public class WebSocketJwtInterceptor implements HandshakeInterceptor {
                                   Claims claims) {
         String jti = claims.getId();
         String machineUnit = claims.getSubject();
-        if (jti == null || machineUnit == null || machineUnit.isBlank()
-                || !machineTokenService.isTokenActive(jti)) {
+        Long unitId = claims.get(JwtTokenProvider.MACHINE_UNIT_ID_CLAIM, Long.class);
+        if (jti == null || machineUnit == null || machineUnit.isBlank() || unitId == null
+            || unitRepository.findByPrintsrvInstanceId(machineUnit)
+            .filter(unit -> unit.isActive() && unit.getId().equals(unitId))
+            .isEmpty()) {
             log.warn("WS handshake rejected: machine token revoked/unknown, jti='{}', URI='{}'",
                     jti, request.getURI());
             response.setStatusCode(HttpStatusCode.valueOf(401));
