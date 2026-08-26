@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getUnitErrorGroups,
   getUnitStatusLevel,
@@ -43,6 +43,7 @@ interface Props {
   /** Активные производственные уведомления (из AppContext). */
   notifications?: Map<string, NotificationData>;
   onClick: () => void;
+  autoFocus?: boolean;
 }
 
 /** Доля ширины карточки слева, из которой должен начинаться свайп. */
@@ -68,7 +69,7 @@ const BELL_WHITE_FILTER =
 const BELL_AMBER_FILTER =
   'brightness(0) saturate(100%) invert(59%) sepia(97%) saturate(1214%) hue-rotate(359deg) brightness(101%) contrast(96%)';
 
-export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
+export function UnitCard({ unit, alerts, notifications, onClick, autoFocus = false }: Props) {
   const { userId } = useAuth();
   const { isAssignedUnit } = useAccessControl();
   const statusLevel = getUnitStatusLevel(unit, alerts);
@@ -87,14 +88,18 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
 
   // ── Swipe state ────────────────────────────────────────────────────────
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
+  const [isFocused, setIsFocused] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const thresholdPx = useRef(0);
   const isTouching = useRef(false);
   const hapticFired = useRef(false);
   // Защита от «сквозного» клика после свайпа (click приходит после touchend)
   const justSwiped = useRef(false);
-  const keyboardEnterStartedAt = useRef<number | null>(null);
+  const keyboardSwipeFrame = useRef<number | null>(null);
+  const keyboardSwipeActive = useRef(false);
+  const swipeOffsetRef = useRef(0);
 
   // ── Confirmation overlay ───────────────────────────────────────────────
   const [overlayOpen, setOverlayOpen] = useState(false);
@@ -154,6 +159,65 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
     setSwipeOffset(0);
   }, []);
 
+  const stopKeyboardSwipe = useCallback((commit: boolean) => {
+    keyboardSwipeActive.current = false;
+    if (keyboardSwipeFrame.current != null) {
+      cancelAnimationFrame(keyboardSwipeFrame.current);
+      keyboardSwipeFrame.current = null;
+    }
+    isTouching.current = false;
+    const shouldCommit = commit && swipeOffsetRef.current >= thresholdPx.current;
+    if (shouldCommit) setOverlayOpen(true);
+    swipeOffsetRef.current = 0;
+    setSwipeOffset(0);
+  }, []);
+
+  const handleKeyboardSwipe = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== 'ArrowRight' || !isAssigned || overlayOpen || event.repeat) return;
+      event.preventDefault();
+      const container = containerRef.current;
+      if (!container) return;
+      thresholdPx.current = container.offsetWidth * SWIPE_COMMIT_RATIO;
+      keyboardSwipeActive.current = true;
+      isTouching.current = true;
+      hapticFired.current = false;
+      const startedAt = performance.now();
+
+      const animate = (now: number) => {
+        if (!keyboardSwipeActive.current) return;
+        const nextOffset = Math.min(thresholdPx.current, (now - startedAt) * SWIPE_RESISTANCE);
+        swipeOffsetRef.current = nextOffset;
+        setSwipeOffset(nextOffset);
+        if (nextOffset >= thresholdPx.current && !hapticFired.current) {
+          hapticFired.current = true;
+          navigator.vibrate?.(HAPTIC_MS);
+        }
+        keyboardSwipeFrame.current = requestAnimationFrame(animate);
+      };
+      keyboardSwipeFrame.current = requestAnimationFrame(animate);
+    },
+    [isAssigned, overlayOpen]
+  );
+
+  const handleKeyboardSwipeEnd = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key !== 'ArrowRight') return;
+      event.preventDefault();
+      stopKeyboardSwipe(true);
+    },
+    [stopKeyboardSwipe]
+  );
+
+  useEffect(() => () => stopKeyboardSwipe(false), [stopKeyboardSwipe]);
+
+  useEffect(() => {
+    if (autoFocus && !isOffline) {
+      cardRef.current?.focus();
+      setIsFocused(true);
+    }
+  }, [autoFocus, isOffline]);
+
   const handleCardClick = useCallback(() => {
     // Тап сразу после свайпа не должен открывать детали автомата
     if (justSwiped.current) {
@@ -162,33 +226,6 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
     }
     onClick();
   }, [onClick]);
-
-  const handleCardKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key !== 'Enter' || !isAssigned || overlayOpen || event.repeat) return;
-      event.preventDefault();
-      keyboardEnterStartedAt.current = performance.now();
-    },
-    [isAssigned, overlayOpen]
-  );
-
-  const handleCardKeyUp = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key !== 'Enter') return;
-      event.preventDefault();
-      if (!isAssigned || overlayOpen) return;
-      const heldFor = keyboardEnterStartedAt.current
-        ? performance.now() - keyboardEnterStartedAt.current
-        : 0;
-      keyboardEnterStartedAt.current = null;
-      if (heldFor >= 450) {
-        setOverlayOpen(true);
-      } else {
-        onClick();
-      }
-    },
-    [isAssigned, onClick, overlayOpen]
-  );
 
   const handleConfirm = useCallback(async () => {
     setOverlayOpen(false);
@@ -269,13 +306,20 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
 
         {/* Карточка (сдвигается вправо при свайпе) */}
         <div
-          className={`card p-4 md:h-full ${statusClass}${isOffline ? ' card-static' : ''}`}
+          ref={cardRef}
           {...interactiveProps}
+          className={`card p-4 md:h-full ${statusClass}${isOffline ? ' card-static' : ''}${isFocused ? ' ring-4 ring-[#4285f4] ring-offset-2' : ''}`}
           tabIndex={isOffline ? -1 : 0}
-          onKeyDown={handleCardKeyDown}
-          onKeyUp={handleCardKeyUp}
+          autoFocus={autoFocus && !isOffline}
+          onFocus={() => setIsFocused(true)}
           onBlur={() => {
-            keyboardEnterStartedAt.current = null;
+            setIsFocused(false);
+            stopKeyboardSwipe(false);
+          }}
+          onKeyDown={handleKeyboardSwipe}
+          onKeyUp={handleKeyboardSwipeEnd}
+          onKeyPress={(event) => {
+            if (event.key === 'ArrowRight') event.preventDefault();
           }}
           style={{
             transform: `translateX(${swipeOffset}px)`,

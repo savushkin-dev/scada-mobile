@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { DOMAIN_DEFAULTS, PAGE_FADE_SECTION_STYLE, UI_BEHAVIOR, UI_COPY } from '../config';
 import { fetchUnitsTopology, type TopologyFetchResult } from '../api/workshops';
@@ -50,6 +50,26 @@ export function WorkshopPage() {
   usePageHeader(workshopName, UI_COPY.workshopSubtitle);
 
   const units = unitsByWorkshop[workshopId] ?? [];
+  const firstFocusableUnitIndex = units.findIndex(
+    (unit) => getUnitStatusLevel(unit, state.alerts) !== 'offline'
+  );
+  const listRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list) return;
+    const handleListKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab' || event.shiftKey) return;
+      const activeElement = document.activeElement;
+      if (activeElement !== document.body && activeElement !== list) return;
+      const firstCard = list.querySelector<HTMLElement>('[role="button"][tabindex="0"]');
+      if (!firstCard) return;
+      event.preventDefault();
+      firstCard.focus();
+    };
+    window.addEventListener('keydown', handleListKeyDown);
+    return () => window.removeEventListener('keydown', handleListKeyDown);
+  }, [units.length]);
 
   // Запрашиваем topology аппаратов при каждом открытии цеха и при смене цеха,
   // а также ревалидируем conditional GET при любом изменении топологии по WS
@@ -80,7 +100,11 @@ export function WorkshopPage() {
 
   return (
     <section data-scroll style={PAGE_FADE_SECTION_STYLE}>
-      <main className="px-3 space-y-3 pb-6 sm:px-6 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 lg:grid-cols-3 lg:px-8">
+      <main
+        ref={listRef}
+        tabIndex={-1}
+        className="px-3 space-y-3 pb-6 sm:px-6 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 lg:grid-cols-3 lg:px-8"
+      >
         {isErrorState ? (
           <p className="text-center text-[#74777F] py-10 text-[0.88rem] col-span-full">
             {getErrorBodyMessage(pageError)}
@@ -97,12 +121,13 @@ export function WorkshopPage() {
               <UnitCardSkeleton count={Math.max(units.length, UI_BEHAVIOR.workshopSkeletonCount)} />
             }
           >
-            {units.map((u) => (
+            {units.map((u, index) => (
               <UnitCard
                 key={u.id}
                 unit={u}
                 alerts={state.alerts}
                 notifications={state.notifications}
+                autoFocus={index === firstFocusableUnitIndex}
                 onClick={() => {
                   const targetTab =
                     getUnitStatusLevel(u, state.alerts) === 'critical'
