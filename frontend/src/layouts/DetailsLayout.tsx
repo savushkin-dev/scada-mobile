@@ -272,6 +272,26 @@ export function DetailsLayout() {
 
   const canUseLastBatch = canUseUnitAction('last-batch', unitId || null);
 
+  useEffect(() => {
+    const detailTabs: TabId[] = ['tab-batch', 'tab-devices', 'tab-queue', 'tab-logs'];
+    const handleTabShortcut = (event: KeyboardEvent) => {
+      if (
+        event.target instanceof HTMLElement &&
+        (event.target.matches('input, textarea, select, [contenteditable="true"]') ||
+          event.target.closest('[role="dialog"]'))
+      ) {
+        return;
+      }
+      const tabIndex = Number(event.key) - 1;
+      if (tabIndex < 0 || tabIndex >= detailTabs.length) return;
+      const segment = TAB_ROUTE_SEGMENT[detailTabs[tabIndex]];
+      navigate(segment, { replace: true, state: location.state });
+    };
+
+    window.addEventListener('keydown', handleTabShortcut);
+    return () => window.removeEventListener('keydown', handleTabShortcut);
+  }, [location.state, navigate]);
+
   // ── Context для вложенных табов ───────────────────────────────────────
   const unitSignal = state.signalStates.unit;
   const unitError = state.headerErrors.unit?.error ?? null;

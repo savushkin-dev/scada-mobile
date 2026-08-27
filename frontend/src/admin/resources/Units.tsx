@@ -33,7 +33,10 @@ interface Unit {
 export const UnitList = () => {
   const { navigateToEdit, toggleActive, deleteRecord } = useRowActions();
   const { data } = useListContext<Unit>();
-  const records = data ?? [];
+  const records = [...(data ?? [])].sort((left, right) => {
+    if (left.active !== right.active) return left.active ? -1 : 1;
+    return left.name.localeCompare(right.name, 'ru', { sensitivity: 'base' });
+  });
 
   return (
     <AdminListContainer title="Автоматы" records={records} filterFields={UNIT_FILTER_FIELDS}>

@@ -98,61 +98,63 @@ export function PageHeader({ title, subtitle }: PageHeaderProps) {
           <h1 className={titleClassName}>{title}</h1>
         </div>
       </div>
-      <div className="ml-auto flex items-center gap-3">
-        <HeaderErrorIndicator />
-        <button
-          type="button"
-          onClick={handleNotificationClick}
-          aria-label={UI_COPY.notificationButtonAriaLabel}
-          aria-pressed={isNotificationsRoute}
-          className={
-            'relative flex h-10 w-10 items-center justify-center rounded-full backdrop-blur-sm transition-all duration-200 ease-in-out active:scale-[0.98] ' +
-            (isNotificationsRoute
-              ? 'border border-[#2b2f36] bg-[#2b2f36] text-white shadow-[0_0_10px_rgba(17,24,39,0.18)]'
-              : 'border-0 bg-transparent text-[#1A1C1E] shadow-none')
-          }
-        >
-          <img
-            src="/assets/bell.svg"
-            alt=""
-            aria-hidden="true"
+      {isAuthenticated && (
+        <div className="ml-auto flex items-center gap-3">
+          <HeaderErrorIndicator />
+          <button
+            type="button"
+            onClick={handleNotificationClick}
+            aria-label={UI_COPY.notificationButtonAriaLabel}
+            aria-pressed={isNotificationsRoute}
             className={
-              'h-5 w-5 transition-all duration-200 ease-in-out ' +
-              (isNotificationsRoute ? 'invert' : 'invert-0')
+              'relative flex h-10 w-10 items-center justify-center rounded-full backdrop-blur-sm transition-all duration-200 ease-in-out active:scale-[0.98] ' +
+              (isNotificationsRoute
+                ? 'border border-[#2b2f36] bg-[#2b2f36] text-white shadow-[0_0_10px_rgba(17,24,39,0.18)]'
+                : 'border-0 bg-transparent text-[#1A1C1E] shadow-none')
             }
-          />
-          {activeNotificationCount > 0 && (
-            <span
-              className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#F59E0B] px-1 text-[9px] font-bold text-white shadow-sm"
+          >
+            <img
+              src="/assets/bell.svg"
+              alt=""
               aria-hidden="true"
-            >
-              {activeNotificationCount > 99 ? '99+' : activeNotificationCount}
-            </span>
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={handleProfileClick}
-          aria-label={UI_COPY.profileButtonAriaLabel}
-          aria-pressed={isProfileRoute}
-          className={
-            'flex h-10 w-10 items-center justify-center rounded-full backdrop-blur-sm transition-all duration-200 ease-in-out active:scale-[0.98] ' +
-            (isProfileRoute
-              ? 'border border-[#2b2f36] bg-[#2b2f36] text-white shadow-[0_0_10px_rgba(17,24,39,0.18)]'
-              : 'border-0 bg-transparent text-[#1A1C1E] shadow-none')
-          }
-        >
-          <img
-            src="/assets/user-tie.svg"
-            alt=""
-            aria-hidden="true"
+              className={
+                'h-5 w-5 transition-all duration-200 ease-in-out ' +
+                (isNotificationsRoute ? 'invert' : 'invert-0')
+              }
+            />
+            {activeNotificationCount > 0 && (
+              <span
+                className="absolute -top-0.5 -right-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#F59E0B] px-1 text-[9px] font-bold text-white shadow-sm"
+                aria-hidden="true"
+              >
+                {activeNotificationCount > 99 ? '99+' : activeNotificationCount}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={handleProfileClick}
+            aria-label={UI_COPY.profileButtonAriaLabel}
+            aria-pressed={isProfileRoute}
             className={
-              'h-5 w-5 transition-all duration-200 ease-in-out ' +
-              (isProfileRoute ? 'invert' : 'invert-0')
+              'flex h-10 w-10 items-center justify-center rounded-full backdrop-blur-sm transition-all duration-200 ease-in-out active:scale-[0.98] ' +
+              (isProfileRoute
+                ? 'border border-[#2b2f36] bg-[#2b2f36] text-white shadow-[0_0_10px_rgba(17,24,39,0.18)]'
+                : 'border-0 bg-transparent text-[#1A1C1E] shadow-none')
             }
-          />
-        </button>
-      </div>
+          >
+            <img
+              src="/assets/user-tie.svg"
+              alt=""
+              aria-hidden="true"
+              className={
+                'h-5 w-5 transition-all duration-200 ease-in-out ' +
+                (isProfileRoute ? 'invert' : 'invert-0')
+              }
+            />
+          </button>
+        </div>
+      )}
     </header>
   );
 }

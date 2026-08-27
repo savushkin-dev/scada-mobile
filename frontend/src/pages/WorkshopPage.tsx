@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { lazy, Suspense, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { DOMAIN_DEFAULTS, PAGE_FADE_SECTION_STYLE, UI_BEHAVIOR, UI_COPY } from '../config';
 import { fetchUnitsTopology, type TopologyFetchResult } from '../api/workshops';
@@ -50,6 +50,36 @@ export function WorkshopPage() {
   usePageHeader(workshopName, UI_COPY.workshopSubtitle);
 
   const units = unitsByWorkshop[workshopId] ?? [];
+  const listRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const handleListKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return;
+      const list = listRef.current;
+      if (!list) return;
+      const cards = [...list.querySelectorAll<HTMLElement>('[role="button"][tabindex="0"]')];
+      if (cards.length === 0) return;
+      const currentIndex = cards.indexOf(document.activeElement as HTMLElement);
+      const isFromOutsideList = currentIndex === -1;
+      const nextIndex = event.shiftKey
+        ? isFromOutsideList
+          ? cards.length - 1
+          : Math.max(0, currentIndex - 1)
+        : isFromOutsideList
+          ? 0
+          : Math.min(cards.length - 1, currentIndex + 1);
+      if (!isFromOutsideList && nextIndex === currentIndex) return;
+      event.preventDefault();
+      cards[nextIndex].focus({ preventScroll: true });
+      const cardRect = cards[nextIndex].getBoundingClientRect();
+      const listRect = list.getBoundingClientRect();
+      if (cardRect.top < listRect.top || cardRect.bottom > listRect.bottom) {
+        cards[nextIndex].scrollIntoView({ block: 'nearest', behavior: 'auto' });
+      }
+    };
+    window.addEventListener('keydown', handleListKeyDown);
+    return () => window.removeEventListener('keydown', handleListKeyDown);
+  }, []);
 
   // Запрашиваем topology аппаратов при каждом открытии цеха и при смене цеха,
   // а также ревалидируем conditional GET при любом изменении топологии по WS
@@ -80,7 +110,11 @@ export function WorkshopPage() {
 
   return (
     <section data-scroll style={PAGE_FADE_SECTION_STYLE}>
-      <main className="px-3 space-y-3 pb-6 sm:px-6 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 lg:grid-cols-3 lg:px-8">
+      <main
+        ref={listRef}
+        tabIndex={-1}
+        className="px-3 space-y-3 pb-6 sm:px-6 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 lg:grid-cols-3 lg:px-8"
+      >
         {isErrorState ? (
           <p className="text-center text-[#74777F] py-10 text-[0.88rem] col-span-full">
             {getErrorBodyMessage(pageError)}
