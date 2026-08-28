@@ -166,6 +166,11 @@ function reducer(state: AppState, action: Action): AppState {
           creatorName: creatorName ?? null,
           eventType: action.msg.eventType ?? null,
           timestamp,
+          notificationId: action.msg.notificationId,
+          status: action.msg.status ?? (active ? 'PENDING' : 'CANCELLED'),
+          acceptedBy: action.msg.acceptedBy ?? null,
+          acceptedAt: action.msg.acceptedAt ?? null,
+          version: action.msg.version,
         });
       } else {
         next.delete(uid);
@@ -182,6 +187,11 @@ function reducer(state: AppState, action: Action): AppState {
             creatorName: msg.creatorName ?? null,
             eventType: msg.eventType ?? null,
             timestamp: msg.timestamp,
+            notificationId: msg.notificationId,
+            status: msg.status ?? (msg.active ? 'PENDING' : 'CANCELLED'),
+            acceptedBy: msg.acceptedBy ?? null,
+            acceptedAt: msg.acceptedAt ?? null,
+            version: msg.version,
           });
         }
       }

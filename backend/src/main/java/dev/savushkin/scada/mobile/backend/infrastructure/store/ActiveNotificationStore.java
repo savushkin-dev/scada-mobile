@@ -78,8 +78,13 @@ public class ActiveNotificationStore {
             return new Delta(List.of(incoming), List.of());
         }
 
-        // Уже активно — без изменений
-        return new Delta(List.of(), List.of());
+        if (existing.version() >= incoming.version()
+                && existing.status() == incoming.status()) {
+            return new Delta(List.of(), List.of());
+        }
+
+        store.put(unitId, incoming);
+        return new Delta(List.of(incoming), List.of());
     }
 
     /**

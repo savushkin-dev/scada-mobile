@@ -3,6 +3,8 @@ import { useAppContext } from '../context/AppContext';
 import { usePageHeader } from '../context/PageHeaderContext';
 import { NotificationCard } from '../components/NotificationCard';
 import { SkeletonBlock } from '../components/skeleton/SkeletonBlock';
+import { updateNotification, type NotificationAction } from '../api/notifications';
+import { useState } from 'react';
 
 const NOTIFICATIONS_COPY = Object.freeze({
   title: 'Уведомления',
@@ -44,6 +46,11 @@ function NotificationsSkeleton() {
  */
 export function NotificationsPage() {
   const { state } = useAppContext();
+  const [pendingAction, setPendingAction] = useState<{
+    id: number;
+    action: NotificationAction;
+  } | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   usePageHeader(NOTIFICATIONS_COPY.title, undefined, 'default');
 
@@ -54,10 +61,30 @@ export function NotificationsPage() {
 
   const isLoading = state.signalStates.live === 'reconnecting' && notifications.length === 0;
 
+  const handleAction = async (notificationId: number, action: NotificationAction) => {
+    setPendingAction({ id: notificationId, action });
+    setActionError(null);
+    try {
+      await updateNotification(notificationId, action);
+      if (action === 'accept') {
+        navigator.vibrate?.(50);
+      }
+    } catch {
+      setActionError('Не удалось изменить статус уведомления');
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
   return (
     <section data-scroll style={PAGE_FADE_SECTION_STYLE}>
       <main className="px-4 pb-6 pt-4 sm:px-6">
         <div className="mx-auto flex w-full max-w-[520px] flex-col gap-3">
+          {actionError && (
+            <p className="rounded-lg bg-red-50 p-3 text-sm font-medium text-red-700" role="alert">
+              {actionError}
+            </p>
+          )}
           {isLoading ? (
             <NotificationsSkeleton />
           ) : notifications.length === 0 ? (
@@ -67,7 +94,20 @@ export function NotificationsPage() {
               </p>
             </div>
           ) : (
-            notifications.map((n) => <NotificationCard key={n.unitId} notification={n} />)
+            notifications.map((n) => {
+              const currentAction =
+                pendingAction && pendingAction.id === n.notificationId
+                  ? pendingAction.action
+                  : null;
+              return (
+                <NotificationCard
+                  key={n.unitId}
+                  notification={n}
+                  onAction={handleAction}
+                  pendingAction={currentAction}
+                />
+              );
+            })
           )}
         </div>
       </main>

@@ -150,9 +150,12 @@ public class NotificationService {
     }
 
     private ToggleResult activate(String unitId, ProductionNotification notification, String actorId) {
-        notificationRepository.save(notification);
+        ProductionNotification persisted = notificationRepository.save(notification);
+        if (persisted == null) {
+            persisted = notification;
+        }
         eventPublisher.publishEvent(
-                new NotificationStateChangedEvent(unitId, notification,
+            new NotificationStateChangedEvent(unitId, persisted,
                         NotificationStateChangedEvent.EventType.ACTIVATED));
         log.info("Notification activated: unitId='{}' by '{}'", unitId, actorId);
         return new ToggleResult.Activated(unitId, notification.creatorId());
@@ -182,6 +185,48 @@ public class NotificationService {
      */
     public Set<String> getSubscribedUnitIds(long userId) {
         return userAssignmentRepository.getSubscribedUnitIds(userId);
+    }
+
+    public ProductionNotification acceptNotification(long notificationId, long userId) {
+        ProductionNotification notification = findNotification(notificationId);
+        if (!userAssignmentRepository.getSubscribedUnitIds(userId).contains(notification.unitId())) {
+            throw new NotificationAccessDeniedException(Long.toString(userId), notification.unitId());
+        }
+        return transition(notification, notification.accept(Long.toString(userId)),
+                NotificationStateChangedEvent.EventType.ACCEPTED);
+    }
+
+    public ProductionNotification completeNotification(long notificationId, long userId) {
+        ProductionNotification notification = findNotification(notificationId);
+        String actorId = Long.toString(userId);
+        if (!actorId.equals(notification.creatorId()) && !actorId.equals(notification.acceptedBy())) {
+            throw new NotificationAccessDeniedException(actorId, notification.unitId());
+        }
+        return transition(notification, notification.complete(actorId),
+                NotificationStateChangedEvent.EventType.COMPLETED);
+    }
+
+    public ProductionNotification cancelNotification(long notificationId, long userId) {
+        ProductionNotification notification = findNotification(notificationId);
+        String actorId = Long.toString(userId);
+        if (!actorId.equals(notification.creatorId())) {
+            throw new NotificationAccessDeniedException(actorId, notification.unitId());
+        }
+        return transition(notification, notification.cancel(actorId),
+                NotificationStateChangedEvent.EventType.CANCELLED);
+    }
+
+    private ProductionNotification findNotification(long notificationId) {
+        return notificationRepository.findByNotificationId(notificationId)
+                .orElseThrow(() -> new NotificationNotFoundException(notificationId));
+    }
+
+    private ProductionNotification transition(ProductionNotification current,
+                                               ProductionNotification next,
+                                               NotificationStateChangedEvent.EventType type) {
+        notificationRepository.save(next);
+        eventPublisher.publishEvent(new NotificationStateChangedEvent(next.unitId(), next, type));
+        return next;
     }
 
     // ─── Toggle result sealed hierarchy ────────────────────────────────
@@ -216,6 +261,12 @@ public class NotificationService {
         public NotificationAlreadyActiveByOtherException(String unitId, String existingCreatorId) {
             super("Уведомление на аппарате '%s' уже активно пользователем '%s'"
                     .formatted(unitId, existingCreatorId));
+        }
+    }
+
+    public static class NotificationNotFoundException extends RuntimeException {
+        public NotificationNotFoundException(long notificationId) {
+            super("Уведомление '%s' не найдено".formatted(notificationId));
         }
     }
 }

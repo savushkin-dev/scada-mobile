@@ -40,6 +40,14 @@ public class InMemoryNotificationStore implements NotificationRepository {
             new ConcurrentHashMap<>();
 
     @Override
+        public @NonNull Optional<ProductionNotification> findByNotificationId(long notificationId) {
+        return store.values().stream()
+            .filter(notification -> notification.notificationId() != null
+                && notification.notificationId() == notificationId)
+            .findFirst();
+        }
+
+        @Override
     public @NonNull Optional<ProductionNotification> findActiveByUnitId(@NonNull String unitId) {
         ProductionNotification notification = store.get(unitId);
         if (notification != null && notification.active()) {
@@ -56,8 +64,9 @@ public class InMemoryNotificationStore implements NotificationRepository {
     }
 
     @Override
-    public void save(@NonNull ProductionNotification notification) {
+    public @NonNull ProductionNotification save(@NonNull ProductionNotification notification) {
         store.put(notification.unitId(), notification);
+        return notification;
     }
 
     @Override

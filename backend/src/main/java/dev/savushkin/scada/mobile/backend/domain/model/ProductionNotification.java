@@ -33,13 +33,34 @@ import java.time.Instant;
  * @param deactivatedAt   Время деактивации ({@code null} пока активно).
  */
 public record ProductionNotification(
+    Long notificationId,
+        String unitId,
+        String creatorId,
+        NotificationCreatorType creatorType,
+    NotificationStatus status,
+        boolean active,
+        Instant activatedAt,
+    Instant deactivatedAt,
+    String acceptedBy,
+    Instant acceptedAt,
+    Instant completedAt,
+    Instant cancelledAt,
+    long version
+) {
+    public ProductionNotification(
         String unitId,
         String creatorId,
         NotificationCreatorType creatorType,
         boolean active,
         Instant activatedAt,
         Instant deactivatedAt
-) {
+    ) {
+    this(null, unitId, creatorId, creatorType,
+        active ? NotificationStatus.PENDING : NotificationStatus.COMPLETED,
+        active, activatedAt, deactivatedAt, null, null,
+        active ? null : deactivatedAt, active ? null : deactivatedAt, 0L);
+    }
+
     /**
      * Создаёт новое активное уведомление от работника.
      *
@@ -70,6 +91,49 @@ public record ProductionNotification(
      * @return Деактивированная копия с заполненным {@code deactivatedAt}.
      */
     public ProductionNotification deactivate() {
-        return new ProductionNotification(unitId, creatorId, creatorType, false, activatedAt, Instant.now());
+        return cancel(creatorId);
+    }
+
+    public ProductionNotification accept(String userId) {
+        requireStatus(NotificationStatus.PENDING, "принять");
+        Instant now = Instant.now();
+        return new ProductionNotification(notificationId, unitId, creatorId, creatorType,
+                NotificationStatus.IN_PROGRESS, true, activatedAt, deactivatedAt,
+                userId, now, completedAt, cancelledAt, version + 1);
+    }
+
+    public ProductionNotification complete(String actorId) {
+        requireStatus(NotificationStatus.IN_PROGRESS, "завершить");
+        if (!creatorId.equals(actorId) && !actorId.equals(acceptedBy)) {
+            throw new NotificationTransitionException("Завершить уведомление может только создатель или исполнитель");
+        }
+        Instant now = Instant.now();
+        return new ProductionNotification(notificationId, unitId, creatorId, creatorType,
+                NotificationStatus.COMPLETED, false, activatedAt, now,
+                acceptedBy, acceptedAt, now, cancelledAt, version + 1);
+    }
+
+    public ProductionNotification cancel(String actorId) {
+        requireStatus(NotificationStatus.PENDING, "отменить");
+        if (!creatorId.equals(actorId)) {
+            throw new NotificationTransitionException("Отменить уведомление может только создатель");
+        }
+        Instant now = Instant.now();
+        return new ProductionNotification(notificationId, unitId, creatorId, creatorType,
+                NotificationStatus.CANCELLED, false, activatedAt, now,
+                acceptedBy, acceptedAt, completedAt, now, version + 1);
+    }
+
+    private void requireStatus(NotificationStatus expected, String operation) {
+        if (status != expected) {
+            throw new NotificationTransitionException(
+                    "Нельзя %s уведомление в статусе %s".formatted(operation, status));
+        }
+    }
+
+    public static class NotificationTransitionException extends IllegalStateException {
+        public NotificationTransitionException(String message) {
+            super(message);
+        }
     }
 }

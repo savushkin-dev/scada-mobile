@@ -2,6 +2,7 @@ package dev.savushkin.scada.mobile.backend.infrastructure.integration.database.a
 
 import dev.savushkin.scada.mobile.backend.application.ports.NotificationRepository;
 import dev.savushkin.scada.mobile.backend.domain.model.ProductionNotification;
+import dev.savushkin.scada.mobile.backend.domain.model.NotificationStatus;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.ProductionNotificationEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.ProductionNotificationJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UnitJpaRepository;
@@ -43,6 +44,12 @@ public class ProductionNotificationJpaAdapter implements NotificationRepository 
 
     @Override
     @Transactional(readOnly = true)
+    public @NonNull Optional<ProductionNotification> findByNotificationId(long notificationId) {
+        return notificationRepository.findById(notificationId).flatMap(this::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public @NonNull Optional<ProductionNotification> findActiveByUnitId(@NonNull String unitId) {
         return unitRepository.findUnitIdByPrintsrvInstanceId(unitId)
                 .flatMap(notificationRepository::findByUnitId)
@@ -66,7 +73,8 @@ public class ProductionNotificationJpaAdapter implements NotificationRepository 
      */
     @Override
     @Transactional
-    public void save(@NonNull ProductionNotification notification) {
+    public @NonNull ProductionNotification save(@NonNull ProductionNotification notification) {
+        ProductionNotification[] saved = new ProductionNotification[1];
         unitRepository.findUnitIdByPrintsrvInstanceId(notification.unitId()).ifPresent(unitId -> {
             ProductionNotificationEntity entity = notificationRepository.findByUnitId(unitId)
                     .orElseGet(ProductionNotificationEntity::new);
@@ -76,8 +84,15 @@ public class ProductionNotificationJpaAdapter implements NotificationRepository 
             entity.setActive(notification.active());
             entity.setActivatedAt(toLocalDateTime(notification.activatedAt()));
             entity.setDeactivatedAt(toLocalDateTime(notification.deactivatedAt()));
-            notificationRepository.save(entity);
+            entity.setStatus(notification.status());
+            entity.setAcceptedBy(notification.acceptedBy());
+            entity.setAcceptedAt(toLocalDateTime(notification.acceptedAt()));
+            entity.setCompletedAt(toLocalDateTime(notification.completedAt()));
+            entity.setCancelledAt(toLocalDateTime(notification.cancelledAt()));
+            ProductionNotificationEntity persisted = notificationRepository.save(entity);
+            saved[0] = toDomain(persisted).orElse(notification);
         });
+        return saved[0] != null ? saved[0] : notification;
     }
 
     @Override
@@ -96,12 +111,20 @@ public class ProductionNotificationJpaAdapter implements NotificationRepository 
     private @NonNull Optional<ProductionNotification> toDomain(@NonNull ProductionNotificationEntity entity) {
         return unitRepository.findPrintsrvInstanceIdById(entity.getUnitId())
                 .map(printsrvInstanceId -> new ProductionNotification(
+                    entity.getId(),
                         printsrvInstanceId,
                         entity.getCreatorId(),
                         entity.getCreatorType(),
+                        entity.getStatus() != null ? entity.getStatus() :
+                            (entity.isActive() ? NotificationStatus.PENDING : NotificationStatus.COMPLETED),
                         entity.isActive(),
                         toInstant(entity.getActivatedAt()),
-                        toInstant(entity.getDeactivatedAt())
+                        toInstant(entity.getDeactivatedAt()),
+                        entity.getAcceptedBy(),
+                        toInstant(entity.getAcceptedAt()),
+                        toInstant(entity.getCompletedAt()),
+                        toInstant(entity.getCancelledAt()),
+                        entity.getVersion()
                 ));
     }
 

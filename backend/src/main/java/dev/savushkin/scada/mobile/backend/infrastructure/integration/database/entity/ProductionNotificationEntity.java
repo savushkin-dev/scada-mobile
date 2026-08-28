@@ -1,6 +1,7 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity;
 
 import dev.savushkin.scada.mobile.backend.domain.model.NotificationCreatorType;
+import dev.savushkin.scada.mobile.backend.domain.model.NotificationStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -43,4 +44,24 @@ public class ProductionNotificationEntity {
 
     @Column(name = "deactivated_at")
     private LocalDateTime deactivatedAt;
+
+    @Column(name = "status", nullable = false, length = 16)
+    @Enumerated(EnumType.STRING)
+    private NotificationStatus status;
+
+    @Column(name = "accepted_by")
+    private String acceptedBy;
+
+    @Column(name = "accepted_at")
+    private LocalDateTime acceptedAt;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    private long version;
 }

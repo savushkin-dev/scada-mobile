@@ -2,6 +2,7 @@ package dev.savushkin.scada.mobile.backend.api.controller;
 
 import dev.savushkin.scada.mobile.backend.api.dto.LastBatchStateDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.NotificationToggleResponseDTO;
+import dev.savushkin.scada.mobile.backend.api.dto.NotificationWorkflowResponseDTO;
 import dev.savushkin.scada.mobile.backend.config.jwt.JwtPrincipalUtil;
 import dev.savushkin.scada.mobile.backend.domain.model.ProductionNotification;
 import dev.savushkin.scada.mobile.backend.services.NotificationService;
@@ -155,6 +156,42 @@ public class NotificationController {
                 active.creatorId(),
                 activatedAt
         ));
+    }
+
+    @PostMapping("/notifications/{notificationId}/accept")
+    public ResponseEntity<NotificationWorkflowResponseDTO> acceptNotification(
+            @PathVariable long notificationId
+    ) {
+        Long userId = JwtPrincipalUtil.getCurrentUserId();
+        if (userId == null || JwtPrincipalUtil.isMachineSubject()) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(NotificationWorkflowResponseDTO.from(
+                notificationService.acceptNotification(notificationId, userId)));
+    }
+
+    @PostMapping("/notifications/{notificationId}/complete")
+    public ResponseEntity<NotificationWorkflowResponseDTO> completeNotification(
+            @PathVariable long notificationId
+    ) {
+        Long userId = JwtPrincipalUtil.getCurrentUserId();
+        if (userId == null || JwtPrincipalUtil.isMachineSubject()) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(NotificationWorkflowResponseDTO.from(
+                notificationService.completeNotification(notificationId, userId)));
+    }
+
+    @PostMapping("/notifications/{notificationId}/cancel")
+    public ResponseEntity<NotificationWorkflowResponseDTO> cancelNotification(
+            @PathVariable long notificationId
+    ) {
+        Long userId = JwtPrincipalUtil.getCurrentUserId();
+        if (userId == null || JwtPrincipalUtil.isMachineSubject()) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(NotificationWorkflowResponseDTO.from(
+                notificationService.cancelNotification(notificationId, userId)));
     }
 
     /**

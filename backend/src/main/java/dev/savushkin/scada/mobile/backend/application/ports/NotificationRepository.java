@@ -19,6 +19,8 @@ import java.util.Optional;
  */
 public interface NotificationRepository {
 
+    @NonNull Optional<ProductionNotification> findByNotificationId(long notificationId);
+
     /**
      * Ищет активное (не деактивированное) уведомление для данного аппарата.
      *
@@ -44,7 +46,7 @@ public interface NotificationRepository {
      *
      * @param notification Уведомление для сохранения (не {@code null}).
      */
-    void save(@NonNull ProductionNotification notification);
+    @NonNull ProductionNotification save(@NonNull ProductionNotification notification);
 
     /**
      * Деактивирует активное уведомление для аппарата (если есть).

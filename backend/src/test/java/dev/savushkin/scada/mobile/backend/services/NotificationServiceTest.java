@@ -154,6 +154,53 @@ class NotificationServiceTest {
         assertThat(service.getActiveNotification("unknown")).isEmpty();
     }
 
+    @Test
+    void pendingNotificationCanBeAcceptedByUser() {
+        ProductionNotification notification = ProductionNotification.activate(UNIT_ID, "42");
+
+        ProductionNotification accepted = notification.accept("77");
+
+        assertThat(accepted.status()).isEqualTo(dev.savushkin.scada.mobile.backend.domain.model.NotificationStatus.IN_PROGRESS);
+        assertThat(accepted.active()).isTrue();
+        assertThat(accepted.acceptedBy()).isEqualTo("77");
+        assertThat(accepted.acceptedAt()).isNotNull();
+        assertThat(accepted.version()).isEqualTo(1L);
+    }
+
+    @Test
+    void acceptedNotificationCanBeCompletedByCreatorOrAssignee() {
+        ProductionNotification accepted = ProductionNotification.activate(UNIT_ID, "42").accept("77");
+
+        ProductionNotification completed = accepted.complete("77");
+
+        assertThat(completed.status()).isEqualTo(dev.savushkin.scada.mobile.backend.domain.model.NotificationStatus.COMPLETED);
+        assertThat(completed.active()).isFalse();
+        assertThat(completed.completedAt()).isNotNull();
+    }
+
+    @Test
+    void pendingNotificationCanBeCancelledOnlyByCreator() {
+        ProductionNotification notification = ProductionNotification.activate(UNIT_ID, "42");
+
+        ProductionNotification cancelled = notification.cancel("42");
+
+        assertThat(cancelled.status()).isEqualTo(dev.savushkin.scada.mobile.backend.domain.model.NotificationStatus.CANCELLED);
+        assertThat(cancelled.active()).isFalse();
+        assertThat(cancelled.cancelledAt()).isNotNull();
+    }
+
+    @Test
+    void completedNotificationCannotBeCancelledOrCompletedAgain() {
+        ProductionNotification completed = ProductionNotification.activate(UNIT_ID, "42")
+                .accept("77")
+                .complete("77");
+
+        assertThatThrownBy(() -> completed.cancel("42"))
+                .isInstanceOf(ProductionNotification.NotificationTransitionException.class);
+        assertThatThrownBy(() -> completed.complete("42"))
+                .isInstanceOf(ProductionNotification.NotificationTransitionException.class);
+    }
+
     private ProductionNotification captureSaved() {
         ArgumentCaptor<ProductionNotification> captor = ArgumentCaptor.forClass(ProductionNotification.class);
         verify(notificationRepository).save(captor.capture());

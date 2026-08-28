@@ -3,6 +3,8 @@ package dev.savushkin.scada.mobile.backend.api.dto;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
+import dev.savushkin.scada.mobile.backend.domain.model.NotificationStatus;
+import dev.savushkin.scada.mobile.backend.domain.model.ProductionNotification;
 
 /**
  * WebSocket-сообщение типа {@code NOTIFICATION} — дельта изменения состояния
@@ -43,7 +45,12 @@ public record NotificationMessageDTO(
         @Nullable String creatorName,
         boolean active,
         @Nullable String timestamp,
-        @Nullable String sourceMachine
+        @Nullable String sourceMachine,
+        @Nullable Long notificationId,
+        @Nullable NotificationStatus status,
+        @Nullable String acceptedBy,
+        @Nullable String acceptedAt,
+        long version
 ) {
     /**
      * Создаёт сообщение об активном (созданном) уведомлении.
@@ -56,7 +63,8 @@ public record NotificationMessageDTO(
             String creatorName,
             String timestamp
     ) {
-        return new NotificationMessageDTO("NOTIFICATION", unitId, unitName, creatorId, creatorName, true, timestamp, unitId);
+        return new NotificationMessageDTO("NOTIFICATION", unitId, unitName, creatorId, creatorName,
+            true, timestamp, unitId, null, NotificationStatus.PENDING, null, null, 0L);
     }
 
     /**
@@ -70,6 +78,23 @@ public record NotificationMessageDTO(
             String creatorName,
             String timestamp
     ) {
-        return new NotificationMessageDTO("NOTIFICATION", unitId, unitName, creatorId, creatorName, false, timestamp, unitId);
+        return new NotificationMessageDTO("NOTIFICATION", unitId, unitName, creatorId, creatorName,
+            false, timestamp, unitId, null, NotificationStatus.CANCELLED, null, null, 0L);
     }
+
+        public static NotificationMessageDTO workflow(
+            String unitId,
+            String unitName,
+            String creatorId,
+            String creatorName,
+            ProductionNotification notification,
+            String timestamp
+        ) {
+        return new NotificationMessageDTO("NOTIFICATION", unitId, unitName, creatorId, creatorName,
+            notification.status() == NotificationStatus.PENDING
+                || notification.status() == NotificationStatus.IN_PROGRESS,
+            timestamp, unitId, notification.notificationId(), notification.status(),
+            notification.acceptedBy(), notification.acceptedAt() == null
+                ? null : notification.acceptedAt().toString(), notification.version());
+        }
 }

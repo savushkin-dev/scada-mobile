@@ -2,7 +2,9 @@ package dev.savushkin.scada.mobile.backend.exception;
 
 import dev.savushkin.scada.mobile.backend.api.dto.ErrorResponseDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.ReferenceDTO;
+import dev.savushkin.scada.mobile.backend.domain.model.ProductionNotification;
 import dev.savushkin.scada.mobile.backend.services.NotificationService.NotificationAccessDeniedException;
+import dev.savushkin.scada.mobile.backend.services.NotificationService.NotificationNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import org.jspecify.annotations.NonNull;
@@ -466,6 +468,22 @@ public class GlobalExceptionHandler {
         log.warn("Notification access denied: {}", e.getMessage());
         return buildErrorResponse(HttpStatus.FORBIDDEN, "Доступ запрещён: " + e.getMessage(), request);
     }
+
+        @ExceptionHandler(NotificationNotFoundException.class)
+        public ResponseEntity<ErrorResponseDTO> handleNotificationNotFound(
+                        @NonNull NotificationNotFoundException e,
+                        @NonNull WebRequest request
+        ) {
+                return buildErrorResponse(HttpStatus.NOT_FOUND, e.getMessage(), request);
+        }
+
+        @ExceptionHandler(ProductionNotification.NotificationTransitionException.class)
+        public ResponseEntity<ErrorResponseDTO> handleNotificationTransition(
+                    ProductionNotification.NotificationTransitionException e,
+                        @NonNull WebRequest request
+        ) {
+                return buildErrorResponse(HttpStatus.CONFLICT, e.getMessage(), request);
+        }
 
     /**
      * Обрабатывает все необработанные исключения (fallback handler).

@@ -96,6 +96,11 @@ export interface NotificationData {
   timestamp: string | null;
   /** Тип события уведомления (например, "Последняя партия"). */
   eventType: string | null;
+  notificationId?: number | null;
+  status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | null;
+  acceptedBy?: string | null;
+  acceptedAt?: string | null;
+  version?: number;
 }
 
 // ── Merged view types (topology + status, используются компонентами) ──
