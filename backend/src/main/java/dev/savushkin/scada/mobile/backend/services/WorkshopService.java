@@ -295,10 +295,7 @@ public class WorkshopService {
     private CameraCounters resolveCameraCounters(String instanceId) {
         DeviceComposition composition = deviceCompositionService.getComposition(instanceId);
 
-        List<String> allCameras = new ArrayList<>();
-        allCameras.addAll(composition.aggregationCams());
-        allCameras.addAll(composition.aggregationBoxCams());
-        allCameras.addAll(composition.checkerCams());
+        List<CameraReference> allCameras = cameraReferences(composition);
 
         CameraCounters fallbackZero = new CameraCounters("0", "0");
 
@@ -307,33 +304,33 @@ public class WorkshopService {
         }
 
         // Фаза 1: ищем первую камеру с ненулевым cameraRead (Total)
-        for (String camName : allCameras) {
-            if (ScadaKeyMapper.isEanChecker(camName)) {
+        for (CameraReference camera : allCameras) {
+            if (ScadaKeyMapper.isEanChecker(camera.name())) {
                 continue;
             }
-            CameraCounters counters = readCameraCounters(instanceId, camName);
+            CameraCounters counters = readCameraCounters(instanceId, camera);
             if (counters != null && isNonZero(counters.read())) {
                 return counters;
             }
         }
 
         // Фаза 2: все read = 0 — ищем первую камеру с ненулевым cameraUnread (Failed)
-        for (String camName : allCameras) {
-            if (ScadaKeyMapper.isEanChecker(camName)) {
+        for (CameraReference camera : allCameras) {
+            if (ScadaKeyMapper.isEanChecker(camera.name())) {
                 continue;
             }
-            CameraCounters counters = readCameraCounters(instanceId, camName);
+            CameraCounters counters = readCameraCounters(instanceId, camera);
             if (counters != null && isNonZero(counters.unread())) {
                 return counters;
             }
         }
 
         // Фаза 3: fallback — все значения нулевые, берём первую доступную камеру или ("0", "0")
-        for (String camName : allCameras) {
-            if (ScadaKeyMapper.isEanChecker(camName)) {
+        for (CameraReference camera : allCameras) {
+            if (ScadaKeyMapper.isEanChecker(camera.name())) {
                 continue;
             }
-            CameraCounters counters = readCameraCounters(instanceId, camName);
+            CameraCounters counters = readCameraCounters(instanceId, camera);
             if (counters != null) {
                 return counters;
             }
@@ -343,19 +340,47 @@ public class WorkshopService {
     }
 
     /**
-     * Читает счётчики (Total/Failed) из снапшота конкретной камеры.
+    * Читает resolved-счётчики камеры: scada CounterGeneral/CounterMissing
+    * с независимым fallback на device Total/Failed.
      * Возвращает null, если снапшот недоступен.
      */
-    private @Nullable CameraCounters readCameraCounters(String instanceId, String camName) {
-        DeviceSnapshot snapshot = findSnapshotByDeviceName(instanceId, camName);
+    private @Nullable CameraCounters readCameraCounters(String instanceId, CameraReference camera) {
+        PrintSrvInstance inst = topologyRepo.findByInstanceId(instanceId).orElse(null);
+        if (inst == null) {
+            return null;
+        }
+        DeviceSnapshot snapshot = findSnapshotByDeviceName(instanceId, camera.name());
         if (snapshot == null || snapshot.units().isEmpty()) {
             return null;
         }
         UnitSnapshot unit = snapshot.units().values().iterator().next();
         Map<String, String> raw = unit.properties().getRawProperties();
-        String read = nullIfBlank(raw.get("Total"));
-        String unread = nullIfBlank(raw.get("Failed"));
-        return new CameraCounters(read, unread);
+        DeviceSnapshot scadaSnapshot = findSnapshotByDeviceName(instanceId, inst.scadaDeviceName());
+        Map<String, String> scadaRaw = scadaSnapshot == null || scadaSnapshot.units().isEmpty()
+            ? Map.of()
+            : scadaSnapshot.units().values().iterator().next().properties().getRawProperties();
+        RuntimeTagMapper.CounterResolution resolved = RuntimeTagMapper.resolveCounters(
+                raw, scadaRaw, camera.scadaPrefix());
+        log.debug("[{}] Camera {} counters: read={} ({}), unread={} ({})",
+                instanceId, camera.name(), resolved.read(), resolved.readSource(),
+                resolved.unread(), resolved.unreadSource());
+        return new CameraCounters(resolved.read(), resolved.unread());
+    }
+
+    private static List<CameraReference> cameraReferences(DeviceComposition composition) {
+        List<CameraReference> cameras = new ArrayList<>();
+        for (int i = 0; i < composition.aggregationCams().size(); i++) {
+            cameras.add(new CameraReference(composition.aggregationCams().get(i),
+                    ScadaKeyMapper.aggregationCamScadaPrefix(i)));
+        }
+        for (int i = 0; i < composition.aggregationBoxCams().size(); i++) {
+            cameras.add(new CameraReference(composition.aggregationBoxCams().get(i),
+                    ScadaKeyMapper.aggregationBoxCamScadaPrefix(i)));
+        }
+        for (String checker : composition.checkerCams()) {
+            cameras.add(new CameraReference(checker, ScadaKeyMapper.eanCheckerScadaPrefix(checker)));
+        }
+        return cameras;
     }
 
     /**
@@ -377,6 +402,9 @@ public class WorkshopService {
     }
 
     private record CameraCounters(@Nullable String read, @Nullable String unread) {
+    }
+
+    private record CameraReference(String name, @Nullable String scadaPrefix) {
     }
 
     private @NonNull String getLineDeviceName(@NonNull String instanceId) {

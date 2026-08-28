@@ -60,11 +60,6 @@ public class UnitDetailService {
      *   <li>Error — общая ошибка устройства</li>
      * </ul>
      */
-    private static final Set<String> ERROR_FLAG_SUFFIXES = Set.of(
-            "Connection", "Fail", "Dublicate", "DiffEan",
-            "Work", "Data", "Batch", "Error"
-    );
-
     /**
      * Человекочитаемые описания ошибок по суффиксу (из SCADA Monitor проекта).
      */
@@ -117,10 +112,17 @@ public class UnitDetailService {
             String devKey,
             Map<String, String> scadaRaw
     ) {
-        String read = coalesce(camRaw.get("Total"), scadaRaw.get(devKey + "CounterGeneral"));
-        String unread = coalesce(camRaw.get("Failed"), scadaRaw.get(devKey + "CounterMissing"));
+        RuntimeTagMapper.CounterResolution counters = RuntimeTagMapper.resolveCounters(camRaw, scadaRaw, devKey);
+        String read = counters.read();
+        String unread = counters.unread();
         String st = coalesce(camRaw.get("ST"), scadaRaw.get(devKey + "ST"));
-        String error = coalesce(camRaw.get("Error"), scadaRaw.get(devKey + "Error"));
+        String error = coalesce(
+            camRaw.get("Error"),
+            scadaRaw.get(devKey + "Error")
+        );
+        if (RuntimeTagMapper.hasActiveError(scadaRaw, devKey)) {
+            error = "1";
+        }
         return new DevicesStatusMessageDTO.CameraStatus(camName, read, unread, st, error, false);
     }
 
@@ -315,9 +317,9 @@ public class UnitDetailService {
     /**
      * Извлекает список <b>активных</b> ошибок устройств данного инстанса.
      *
-     * <p>Источник — только scada-флаги {@code DevXXXSuffix} / {@code LineDevXXXSuffix}.
-     * Ошибки фильтруются по фактическому составу устройств аппарата
-     * (printers + cams из {@link DeviceCompositionService}).
+    * <p>Источник — runtime scada-флаги {@code DevXXXSuffix} / {@code LineDevXXXSuffix}.
+    * Ошибки сопоставляются с объединенным составом из БД и runtime discovery,
+    * поэтому временное расхождение topology не скрывает реальную ошибку.
      *
      * <p>Результат предназначен для записи в {@code UnitErrorStore}; используется
      * {@code buildErrorsStatus} и {@link AlertService} как единый источник правды.
@@ -330,7 +332,8 @@ public class UnitDetailService {
         if (inst == null) return List.of();
 
         DeviceComposition composition = deviceCompositionService.getComposition(instanceId);
-        List<String> allowedPrefixes = buildErrorDevicePrefixes(composition);
+        DeviceComposition runtimeComposition = deviceCompositionService.getRuntimeComposition(instanceId);
+        List<String> allowedPrefixes = buildErrorDevicePrefixes(composition, runtimeComposition);
         if (allowedPrefixes.isEmpty()) {
             return List.of();
         }
@@ -346,14 +349,21 @@ public class UnitDetailService {
         for (Map.Entry<String, String> entry : scadaRaw.entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue();
-            if (!isErrorFlag(key) || !isActiveErrorValue(value)) {
+            Optional<RuntimeTagMapper.ErrorTag> parsed = RuntimeTagMapper.parseErrorKey(key);
+            if (parsed.isEmpty() || !RuntimeTagMapper.isActiveFlag(value)) {
+                if (RuntimeTagMapper.isPotentialDeviceKey(key)) {
+                    log.debug("[{}] Unknown runtime device error key: {}={}", instanceId, key, value);
+                }
                 continue;
             }
-            String objectName = extractObjectName(key);
+            String objectName = parsed.get().objectName();
             List<DeviceError> bucket = errorsByDevice.get(objectName);
             if (bucket == null) {
-                continue; // ignore errors for devices outside composition
+                log.debug("[{}] Ignoring runtime error with unknown device prefix: {}={}",
+                        instanceId, key, value);
+                continue;
             }
+            log.info("[{}] Active runtime error: {}={} device={}", instanceId, key, value, objectName);
             bucket.add(new DeviceError(objectName, key, descriptionForKey(key)));
         }
 
@@ -397,6 +407,14 @@ public class UnitDetailService {
                 for (String scadaPrefix : ScadaKeyMapper.printerScadaPrefixes(printerName)) {
                     st = scadaRaw.get(scadaPrefix + "ST");
                     if (st != null) {
+                        break;
+                    }
+                }
+            }
+            if (error == null) {
+                for (String scadaPrefix : ScadaKeyMapper.printerScadaPrefixes(printerName)) {
+                    if (RuntimeTagMapper.hasActiveError(scadaRaw, scadaPrefix)) {
+                        error = "1";
                         break;
                     }
                 }
@@ -487,7 +505,7 @@ public class UnitDetailService {
                 }
             } else {
                 // Обычный checker (CamChecker, CamBatch, CamPacker, …)
-                // читает поля Total/Failed/ST/Error напрямую из снапшота устройства
+                // Читает поля устройства напрямую; профильные ошибки приходят через scada.
                 result.add(buildSingleCamStatusDirect(camName, camRaw));
             }
         }
@@ -514,45 +532,29 @@ public class UnitDetailService {
      * Имена вида {@code DevXXXFail}, {@code DevXXXDublicate}, {@code DevXXXError}, …
      */
     @SuppressWarnings("java:S3776") // Читаемость важнее цикломатической сложности
-    private static boolean isErrorFlag(String key) {
-        for (String suffix : ERROR_FLAG_SUFFIXES) {
-            if (key.endsWith(suffix) && key.length() > suffix.length()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Извлекает «имя объекта» из ключа scada: {@code Dev041Dublicate} → {@code Dev041}.
-     */
-    private static @NonNull String extractObjectName(String key) {
-        for (String suffix : ERROR_FLAG_SUFFIXES) {
-            if (key.endsWith(suffix)) {
-                return key.substring(0, key.length() - suffix.length());
-            }
-        }
-        return key;
-    }
-
     /**
      * Возвращает описание ошибки по ключу scada: {@code Dev041Fail} → {@code "Нет кодов маркировки"}.
      */
     private static @NonNull String descriptionForKey(String key) {
-        for (String suffix : ERROR_FLAG_SUFFIXES) {
-            if (key.endsWith(suffix)) {
-                return ERROR_DESCRIPTIONS.getOrDefault(suffix, suffix);
-            }
-        }
-        return key;
+        return RuntimeTagMapper.parseErrorKey(key)
+                .map(tag -> ERROR_DESCRIPTIONS.getOrDefault(tag.suffix(), tag.suffix()))
+                .orElse(key);
     }
 
-    private static boolean isActiveErrorValue(@Nullable String value) {
-        return value != null && !value.isBlank() && !"0".equals(value);
-    }
-
-    private static @NonNull List<String> buildErrorDevicePrefixes(DeviceComposition composition) {
+    private static @NonNull List<String> buildErrorDevicePrefixes(
+            DeviceComposition composition,
+            @Nullable DeviceComposition runtimeComposition
+    ) {
         LinkedHashSet<String> prefixes = new LinkedHashSet<>();
+
+        addErrorPrefixes(prefixes, composition);
+        if (runtimeComposition != null) {
+            addErrorPrefixes(prefixes, runtimeComposition);
+        }
+        return List.copyOf(prefixes);
+    }
+
+    private static void addErrorPrefixes(Set<String> prefixes, DeviceComposition composition) {
 
         for (String printer : composition.printers()) {
             List<String> printerPrefixes = ScadaKeyMapper.printerScadaPrefixes(printer);
@@ -584,7 +586,6 @@ public class UnitDetailService {
             }
         }
 
-        return List.copyOf(prefixes);
     }
 
     /**
@@ -650,10 +651,7 @@ public class UnitDetailService {
      * </ol>
      */
     private @NonNull CameraCounters resolveCameraCounters(String instanceId, DeviceComposition composition) {
-        List<String> allCameras = new ArrayList<>();
-        allCameras.addAll(composition.aggregationCams());
-        allCameras.addAll(composition.aggregationBoxCams());
-        allCameras.addAll(composition.checkerCams());
+        List<CameraReference> allCameras = cameraReferences(composition);
 
         CameraCounters fallbackZero = new CameraCounters("0", "0");
 
@@ -662,33 +660,33 @@ public class UnitDetailService {
         }
 
         // Фаза 1: ищем первую камеру с ненулевым cameraRead (Total)
-        for (String camName : allCameras) {
-            if (ScadaKeyMapper.isEanChecker(camName)) {
+        for (CameraReference camera : allCameras) {
+            if (ScadaKeyMapper.isEanChecker(camera.name())) {
                 continue;
             }
-            CameraCounters counters = readCameraCounters(instanceId, camName);
+            CameraCounters counters = readCameraCounters(instanceId, camera);
             if (counters != null && isNonZero(counters.read())) {
                 return counters;
             }
         }
 
         // Фаза 2: все read = 0 — ищем первую камеру с ненулевым cameraUnread (Failed)
-        for (String camName : allCameras) {
-            if (ScadaKeyMapper.isEanChecker(camName)) {
+        for (CameraReference camera : allCameras) {
+            if (ScadaKeyMapper.isEanChecker(camera.name())) {
                 continue;
             }
-            CameraCounters counters = readCameraCounters(instanceId, camName);
+            CameraCounters counters = readCameraCounters(instanceId, camera);
             if (counters != null && isNonZero(counters.unread())) {
                 return counters;
             }
         }
 
         // Фаза 3: fallback — все значения нулевые, берём первую доступную камеру или ("0", "0")
-        for (String camName : allCameras) {
-            if (ScadaKeyMapper.isEanChecker(camName)) {
+        for (CameraReference camera : allCameras) {
+            if (ScadaKeyMapper.isEanChecker(camera.name())) {
                 continue;
             }
-            CameraCounters counters = readCameraCounters(instanceId, camName);
+            CameraCounters counters = readCameraCounters(instanceId, camera);
             if (counters != null) {
                 return counters;
             }
@@ -698,17 +696,45 @@ public class UnitDetailService {
     }
 
     /**
-     * Читает счётчики (Total/Failed) из снапшота конкретной камеры.
+    * Читает resolved-счётчики камеры: scada CounterGeneral/CounterMissing
+    * с независимым fallback на device Total/Failed.
      * Возвращает null, если снапшот недоступен.
      */
-    private @Nullable CameraCounters readCameraCounters(String instanceId, String camName) {
-        Map<String, String> camRaw = firstUnitRawProperties(snapshotRepo.get(instanceId, camName));
+    private @Nullable CameraCounters readCameraCounters(String instanceId, CameraReference camera) {
+        PrintSrvInstance inst = topologyRepo.findByInstanceId(instanceId).orElse(null);
+        if (inst == null) {
+            return null;
+        }
+        Map<String, String> camRaw = firstUnitRawProperties(snapshotRepo.get(instanceId, camera.name()));
         if (camRaw.isEmpty()) {
             return null;
         }
-        String read = nullIfBlank(camRaw.get("Total"));
-        String unread = nullIfBlank(camRaw.get("Failed"));
-        return new CameraCounters(read, unread);
+        Map<String, String> scadaRaw = firstUnitRawProperties(
+                snapshotRepo.get(instanceId, inst.scadaDeviceName()));
+        RuntimeTagMapper.CounterResolution resolved = RuntimeTagMapper.resolveCounters(
+                camRaw, scadaRaw, camera.scadaPrefix());
+        log.debug("[{}] Camera {} counters: read={} ({}), unread={} ({})",
+                instanceId, camera.name(), resolved.read(), resolved.readSource(),
+                resolved.unread(), resolved.unreadSource());
+        return new CameraCounters(resolved.read(), resolved.unread());
+    }
+
+    private static List<CameraReference> cameraReferences(DeviceComposition composition) {
+        List<CameraReference> cameras = new ArrayList<>();
+        for (int i = 0; i < composition.aggregationCams().size(); i++) {
+            cameras.add(new CameraReference(
+                    composition.aggregationCams().get(i),
+                    ScadaKeyMapper.aggregationCamScadaPrefix(i)));
+        }
+        for (int i = 0; i < composition.aggregationBoxCams().size(); i++) {
+            cameras.add(new CameraReference(
+                    composition.aggregationBoxCams().get(i),
+                    ScadaKeyMapper.aggregationBoxCamScadaPrefix(i)));
+        }
+        for (String checker : composition.checkerCams()) {
+            cameras.add(new CameraReference(checker, ScadaKeyMapper.eanCheckerScadaPrefix(checker)));
+        }
+        return cameras;
     }
 
     /**
@@ -730,5 +756,8 @@ public class UnitDetailService {
     }
 
     private record CameraCounters(@Nullable String read, @Nullable String unread) {
+    }
+
+    private record CameraReference(String name, @Nullable String scadaPrefix) {
     }
 }
