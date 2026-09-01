@@ -11,7 +11,13 @@ import java.util.Optional;
 public interface ProductionNotificationJpaRepository extends JpaRepository<ProductionNotificationEntity, Long> {
 
     @RestResource(exported = false)
-    @NonNull Optional<ProductionNotificationEntity> findByUnitId(@NonNull Long unitId);
+    @NonNull Optional<ProductionNotificationEntity> findByUnitIdAndActiveTrue(@NonNull Long unitId);
+
+    @RestResource(exported = false)
+    @NonNull List<ProductionNotificationEntity> findAllByCreatorIdOrderByActivatedAtDesc(@NonNull String creatorId);
+
+    @RestResource(exported = false)
+    @NonNull List<ProductionNotificationEntity> findAllByAcceptedByOrderByAcceptedAtDesc(@NonNull String acceptedBy);
 
     @RestResource(exported = false)
     @NonNull List<ProductionNotificationEntity> findAllByActiveTrue();

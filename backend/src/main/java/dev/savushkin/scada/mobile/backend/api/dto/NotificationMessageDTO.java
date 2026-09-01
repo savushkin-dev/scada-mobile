@@ -49,6 +49,7 @@ public record NotificationMessageDTO(
         @Nullable Long notificationId,
         @Nullable NotificationStatus status,
         @Nullable String acceptedBy,
+        @Nullable String acceptedByName,
         @Nullable String acceptedAt,
         long version
 ) {
@@ -64,7 +65,7 @@ public record NotificationMessageDTO(
             String timestamp
     ) {
         return new NotificationMessageDTO("NOTIFICATION", unitId, unitName, creatorId, creatorName,
-            true, timestamp, unitId, null, NotificationStatus.PENDING, null, null, 0L);
+            true, timestamp, unitId, null, NotificationStatus.PENDING, null, null, null, 0L);
     }
 
     /**
@@ -79,22 +80,23 @@ public record NotificationMessageDTO(
             String timestamp
     ) {
         return new NotificationMessageDTO("NOTIFICATION", unitId, unitName, creatorId, creatorName,
-            false, timestamp, unitId, null, NotificationStatus.CANCELLED, null, null, 0L);
+            false, timestamp, unitId, null, NotificationStatus.CANCELLED, null, null, null, 0L);
     }
 
-        public static NotificationMessageDTO workflow(
+    public static NotificationMessageDTO workflow(
             String unitId,
             String unitName,
             String creatorId,
             String creatorName,
             ProductionNotification notification,
+            @Nullable String acceptedByName,
             String timestamp
-        ) {
+    ) {
         return new NotificationMessageDTO("NOTIFICATION", unitId, unitName, creatorId, creatorName,
             notification.status() == NotificationStatus.PENDING
                 || notification.status() == NotificationStatus.IN_PROGRESS,
             timestamp, unitId, notification.notificationId(), notification.status(),
-            notification.acceptedBy(), notification.acceptedAt() == null
+            notification.acceptedBy(), acceptedByName, notification.acceptedAt() == null
                 ? null : notification.acceptedAt().toString(), notification.version());
-        }
+    }
 }

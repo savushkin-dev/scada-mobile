@@ -99,7 +99,13 @@ export interface NotificationData {
   notificationId?: number | null;
   status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | null;
   acceptedBy?: string | null;
+  /** Полное имя (ФИО) работника, принявшего уведомление в работу. */
+  acceptedByName?: string | null;
   acceptedAt?: string | null;
+  /** Время завершения (для карточек истории со статусом COMPLETED). */
+  completedAt?: string | null;
+  /** Время отмены (для карточек истории со статусом CANCELLED). */
+  cancelledAt?: string | null;
   version?: number;
 }
 

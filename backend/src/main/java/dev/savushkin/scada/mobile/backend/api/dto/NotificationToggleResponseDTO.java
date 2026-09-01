@@ -17,10 +17,20 @@ public record NotificationToggleResponseDTO(
         String status,
         String unitId,
         @Nullable String creatorId,
-        @Nullable String timestamp
+        @Nullable String timestamp,
+        @Nullable Long notificationId
 ) {
+    public NotificationToggleResponseDTO(String status, String unitId, String creatorId, String timestamp) {
+        this(status, unitId, creatorId, timestamp, null);
+    }
+
+    public static NotificationToggleResponseDTO activated(String unitId, String creatorId, String timestamp,
+                                                          @Nullable Long notificationId) {
+        return new NotificationToggleResponseDTO("activated", unitId, creatorId, timestamp, notificationId);
+    }
+
     public static NotificationToggleResponseDTO activated(String unitId, String creatorId, String timestamp) {
-        return new NotificationToggleResponseDTO("activated", unitId, creatorId, timestamp);
+        return activated(unitId, creatorId, timestamp, null);
     }
 
     public static NotificationToggleResponseDTO deactivated(String unitId) {

@@ -54,6 +54,11 @@ const NotificationsPage = lazy(async () => {
   return { default: module.NotificationsPage };
 });
 
+const MyTasksPage = lazy(async () => {
+  const module = await import('./pages/MyTasksPage');
+  return { default: module.MyTasksPage };
+});
+
 const ChangePasswordPage = lazy(async () => {
   const module = await import('./pages/ChangePasswordPage');
   return { default: module.ChangePasswordPage };
@@ -135,6 +140,10 @@ export const router = createBrowserRouter([
           {
             path: 'notifications',
             element: withSuspense(<NotificationsPage />),
+          },
+          {
+            path: 'tasks',
+            element: withSuspense(<MyTasksPage />),
           },
           {
             path: 'change-password',

@@ -11,6 +11,7 @@ import dev.savushkin.scada.mobile.backend.api.dto.UnitsStatusMessageDTO;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveAlertStore;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveNotificationStore;
 import dev.savushkin.scada.mobile.backend.services.NotificationSettingsService;
+import dev.savushkin.scada.mobile.backend.application.ports.UserAssignmentRepository;
 import dev.savushkin.scada.mobile.backend.services.WorkshopService;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
@@ -75,7 +76,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
     private final ActiveAlertStore alertStore;
     private final ActiveNotificationStore notificationStore;
     private final WorkshopService workshopService;
-    private final NotificationSettingsService notificationSettingsService;
+    private final UserAssignmentRepository userAssignmentRepository;
     private final ObjectMapper objectMapper;
 
     /**
@@ -92,13 +93,13 @@ public class LiveWsHandler extends TextWebSocketHandler {
             ActiveAlertStore alertStore,
             ActiveNotificationStore notificationStore,
             WorkshopService workshopService,
-            NotificationSettingsService notificationSettingsService,
+            UserAssignmentRepository userAssignmentRepository,
             ObjectMapper objectMapper
     ) {
         this.alertStore = alertStore;
         this.notificationStore = notificationStore;
         this.workshopService = workshopService;
-        this.notificationSettingsService = notificationSettingsService;
+        this.userAssignmentRepository = userAssignmentRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -416,7 +417,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
         }
 
         long numericUserId = userId.getAsLong();
-        Set<String> enabled = notificationSettingsService.getAndroidCallEnabledPrintSrvUnitIds(numericUserId);
+        Set<String> enabled = userAssignmentRepository.getSubscribedUnitIds(numericUserId);
         if (enabled.isEmpty()) {
             return Set.of();
         }

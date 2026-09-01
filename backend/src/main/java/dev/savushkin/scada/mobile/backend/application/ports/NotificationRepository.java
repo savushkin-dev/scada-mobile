@@ -21,6 +21,10 @@ public interface NotificationRepository {
 
     @NonNull Optional<ProductionNotification> findByNotificationId(long notificationId);
 
+    @NonNull List<ProductionNotification> findAllByCreatorId(@NonNull String creatorId);
+
+    @NonNull List<ProductionNotification> findAllAcceptedBy(@NonNull String userId);
+
     /**
      * Ищет активное (не деактивированное) уведомление для данного аппарата.
      *

@@ -5,7 +5,7 @@ import { matchPath, useLocation, useNavigate } from 'react-router-dom';
  * Служебные страницы, которые не должны накапливаться в истории.
  * При нажатии «назад» с них происходит пропуск до ближайшей неслужебной страницы.
  */
-const TRANSIENT_ROUTES = new Set(['/profile', '/notifications', '/login']);
+const TRANSIENT_ROUTES = new Set(['/profile', '/notifications', '/tasks', '/login']);
 
 function isTransientRoute(pathname: string): boolean {
   for (const route of TRANSIENT_ROUTES) {

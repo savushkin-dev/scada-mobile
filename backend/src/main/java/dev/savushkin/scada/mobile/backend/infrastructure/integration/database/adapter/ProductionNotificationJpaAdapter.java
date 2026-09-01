@@ -44,6 +44,20 @@ public class ProductionNotificationJpaAdapter implements NotificationRepository 
 
     @Override
     @Transactional(readOnly = true)
+    public @NonNull List<ProductionNotification> findAllByCreatorId(@NonNull String creatorId) {
+        return notificationRepository.findAllByCreatorIdOrderByActivatedAtDesc(creatorId).stream()
+                .map(this::toDomain).flatMap(Optional::stream).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public @NonNull List<ProductionNotification> findAllAcceptedBy(@NonNull String userId) {
+        return notificationRepository.findAllByAcceptedByOrderByAcceptedAtDesc(userId).stream()
+                .map(this::toDomain).flatMap(Optional::stream).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public @NonNull Optional<ProductionNotification> findByNotificationId(long notificationId) {
         return notificationRepository.findById(notificationId).flatMap(this::toDomain);
     }
@@ -52,8 +66,7 @@ public class ProductionNotificationJpaAdapter implements NotificationRepository 
     @Transactional(readOnly = true)
     public @NonNull Optional<ProductionNotification> findActiveByUnitId(@NonNull String unitId) {
         return unitRepository.findUnitIdByPrintsrvInstanceId(unitId)
-                .flatMap(notificationRepository::findByUnitId)
-                .filter(ProductionNotificationEntity::isActive)
+                .flatMap(notificationRepository::findByUnitIdAndActiveTrue)
                 .flatMap(this::toDomain);
     }
 
@@ -67,7 +80,15 @@ public class ProductionNotificationJpaAdapter implements NotificationRepository 
     }
 
     /**
-     * Сохраняет состояние уведомления: одна строка на аппарат, обновление на месте.
+     * Сохраняет состояние уведомления.
+     * <p>
+     * Новая активация ({@code notificationId == null}) вставляет новую строку —
+     * так сохраняется история для sent-history / executor-history. Переходы статусов
+     * (accept/complete/cancel/deactivate) несут {@code notificationId} и обновляют
+     * существующую строку на месте.
+     * <p>
+     * Инвариант «не более одного активного уведомления на аппарат» обеспечивается
+     * частичным уникальным индексом {@code ux_production_notifications_active_unit}.
      * Если аппарат с данным PrintSrv instance id не найден в БД — операция игнорируется
      * (контроллер заранее валидирует аппарат через {@code UnitMappingService}).
      */
@@ -76,8 +97,10 @@ public class ProductionNotificationJpaAdapter implements NotificationRepository 
     public @NonNull ProductionNotification save(@NonNull ProductionNotification notification) {
         ProductionNotification[] saved = new ProductionNotification[1];
         unitRepository.findUnitIdByPrintsrvInstanceId(notification.unitId()).ifPresent(unitId -> {
-            ProductionNotificationEntity entity = notificationRepository.findByUnitId(unitId)
-                    .orElseGet(ProductionNotificationEntity::new);
+            ProductionNotificationEntity entity = notification.notificationId() != null
+                    ? notificationRepository.findById(notification.notificationId())
+                        .orElseGet(ProductionNotificationEntity::new)
+                    : new ProductionNotificationEntity();
             entity.setUnitId(unitId);
             entity.setCreatorType(notification.creatorType());
             entity.setCreatorId(notification.creatorId());
@@ -99,8 +122,7 @@ public class ProductionNotificationJpaAdapter implements NotificationRepository 
     @Transactional
     public void deactivateByUnitId(@NonNull String unitId) {
         unitRepository.findUnitIdByPrintsrvInstanceId(unitId)
-                .flatMap(notificationRepository::findByUnitId)
-                .filter(ProductionNotificationEntity::isActive)
+                .flatMap(notificationRepository::findByUnitIdAndActiveTrue)
                 .ifPresent(entity -> {
                     entity.setActive(false);
                     entity.setDeactivatedAt(LocalDateTime.now(ZoneOffset.UTC));

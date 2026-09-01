@@ -3,11 +3,17 @@ package dev.savushkin.scada.mobile.backend.api.controller;
 import dev.savushkin.scada.mobile.backend.api.dto.LastBatchStateDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.NotificationToggleResponseDTO;
 import dev.savushkin.scada.mobile.backend.api.dto.NotificationWorkflowResponseDTO;
+import dev.savushkin.scada.mobile.backend.application.ports.PrintSrvTopologyRepository;
 import dev.savushkin.scada.mobile.backend.config.jwt.JwtPrincipalUtil;
+import dev.savushkin.scada.mobile.backend.domain.model.NotificationCreatorType;
+import dev.savushkin.scada.mobile.backend.domain.model.NotificationStatus;
+import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
 import dev.savushkin.scada.mobile.backend.domain.model.ProductionNotification;
+import dev.savushkin.scada.mobile.backend.infrastructure.ws.NotificationMessageFactory;
 import dev.savushkin.scada.mobile.backend.services.NotificationService;
 import dev.savushkin.scada.mobile.backend.services.NotificationService.ToggleResult;
 import dev.savushkin.scada.mobile.backend.services.UnitMappingService;
+import dev.savushkin.scada.mobile.backend.services.UserProfileService;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
@@ -19,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 /**
  * REST-контроллер производственных уведомлений («последняя партия»).
@@ -43,11 +50,17 @@ public class NotificationController {
 
     private final NotificationService notificationService;
     private final UnitMappingService unitMappingService;
+    private final UserProfileService userProfileService;
+    private final PrintSrvTopologyRepository topologyRepository;
 
     public NotificationController(NotificationService notificationService,
-                                  UnitMappingService unitMappingService) {
+                                  UnitMappingService unitMappingService,
+                                  UserProfileService userProfileService,
+                                  PrintSrvTopologyRepository topologyRepository) {
         this.notificationService = notificationService;
         this.unitMappingService = unitMappingService;
+        this.userProfileService = userProfileService;
+        this.topologyRepository = topologyRepository;
     }
 
     @PostMapping("/line/{unitId}/last-batch")
@@ -94,7 +107,8 @@ public class NotificationController {
                 log.info("Notification toggle: ACTIVATED unitId='{}' printsrv='{}' actor='{}'",
                         unit.numericIdValue(), unit.printsrvInstanceId(), actorIdValue);
                 yield ResponseEntity.ok(
-                        NotificationToggleResponseDTO.activated(unit.numericIdValue(), actorIdValue, timestamp));
+                        NotificationToggleResponseDTO.activated(unit.numericIdValue(), actorIdValue, timestamp,
+                            activated.notificationId()));
             }
             case ToggleResult.Deactivated deactivated -> {
                 log.info("Notification toggle: DEACTIVATED unitId='{}' printsrv='{}' actor='{}'",
@@ -166,8 +180,7 @@ public class NotificationController {
         if (userId == null || JwtPrincipalUtil.isMachineSubject()) {
             return ResponseEntity.status(401).build();
         }
-        return ResponseEntity.ok(NotificationWorkflowResponseDTO.from(
-                notificationService.acceptNotification(notificationId, userId)));
+        return ResponseEntity.ok(toDto(notificationService.acceptNotification(notificationId, userId)));
     }
 
     @PostMapping("/notifications/{notificationId}/complete")
@@ -178,8 +191,7 @@ public class NotificationController {
         if (userId == null || JwtPrincipalUtil.isMachineSubject()) {
             return ResponseEntity.status(401).build();
         }
-        return ResponseEntity.ok(NotificationWorkflowResponseDTO.from(
-                notificationService.completeNotification(notificationId, userId)));
+        return ResponseEntity.ok(toDto(notificationService.completeNotification(notificationId, userId)));
     }
 
     @PostMapping("/notifications/{notificationId}/cancel")
@@ -190,8 +202,64 @@ public class NotificationController {
         if (userId == null || JwtPrincipalUtil.isMachineSubject()) {
             return ResponseEntity.status(401).build();
         }
-        return ResponseEntity.ok(NotificationWorkflowResponseDTO.from(
-                notificationService.cancelNotification(notificationId, userId)));
+        return ResponseEntity.ok(toDto(notificationService.cancelNotification(notificationId, userId)));
+    }
+
+    @GetMapping("/notifications/sent-history")
+    public ResponseEntity<List<NotificationWorkflowResponseDTO>> sentHistory() {
+        Long userId = JwtPrincipalUtil.getCurrentUserId();
+        if (userId == null || JwtPrincipalUtil.isMachineSubject()) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(notificationService.getSentHistory(userId).stream()
+                .map(this::toDto).toList());
+    }
+
+    @GetMapping("/notifications/executor-history")
+    public ResponseEntity<List<NotificationWorkflowResponseDTO>> executorHistory() {
+        Long userId = JwtPrincipalUtil.getCurrentUserId();
+        if (userId == null || JwtPrincipalUtil.isMachineSubject()) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(notificationService.getExecutorHistory(userId).stream()
+                .map(this::toDto).toList());
+    }
+
+    @GetMapping("/notifications/my-tasks")
+    public ResponseEntity<List<NotificationWorkflowResponseDTO>> myTasks() {
+        Long userId = JwtPrincipalUtil.getCurrentUserId();
+        if (userId == null || JwtPrincipalUtil.isMachineSubject()) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(notificationService.getExecutorHistory(userId).stream()
+                .filter(notification -> notification.status() == NotificationStatus.IN_PROGRESS)
+                .map(this::toDto).toList());
+    }
+
+    @GetMapping("/notifications/incoming")
+    public ResponseEntity<List<NotificationWorkflowResponseDTO>> incoming() {
+        Long userId = JwtPrincipalUtil.getCurrentUserId();
+        if (userId == null || JwtPrincipalUtil.isMachineSubject()) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(notificationService.getIncoming(userId).stream()
+                .map(this::toDto).toList());
+    }
+
+    /**
+     * Маппит доменное уведомление в DTO, обогащая его читаемыми именами
+     * аппарата, создателя и исполнителя. Для уведомлений от автомата
+     * ({@link NotificationCreatorType#MACHINE}) создатель — «СКАДА».
+     */
+    private NotificationWorkflowResponseDTO toDto(ProductionNotification notification) {
+        String unitName = topologyRepository.findByInstanceId(notification.unitId())
+                .map(PrintSrvInstance::displayName)
+                .orElse(notification.unitId());
+        String creatorName = notification.creatorType() == NotificationCreatorType.MACHINE
+                ? NotificationMessageFactory.MACHINE_CREATOR_NAME
+                : userProfileService.resolveFullName(notification.creatorId());
+        String acceptedByName = userProfileService.resolveFullName(notification.acceptedBy());
+        return NotificationWorkflowResponseDTO.from(notification, unitName, creatorName, acceptedByName);
     }
 
     /**

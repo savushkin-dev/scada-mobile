@@ -28,6 +28,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 import java.io.IOException;
 import java.net.SocketException;
@@ -469,21 +470,36 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.FORBIDDEN, "Доступ запрещён: " + e.getMessage(), request);
     }
 
-        @ExceptionHandler(NotificationNotFoundException.class)
-        public ResponseEntity<ErrorResponseDTO> handleNotificationNotFound(
-                        @NonNull NotificationNotFoundException e,
-                        @NonNull WebRequest request
-        ) {
-                return buildErrorResponse(HttpStatus.NOT_FOUND, e.getMessage(), request);
-        }
+    @ExceptionHandler(NotificationNotFoundException.class)
+    public ResponseEntity<ErrorResponseDTO> handleNotificationNotFound(
+            @NonNull NotificationNotFoundException e,
+            @NonNull WebRequest request
+    ) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, e.getMessage(), request);
+    }
 
-        @ExceptionHandler(ProductionNotification.NotificationTransitionException.class)
-        public ResponseEntity<ErrorResponseDTO> handleNotificationTransition(
-                    ProductionNotification.NotificationTransitionException e,
-                        @NonNull WebRequest request
-        ) {
-                return buildErrorResponse(HttpStatus.CONFLICT, e.getMessage(), request);
-        }
+    @ExceptionHandler(ProductionNotification.NotificationTransitionException.class)
+    public ResponseEntity<ErrorResponseDTO> handleNotificationTransition(
+            ProductionNotification.NotificationTransitionException e,
+            @NonNull WebRequest request
+    ) {
+        return buildErrorResponse(HttpStatus.CONFLICT, e.getMessage(), request);
+    }
+
+    /**
+     * Гонка при одновременном изменении одного уведомления (например, два оператора
+     * одновременно нажали «Принять»): optimistic lock ({@code @Version}) отклоняет
+     * вторую транзакцию. Клиенту — 409, а не 500.
+     */
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponseDTO> handleOptimisticLock(
+            @NonNull ObjectOptimisticLockingFailureException e,
+            @NonNull WebRequest request
+    ) {
+        log.warn("Optimistic lock conflict: {}", e.getMessage());
+        return buildErrorResponse(HttpStatus.CONFLICT,
+                "Уведомление уже принято или изменено другим пользователем", request);
+    }
 
     /**
      * Обрабатывает все необработанные исключения (fallback handler).

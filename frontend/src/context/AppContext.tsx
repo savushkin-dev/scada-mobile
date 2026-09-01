@@ -169,6 +169,7 @@ function reducer(state: AppState, action: Action): AppState {
           notificationId: action.msg.notificationId,
           status: action.msg.status ?? (active ? 'PENDING' : 'CANCELLED'),
           acceptedBy: action.msg.acceptedBy ?? null,
+          acceptedByName: action.msg.acceptedByName ?? null,
           acceptedAt: action.msg.acceptedAt ?? null,
           version: action.msg.version,
         });
@@ -190,6 +191,7 @@ function reducer(state: AppState, action: Action): AppState {
             notificationId: msg.notificationId,
             status: msg.status ?? (msg.active ? 'PENDING' : 'CANCELLED'),
             acceptedBy: msg.acceptedBy ?? null,
+            acceptedByName: msg.acceptedByName ?? null,
             acceptedAt: msg.acceptedAt ?? null,
             version: msg.version,
           });

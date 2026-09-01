@@ -60,6 +60,9 @@ const EASE_OUT_CUBIC = 'cubic-bezier(0.215, 0.61, 0.355, 1)';
 /** Длительность анимации возврата после свайпа. */
 const RETURN_TRANSITION = `0.45s ${EASE_OUT_CUBIC}`;
 
+/** Цвет фокус-кольца карточки (клавиатурная навигация терминала РМ452). */
+const FOCUS_RING_COLOR = '#4285f4';
+
 /** CSS filter для перекраски bell.svg в белый цвет. */
 const BELL_WHITE_FILTER =
   'brightness(0) saturate(100%) invert(100%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(100%) contrast(100%)';
@@ -171,41 +174,91 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
     setSwipeOffset(0);
   }, []);
 
-  const handleKeyboardSwipe = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key !== 'ArrowRight' || !isAssigned || overlayOpen || event.repeat) return;
-      event.preventDefault();
-      const container = containerRef.current;
-      if (!container) return;
-      thresholdPx.current = container.offsetWidth * SWIPE_COMMIT_RATIO;
-      keyboardSwipeActive.current = true;
-      isTouching.current = true;
-      hapticFired.current = false;
-      const startedAt = performance.now();
+  // ── Клавиатурный свайп (терминал РМ452) ────────────────────────────────
+  // Удержание Enter (или стрелки вправо) на Tab-фокусированной карточке
+  // выполняет действие свайпа вправо; короткое нажатие Enter — активация
+  // карточки (аналог тапа).
+  const ENTER_HOLD_MS = 300;
+  const enterHoldTimer = useRef<number | null>(null);
+  const enterSwipeStarted = useRef(false);
 
-      const animate = (now: number) => {
-        if (!keyboardSwipeActive.current) return;
-        const nextOffset = Math.min(thresholdPx.current, (now - startedAt) * SWIPE_RESISTANCE);
-        swipeOffsetRef.current = nextOffset;
-        setSwipeOffset(nextOffset);
-        if (nextOffset >= thresholdPx.current && !hapticFired.current) {
-          hapticFired.current = true;
-          navigator.vibrate?.(HAPTIC_MS);
-        }
-        keyboardSwipeFrame.current = requestAnimationFrame(animate);
-      };
+  const startKeyboardSwipe = useCallback(() => {
+    const container = containerRef.current;
+    if (!container || keyboardSwipeActive.current) return;
+    thresholdPx.current = container.offsetWidth * SWIPE_COMMIT_RATIO;
+    keyboardSwipeActive.current = true;
+    isTouching.current = true;
+    hapticFired.current = false;
+    const startedAt = performance.now();
+
+    const animate = (now: number) => {
+      if (!keyboardSwipeActive.current) return;
+      const nextOffset = Math.min(thresholdPx.current, (now - startedAt) * SWIPE_RESISTANCE);
+      swipeOffsetRef.current = nextOffset;
+      setSwipeOffset(nextOffset);
+      if (nextOffset >= thresholdPx.current && !hapticFired.current) {
+        hapticFired.current = true;
+        navigator.vibrate?.(HAPTIC_MS);
+      }
       keyboardSwipeFrame.current = requestAnimationFrame(animate);
+    };
+    keyboardSwipeFrame.current = requestAnimationFrame(animate);
+  }, []);
+
+  const clearEnterHold = useCallback(() => {
+    if (enterHoldTimer.current != null) {
+      window.clearTimeout(enterHoldTimer.current);
+      enterHoldTimer.current = null;
+    }
+  }, []);
+
+  const handleCardKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === 'ArrowRight') {
+        if (!isAssigned || overlayOpen || event.repeat) return;
+        event.preventDefault();
+        startKeyboardSwipe();
+        return;
+      }
+      if (event.key !== 'Enter' || isOffline || overlayOpen) return;
+      event.preventDefault();
+      if (event.repeat) return;
+      enterSwipeStarted.current = false;
+      if (!isAssigned) return;
+      // Удержание Enter: короткое окно, после которого начинается свайп.
+      // Если клавиша отпущена раньше — на keyup сработает активация (тап).
+      clearEnterHold();
+      enterHoldTimer.current = window.setTimeout(() => {
+        enterHoldTimer.current = null;
+        enterSwipeStarted.current = true;
+        startKeyboardSwipe();
+      }, ENTER_HOLD_MS);
     },
-    [isAssigned, overlayOpen]
+    [isAssigned, isOffline, overlayOpen, startKeyboardSwipe, clearEnterHold]
   );
 
-  const handleKeyboardSwipeEnd = useCallback(
+  const handleCardKeyUp = useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
-      if (event.key !== 'ArrowRight') return;
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        stopKeyboardSwipe(true);
+        return;
+      }
+      if (event.key !== 'Enter' || isOffline) return;
       event.preventDefault();
-      stopKeyboardSwipe(true);
+      clearEnterHold();
+      if (enterSwipeStarted.current) {
+        // Enter удерживался: завершаем свайп (commit, если пройдена точка невозврата)
+        enterSwipeStarted.current = false;
+        stopKeyboardSwipe(true);
+        return;
+      }
+      // Короткое нажатие Enter — активация элемента, аналогично тапу
+      if (!overlayOpen) {
+        cardRef.current?.click();
+      }
     },
-    [stopKeyboardSwipe]
+    [isOffline, overlayOpen, clearEnterHold, stopKeyboardSwipe]
   );
 
   useEffect(() => () => stopKeyboardSwipe(false), [stopKeyboardSwipe]);
@@ -300,15 +353,17 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
         <div
           ref={cardRef}
           {...interactiveProps}
-          className={`card p-4 md:h-full ${statusClass}${isOffline ? ' card-static' : ''}${isFocused ? ' ring-4 ring-[#4285f4] ring-offset-2' : ''}`}
+          className={`card p-4 md:h-full ${statusClass}${isOffline ? ' card-static' : ''}`}
           tabIndex={isOffline ? -1 : 0}
           onFocus={() => setIsFocused(true)}
           onBlur={() => {
             setIsFocused(false);
+            clearEnterHold();
+            enterSwipeStarted.current = false;
             stopKeyboardSwipe(false);
           }}
-          onKeyDown={handleKeyboardSwipe}
-          onKeyUp={handleKeyboardSwipeEnd}
+          onKeyDown={handleCardKeyDown}
+          onKeyUp={handleCardKeyUp}
           onKeyPress={(event) => {
             if (event.key === 'ArrowRight') event.preventDefault();
           }}
@@ -317,7 +372,18 @@ export function UnitCard({ unit, alerts, notifications, onClick }: Props) {
             transition: isTouching.current
               ? 'none'
               : `transform 0.3s ${EASE_OUT_CUBIC}, box-shadow 0.3s ${EASE_OUT_CUBIC}`,
-            boxShadow: swipeOffset > 0 ? '0 14px 30px rgba(15, 23, 42, 0.18)' : undefined,
+            // Фокус-индикатор — inset-кольцо: обёртка карточки (overflow-hidden)
+            // клиппит внешние ring/outline, поэтому выделение рисуется внутри bounds.
+            boxShadow:
+              [
+                isFocused ? `inset 0 0 0 3px ${FOCUS_RING_COLOR}` : null,
+                swipeOffset > 0 ? '0 14px 30px rgba(15, 23, 42, 0.18)' : null,
+              ]
+                .filter(Boolean)
+                .join(', ') || undefined,
+            // Глобальный :focus-visible outline тоже клиппится обёрткой — отключаем,
+            // фокус показывает inset-кольцо выше.
+            outline: isFocused ? 'none' : undefined,
             position: 'relative',
             zIndex: 1,
           }}

@@ -3,6 +3,7 @@ package dev.savushkin.scada.mobile.backend.services;
 import dev.savushkin.scada.mobile.backend.application.ports.NotificationRepository;
 import dev.savushkin.scada.mobile.backend.application.ports.UserAssignmentRepository;
 import dev.savushkin.scada.mobile.backend.domain.model.NotificationCreatorType;
+import dev.savushkin.scada.mobile.backend.domain.model.NotificationStatus;
 import dev.savushkin.scada.mobile.backend.domain.model.ProductionNotification;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
@@ -158,7 +159,7 @@ public class NotificationService {
             new NotificationStateChangedEvent(unitId, persisted,
                         NotificationStateChangedEvent.EventType.ACTIVATED));
         log.info("Notification activated: unitId='{}' by '{}'", unitId, actorId);
-        return new ToggleResult.Activated(unitId, notification.creatorId());
+        return new ToggleResult.Activated(unitId, persisted.creatorId(), persisted.notificationId());
     }
 
     private ToggleResult deactivate(String unitId, ProductionNotification existing, String actorId) {
@@ -216,6 +217,22 @@ public class NotificationService {
                 NotificationStateChangedEvent.EventType.CANCELLED);
     }
 
+    public List<ProductionNotification> getSentHistory(long userId) {
+        return notificationRepository.findAllByCreatorId(Long.toString(userId));
+    }
+
+    public List<ProductionNotification> getExecutorHistory(long userId) {
+        return notificationRepository.findAllAcceptedBy(Long.toString(userId));
+    }
+
+    public List<ProductionNotification> getIncoming(long userId) {
+        Set<String> subscribedUnits = userAssignmentRepository.getSubscribedUnitIds(userId);
+        return notificationRepository.findAllActive().stream()
+                .filter(notification -> notification.status() == NotificationStatus.PENDING)
+                .filter(notification -> subscribedUnits.contains(notification.unitId()))
+                .toList();
+    }
+
     private ProductionNotification findNotification(long notificationId) {
         return notificationRepository.findByNotificationId(notificationId)
                 .orElseThrow(() -> new NotificationNotFoundException(notificationId));
@@ -236,7 +253,7 @@ public class NotificationService {
      */
     public sealed interface ToggleResult {
 
-        record Activated(String unitId, String creatorId) implements ToggleResult {}
+        record Activated(String unitId, String creatorId, Long notificationId) implements ToggleResult {}
         record Deactivated(String unitId) implements ToggleResult {}
         record AlreadyActiveByOther(String unitId, String existingCreatorId) implements ToggleResult {}
     }

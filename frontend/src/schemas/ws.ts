@@ -81,6 +81,7 @@ export const NotificationWsMessageSchema = z.object({
   notificationId: z.number().nullable().optional(),
   status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).nullable().optional(),
   acceptedBy: z.string().nullable().optional(),
+  acceptedByName: z.string().nullable().optional(),
   acceptedAt: z.string().nullable().optional(),
   version: z.number().optional(),
 });

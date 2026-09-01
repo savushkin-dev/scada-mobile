@@ -24,7 +24,7 @@ import { HeaderErrorIndicator } from './HeaderErrorIndicator';
  */
 
 /** Служебные страницы, которые пропускаются при закрытии служебного экрана. */
-const TRANSIENT_ROUTES = ['/profile', '/notifications', '/login'];
+const TRANSIENT_ROUTES = ['/profile', '/notifications', '/tasks', '/login'];
 
 function isTransientRoute(pathname: string): boolean {
   return TRANSIENT_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
@@ -55,7 +55,7 @@ interface PageHeaderProps {
 export function PageHeader({ title, subtitle }: PageHeaderProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, userId } = useAuth();
   const { state } = useAppContext();
   const headerClassName =
     'z-10 h-[60px] backdrop-blur-md bg-[#f8f9fa]/30 border-b border-white/15 flex items-center gap-3 flex-shrink-0 px-4 py-2 sm:px-6 lg:px-8';
@@ -65,7 +65,13 @@ export function PageHeader({ title, subtitle }: PageHeaderProps) {
   const isProfileRoute = location.pathname.startsWith('/profile');
   const isNotificationsRoute = location.pathname.startsWith('/notifications');
 
-  const activeNotificationCount = state.notifications.size;
+  // Бейдж считает только уведомления, реально видимые текущему пользователю
+  // (та же фильтрация, что в NotificationsPage): PENDING по подпискам плюс
+  // свои созданные/принятые IN_PROGRESS. Принятые другими — не считаем.
+  const activeNotificationCount = Array.from(state.notifications.values()).filter(
+    (n) =>
+      (n.status ?? 'PENDING') === 'PENDING' || n.creatorId === userId || n.acceptedBy === userId
+  ).length;
 
   const handleProfileClick = useCallback(() => {
     if (isProfileRoute) {
