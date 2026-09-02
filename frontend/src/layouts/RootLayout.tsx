@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Outlet, useLocation, useMatch } from 'react-router-dom';
-import { ALERT_VIBRATION_COOLDOWN_MS, ALERT_VIBRATION_PATTERN } from '../config';
+import {
+  ALERT_VIBRATION_COOLDOWN_MS,
+  ALERT_VIBRATION_PATTERN,
+  NOTIFICATION_VIBRATION_COOLDOWN_MS,
+  NOTIFICATION_VIBRATION_PATTERN,
+} from '../config';
 import { AppProvider, useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useAccessControl } from '../context/AccessControlContext';
@@ -15,6 +20,7 @@ import type {
   AlertWsMessage,
   DeviceChangedMessage,
   EmployeeChangedMessage,
+  NotificationSetting,
   NotificationWsMessage,
   UnitsStatusMessage,
   UnitChangedMessage,
@@ -40,9 +46,26 @@ function resolveAlertRouteScope(pathname: string): AlertRouteScope {
   return { kind: 'other' };
 }
 
-function shouldVibrateAlert(msg: AlertWsMessage, scope: AlertRouteScope): boolean {
-  // Вибрация только на появление активной ошибки.
+function isTechNotificationEnabled(
+  unitId: string,
+  settings: NotificationSetting[] | null
+): boolean {
+  if (settings == null) return true;
+  const setting = settings.find((s) => s.unitId === unitId);
+  // Отсутствие настройки = оба флага включены (default true).
+  if (setting == null) return true;
+  return setting.techEnabled;
+}
+
+function shouldVibrateAlert(
+  msg: AlertWsMessage,
+  scope: AlertRouteScope,
+  settings: NotificationSetting[] | null
+): boolean {
+  // Вибрация только на появление активной ошибки и только если включены
+  // технические уведомления для этого аппарата.
   if (!msg.active || msg.errors.length === 0) return false;
+  if (!isTechNotificationEnabled(String(msg.unitId), settings)) return false;
 
   switch (scope.kind) {
     case 'unit':
@@ -90,6 +113,7 @@ function RootLayoutInner() {
     applyAssignmentsFromWs,
     applyUnitTopologyChange,
     applyOwnSettingsChange,
+    settings,
   } = useUserProfile();
 
   const { config } = usePageHeaderContext();
@@ -99,6 +123,7 @@ function RootLayoutInner() {
     [location.pathname]
   );
   const lastAlertVibrationAtRef = useRef(0);
+  const lastNotificationVibrationAtRef = useRef(0);
 
   // Подписываемся на UNITS_STATUS только когда открыт экран цеха (/workshops/:workshopId).
   // На странице деталей аппарата (/units/:unitId) используется отдельный useUnitWs.
@@ -131,7 +156,7 @@ function RootLayoutInner() {
       handleAlert(msg);
 
       if (document.visibilityState !== 'visible') return;
-      if (!shouldVibrateAlert(msg, alertRouteScope)) return;
+      if (!shouldVibrateAlert(msg, alertRouteScope, settings)) return;
       if (typeof navigator.vibrate !== 'function') return;
 
       const now = Date.now();
@@ -140,15 +165,45 @@ function RootLayoutInner() {
       lastAlertVibrationAtRef.current = now;
       navigator.vibrate(ALERT_VIBRATION_PATTERN);
     },
-    [handleAlert, alertRouteScope]
+    [handleAlert, alertRouteScope, settings]
   );
 
   const handleLiveNotification = useCallback(
     (msg: NotificationWsMessage) => {
       handleNotification(msg);
       void pushNotificationEvent(msg);
+
+      // Вибрация для получателя при появлении нового "Вызов"-уведомления.
+      const shouldVibrate =
+        msg.active === true &&
+        msg.status === 'PENDING' &&
+        msg.creatorId != null &&
+        msg.creatorId !== '' &&
+        String(msg.creatorId) !== userId;
+
+      if (shouldVibrate && typeof navigator.vibrate === 'function') {
+        const now = Date.now();
+        if (now - lastNotificationVibrationAtRef.current >= NOTIFICATION_VIBRATION_COOLDOWN_MS) {
+          lastNotificationVibrationAtRef.current = now;
+          navigator.vibrate(NOTIFICATION_VIBRATION_PATTERN);
+          if (import.meta.env.DEV) {
+            console.log('[vibrate] Вызов', msg.unitId, 'creator=', msg.creatorId, 'user=', userId);
+          }
+        } else if (import.meta.env.DEV) {
+          console.log('[vibrate] skipped (cooldown)', msg.unitId);
+        }
+      } else if (import.meta.env.DEV) {
+        console.log(
+          '[vibrate] skipped (active=%s, status=%s, creator=%s, user=%s, api=%s)',
+          msg.active,
+          msg.status,
+          msg.creatorId,
+          userId,
+          typeof navigator.vibrate
+        );
+      }
     },
-    [handleNotification]
+    [handleNotification, userId]
   );
 
   const handleUserAssignments = useCallback(

@@ -3,13 +3,17 @@ package dev.savushkin.scada.mobile.backend.services;
 import dev.savushkin.scada.mobile.backend.application.ports.NotificationRepository;
 import dev.savushkin.scada.mobile.backend.application.ports.UserAssignmentRepository;
 import dev.savushkin.scada.mobile.backend.domain.model.NotificationCreatorType;
+import dev.savushkin.scada.mobile.backend.domain.model.NotificationStatus;
 import dev.savushkin.scada.mobile.backend.domain.model.ProductionNotification;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -150,12 +154,15 @@ public class NotificationService {
     }
 
     private ToggleResult activate(String unitId, ProductionNotification notification, String actorId) {
-        notificationRepository.save(notification);
+        ProductionNotification persisted = notificationRepository.save(notification);
+        if (persisted == null) {
+            persisted = notification;
+        }
         eventPublisher.publishEvent(
-                new NotificationStateChangedEvent(unitId, notification,
+            new NotificationStateChangedEvent(unitId, persisted,
                         NotificationStateChangedEvent.EventType.ACTIVATED));
         log.info("Notification activated: unitId='{}' by '{}'", unitId, actorId);
-        return new ToggleResult.Activated(unitId, notification.creatorId());
+        return new ToggleResult.Activated(unitId, persisted.creatorId(), persisted.notificationId());
     }
 
     private ToggleResult deactivate(String unitId, ProductionNotification existing, String actorId) {
@@ -184,6 +191,72 @@ public class NotificationService {
         return userAssignmentRepository.getSubscribedUnitIds(userId);
     }
 
+    public ProductionNotification acceptNotification(long notificationId, long userId) {
+        ProductionNotification notification = findNotification(notificationId);
+        if (!userAssignmentRepository.getSubscribedUnitIds(userId).contains(notification.unitId())) {
+            throw new NotificationAccessDeniedException(Long.toString(userId), notification.unitId());
+        }
+        return transition(notification, notification.accept(Long.toString(userId)),
+                NotificationStateChangedEvent.EventType.ACCEPTED);
+    }
+
+    public ProductionNotification completeNotification(long notificationId, long userId) {
+        ProductionNotification notification = findNotification(notificationId);
+        String actorId = Long.toString(userId);
+        if (!actorId.equals(notification.creatorId()) && !actorId.equals(notification.acceptedBy())) {
+            throw new NotificationAccessDeniedException(actorId, notification.unitId());
+        }
+        return transition(notification, notification.complete(actorId),
+                NotificationStateChangedEvent.EventType.COMPLETED);
+    }
+
+    public ProductionNotification cancelNotification(long notificationId, long userId) {
+        ProductionNotification notification = findNotification(notificationId);
+        String actorId = Long.toString(userId);
+        if (!actorId.equals(notification.creatorId())) {
+            throw new NotificationAccessDeniedException(actorId, notification.unitId());
+        }
+        return transition(notification, notification.cancel(actorId),
+                NotificationStateChangedEvent.EventType.CANCELLED);
+    }
+
+    public List<ProductionNotification> getSentHistory(long userId) {
+        return notificationRepository.findAllByCreatorId(Long.toString(userId));
+    }
+
+    public List<ProductionNotification> getSentHistory(long userId, Collection<NotificationStatus> statuses, Pageable pageable) {
+        return notificationRepository.findAllByCreatorIdAndStatusIn(Long.toString(userId), statuses, pageable);
+    }
+
+    public List<ProductionNotification> getExecutorHistory(long userId) {
+        return notificationRepository.findAllAcceptedBy(Long.toString(userId));
+    }
+
+    public List<ProductionNotification> getExecutorHistory(long userId, Collection<NotificationStatus> statuses, Pageable pageable) {
+        return notificationRepository.findAllAcceptedByAndStatusIn(Long.toString(userId), statuses, pageable);
+    }
+
+    public List<ProductionNotification> getIncoming(long userId) {
+        Set<String> subscribedUnits = userAssignmentRepository.getSubscribedUnitIds(userId);
+        return notificationRepository.findAllActive().stream()
+                .filter(notification -> notification.status() == NotificationStatus.PENDING)
+                .filter(notification -> subscribedUnits.contains(notification.unitId()))
+                .toList();
+    }
+
+    private ProductionNotification findNotification(long notificationId) {
+        return notificationRepository.findByNotificationId(notificationId)
+                .orElseThrow(() -> new NotificationNotFoundException(notificationId));
+    }
+
+    private ProductionNotification transition(ProductionNotification current,
+                                               ProductionNotification next,
+                                               NotificationStateChangedEvent.EventType type) {
+        notificationRepository.save(next);
+        eventPublisher.publishEvent(new NotificationStateChangedEvent(next.unitId(), next, type));
+        return next;
+    }
+
     // ─── Toggle result sealed hierarchy ────────────────────────────────
 
     /**
@@ -191,7 +264,7 @@ public class NotificationService {
      */
     public sealed interface ToggleResult {
 
-        record Activated(String unitId, String creatorId) implements ToggleResult {}
+        record Activated(String unitId, String creatorId, Long notificationId) implements ToggleResult {}
         record Deactivated(String unitId) implements ToggleResult {}
         record AlreadyActiveByOther(String unitId, String existingCreatorId) implements ToggleResult {}
     }
@@ -216,6 +289,12 @@ public class NotificationService {
         public NotificationAlreadyActiveByOtherException(String unitId, String existingCreatorId) {
             super("Уведомление на аппарате '%s' уже активно пользователем '%s'"
                     .formatted(unitId, existingCreatorId));
+        }
+    }
+
+    public static class NotificationNotFoundException extends RuntimeException {
+        public NotificationNotFoundException(long notificationId) {
+            super("Уведомление '%s' не найдено".formatted(notificationId));
         }
     }
 }

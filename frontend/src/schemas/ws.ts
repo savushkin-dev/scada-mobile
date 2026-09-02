@@ -78,6 +78,12 @@ export const NotificationWsMessageSchema = z.object({
   eventType: z.string().nullable().optional(),
   active: z.boolean(),
   timestamp: z.string().nullable(),
+  notificationId: z.number().nullable().optional(),
+  status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).nullable().optional(),
+  acceptedBy: z.string().nullable().optional(),
+  acceptedByName: z.string().nullable().optional(),
+  acceptedAt: z.string().nullable().optional(),
+  version: z.number().optional(),
 });
 
 /** NOTIFICATION_SNAPSHOT — начальный срез при WS-коннекте */

@@ -9,6 +9,8 @@
  *   /workshops/:workshopId/units/:unitId/devices     → DevicesTab
  *   /workshops/:workshopId/units/:unitId/queue       → QueueTab
  *   /workshops/:workshopId/units/:unitId/logs        → LogsTab
+ *   /notifications                                   → NotificationsPage
+ *   /notifications/tasks                             → MyTasksPage (вложен в Уведомления)
  *
  * Архитектурно:
  *   - RootLayout содержит единственный экземпляр PageHeader;
@@ -52,6 +54,11 @@ const ProfilePage = lazy(async () => {
 const NotificationsPage = lazy(async () => {
   const module = await import('./pages/NotificationsPage');
   return { default: module.NotificationsPage };
+});
+
+const MyTasksPage = lazy(async () => {
+  const module = await import('./pages/MyTasksPage');
+  return { default: module.MyTasksPage };
 });
 
 const ChangePasswordPage = lazy(async () => {
@@ -135,6 +142,16 @@ export const router = createBrowserRouter([
           {
             path: 'notifications',
             element: withSuspense(<NotificationsPage />),
+            children: [
+              {
+                path: 'tasks',
+                element: withSuspense(<MyTasksPage />),
+              },
+            ],
+          },
+          {
+            path: 'tasks',
+            element: <Navigate to="/notifications/tasks" replace />,
           },
           {
             path: 'change-password',

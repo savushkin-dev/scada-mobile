@@ -64,11 +64,9 @@ public class NotificationMessageFactory {
         String timestamp = eventTime.atOffset(ZoneOffset.UTC)
                 .format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
 
-        if (type == NotificationStateChangedEvent.EventType.ACTIVATED) {
-            return NotificationMessageDTO.activated(
-                    notification.unitId(), unitName, notification.creatorId(), creatorName, timestamp);
-        }
-        return NotificationMessageDTO.deactivated(
-                notification.unitId(), unitName, notification.creatorId(), creatorName, timestamp);
+        String acceptedByName = userProfileService.resolveFullName(notification.acceptedBy());
+
+        return NotificationMessageDTO.workflow(notification.unitId(), unitName,
+                notification.creatorId(), creatorName, notification, acceptedByName, timestamp);
     }
 }

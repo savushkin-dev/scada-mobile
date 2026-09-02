@@ -1,8 +1,11 @@
 package dev.savushkin.scada.mobile.backend.application.ports;
 
+import dev.savushkin.scada.mobile.backend.domain.model.NotificationStatus;
 import dev.savushkin.scada.mobile.backend.domain.model.ProductionNotification;
 import org.jspecify.annotations.NonNull;
+import org.springframework.data.domain.Pageable;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,6 +21,22 @@ import java.util.Optional;
  * Метод {@link #save} гарантирует замену предыдущего активного при сохранении нового.
  */
 public interface NotificationRepository {
+
+    @NonNull Optional<ProductionNotification> findByNotificationId(long notificationId);
+
+    @NonNull List<ProductionNotification> findAllByCreatorId(@NonNull String creatorId);
+
+    @NonNull List<ProductionNotification> findAllAcceptedBy(@NonNull String userId);
+
+    @NonNull List<ProductionNotification> findAllByCreatorIdAndStatusIn(
+            @NonNull String creatorId,
+            @NonNull Collection<NotificationStatus> statuses,
+            @NonNull Pageable pageable);
+
+    @NonNull List<ProductionNotification> findAllAcceptedByAndStatusIn(
+            @NonNull String userId,
+            @NonNull Collection<NotificationStatus> statuses,
+            @NonNull Pageable pageable);
 
     /**
      * Ищет активное (не деактивированное) уведомление для данного аппарата.
@@ -44,7 +63,7 @@ public interface NotificationRepository {
      *
      * @param notification Уведомление для сохранения (не {@code null}).
      */
-    void save(@NonNull ProductionNotification notification);
+    @NonNull ProductionNotification save(@NonNull ProductionNotification notification);
 
     /**
      * Деактивирует активное уведомление для аппарата (если есть).

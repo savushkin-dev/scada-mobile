@@ -72,6 +72,16 @@ export const ALERT_VIBRATION_PATTERN = [350, 120, 350, 120, 550] as const;
  */
 export const ALERT_VIBRATION_COOLDOWN_MS = 2_500;
 
+/**
+ * Паттерн вибрации для входящего "Вызов"-уведомления:
+ * короткий двойной импульс, чтобы получатель его почувствовал.
+ */
+export const NOTIFICATION_VIBRATION_PATTERN = [200, 80, 200] as const;
+/**
+ * Минимальный интервал между вибрациями от "Вызов"-уведомлений.
+ */
+export const NOTIFICATION_VIBRATION_COOLDOWN_MS = 2_500;
+
 export const HTTP_STATUS = Object.freeze({
   unauthorized: 401,
   forbidden: 403,

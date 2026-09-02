@@ -5,7 +5,7 @@ import { matchPath, useLocation, useNavigate } from 'react-router-dom';
  * Служебные страницы, которые не должны накапливаться в истории.
  * При нажатии «назад» с них происходит пропуск до ближайшей неслужебной страницы.
  */
-const TRANSIENT_ROUTES = new Set(['/profile', '/notifications', '/login']);
+const TRANSIENT_ROUTES = new Set(['/profile', '/notifications', '/tasks', '/login']);
 
 function isTransientRoute(pathname: string): boolean {
   for (const route of TRANSIENT_ROUTES) {
@@ -25,6 +25,9 @@ function isTransientRoute(pathname: string): boolean {
  * возвращается родитель предыдущей неслужебной страницы.
  */
 function getHierarchicalParent(pathname: string): string | null {
+  // /notifications/tasks — структурно вложен в /notifications.
+  if (pathname === '/notifications/tasks') return '/notifications';
+
   // Служебные страницы — пропускаем, возвращаем маркер для дальнейшей обработки
   if (isTransientRoute(pathname)) {
     return '_SKIP_TRANSIENT_';

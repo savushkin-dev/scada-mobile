@@ -115,7 +115,9 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
 
 /**
  * Обёртка над apiFetch с автоматическим JSON.parse.
- * Бросает HttpError при !resp.ok.
+ * Бросает HttpError при !resp.ok. Если сервер вернул тело ErrorResponseDTO
+ * ({ status, message, ... }), сообщение сохраняется в `error.serverMessage`,
+ * чтобы UI мог показать осмысленный текст (например, при 409 Conflict).
  */
 export async function apiFetchJson(url: string, options?: RequestInit): Promise<unknown> {
   const resp = await apiFetch(url, options);
@@ -123,7 +125,36 @@ export async function apiFetchJson(url: string, options?: RequestInit): Promise<
     const error = new Error(`HTTP ${resp.status}`);
     error.name = 'HttpError';
     (error as unknown as { status: number }).status = resp.status;
+    try {
+      const body: unknown = await resp.clone().json();
+      if (
+        body != null &&
+        typeof body === 'object' &&
+        'message' in body &&
+        typeof (body as { message: unknown }).message === 'string'
+      ) {
+        (error as unknown as { serverMessage: string }).serverMessage = (
+          body as { message: string }
+        ).message;
+      }
+    } catch {
+      // Тело ошибки не JSON — игнорируем, остаётся только status.
+    }
     throw error;
   }
   return resp.json();
+}
+
+/**
+ * Извлекает серверное сообщение из HttpError (см. apiFetchJson),
+ * иначе возвращает fallback.
+ */
+export function getServerErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.name === 'HttpError') {
+    const serverMessage = (error as unknown as { serverMessage?: unknown }).serverMessage;
+    if (typeof serverMessage === 'string' && serverMessage.length > 0) {
+      return serverMessage;
+    }
+  }
+  return fallback;
 }

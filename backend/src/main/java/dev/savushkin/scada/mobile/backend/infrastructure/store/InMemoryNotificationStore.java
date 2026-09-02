@@ -1,51 +1,100 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.store;
 
 import dev.savushkin.scada.mobile.backend.application.ports.NotificationRepository;
+import dev.savushkin.scada.mobile.backend.domain.model.NotificationStatus;
 import dev.savushkin.scada.mobile.backend.domain.model.ProductionNotification;
 import org.jspecify.annotations.NonNull;
+import org.springframework.data.domain.Pageable;
 
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Потокобезопасное in-memory хранилище производственных уведомлений.
  * <p>
  * Реализует {@link NotificationRepository} — порт слоя application.
- * Данные хранятся в {@link ConcurrentHashMap} (ключ — {@code unitId}).
+ * Данные хранятся в {@link ConcurrentHashMap} (ключ — {@code notificationId}).
  * <p>
  * <b>Архитектурная роль:</b> бывшая временная реализация порта persistence для
  * dev/prototyping. С миграции V13 заменена на перманентную
  * {@code ProductionNotificationJpaAdapter} (PostgreSQL, {@code @Primary}) и больше
  * не регистрируется как Spring-бин. Класс сохранён для использования в unit-тестах.
  *
+ * <h3>Семантика хранения</h3>
+ * Как и JPA-реализация, хранит полную историю: новая активация
+ * ({@code notificationId == null}) получает новый синтетический id и добавляется
+ * отдельной записью; переходы статусов обновляют существующую запись по id.
+ *
  * <h3>Потокобезопасность</h3>
  * {@link ConcurrentHashMap} гарантирует видимость между потоками.
- * Операция {@link #save} атомарна (put по ключу unitId).
- * Операция {@link #deactivateByUnitId} использует {@code computeIfPresent}
- * для атомарной read-modify-write.
- *
- * <h3>Память</h3>
- * Деактивированные уведомления сохраняются в map для истории (бесконечный рост отсутствует
- * благодаря toggle-семантике: деактивированное уведомление на том же unitId заменяется
- * новым активным при следующем toggle).
  */
 public class InMemoryNotificationStore implements NotificationRepository {
 
-    /**
-     * unitId → последнее уведомление (активное или деактивированное).
-     * Для поиска активного используется проверка {@code .active()}.
-     */
-    private final ConcurrentHashMap<String, ProductionNotification> store =
+    /** notificationId → уведомление (активное или завершённое — история). */
+    private final ConcurrentHashMap<Long, ProductionNotification> store =
             new ConcurrentHashMap<>();
+
+    /** Счётчик синтетических идентификаторов для новых активаций. */
+    private final AtomicLong idSequence = new AtomicLong(0);
+
+    @Override
+    public @NonNull Optional<ProductionNotification> findByNotificationId(long notificationId) {
+        return Optional.ofNullable(store.get(notificationId));
+    }
+
+    @Override
+    public @NonNull List<ProductionNotification> findAllByCreatorId(@NonNull String creatorId) {
+        return store.values().stream()
+                .filter(n -> creatorId.equals(n.creatorId()))
+                .sorted(Comparator.comparing(ProductionNotification::activatedAt).reversed())
+                .toList();
+    }
+
+    @Override
+    public @NonNull List<ProductionNotification> findAllAcceptedBy(@NonNull String userId) {
+        return store.values().stream()
+                .filter(n -> userId.equals(n.acceptedBy()))
+                .sorted(Comparator.comparing(ProductionNotification::acceptedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                .toList();
+    }
+
+    @Override
+    public @NonNull List<ProductionNotification> findAllByCreatorIdAndStatusIn(
+            @NonNull String creatorId,
+            @NonNull Collection<NotificationStatus> statuses,
+            @NonNull Pageable pageable) {
+        return store.values().stream()
+                .filter(n -> creatorId.equals(n.creatorId()) && statuses.contains(n.status()))
+                .sorted(Comparator.comparing(ProductionNotification::activatedAt).reversed())
+                .skip(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .toList();
+    }
+
+    @Override
+    public @NonNull List<ProductionNotification> findAllAcceptedByAndStatusIn(
+            @NonNull String userId,
+            @NonNull Collection<NotificationStatus> statuses,
+            @NonNull Pageable pageable) {
+        return store.values().stream()
+                .filter(n -> userId.equals(n.acceptedBy()) && statuses.contains(n.status()))
+                .sorted(Comparator.comparing(ProductionNotification::acceptedAt,
+                        Comparator.nullsLast(Comparator.naturalOrder())).reversed())
+                .skip(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .toList();
+    }
 
     @Override
     public @NonNull Optional<ProductionNotification> findActiveByUnitId(@NonNull String unitId) {
-        ProductionNotification notification = store.get(unitId);
-        if (notification != null && notification.active()) {
-            return Optional.of(notification);
-        }
-        return Optional.empty();
+        return store.values().stream()
+                .filter(n -> unitId.equals(n.unitId()) && n.active())
+                .findFirst();
     }
 
     @Override
@@ -56,17 +105,24 @@ public class InMemoryNotificationStore implements NotificationRepository {
     }
 
     @Override
-    public void save(@NonNull ProductionNotification notification) {
-        store.put(notification.unitId(), notification);
+    public @NonNull ProductionNotification save(@NonNull ProductionNotification notification) {
+        if (notification.notificationId() == null) {
+            long id = idSequence.incrementAndGet();
+            ProductionNotification withId = new ProductionNotification(
+                    id, notification.unitId(), notification.creatorId(), notification.creatorType(),
+                    notification.status(), notification.active(), notification.activatedAt(),
+                    notification.deactivatedAt(), notification.acceptedBy(), notification.acceptedAt(),
+                    notification.completedAt(), notification.cancelledAt(), notification.version());
+            store.put(id, withId);
+            return withId;
+        }
+        store.put(notification.notificationId(), notification);
+        return notification;
     }
 
     @Override
     public void deactivateByUnitId(@NonNull String unitId) {
-        store.computeIfPresent(unitId, (key, existing) -> {
-            if (existing.active()) {
-                return existing.deactivate();
-            }
-            return existing;
-        });
+        findActiveByUnitId(unitId).ifPresent(active ->
+                store.put(active.notificationId(), active.deactivate()));
     }
 }
