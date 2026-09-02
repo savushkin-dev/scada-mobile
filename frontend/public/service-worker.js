@@ -207,6 +207,7 @@ function showManualNotification(payload) {
     requireInteraction: true,
     icon: '/assets/icons/icon-192x192.png',
     badge: '/assets/icons/icon-96x96.png',
+    vibrate: [200, 80, 200],
     data: {
       unitId,
     },
