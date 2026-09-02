@@ -33,12 +33,45 @@ export type NotificationWorkflowEntry = z.infer<typeof NotificationWorkflowEntry
 
 const WorkflowListSchema = z.array(NotificationWorkflowEntrySchema);
 
-/** История отправленных текущим пользователем уведомлений (все статусы, новые сверху). */
-export async function fetchSentHistory(): Promise<NotificationWorkflowEntry[]> {
-  return WorkflowListSchema.parse(await apiFetchJson('/api/v1.0.0/notifications/sent-history'));
+export type NotificationHistoryStatus = 'COMPLETED' | 'CANCELLED';
+
+function buildHistoryUrl(
+  base: string,
+  statuses: NotificationHistoryStatus[],
+  page: number,
+  size: number
+): string {
+  const params = new URLSearchParams();
+  if (statuses.length > 0) {
+    statuses.forEach((status) => params.append('statuses', status));
+  }
+  params.set('page', String(page));
+  params.set('size', String(size));
+  return `${base}?${params.toString()}`;
 }
 
-/** Уведомления, принятые текущим пользователем (в работе и завершённые). */
-export async function fetchExecutorHistory(): Promise<NotificationWorkflowEntry[]> {
-  return WorkflowListSchema.parse(await apiFetchJson('/api/v1.0.0/notifications/executor-history'));
+/** История отправленных текущим пользователем уведомлений. */
+export async function fetchSentHistory(
+  statuses: NotificationHistoryStatus[] = ['COMPLETED', 'CANCELLED'],
+  page = 0,
+  size = 20
+): Promise<NotificationWorkflowEntry[]> {
+  return WorkflowListSchema.parse(
+    await apiFetchJson(
+      buildHistoryUrl('/api/v1.0.0/notifications/sent-history', statuses, page, size)
+    )
+  );
+}
+
+/** Завершённые/отменённые уведомления, принятые текущим пользователем. */
+export async function fetchExecutorHistory(
+  statuses: NotificationHistoryStatus[] = ['COMPLETED', 'CANCELLED'],
+  page = 0,
+  size = 20
+): Promise<NotificationWorkflowEntry[]> {
+  return WorkflowListSchema.parse(
+    await apiFetchJson(
+      buildHistoryUrl('/api/v1.0.0/notifications/executor-history', statuses, page, size)
+    )
+  );
 }

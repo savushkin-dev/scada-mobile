@@ -1,8 +1,11 @@
 package dev.savushkin.scada.mobile.backend.application.ports;
 
+import dev.savushkin.scada.mobile.backend.domain.model.NotificationStatus;
 import dev.savushkin.scada.mobile.backend.domain.model.ProductionNotification;
 import org.jspecify.annotations.NonNull;
+import org.springframework.data.domain.Pageable;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,6 +27,16 @@ public interface NotificationRepository {
     @NonNull List<ProductionNotification> findAllByCreatorId(@NonNull String creatorId);
 
     @NonNull List<ProductionNotification> findAllAcceptedBy(@NonNull String userId);
+
+    @NonNull List<ProductionNotification> findAllByCreatorIdAndStatusIn(
+            @NonNull String creatorId,
+            @NonNull Collection<NotificationStatus> statuses,
+            @NonNull Pageable pageable);
+
+    @NonNull List<ProductionNotification> findAllAcceptedByAndStatusIn(
+            @NonNull String userId,
+            @NonNull Collection<NotificationStatus> statuses,
+            @NonNull Pageable pageable);
 
     /**
      * Ищет активное (не деактивированное) уведомление для данного аппарата.

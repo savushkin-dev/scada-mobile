@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { PAGE_FADE_SECTION_STYLE, UI_PALETTE } from '../config';
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -14,10 +14,13 @@ import {
 import { getServerErrorMessage } from '../api/client';
 import type { NotificationData } from '../types';
 
+const PAGE_SIZE = 20;
+
 const MY_TASKS_COPY = Object.freeze({
   title: 'Мои задачи',
   empty: 'Нет задач в работе',
   history: 'Завершённые',
+  historyEmpty: 'Нет завершённых задач',
   actionError: 'Не удалось изменить статус уведомления',
   historyError: 'Не удалось загрузить завершённые задачи',
 });
@@ -50,7 +53,7 @@ function toNotificationData(
  * Верхний список — задачи в работе: live-данные из WebSocket-состояния
  * (уведомления IN_PROGRESS, принятые текущим пользователем), кнопка «Готово»
  * завершает задачу, карточка исчезает по WS-событию без перезагрузки.
- * Ниже — завершённые задачи из REST executor-history.
+ * Ниже — завершённые задачи из REST executor-history с динамической подгрузкой.
  */
 export function MyTasksPage() {
   usePageHeader(MY_TASKS_COPY.title, undefined, 'default');
@@ -61,42 +64,75 @@ export function MyTasksPage() {
     action: NotificationAction;
   } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
   const [history, setHistory] = useState<NotificationWorkflowEntry[] | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyPage, setHistoryPage] = useState(0);
+  const [hasMoreHistory, setHasMoreHistory] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const historySentinelRef = useRef<HTMLDivElement | null>(null);
 
   const tasks = Array.from(state.notifications.entries())
     .map(([unitId, data]) => ({ unitId, ...data }))
     .filter((n) => n.status === 'IN_PROGRESS' && n.acceptedBy === userId)
     .sort((a, b) => (a.acceptedAt ?? '').localeCompare(b.acceptedAt ?? ''));
 
-  const loadHistory = useCallback(async () => {
+  const loadHistory = useCallback(async (page: number, append: boolean) => {
+    setIsLoadingHistory(true);
+    setHistoryError(null);
     try {
-      setHistoryError(null);
-      const entries = await fetchExecutorHistory();
-      setHistory(entries.filter((entry) => entry.status === 'COMPLETED'));
+      const next = await fetchExecutorHistory(['COMPLETED'], page, PAGE_SIZE);
+      setHistory((prev) => (append && prev != null ? [...prev, ...next] : next));
+      setHistoryPage(page);
+      setHasMoreHistory(next.length === PAGE_SIZE);
     } catch {
       setHistoryError(MY_TASKS_COPY.historyError);
+    } finally {
+      setIsLoadingHistory(false);
     }
   }, []);
 
   // Первая загрузка + обновление истории при live-изменениях
   // (завершение задачи убирает её из state.notifications).
   useEffect(() => {
-    void loadHistory();
+    setHistory(null);
+    setHasMoreHistory(true);
+    void loadHistory(0, false);
   }, [loadHistory, state.notifications]);
+
+  // Infinite scroll для завершённых задач.
+  useEffect(() => {
+    const sentinel = historySentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && hasMoreHistory && !isLoadingHistory) {
+          void loadHistory(historyPage + 1, true);
+        }
+      },
+      { rootMargin: '100px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMoreHistory, isLoadingHistory, historyPage, loadHistory]);
 
   const handleAction = async (notificationId: number, action: NotificationAction) => {
     setPendingAction({ id: notificationId, action });
     setActionError(null);
     try {
       await updateNotification(notificationId, action);
-      void loadHistory();
+      void loadHistory(0, false);
     } catch (error) {
       setActionError(getServerErrorMessage(error, MY_TASKS_COPY.actionError));
     } finally {
       setPendingAction(null);
     }
   };
+
+  const showHistorySection = history != null || historyError || isLoadingHistory;
 
   return (
     <section data-scroll style={PAGE_FADE_SECTION_STYLE}>
@@ -136,7 +172,7 @@ export function MyTasksPage() {
             ))
           )}
 
-          {(history == null || history.length > 0 || historyError) && (
+          {showHistorySection && (
             <h2 className="mt-4 text-[0.72rem] font-semibold uppercase tracking-wide text-[#74777F]">
               {MY_TASKS_COPY.history}
             </h2>
@@ -162,13 +198,30 @@ export function MyTasksPage() {
               </div>
             </div>
           ) : (
-            (history ?? []).map((entry) => (
-              <NotificationCard
-                key={entry.notificationId}
-                notification={toNotificationData(entry)}
-                currentUserId={userId}
-              />
-            ))
+            (() => {
+              const displayHistory = history ?? [];
+              return (
+                <>
+                  {displayHistory.length === 0 ? (
+                    <p className="py-8 text-center text-sm font-medium text-[#74777F]">
+                      {MY_TASKS_COPY.historyEmpty}
+                    </p>
+                  ) : (
+                    displayHistory.map((entry) => (
+                      <NotificationCard
+                        key={entry.notificationId}
+                        notification={toNotificationData(entry)}
+                        currentUserId={userId}
+                      />
+                    ))
+                  )}
+                  <div ref={historySentinelRef} className="h-4" aria-hidden="true" />
+                  {isLoadingHistory && (
+                    <div className="py-2 text-center text-xs text-[#74777F]">Загрузка…</div>
+                  )}
+                </>
+              );
+            })()
           )}
         </div>
       </main>

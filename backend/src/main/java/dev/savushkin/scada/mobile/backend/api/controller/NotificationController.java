@@ -18,6 +18,8 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +27,9 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * REST-контроллер производственных уведомлений («последняя партия»).
@@ -206,23 +210,40 @@ public class NotificationController {
     }
 
     @GetMapping("/notifications/sent-history")
-    public ResponseEntity<List<NotificationWorkflowResponseDTO>> sentHistory() {
+    public ResponseEntity<List<NotificationWorkflowResponseDTO>> sentHistory(
+            @RequestParam(name = "statuses", required = false) Set<NotificationStatus> statuses,
+            @RequestParam(name = "page", required = false, defaultValue = "0") int page,
+            @RequestParam(name = "size", required = false, defaultValue = "20") int size) {
         Long userId = JwtPrincipalUtil.getCurrentUserId();
         if (userId == null || JwtPrincipalUtil.isMachineSubject()) {
             return ResponseEntity.status(401).build();
         }
-        return ResponseEntity.ok(notificationService.getSentHistory(userId).stream()
+        Set<NotificationStatus> filterStatuses = resolveHistoryStatuses(statuses);
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, 100));
+        return ResponseEntity.ok(notificationService.getSentHistory(userId, filterStatuses, pageable).stream()
                 .map(this::toDto).toList());
     }
 
     @GetMapping("/notifications/executor-history")
-    public ResponseEntity<List<NotificationWorkflowResponseDTO>> executorHistory() {
+    public ResponseEntity<List<NotificationWorkflowResponseDTO>> executorHistory(
+            @RequestParam(name = "statuses", required = false) Set<NotificationStatus> statuses,
+            @RequestParam(name = "page", required = false, defaultValue = "0") int page,
+            @RequestParam(name = "size", required = false, defaultValue = "20") int size) {
         Long userId = JwtPrincipalUtil.getCurrentUserId();
         if (userId == null || JwtPrincipalUtil.isMachineSubject()) {
             return ResponseEntity.status(401).build();
         }
-        return ResponseEntity.ok(notificationService.getExecutorHistory(userId).stream()
+        Set<NotificationStatus> filterStatuses = resolveHistoryStatuses(statuses);
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.clamp(size, 1, 100));
+        return ResponseEntity.ok(notificationService.getExecutorHistory(userId, filterStatuses, pageable).stream()
                 .map(this::toDto).toList());
+    }
+
+    private Set<NotificationStatus> resolveHistoryStatuses(Set<NotificationStatus> statuses) {
+        if (statuses == null || statuses.isEmpty()) {
+            return EnumSet.of(NotificationStatus.COMPLETED, NotificationStatus.CANCELLED);
+        }
+        return EnumSet.copyOf(statuses);
     }
 
     @GetMapping("/notifications/my-tasks")

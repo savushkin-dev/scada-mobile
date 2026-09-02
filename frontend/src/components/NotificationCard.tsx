@@ -21,7 +21,6 @@ const NOTIFICATION_COPY = Object.freeze({
   operatorLabel: 'Оператор',
   pending: 'Ожидает',
   inProgress: 'В работе',
-  inProgressAt: 'В работе у',
   completed: 'Выполнено',
   cancelled: 'Отменено',
   acceptedBy: 'Принял',
@@ -103,10 +102,7 @@ export function NotificationCard({ notification, currentUserId, onAction, pendin
   const badgeStyle = STATUS_BADGE_STYLE[status];
   const statusLabel = {
     PENDING: NOTIFICATION_COPY.pending,
-    IN_PROGRESS:
-      isCreator && notification.acceptedByName
-        ? `${NOTIFICATION_COPY.inProgressAt}: ${notification.acceptedByName}`
-        : NOTIFICATION_COPY.inProgress,
+    IN_PROGRESS: NOTIFICATION_COPY.inProgress,
     COMPLETED: NOTIFICATION_COPY.completed,
     CANCELLED: NOTIFICATION_COPY.cancelled,
   }[status];

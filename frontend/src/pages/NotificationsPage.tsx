@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import { PAGE_FADE_SECTION_STYLE, UI_PALETTE } from '../config';
 import { useAppContext } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
@@ -10,10 +10,13 @@ import {
   fetchSentHistory,
   updateNotification,
   type NotificationAction,
+  type NotificationHistoryStatus,
   type NotificationWorkflowEntry,
 } from '../api/notifications';
 import { getServerErrorMessage } from '../api/client';
 import type { NotificationData } from '../types';
+
+const PAGE_SIZE = 20;
 
 const NOTIFICATIONS_COPY = Object.freeze({
   title: 'Уведомления',
@@ -23,6 +26,8 @@ const NOTIFICATIONS_COPY = Object.freeze({
   historyEmpty: 'Вы ещё не отправляли уведомления',
   actionError: 'Не удалось изменить статус уведомления',
   historyError: 'Не удалось загрузить историю',
+  completedFilter: 'Выполненные',
+  cancelledFilter: 'Отменённые',
 });
 
 function NotificationsSkeleton() {
@@ -74,12 +79,22 @@ function toNotificationData(
   };
 }
 
+function selectedStatusesToArray(
+  filters: Record<NotificationHistoryStatus, boolean>
+): NotificationHistoryStatus[] {
+  const result: NotificationHistoryStatus[] = [];
+  if (filters.COMPLETED) result.push('COMPLETED');
+  if (filters.CANCELLED) result.push('CANCELLED');
+  return result;
+}
+
 /**
  * Страница производственных уведомлений.
  *
  * Активный список (live, WebSocket): PENDING-уведомления по подпискам
  * плюс свои созданные/принятые IN_PROGRESS. Ниже — история отправленных
- * текущим пользователем (REST sent-history, терминальные статусы).
+ * текущим пользователем (REST sent-history, терминальные статусы)
+ * с динамической подгрузкой по скроллу.
  */
 export function NotificationsPage() {
   const { state } = useAppContext();
@@ -89,24 +104,80 @@ export function NotificationsPage() {
     action: NotificationAction;
   } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
   const [history, setHistory] = useState<NotificationWorkflowEntry[] | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyFilters, setHistoryFilters] = useState<Record<NotificationHistoryStatus, boolean>>({
+    COMPLETED: true,
+    CANCELLED: true,
+  });
+  const [historyPage, setHistoryPage] = useState(0);
+  const [hasMoreHistory, setHasMoreHistory] = useState(true);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const historySentinelRef = useRef<HTMLDivElement | null>(null);
+  const location = useLocation();
+  const isTasksRoute = location.pathname === '/notifications/tasks';
 
   usePageHeader(NOTIFICATIONS_COPY.title, undefined, 'default');
 
-  const loadHistory = useCallback(async () => {
-    try {
-      setHistoryError(null);
-      setHistory(await fetchSentHistory());
-    } catch {
-      setHistoryError(NOTIFICATIONS_COPY.historyError);
-    }
-  }, []);
+  const loadHistory = useCallback(
+    async (page: number, filters: Record<NotificationHistoryStatus, boolean>, append: boolean) => {
+      const statuses = selectedStatusesToArray(filters);
+      if (statuses.length === 0) {
+        setHistory([]);
+        setHasMoreHistory(false);
+        return;
+      }
 
-  // Первая загрузка истории + обновление при live-изменениях уведомлений.
+      setIsLoadingHistory(true);
+      setHistoryError(null);
+      try {
+        const next = await fetchSentHistory(statuses, page, PAGE_SIZE);
+        setHistory((prev) => (append && prev != null ? [...prev, ...next] : next));
+        setHistoryPage(page);
+        setHasMoreHistory(next.length === PAGE_SIZE);
+      } catch {
+        setHistoryError(NOTIFICATIONS_COPY.historyError);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    },
+    []
+  );
+
+  // Первая загрузка истории + сброс при смене фильтра.
   useEffect(() => {
-    void loadHistory();
-  }, [loadHistory, state.notifications]);
+    setHistory(null);
+    setHasMoreHistory(true);
+    void loadHistory(0, historyFilters, false);
+  }, [loadHistory, historyFilters]);
+
+  // При live-изменениях уведомлений перезагружаем первую страницу истории,
+  // чтобы новые терминальные записи появились сразу.
+  useEffect(() => {
+    if (history == null) return;
+    void loadHistory(0, historyFilters, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.notifications]);
+
+  // Infinite scroll: подгружаем следующую страницу, когда sentinel попадает в viewport.
+  useEffect(() => {
+    const sentinel = historySentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && hasMoreHistory && !isLoadingHistory) {
+          void loadHistory(historyPage + 1, historyFilters, true);
+        }
+      },
+      { rootMargin: '100px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMoreHistory, isLoadingHistory, historyPage, historyFilters, loadHistory]);
 
   const notifications = Array.from(state.notifications.entries())
     .map(([unitId, data]) => ({ unitId, ...data }))
@@ -131,7 +202,7 @@ export function NotificationsPage() {
       if (action === 'accept') {
         navigator.vibrate?.(50);
       }
-      void loadHistory();
+      void loadHistory(0, historyFilters, false);
     } catch (error) {
       setActionError(getServerErrorMessage(error, NOTIFICATIONS_COPY.actionError));
     } finally {
@@ -139,16 +210,29 @@ export function NotificationsPage() {
     }
   };
 
-  const terminalHistory = (history ?? []).filter(
-    (entry) => entry.status === 'COMPLETED' || entry.status === 'CANCELLED'
-  );
+  const toggleHistoryFilter = (status: NotificationHistoryStatus) => {
+    setHistoryFilters((prev) => {
+      const currentlyActive = Object.values(prev).filter(Boolean).length;
+      // Всегда должен быть включён хотя бы один фильтр.
+      if (prev[status] && currentlyActive <= 1) {
+        return prev;
+      }
+      return { ...prev, [status]: !prev[status] };
+    });
+  };
+
+  const showHistorySection = history != null || historyError || isLoadingHistory;
+
+  if (isTasksRoute) {
+    return <Outlet />;
+  }
 
   return (
     <section data-scroll style={PAGE_FADE_SECTION_STYLE}>
       <main className="px-4 pb-6 pt-4 sm:px-6">
         <div className="mx-auto flex w-full max-w-[520px] flex-col gap-3">
           <Link
-            to="/tasks"
+            to="/notifications/tasks"
             className="card flex items-center gap-3 p-4 no-underline"
             style={{ borderColor: '#3B82F6' }}
           >
@@ -212,11 +296,36 @@ export function NotificationsPage() {
             })
           )}
 
-          {(history == null || terminalHistory.length > 0 || historyError) && (
-            <h2 className="mt-4 text-[0.72rem] font-semibold uppercase tracking-wide text-[#74777F]">
-              {NOTIFICATIONS_COPY.history}
-            </h2>
+          {showHistorySection && (
+            <>
+              <h2 className="mt-4 text-[0.72rem] font-semibold uppercase tracking-wide text-[#74777F]">
+                {NOTIFICATIONS_COPY.history}
+              </h2>
+
+              <div className="flex flex-wrap gap-2">
+                {(['COMPLETED', 'CANCELLED'] as const).map((status) => {
+                  const active = historyFilters[status];
+                  return (
+                    <button
+                      key={status}
+                      type="button"
+                      onClick={() => toggleHistoryFilter(status)}
+                      className="rounded-full px-3 py-1 text-xs font-semibold transition"
+                      style={{
+                        backgroundColor: active ? '#3B82F6' : '#EDF0F4',
+                        color: active ? '#FFFFFF' : '#74777F',
+                      }}
+                    >
+                      {status === 'COMPLETED'
+                        ? NOTIFICATIONS_COPY.completedFilter
+                        : NOTIFICATIONS_COPY.cancelledFilter}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
           )}
+
           {historyError && (
             <p
               className="rounded-2xl p-3 text-sm font-medium"
@@ -230,6 +339,7 @@ export function NotificationsPage() {
               {historyError}
             </p>
           )}
+
           {history == null && !historyError ? (
             <div className="card p-4" aria-hidden="true">
               <div className="space-y-1.5">
@@ -238,13 +348,30 @@ export function NotificationsPage() {
               </div>
             </div>
           ) : (
-            terminalHistory.map((entry) => (
-              <NotificationCard
-                key={entry.notificationId}
-                notification={toNotificationData(entry)}
-                currentUserId={userId}
-              />
-            ))
+            (() => {
+              const displayHistory = history ?? [];
+              return (
+                <>
+                  {displayHistory.length === 0 ? (
+                    <p className="py-8 text-center text-sm font-medium text-[#74777F]">
+                      {NOTIFICATIONS_COPY.historyEmpty}
+                    </p>
+                  ) : (
+                    displayHistory.map((entry) => (
+                      <NotificationCard
+                        key={entry.notificationId}
+                        notification={toNotificationData(entry)}
+                        currentUserId={userId}
+                      />
+                    ))
+                  )}
+                  <div ref={historySentinelRef} className="h-4" aria-hidden="true" />
+                  {isLoadingHistory && (
+                    <div className="py-2 text-center text-xs text-[#74777F]">Загрузка…</div>
+                  )}
+                </>
+              );
+            })()
           )}
         </div>
       </main>

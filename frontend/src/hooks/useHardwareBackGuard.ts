@@ -25,6 +25,9 @@ function isTransientRoute(pathname: string): boolean {
  * возвращается родитель предыдущей неслужебной страницы.
  */
 function getHierarchicalParent(pathname: string): string | null {
+  // /notifications/tasks — структурно вложен в /notifications.
+  if (pathname === '/notifications/tasks') return '/notifications';
+
   // Служебные страницы — пропускаем, возвращаем маркер для дальнейшей обработки
   if (isTransientRoute(pathname)) {
     return '_SKIP_TRANSIENT_';

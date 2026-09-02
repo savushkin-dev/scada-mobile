@@ -11,9 +11,12 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Pageable;
+
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,6 +57,32 @@ public class ProductionNotificationJpaAdapter implements NotificationRepository 
     public @NonNull List<ProductionNotification> findAllAcceptedBy(@NonNull String userId) {
         return notificationRepository.findAllByAcceptedByOrderByAcceptedAtDesc(userId).stream()
                 .map(this::toDomain).flatMap(Optional::stream).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public @NonNull List<ProductionNotification> findAllByCreatorIdAndStatusIn(
+            @NonNull String creatorId,
+            @NonNull Collection<NotificationStatus> statuses,
+            @NonNull Pageable pageable) {
+        return notificationRepository.findAllByCreatorIdAndStatusInOrderByActivatedAtDesc(creatorId, statuses, pageable)
+                .map(this::toDomain)
+                .stream()
+                .flatMap(Optional::stream)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public @NonNull List<ProductionNotification> findAllAcceptedByAndStatusIn(
+            @NonNull String userId,
+            @NonNull Collection<NotificationStatus> statuses,
+            @NonNull Pageable pageable) {
+        return notificationRepository.findAllByAcceptedByAndStatusInOrderByAcceptedAtDesc(userId, statuses, pageable)
+                .map(this::toDomain)
+                .stream()
+                .flatMap(Optional::stream)
+                .toList();
     }
 
     @Override

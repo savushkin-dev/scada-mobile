@@ -9,6 +9,8 @@
  *   /workshops/:workshopId/units/:unitId/devices     → DevicesTab
  *   /workshops/:workshopId/units/:unitId/queue       → QueueTab
  *   /workshops/:workshopId/units/:unitId/logs        → LogsTab
+ *   /notifications                                   → NotificationsPage
+ *   /notifications/tasks                             → MyTasksPage (вложен в Уведомления)
  *
  * Архитектурно:
  *   - RootLayout содержит единственный экземпляр PageHeader;
@@ -140,10 +142,16 @@ export const router = createBrowserRouter([
           {
             path: 'notifications',
             element: withSuspense(<NotificationsPage />),
+            children: [
+              {
+                path: 'tasks',
+                element: withSuspense(<MyTasksPage />),
+              },
+            ],
           },
           {
             path: 'tasks',
-            element: withSuspense(<MyTasksPage />),
+            element: <Navigate to="/notifications/tasks" replace />,
           },
           {
             path: 'change-password',

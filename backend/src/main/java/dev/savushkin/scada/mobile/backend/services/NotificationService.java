@@ -9,8 +9,11 @@ import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -221,8 +224,16 @@ public class NotificationService {
         return notificationRepository.findAllByCreatorId(Long.toString(userId));
     }
 
+    public List<ProductionNotification> getSentHistory(long userId, Collection<NotificationStatus> statuses, Pageable pageable) {
+        return notificationRepository.findAllByCreatorIdAndStatusIn(Long.toString(userId), statuses, pageable);
+    }
+
     public List<ProductionNotification> getExecutorHistory(long userId) {
         return notificationRepository.findAllAcceptedBy(Long.toString(userId));
+    }
+
+    public List<ProductionNotification> getExecutorHistory(long userId, Collection<NotificationStatus> statuses, Pageable pageable) {
+        return notificationRepository.findAllAcceptedByAndStatusIn(Long.toString(userId), statuses, pageable);
     }
 
     public List<ProductionNotification> getIncoming(long userId) {

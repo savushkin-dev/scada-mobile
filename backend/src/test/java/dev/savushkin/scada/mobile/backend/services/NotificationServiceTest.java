@@ -236,6 +236,21 @@ class NotificationServiceTest {
     }
 
     @Test
+    void subscribedButNotAssignedUserCanAccept() {
+        stubNotification(persisted(ProductionNotification.activate(UNIT_ID, "42")));
+        // Подписка на "Вызов" от аппарата есть, закрепления может и не быть.
+        when(userAssignmentRepository.getSubscribedUnitIds(88L)).thenReturn(Set.of(UNIT_ID));
+        when(userAssignmentRepository.canSendNotification(88L, UNIT_ID)).thenReturn(false);
+
+        ProductionNotification accepted = service.acceptNotification(NOTIFICATION_ID, 88L);
+
+        assertThat(accepted.status()).isEqualTo(NotificationStatus.IN_PROGRESS);
+        assertThat(accepted.acceptedBy()).isEqualTo("88");
+        verify(notificationRepository).save(any());
+        assertPublishedEvent(NotificationStateChangedEvent.EventType.ACCEPTED);
+    }
+
+    @Test
     void unsubscribedUserCannotAccept() {
         stubNotification(persisted(ProductionNotification.activate(UNIT_ID, "42")));
         when(userAssignmentRepository.getSubscribedUnitIds(77L)).thenReturn(Set.of("other-unit"));
