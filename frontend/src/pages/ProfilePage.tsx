@@ -103,6 +103,7 @@ export function ProfilePage() {
     settings,
     settingsStatus,
     settingsError,
+    refreshProfile,
     applyLocalSetting,
   } = useUserProfile();
 
@@ -243,9 +244,20 @@ export function ProfilePage() {
         {isProfileLoading ? (
           <ProfileSkeleton />
         ) : profileError ? (
-          <p className="py-10 text-center text-sm text-[#74777F]">
-            {getErrorBodyMessage(profileError)}
-          </p>
+          <div className="flex flex-col items-center justify-center gap-3 py-10">
+            <p className="text-center text-sm text-[#74777F]">
+              {getErrorBodyMessage(profileError)}
+            </p>
+            {profileError.retryable && (
+              <button
+                type="button"
+                onClick={() => refreshProfile()}
+                className="rounded-2xl bg-[#0b5da4] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_4px_14px_rgba(11,93,164,0.32)] transition active:scale-[0.98]"
+              >
+                Повторить
+              </button>
+            )}
+          </div>
         ) : (
           <div className="mx-auto flex h-full w-full max-w-[520px] min-h-0 flex-col gap-3">
             <div className="flex flex-shrink-0 flex-col items-center gap-2">
