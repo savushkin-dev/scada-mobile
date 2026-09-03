@@ -6,6 +6,7 @@ import dev.savushkin.scada.mobile.backend.domain.model.NotificationCreatorType;
 import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
 import dev.savushkin.scada.mobile.backend.domain.model.ProductionNotification;
 import dev.savushkin.scada.mobile.backend.services.NotificationStateChangedEvent;
+import dev.savushkin.scada.mobile.backend.services.UnitMappingService;
 import dev.savushkin.scada.mobile.backend.services.UserProfileService;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Component;
@@ -32,11 +33,14 @@ public class NotificationMessageFactory {
 
     private final PrintSrvTopologyRepository topologyRepo;
     private final UserProfileService userProfileService;
+    private final UnitMappingService unitMappingService;
 
     public NotificationMessageFactory(PrintSrvTopologyRepository topologyRepo,
-                                      UserProfileService userProfileService) {
+                                      UserProfileService userProfileService,
+                                      UnitMappingService unitMappingService) {
         this.topologyRepo = topologyRepo;
         this.userProfileService = userProfileService;
+        this.unitMappingService = unitMappingService;
     }
 
     /**
@@ -66,7 +70,9 @@ public class NotificationMessageFactory {
 
         String acceptedByName = userProfileService.resolveFullName(notification.acceptedBy());
 
-        return NotificationMessageDTO.workflow(notification.unitId(), unitName,
+        Long unitDbId = unitMappingService.findUnitIdByPrintSrvInstanceId(notification.unitId()).orElse(null);
+
+        return NotificationMessageDTO.workflow(notification.unitId(), unitDbId, unitName,
                 notification.creatorId(), creatorName, notification, acceptedByName, timestamp);
     }
 }

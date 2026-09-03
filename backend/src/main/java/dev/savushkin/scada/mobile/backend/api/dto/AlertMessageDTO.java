@@ -19,6 +19,7 @@ import java.util.List;
  *   "type": "ALERT",
  *   "workshopId": "apparatniy",
  *   "unitId": "hassia2",
+ *   "unitDbId": 42,
  *   "unitName": "Линия розлива ПЭТ №2",
  *   "severity": "Critical",
  *   "active": true,
@@ -29,7 +30,8 @@ import java.util.List;
  *
  * @param type       Всегда {@code "ALERT"}.
  * @param workshopId ID цеха (для перекраски карточки цеха на дашборде).
- * @param unitId     ID аппарата.
+ * @param unitId     ID аппарата (PrintSrv instance id).
+ * @param unitDbId   ID аппарата в БД (units.unit_id), используется для сопоставления с настройками уведомлений.
  * @param unitName   Читаемое название аппарата (для текста push-уведомления).
  * @param severity   Уровень критичности: {@code "Critical"} или {@code "Warning"}.
  * @param active     {@code true} — ошибка активна, {@code false} — устранена.
@@ -40,6 +42,7 @@ public record AlertMessageDTO(
         String type,
         long workshopId,
         String unitId,
+        Long unitDbId,
         String unitName,
         String severity,
         boolean active,
@@ -49,16 +52,17 @@ public record AlertMessageDTO(
     /**
      * Создаёт активный алёрт (ошибка появилась).
      */
-    @Contract("_, _, _, _, _, _ -> new")
+    @Contract("_, _, _, _, _, _, _ -> new")
     public static @NonNull AlertMessageDTO active(
             long workshopId,
             String unitId,
+            Long unitDbId,
             String unitName,
             String severity,
             List<AlertErrorDTO> errors,
             String timestamp
     ) {
-        return new AlertMessageDTO("ALERT", workshopId, unitId, unitName, severity, true, errors, timestamp);
+        return new AlertMessageDTO("ALERT", workshopId, unitId, unitDbId, unitName, severity, true, errors, timestamp);
     }
 
     /**
@@ -68,6 +72,6 @@ public record AlertMessageDTO(
      */
     @Contract("_ -> new")
     public @NonNull AlertMessageDTO resolved(String resolvedAt) {
-        return new AlertMessageDTO("ALERT", workshopId, unitId, unitName, severity, false, List.of(), resolvedAt);
+        return new AlertMessageDTO("ALERT", workshopId, unitId, unitDbId, unitName, severity, false, List.of(), resolvedAt);
     }
 }
