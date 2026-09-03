@@ -32,6 +32,8 @@ export const AlertWsMessageSchema = z.object({
   type: z.literal('ALERT'),
   workshopId: z.number().int().positive(),
   unitId: z.union([z.string(), z.number()]),
+  /** ID аппарата в БД (units.unit_id), используется для сопоставления с настройками уведомлений. */
+  unitDbId: z.union([z.string(), z.number()]).nullable().optional(),
   /** Читаемое название аппарата (для отображения в карточках). */
   unitName: z.string(),
   severity: AlertSeveritySchema,
@@ -72,6 +74,8 @@ export const AlertSnapshotMessageSchema = z.object({
 export const NotificationWsMessageSchema = z.object({
   type: z.literal('NOTIFICATION'),
   unitId: z.string(),
+  /** ID аппарата в БД (units.unit_id), используется для сопоставления с настройками уведомлений. */
+  unitDbId: z.union([z.string(), z.number()]).nullable().optional(),
   unitName: z.string(),
   creatorId: z.string().nullable(),
   creatorName: z.string().nullable().optional(),

@@ -46,6 +46,15 @@ function resolveAlertRouteScope(pathname: string): AlertRouteScope {
   return { kind: 'other' };
 }
 
+function resolveNotificationUnitId(msg: AlertWsMessage | NotificationWsMessage): string {
+  // Настройки уведомлений хранятся по ID аппарата в БД (unitDbId),
+  // тогда как unitId в WS-сообщениях — это PrintSrv instance id.
+  if ('unitDbId' in msg && msg.unitDbId != null) {
+    return String(msg.unitDbId);
+  }
+  return String(msg.unitId);
+}
+
 function isTechNotificationEnabled(
   unitId: string,
   settings: NotificationSetting[] | null
@@ -57,6 +66,17 @@ function isTechNotificationEnabled(
   return setting.techEnabled;
 }
 
+function isMasterNotificationEnabled(
+  unitId: string,
+  settings: NotificationSetting[] | null
+): boolean {
+  if (settings == null) return true;
+  const setting = settings.find((s) => s.unitId === unitId);
+  // Отсутствие настройки = оба флага включены (default true).
+  if (setting == null) return true;
+  return setting.masterEnabled;
+}
+
 function shouldVibrateAlert(
   msg: AlertWsMessage,
   scope: AlertRouteScope,
@@ -65,7 +85,8 @@ function shouldVibrateAlert(
   // Вибрация только на появление активной ошибки и только если включены
   // технические уведомления для этого аппарата.
   if (!msg.active || msg.errors.length === 0) return false;
-  if (!isTechNotificationEnabled(String(msg.unitId), settings)) return false;
+  const settingsUnitId = resolveNotificationUnitId(msg);
+  if (!isTechNotificationEnabled(settingsUnitId, settings)) return false;
 
   switch (scope.kind) {
     case 'unit':
@@ -156,7 +177,20 @@ function RootLayoutInner() {
       handleAlert(msg);
 
       if (document.visibilityState !== 'visible') return;
-      if (!shouldVibrateAlert(msg, alertRouteScope, settings)) return;
+      if (!shouldVibrateAlert(msg, alertRouteScope, settings)) {
+        if (import.meta.env.DEV) {
+          console.log(
+            '[vibrate] alert skipped (unit=%s, unitDbId=%s, active=%s, errors=%d, techEnabled=%s, scope=%s)',
+            msg.unitId,
+            msg.unitDbId,
+            msg.active,
+            msg.errors.length,
+            isTechNotificationEnabled(resolveNotificationUnitId(msg), settings),
+            alertRouteScope.kind
+          );
+        }
+        return;
+      }
       if (typeof navigator.vibrate !== 'function') return;
 
       const now = Date.now();
@@ -164,6 +198,9 @@ function RootLayoutInner() {
 
       lastAlertVibrationAtRef.current = now;
       navigator.vibrate(ALERT_VIBRATION_PATTERN);
+      if (import.meta.env.DEV) {
+        console.log('[vibrate] alert', msg.unitId, 'unitDbId=', msg.unitDbId);
+      }
     },
     [handleAlert, alertRouteScope, settings]
   );
@@ -174,12 +211,15 @@ function RootLayoutInner() {
       void pushNotificationEvent(msg);
 
       // Вибрация для получателя при появлении нового "Вызов"-уведомления.
+      // Учитываем пользовательскую настройку masterEnabled для этого аппарата.
+      const settingsUnitId = resolveNotificationUnitId(msg);
       const shouldVibrate =
         msg.active === true &&
         msg.status === 'PENDING' &&
         msg.creatorId != null &&
         msg.creatorId !== '' &&
-        String(msg.creatorId) !== userId;
+        String(msg.creatorId) !== userId &&
+        isMasterNotificationEnabled(settingsUnitId, settings);
 
       if (shouldVibrate && typeof navigator.vibrate === 'function') {
         const now = Date.now();
@@ -187,23 +227,33 @@ function RootLayoutInner() {
           lastNotificationVibrationAtRef.current = now;
           navigator.vibrate(NOTIFICATION_VIBRATION_PATTERN);
           if (import.meta.env.DEV) {
-            console.log('[vibrate] Вызов', msg.unitId, 'creator=', msg.creatorId, 'user=', userId);
+            console.log(
+              '[vibrate] Вызов',
+              msg.unitId,
+              'unitDbId=',
+              msg.unitDbId,
+              'creator=',
+              msg.creatorId,
+              'user=',
+              userId
+            );
           }
         } else if (import.meta.env.DEV) {
           console.log('[vibrate] skipped (cooldown)', msg.unitId);
         }
       } else if (import.meta.env.DEV) {
         console.log(
-          '[vibrate] skipped (active=%s, status=%s, creator=%s, user=%s, api=%s)',
+          '[vibrate] skipped (active=%s, status=%s, creator=%s, user=%s, masterEnabled=%s, api=%s)',
           msg.active,
           msg.status,
           msg.creatorId,
           userId,
+          isMasterNotificationEnabled(settingsUnitId, settings),
           typeof navigator.vibrate
         );
       }
     },
-    [handleNotification, userId]
+    [handleNotification, userId, settings]
   );
 
   const handleUserAssignments = useCallback(
