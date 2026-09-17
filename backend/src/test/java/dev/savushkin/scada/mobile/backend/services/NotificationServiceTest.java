@@ -8,6 +8,7 @@ import dev.savushkin.scada.mobile.backend.domain.model.ProductionNotification;
 import dev.savushkin.scada.mobile.backend.services.NotificationService.NotificationAccessDeniedException;
 import dev.savushkin.scada.mobile.backend.services.NotificationService.ToggleResult;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -354,5 +355,110 @@ class NotificationServiceTest {
                 .filteredOn(NotificationStateChangedEvent.class::isInstance)
                 .map(NotificationStateChangedEvent.class::cast)
                 .anySatisfy(event -> assertThat(event.type()).isEqualTo(expectedType));
+    }
+
+    // ─── Уровневые методы «последней партии» от СКАДА (batch-end) ───────
+
+    /**
+     * Идемпотентные activate/deactivate для детектора сигнала {@code Line.command = 113}:
+     * активация только при отсутствии активного уведомления, снятие — только
+     * собственного MACHINE-уведомления. USER-уведомления работника не трогаем.
+     */
+    @Nested
+    class BatchEndLevelMethods {
+
+        private static final String MACHINE_ID = "hassia1";
+
+        // ─── activateMachineNotificationIfAbsent ─────────────────────────
+
+        @Test
+        void activateCreatesMachineNotificationWhenAbsent() {
+            when(notificationRepository.findActiveByUnitId(UNIT_ID)).thenReturn(Optional.empty());
+
+            boolean created = service.activateMachineNotificationIfAbsent(UNIT_ID, MACHINE_ID);
+
+            assertThat(created).isTrue();
+            ProductionNotification saved = captureSaved();
+            assertThat(saved.active()).isTrue();
+            assertThat(saved.creatorType()).isEqualTo(NotificationCreatorType.MACHINE);
+            assertThat(saved.creatorId()).isEqualTo(MACHINE_ID);
+            assertThat(saved.unitId()).isEqualTo(UNIT_ID);
+            assertPublishedEvent(NotificationStateChangedEvent.EventType.ACTIVATED);
+        }
+
+        @Test
+        void activateIsNoOpWhenAlreadyActiveBySameMachine() {
+            when(notificationRepository.findActiveByUnitId(UNIT_ID))
+                    .thenReturn(Optional.of(ProductionNotification.activateAsMachine(UNIT_ID, MACHINE_ID)));
+
+            boolean created = service.activateMachineNotificationIfAbsent(UNIT_ID, MACHINE_ID);
+
+            assertThat(created).isFalse();
+            verify(notificationRepository, never()).save(any());
+            verify(eventPublisher, never()).publishEvent(any());
+        }
+
+        @Test
+        void activateDoesNotDuplicateUserNotification() {
+            when(notificationRepository.findActiveByUnitId(UNIT_ID))
+                    .thenReturn(Optional.of(ProductionNotification.activate(UNIT_ID, "42")));
+
+            boolean created = service.activateMachineNotificationIfAbsent(UNIT_ID, MACHINE_ID);
+
+            assertThat(created).isFalse();
+            verify(notificationRepository, never()).save(any());
+            verify(eventPublisher, never()).publishEvent(any());
+        }
+
+        // ─── deactivateMachineNotificationIfPresent ──────────────────────
+
+        @Test
+        void deactivateRemovesOwnMachineNotification() {
+            when(notificationRepository.findActiveByUnitId(UNIT_ID))
+                    .thenReturn(Optional.of(ProductionNotification.activateAsMachine(UNIT_ID, MACHINE_ID)));
+
+            boolean removed = service.deactivateMachineNotificationIfPresent(UNIT_ID, MACHINE_ID);
+
+            assertThat(removed).isTrue();
+            ProductionNotification saved = captureSaved();
+            assertThat(saved.active()).isFalse();
+            assertThat(saved.deactivatedAt()).isNotNull();
+            assertPublishedEvent(NotificationStateChangedEvent.EventType.DEACTIVATED);
+        }
+
+        @Test
+        void deactivateKeepsUserNotificationUntouched() {
+            when(notificationRepository.findActiveByUnitId(UNIT_ID))
+                    .thenReturn(Optional.of(ProductionNotification.activate(UNIT_ID, "42")));
+
+            boolean removed = service.deactivateMachineNotificationIfPresent(UNIT_ID, MACHINE_ID);
+
+            assertThat(removed).isFalse();
+            verify(notificationRepository, never()).save(any());
+            verify(eventPublisher, never()).publishEvent(any());
+        }
+
+        @Test
+        void deactivateKeepsOtherMachineNotificationUntouched() {
+            when(notificationRepository.findActiveByUnitId(UNIT_ID))
+                    .thenReturn(Optional.of(ProductionNotification.activateAsMachine(UNIT_ID, "other-machine")));
+
+            boolean removed = service.deactivateMachineNotificationIfPresent(UNIT_ID, MACHINE_ID);
+
+            assertThat(removed).isFalse();
+            verify(notificationRepository, never()).save(any());
+            verify(eventPublisher, never()).publishEvent(any());
+        }
+
+        @Test
+        void deactivateIsNoOpWhenNothingActive() {
+            when(notificationRepository.findActiveByUnitId(UNIT_ID)).thenReturn(Optional.empty());
+
+            boolean removed = service.deactivateMachineNotificationIfPresent(UNIT_ID, MACHINE_ID);
+
+            assertThat(removed).isFalse();
+            verify(notificationRepository, never()).save(any());
+            verify(eventPublisher, never()).publishEvent(any());
+        }
     }
 }

@@ -143,6 +143,54 @@ public class NotificationService {
     }
 
     /**
+     * Активация «последней партии» от СКАДА (уровневый сигнал из polling-потока).
+     * Идемпотентна: при уже активном уведомлении любого создателя — no-op.
+     *
+     * @param unitId    Идентификатор аппарата (PrintSrv instance id).
+     * @param machineId PrintSrv instance id автомата (creatorId MACHINE-уведомления).
+     * @return {@code true}, если уведомление было создано этим вызовом.
+     */
+    public boolean activateMachineNotificationIfAbsent(@NonNull String unitId, @NonNull String machineId) {
+        ProductionNotification existing = notificationRepository.findActiveByUnitId(unitId)
+                .orElse(null);
+        if (existing != null) {
+            log.debug("Batch-end signal ignored: unitId='{}' already active by '{}' ({})",
+                    unitId, existing.creatorId(), existing.creatorType());
+            return false;
+        }
+        activate(unitId, ProductionNotification.activateAsMachine(unitId, machineId), machineId);
+        log.info("Batch-end signal: machine notification ACTIVATED unitId='{}'", unitId);
+        return true;
+    }
+
+    /**
+     * Снятие «последней партии», поставленной автоматом (уровневый сигнал из polling-потока).
+     * Снимает только уведомление с {@code creatorType = MACHINE} и
+     * {@code creatorId = machineId}; уведомление работника (USER) и чужие
+     * MACHINE-уведомления — не трогает.
+     *
+     * @param unitId    Идентификатор аппарата (PrintSrv instance id).
+     * @param machineId PrintSrv instance id автомата (creatorId MACHINE-уведомления).
+     * @return {@code true}, если уведомление было снято этим вызовом.
+     */
+    public boolean deactivateMachineNotificationIfPresent(@NonNull String unitId, @NonNull String machineId) {
+        ProductionNotification existing = notificationRepository.findActiveByUnitId(unitId)
+                .orElse(null);
+        if (existing == null) {
+            return false;
+        }
+        if (existing.creatorType() != NotificationCreatorType.MACHINE
+                || !existing.creatorId().equals(machineId)) {
+            log.debug("Batch-end off ignored: unitId='{}' active by '{}' ({}) — not ours",
+                    unitId, existing.creatorId(), existing.creatorType());
+            return false;
+        }
+        deactivate(unitId, existing, machineId);
+        log.info("Batch-end signal: machine notification DEACTIVATED unitId='{}'", unitId);
+        return true;
+    }
+
+    /**
      * Возвращает текущее активное состояние «последняя партия» по аппарату.
      * Используется REST GET-эндпоинтом — единым источником истины для фронтенда и СКАДА.
      *

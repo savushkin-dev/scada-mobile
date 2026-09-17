@@ -20,6 +20,7 @@ public class PrintSrvProperties {
 
     private PollingProperties polling = new PollingProperties();
     private SocketProperties socket = new SocketProperties();
+    private BatchEndProperties batchEnd = new BatchEndProperties();
 
     // ─── getters / setters ────────────────────────────────────────────────────
 
@@ -42,6 +43,23 @@ public class PrintSrvProperties {
     public static class SocketProperties {
         private int connectTimeoutMs = 5000;
         private int readTimeoutMs = 5000;
+
+    }
+
+    // ─── Nested: batch-end ───────────────────────────────────────────────────
+
+    @Setter
+    @Getter
+    public static class BatchEndProperties {
+        /**
+         * Имя устройства-источника сигнала «последняя партия».
+         */
+        private String deviceName = "Line";
+
+        /**
+         * Значение тега {@code command}, означающее «последняя партия».
+         */
+        private int commandCode = 113;
 
     }
 }
