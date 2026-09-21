@@ -6,6 +6,7 @@ import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import dev.savushkin.scada.mobile.backend.infrastructure.polling.PrintSrvInstancePolledEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -58,6 +59,7 @@ public class LineBatchEndDetector {
     /** Момент активации MACHINE-уведомления этим детектором по инстансу. */
     private final Map<String, Instant> activatedAtByInstance = new ConcurrentHashMap<>();
 
+    @Autowired
     public LineBatchEndDetector(
             InstanceSnapshotRepository snapshotRepository,
             NotificationService notificationService,
@@ -66,6 +68,12 @@ public class LineBatchEndDetector {
         this(snapshotRepository, notificationService, printSrvProperties, Clock.systemUTC());
     }
 
+    /**
+     * Конструктор для тестов с управляемым {@link Clock}. Не участвует в
+     * autowiring: кандидат для Spring — единственный, помеченный
+     * {@link Autowired} (иначе при двух публичных конструкторах контекст
+     * падает с «No default constructor found»).
+     */
     public LineBatchEndDetector(
             InstanceSnapshotRepository snapshotRepository,
             NotificationService notificationService,
