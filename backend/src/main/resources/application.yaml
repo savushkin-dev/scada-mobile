@@ -13,8 +13,9 @@ scada:
 #
 # polling.fixed-delay-ms — задержка между polling-проходами каждого worker.
 # socket.* — таймауты TCP-соединения с PrintSrv.
-# batch-end.device-name — устройство, в теге command которого детектор ищет код «последней партии».
-# batch-end.command-code — значение тега command, означающее «последняя партия».
+# batch-end.device-name — устройство, в свойстве которого детектор ищет счётчик «последней партии».
+# batch-end.property-name — имя свойства-счётчика; срабатывание — по изменению значения.
+# batch-end.notification-ttl-minutes — TTL MACHINE-уведомления (авто-снятие).
 # ─────────────────────────────────────────────────────────────────────────────
 printsrv:
   polling:
@@ -23,11 +24,14 @@ printsrv:
   socket:
     connect-timeout-ms: 5000
     read-timeout-ms: 5000
-  # Сигнал «последняя партия» (уровневый): пока в поле command устройства
-  # стоит код 113 — активно MACHINE-уведомление, при исчезновении кода — снимается.
+  # Сигнал «последняя партия» (событийный): markserver инкрементирует счётчик
+  # в свойстве FinishBatch при получении команды LINE_CMD_FINISH_BATCH (113).
+  # Детектор активирует MACHINE-уведомление по изменению счётчика и снимает
+  # его по TTL (notification-ttl-minutes) или при потере снапшота.
   batch-end:
     device-name: Line
-    command-code: 113
+    property-name: FinishBatch
+    notification-ttl-minutes: 10
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CORS — общая политика для всех профилей.

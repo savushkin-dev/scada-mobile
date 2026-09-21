@@ -9,21 +9,36 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * Детектор сигнала «последняя партия» из polling-потока PrintSrv.
  * <p>
- * Уровневая семантика: пока в поле {@code command} устройства {@code Line}
- * стоит код из конфигурации (по умолчанию {@code 113}) — активно
- * MACHINE-уведомление «последняя партия» с создателем-инстансом; когда код
- * исчезает (другое значение, тег пропал, снапшот недоступен) — уведомление
- * снимается. Уведомления, установленные работником (USER), детектор
- * никогда не трогает.
+ * Событийная (edge) семантика: markserver при получении команды
+ * {@code LINE_CMD_FINISH_BATCH (113)} инкрементирует счётчик в свойстве
+ * {@code FinishBatch} устройства {@code Line} (значение циклически 1→100→1,
+ * см. markserver-libs PR #43). Детектор сравнивает значение свойства между
+ * poll-циклами: любое изменение — событие «последняя партия», при котором
+ * активируется MACHINE-уведомление с создателем-инстансом.
  * <p>
- * Идемпотентность достигается сверкой уровня сигнала (снапшот) с уровнем
- * уведомления (БД) на каждом poll-цикле; отдельный in-memory edge-трекер
- * не используется. Повторные вызовы при неизменном уровне — дешёвые no-op
- * в {@link NotificationService}, поэтому логировать их не нужно.
+ * Так как счётчик не несёт сигнала «конец», уведомление снимается двумя
+ * путями:
+ * <ul>
+ *   <li>автоматически по таймауту {@code batch-end.notification-ttl-minutes}
+ *       от момента активации;</li>
+ *   <li>при потере снапшота (инстанс недоступен, свойство исчезло) — чтобы
+ *       не оставался «зависший» сигнал.</li>
+ * </ul>
+ * Первое наблюдение значения после старта/восстановления — только baseline,
+ * без активации: иначе рестарт бэкенда ловил бы ложные срабатывания.
+ * Уведомления, установленные работником (USER), детектор никогда не трогает.
  * <p>
+ * Состояние (baseline счётчика и момент активации) хранится в памяти на
+ * инстанс: после рестарта бэкенда baseline пересоздаётся с первого poll.
  * Любое исключение из репозитория/сервиса ловится и логируется WARN-ом:
  * падение детектора не должно ронять polling worker.
  */
@@ -35,20 +50,38 @@ public class LineBatchEndDetector {
     private final InstanceSnapshotRepository snapshotRepository;
     private final NotificationService notificationService;
     private final PrintSrvProperties printSrvProperties;
+    private final Clock clock;
+
+    /** Последнее наблюдаемое значение счётчика FinishBatch по инстансу. */
+    private final Map<String, String> lastSeenValues = new ConcurrentHashMap<>();
+
+    /** Момент активации MACHINE-уведомления этим детектором по инстансу. */
+    private final Map<String, Instant> activatedAtByInstance = new ConcurrentHashMap<>();
 
     public LineBatchEndDetector(
             InstanceSnapshotRepository snapshotRepository,
             NotificationService notificationService,
             PrintSrvProperties printSrvProperties
     ) {
+        this(snapshotRepository, notificationService, printSrvProperties, Clock.systemUTC());
+    }
+
+    public LineBatchEndDetector(
+            InstanceSnapshotRepository snapshotRepository,
+            NotificationService notificationService,
+            PrintSrvProperties printSrvProperties,
+            Clock clock
+    ) {
         this.snapshotRepository = snapshotRepository;
         this.notificationService = notificationService;
         this.printSrvProperties = printSrvProperties;
+        this.clock = clock;
     }
 
     /**
-     * Обрабатывает завершение одного polling-прохода по инстансу: сводит
-     * уровень сигнала «последняя партия» из снапшота с состоянием уведомления.
+     * Обрабатывает завершение одного polling-прохода по инстансу: детектирует
+     * изменение счётчика «последней партии» и сводит состояние уведомления
+     * (активация по событию, снятие по таймауту или потере сигнала).
      *
      * @param event событие завершения опроса инстанса PrintSrv
      */
@@ -58,18 +91,62 @@ public class LineBatchEndDetector {
         try {
             PrintSrvProperties.BatchEndProperties batchEnd = printSrvProperties.getBatchEnd();
             DeviceSnapshot snapshot = snapshotRepository.get(instanceId, batchEnd.getDeviceName());
-            boolean signalActive = snapshot != null && snapshot.units().values().stream()
-                    .map(unit -> unit.properties().getCommand().orElse(null))
-                    .anyMatch(command -> command != null && command == batchEnd.getCommandCode());
+            String currentValue = snapshot == null ? null : snapshot.units().values().stream()
+                    .map(unit -> unit.properties().getRawProperties().get(batchEnd.getPropertyName()))
+                    .filter(value -> value != null && !value.isBlank())
+                    .findFirst()
+                    .orElse(null);
 
-            if (signalActive) {
-                notificationService.activateMachineNotificationIfAbsent(instanceId, instanceId);
-            } else {
+            if (currentValue == null) {
+                // Снапшот недоступен или свойство исчезло — снимаем «зависший»
+                // сигнал и сбрасываем baseline.
+                lastSeenValues.remove(instanceId);
+                activatedAtByInstance.remove(instanceId);
                 notificationService.deactivateMachineNotificationIfPresent(instanceId, instanceId);
+                return;
+            }
+
+            expireTimedOutNotification(instanceId, batchEnd);
+
+            String previousValue = lastSeenValues.put(instanceId, currentValue);
+            if (previousValue == null) {
+                // Первое наблюдение — только baseline, без активации.
+                return;
+            }
+            if (!previousValue.equals(currentValue)) {
+                boolean activated = notificationService
+                        .activateMachineNotificationIfAbsent(instanceId, instanceId);
+                if (activated) {
+                    activatedAtByInstance.put(instanceId, clock.instant());
+                    log.info("Batch-end counter changed on instanceId='{}' ({} -> {})",
+                            instanceId, previousValue, currentValue);
+                }
             }
         } catch (Exception ex) {
             log.warn("Batch-end detector failed for instanceId='{}': {}",
                     instanceId, ex.getMessage(), ex);
         }
+    }
+
+    /**
+     * Снимает MACHINE-уведомление, активированное детектором, если истёк TTL.
+     * Снимает только уведомление, поставленное этим инстансом
+     * ({@link NotificationService#deactivateMachineNotificationIfPresent}
+     * сам проверяет создателя).
+     */
+    private void expireTimedOutNotification(String instanceId,
+                                            PrintSrvProperties.BatchEndProperties batchEnd) {
+        Instant activatedAt = activatedAtByInstance.get(instanceId);
+        if (activatedAt == null) {
+            return;
+        }
+        Duration ttl = Duration.ofMinutes(batchEnd.getNotificationTtlMinutes());
+        if (clock.instant().isBefore(activatedAt.plus(ttl))) {
+            return;
+        }
+        activatedAtByInstance.remove(instanceId);
+        notificationService.deactivateMachineNotificationIfPresent(instanceId, instanceId);
+        log.info("Batch-end notification TTL ({} min) expired for instanceId='{}'",
+                batchEnd.getNotificationTtlMinutes(), instanceId);
     }
 }
