@@ -57,9 +57,19 @@ public class PrintSrvProperties {
         private String deviceName = "Line";
 
         /**
-         * Значение тега {@code command}, означающее «последняя партия».
+         * Имя свойства-счётчика «последней партии». Markserver инкрементирует
+         * его при получении команды {@code LINE_CMD_FINISH_BATCH (113)}
+         * (значение циклически меняется 1→100→1), поэтому срабатывание
+         * детектируется по <em>изменению</em> значения между poll-циклами.
          */
-        private int commandCode = 113;
+        private String propertyName = "FinishBatch";
+
+        /**
+         * Время жизни MACHINE-уведомления «последняя партия» в минутах:
+         * счётчик не несёт сигнала «конец», поэтому уведомление снимается
+         * автоматически по таймауту.
+         */
+        private long notificationTtlMinutes = 10;
 
     }
 }

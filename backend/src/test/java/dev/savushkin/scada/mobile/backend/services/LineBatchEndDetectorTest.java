@@ -7,135 +7,206 @@ import dev.savushkin.scada.mobile.backend.domain.model.UnitProperties;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitSnapshot;
 import dev.savushkin.scada.mobile.backend.infrastructure.polling.PrintSrvInstancePolledEvent;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.Mockito.*;
 
 /**
- * Unit-тесты детектора сигнала «последняя партия» по {@code Line.command = 113}.
+ * Unit-тесты детектора сигнала «последняя партия» по счётчику
+ * {@code FinishBatch} устройства {@code Line}.
  * <p>
- * Уровневая семантика: детектор на каждом poll-цикле сводит уровень сигнала
- * (снапшот) с уровнем уведомления (БД, здесь — мок {@link NotificationService}).
- * Идемпотентность повторных активаций — на совести сервиса, поэтому при
- * удержании {@code 113} activate вызывается каждый раз, а deactivate — никогда.
+ * Событийная семантика: markserver инкрементирует счётчик при команде
+ * {@code LINE_CMD_FINISH_BATCH (113)}, детектор срабатывает по изменению
+ * значения между poll-циклами. Первое наблюдение — baseline без активации.
+ * Уведомление снимается по TTL (mutable clock) или при потере снапшота.
  */
 class LineBatchEndDetectorTest {
 
     private static final String INSTANCE_ID = "hassia2";
     private static final String OTHER_INSTANCE_ID = "hassia3";
+    private static final Instant T0 = Instant.parse("2026-09-21T10:00:00Z");
 
     private InstanceSnapshotRepository snapshotRepository;
     private NotificationService notificationService;
+    private AtomicReference<Instant> now;
     private LineBatchEndDetector detector;
 
     @BeforeEach
     void setUp() {
         snapshotRepository = mock(InstanceSnapshotRepository.class);
         notificationService = mock(NotificationService.class);
+        now = new AtomicReference<>(T0);
+        Clock clock = new Clock() {
+            @Override
+            public Instant instant() {
+                return now.get();
+            }
+
+            @Override
+            public ZoneOffset getZone() {
+                return ZoneOffset.UTC;
+            }
+
+            @Override
+            public Clock withZone(java.time.ZoneId zone) {
+                return this;
+            }
+        };
         detector = new LineBatchEndDetector(snapshotRepository, notificationService,
-                new PrintSrvProperties());
+                new PrintSrvProperties(), clock);
     }
 
-    /** Снапшот устройства Line с одним юнитом с заданным command. */
-    private static DeviceSnapshot lineSnapshot(Integer command) {
-        return lineSnapshot(new Integer[]{command});
-    }
-
-    /** Снапшот устройства Line с несколькими юнитами (u1, u2, ...). */
-    private static DeviceSnapshot lineSnapshot(Integer... commands) {
-        Map<String, UnitSnapshot> units = new LinkedHashMap<>();
-        for (int i = 0; i < commands.length; i++) {
-            UnitProperties properties = UnitProperties.builder().command(commands[i]).build();
-            units.put("u" + (i + 1), new UnitSnapshot(i + 1, "ok", "task", 0, properties));
+    /** Снапшот устройства Line с одним юнитом со значением счётчика FinishBatch. */
+    private static DeviceSnapshot lineSnapshot(String finishBatch) {
+        Map<String, String> raw = new LinkedHashMap<>();
+        if (finishBatch != null) {
+            raw.put("FinishBatch", finishBatch);
         }
-        return new DeviceSnapshot("Line", units);
+        UnitProperties properties = UnitProperties.builder().rawProperties(raw).build();
+        return new DeviceSnapshot("Line", Map.of("u1", new UnitSnapshot(1, "ok", "task", 0, properties)));
     }
 
     private void poll(String instanceId) {
         detector.onInstancePolled(new PrintSrvInstancePolledEvent(instanceId));
     }
 
-    // ─── Кейс 1: 0 → 113 — активация ─────────────────────────────────────
+    private void advanceMinutes(long minutes) {
+        now.updateAndGet(t -> t.plusSeconds(minutes * 60));
+    }
+
+    // ─── Кейс 1: первое наблюдение — baseline, активации нет ─────────────
 
     @Test
-    void transitionFromZeroToOneHundredThirteenActivates() {
-        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot(0));
+    @DisplayName("Первое наблюдение счётчика — только baseline, без активации и без снятия")
+    void firstObservationIsBaselineOnly() {
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("5"));
+
         poll(INSTANCE_ID);
-        verify(notificationService).deactivateMachineNotificationIfPresent(INSTANCE_ID, INSTANCE_ID);
+
         verify(notificationService, never()).activateMachineNotificationIfAbsent(any(), any());
-
-        clearInvocations(notificationService);
-        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot(113));
-        poll(INSTANCE_ID);
-
-        verify(notificationService).activateMachineNotificationIfAbsent(INSTANCE_ID, INSTANCE_ID);
         verify(notificationService, never()).deactivateMachineNotificationIfPresent(any(), any());
     }
 
-    // ─── Кейс 2: 113 → 113 → 113 — удержание, деактиватор не вызывается ──
+    // ─── Кейс 2: изменение счётчика — активация ───────────────────────────
 
     @Test
-    void heldOneHundredThirteenActivatesOnEachPollWithoutDeactivate() {
-        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot(113));
-
-        poll(INSTANCE_ID);
-        poll(INSTANCE_ID);
+    @DisplayName("Изменение счётчика между poll-циклами активирует MACHINE-уведомление")
+    void counterChangeActivates() {
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("5"));
         poll(INSTANCE_ID);
 
-        verify(notificationService, times(3)).activateMachineNotificationIfAbsent(INSTANCE_ID, INSTANCE_ID);
-        verify(notificationService, never()).deactivateMachineNotificationIfPresent(any(), any());
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("6"));
+        when(notificationService.activateMachineNotificationIfAbsent(INSTANCE_ID, INSTANCE_ID))
+                .thenReturn(true);
+        poll(INSTANCE_ID);
+
+        verify(notificationService).activateMachineNotificationIfAbsent(INSTANCE_ID, INSTANCE_ID);
     }
 
-    // ─── Кейс 3: 113 → 0 — деактивация ───────────────────────────────────
+    // ─── Кейс 3: удержание значения — повторных вызовов нет ──────────────
 
     @Test
-    void transitionFromOneHundredThirteenToZeroDeactivates() {
-        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot(113));
+    @DisplayName("Неизменный счётчик: ни активации, ни снятия на повторных poll-циклах")
+    void unchangedCounterIsNoOp() {
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("7"));
+
+        poll(INSTANCE_ID);
+        poll(INSTANCE_ID);
+        poll(INSTANCE_ID);
+
+        verifyNoInteractions(notificationService);
+    }
+
+    // ─── Кейс 4: циклический переход 100 → 1 — тоже событие ──────────────
+
+    @Test
+    @DisplayName("Циклический переход счётчика 100 → 1 детектируется как событие")
+    void counterWrapAroundActivates() {
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("100"));
+        poll(INSTANCE_ID);
+
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("1"));
+        when(notificationService.activateMachineNotificationIfAbsent(INSTANCE_ID, INSTANCE_ID))
+                .thenReturn(true);
+        poll(INSTANCE_ID);
+
+        verify(notificationService).activateMachineNotificationIfAbsent(INSTANCE_ID, INSTANCE_ID);
+    }
+
+    // ─── Кейс 5: авто-снятие по TTL ───────────────────────────────────────
+
+    @Test
+    @DisplayName("По истечении TTL уведомление снимается автоматически")
+    void notificationExpiresAfterTtl() {
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("1"));
+        poll(INSTANCE_ID);
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("2"));
+        when(notificationService.activateMachineNotificationIfAbsent(INSTANCE_ID, INSTANCE_ID))
+                .thenReturn(true);
         poll(INSTANCE_ID);
         verify(notificationService).activateMachineNotificationIfAbsent(INSTANCE_ID, INSTANCE_ID);
 
-        clearInvocations(notificationService);
-        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot(0));
+        advanceMinutes(10);
         poll(INSTANCE_ID);
 
         verify(notificationService).deactivateMachineNotificationIfPresent(INSTANCE_ID, INSTANCE_ID);
-        verify(notificationService, never()).activateMachineNotificationIfAbsent(any(), any());
     }
 
-    // ─── Кейс 4: 0 → 0 — уровневая сверка, deactivate вызывается ─────────
-
     @Test
-    void heldZeroDeactivatesOnEachPollWithoutActivate() {
-        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot(0));
-
+    @DisplayName("До истечения TTL уведомление не снимается")
+    void notificationKeptBeforeTtl() {
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("1"));
         poll(INSTANCE_ID);
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("2"));
+        when(notificationService.activateMachineNotificationIfAbsent(INSTANCE_ID, INSTANCE_ID))
+                .thenReturn(true);
         poll(INSTANCE_ID);
 
-        verify(notificationService, times(2)).deactivateMachineNotificationIfPresent(INSTANCE_ID, INSTANCE_ID);
-        verify(notificationService, never()).activateMachineNotificationIfAbsent(any(), any());
+        advanceMinutes(9);
+        poll(INSTANCE_ID);
+
+        verify(notificationService, never()).deactivateMachineNotificationIfPresent(any(), any());
     }
 
-    // ─── Кейс 5: snapshot == null — снятие «зависшего» сигнала ───────────
+    // ─── Кейс 6: snapshot == null — снятие «зависшего» сигнала ───────────
 
     @Test
-    void missingSnapshotDeactivatesWithoutExceptions() {
+    @DisplayName("Потеря снапшота снимает активное уведомление и сбрасывает baseline")
+    void missingSnapshotDeactivatesAndResetsBaseline() {
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("1"));
+        poll(INSTANCE_ID);
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("2"));
+        when(notificationService.activateMachineNotificationIfAbsent(INSTANCE_ID, INSTANCE_ID))
+                .thenReturn(true);
+        poll(INSTANCE_ID);
+
         when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(null);
-
         assertThatCode(() -> poll(INSTANCE_ID)).doesNotThrowAnyException();
-
         verify(notificationService).deactivateMachineNotificationIfPresent(INSTANCE_ID, INSTANCE_ID);
+
+        // Baseline сброшен: возврат того же значения — новое первое наблюдение,
+        // ложной активации быть не должно.
+        clearInvocations(notificationService);
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("2"));
+        poll(INSTANCE_ID);
         verify(notificationService, never()).activateMachineNotificationIfAbsent(any(), any());
     }
 
-    // ─── Кейс 6: command == null (тег отсутствует) — деактивация ─────────
+    // ─── Кейс 7: свойство отсутствует — как потеря сигнала ────────────────
 
     @Test
-    void absentCommandTagDeactivates() {
-        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot((Integer) null));
+    @DisplayName("Отсутствие свойства FinishBatch трактуется как потеря сигнала")
+    void absentPropertyDeactivates() {
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot(null));
 
         poll(INSTANCE_ID);
 
@@ -143,23 +214,32 @@ class LineBatchEndDetectorTest {
         verify(notificationService, never()).activateMachineNotificationIfAbsent(any(), any());
     }
 
-    // ─── Кейс 7: код != 113 (например, 555) — не активируем ──────────────
+    // ─── Кейс 8: активация отклонена (USER-уведомление) — TTL не трекается ─
 
     @Test
-    void foreignCommandCodeDeactivates() {
-        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot(555));
-
+    @DisplayName("Если активация отклонена (активно USER-уведомление), TTL-снятие не планируется")
+    void declinedActivationIsNotTrackedForTtl() {
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("1"));
+        poll(INSTANCE_ID);
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("2"));
+        when(notificationService.activateMachineNotificationIfAbsent(INSTANCE_ID, INSTANCE_ID))
+                .thenReturn(false);
         poll(INSTANCE_ID);
 
-        verify(notificationService, never()).activateMachineNotificationIfAbsent(any(), any());
-        verify(notificationService).deactivateMachineNotificationIfPresent(INSTANCE_ID, INSTANCE_ID);
+        advanceMinutes(60);
+        poll(INSTANCE_ID);
+
+        verify(notificationService, never()).deactivateMachineNotificationIfPresent(any(), any());
     }
 
-    // ─── Кейс 8: исключение из NotificationService глотается ─────────────
+    // ─── Кейс 9: исключения глотаются ─────────────────────────────────────
 
     @Test
+    @DisplayName("Исключение из NotificationService не роняет polling worker")
     void serviceExceptionIsSwallowedAndDoesNotPropagate() {
-        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot(113));
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("1"));
+        poll(INSTANCE_ID);
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("2"));
         doThrow(new RuntimeException("DB is down"))
                 .when(notificationService).activateMachineNotificationIfAbsent(any(), any());
 
@@ -168,8 +248,8 @@ class LineBatchEndDetectorTest {
         verify(notificationService).activateMachineNotificationIfAbsent(INSTANCE_ID, INSTANCE_ID);
     }
 
-    /** Исключение из репозитория тоже не должно ронять polling worker. */
     @Test
+    @DisplayName("Исключение из репозитория не роняет polling worker")
     void repositoryExceptionIsSwallowedAndDoesNotPropagate() {
         when(snapshotRepository.get(INSTANCE_ID, "Line"))
                 .thenThrow(new RuntimeException("store failure"));
@@ -179,71 +259,57 @@ class LineBatchEndDetectorTest {
         verifyNoInteractions(notificationService);
     }
 
-    // ─── Кейс 9: несколько юнитов, хотя бы один 113 — активен ────────────
+    // ─── Кейс 10: разные instanceId изолированы ──────────────────────────
 
     @Test
-    void anyUnitWithOneHundredThirteenActivates() {
-        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot(0, 113));
-
-        poll(INSTANCE_ID);
-
-        verify(notificationService).activateMachineNotificationIfAbsent(INSTANCE_ID, INSTANCE_ID);
-        verify(notificationService, never()).deactivateMachineNotificationIfPresent(any(), any());
-    }
-
-    // ─── Кейс 10: разные instanceId изолированы друг от друга ────────────
-
-    @Test
+    @DisplayName("Состояние детектора изолировано по instanceId")
     void instancesAreIsolated() {
-        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot(113));
-        when(snapshotRepository.get(OTHER_INSTANCE_ID, "Line")).thenReturn(lineSnapshot(0));
-
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("1"));
+        when(snapshotRepository.get(OTHER_INSTANCE_ID, "Line")).thenReturn(lineSnapshot("1"));
         poll(INSTANCE_ID);
         poll(OTHER_INSTANCE_ID);
 
+        when(snapshotRepository.get(INSTANCE_ID, "Line")).thenReturn(lineSnapshot("2"));
+        when(notificationService.activateMachineNotificationIfAbsent(INSTANCE_ID, INSTANCE_ID))
+                .thenReturn(true);
+        poll(INSTANCE_ID);
+
         verify(notificationService).activateMachineNotificationIfAbsent(INSTANCE_ID, INSTANCE_ID);
-        verify(notificationService).deactivateMachineNotificationIfPresent(OTHER_INSTANCE_ID, OTHER_INSTANCE_ID);
         verify(notificationService, never()).activateMachineNotificationIfAbsent(eq(OTHER_INSTANCE_ID), any());
-        verify(notificationService, never()).deactivateMachineNotificationIfPresent(eq(INSTANCE_ID), any());
+        verify(notificationService, never()).deactivateMachineNotificationIfPresent(any(), any());
     }
 
-    // ─── Кейс 11: устройство называется не Line → снапшот не найден ──────
+    // ─── Кейс 11: кастомные deviceName/propertyName из конфигурации ───────
 
     @Test
-    void otherDeviceNameIsLookedUpByConfiguredNameAndTreatedAsMissing() {
-        // Репозиторий отдаёт снапшот только по запрошенному имени устройства;
-        // для "Line" (конфиг по умолчанию) возвращается null.
-        when(snapshotRepository.get(INSTANCE_ID, "OtherDevice"))
-                .thenReturn(new DeviceSnapshot("OtherDevice", Map.of(
-                        "u1", new UnitSnapshot(1, "ok", "task", 0,
-                                UnitProperties.builder().command(113).build()))));
-
-        assertThatCode(() -> poll(INSTANCE_ID)).doesNotThrowAnyException();
-
-        // Детектор обязан искать устройство по имени из конфигурации ("Line").
-        verify(snapshotRepository).get(INSTANCE_ID, "Line");
-        // Снапшот не найден → поведение как при потере сигнала: снятие.
-        verify(notificationService).deactivateMachineNotificationIfPresent(INSTANCE_ID, INSTANCE_ID);
-        verify(notificationService, never()).activateMachineNotificationIfAbsent(any(), any());
-    }
-
-    /** Кастомный deviceName/commandCode из конфигурации используется детектором. */
-    @Test
-    void customDeviceNameAndCommandCodeFromConfigAreHonored() {
+    @DisplayName("Кастомные deviceName и propertyName из конфигурации используются детектором")
+    void customDeviceAndPropertyFromConfigAreHonored() {
         PrintSrvProperties properties = new PrintSrvProperties();
         properties.getBatchEnd().setDeviceName("CustomLine");
-        properties.getBatchEnd().setCommandCode(200);
+        properties.getBatchEnd().setPropertyName("CustomCounter");
         LineBatchEndDetector customDetector = new LineBatchEndDetector(
                 snapshotRepository, notificationService, properties);
 
-        when(snapshotRepository.get(INSTANCE_ID, "CustomLine"))
-                .thenReturn(new DeviceSnapshot("CustomLine", Map.of(
-                        "u1", new UnitSnapshot(1, "ok", "task", 0,
-                                UnitProperties.builder().command(200).build()))));
+        UnitProperties props = UnitProperties.builder()
+                .rawProperties(Map.of("CustomCounter", "3")).build();
+        DeviceSnapshot snapshot = new DeviceSnapshot("CustomLine",
+                Map.of("u1", new UnitSnapshot(1, "ok", "task", 0, props)));
+        when(snapshotRepository.get(INSTANCE_ID, "CustomLine")).thenReturn(snapshot);
 
         customDetector.onInstancePolled(new PrintSrvInstancePolledEvent(INSTANCE_ID));
 
         verify(snapshotRepository).get(INSTANCE_ID, "CustomLine");
+        verify(notificationService, never()).activateMachineNotificationIfAbsent(any(), any());
+
+        UnitProperties changed = UnitProperties.builder()
+                .rawProperties(Map.of("CustomCounter", "4")).build();
+        when(snapshotRepository.get(INSTANCE_ID, "CustomLine")).thenReturn(
+                new DeviceSnapshot("CustomLine",
+                        Map.of("u1", new UnitSnapshot(1, "ok", "task", 0, changed))));
+        when(notificationService.activateMachineNotificationIfAbsent(INSTANCE_ID, INSTANCE_ID))
+                .thenReturn(true);
+        customDetector.onInstancePolled(new PrintSrvInstancePolledEvent(INSTANCE_ID));
+
         verify(notificationService).activateMachineNotificationIfAbsent(INSTANCE_ID, INSTANCE_ID);
     }
 }
