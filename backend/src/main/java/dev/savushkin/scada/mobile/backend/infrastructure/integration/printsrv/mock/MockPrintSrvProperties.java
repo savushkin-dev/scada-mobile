@@ -91,6 +91,18 @@ public class MockPrintSrvProperties {
     private int maxErrorsPerUnit = 3;
 
     /**
+     * Вероятность инкремента счётчика {@code FinishBatch} на устройстве
+     * {@code Line} на КАЖДОМ тике ДЛЯ КАЖДОГО инстанса. Имитирует нажатие
+     * работником кнопки «последняя партия» (markserver инкрементирует
+     * счётчик циклически 1→100→1, см. markserver-libs PR #43).
+     *
+     * <p>0.0 — счётчик никогда не меняется (умолчание, для детерминированных
+     * тестов).<br>
+     * 1.0 — инкремент на каждом тике.
+     */
+    private double finishBatchIncrementProbability = 0.0;
+
+    /**
      * Seed для внутреннего {@link java.util.Random}.
      *
      * <p>Фиксированный seed обеспечивает детерминированное поведение в unit-тестах:
@@ -142,6 +154,11 @@ public class MockPrintSrvProperties {
 
     public long getRandomSeed() { return randomSeed; }
     public void setRandomSeed(long randomSeed) { this.randomSeed = randomSeed; }
+
+    public double getFinishBatchIncrementProbability() { return finishBatchIncrementProbability; }
+    public void setFinishBatchIncrementProbability(double finishBatchIncrementProbability) {
+        this.finishBatchIncrementProbability = finishBatchIncrementProbability;
+    }
 
     public boolean isSimulationEnabled() { return simulationEnabled; }
     public void setSimulationEnabled(boolean simulationEnabled) { this.simulationEnabled = simulationEnabled; }
