@@ -88,6 +88,8 @@ export const NotificationWsMessageSchema = z.object({
   acceptedByName: z.string().nullable().optional(),
   acceptedAt: z.string().nullable().optional(),
   version: z.number().optional(),
+  /** Текущая партия/изделие (CurItem), зафиксированная при активации уведомления. */
+  curItem: z.string().nullable().optional(),
 });
 
 /** NOTIFICATION_SNAPSHOT — начальный срез при WS-коннекте */

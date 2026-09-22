@@ -121,7 +121,11 @@ export function NotificationCard({ notification, currentUserId, onAction, pendin
       }}
     >
       <div className="mb-2 flex items-start justify-between gap-3">
-        <h3 className="text-base font-bold text-[#1A1C1E]">{NOTIFICATION_COPY.eventLabel}</h3>
+        <h3 className="text-base font-bold text-[#1A1C1E]">
+          {notification.curItem
+            ? `${NOTIFICATION_COPY.eventLabel} ${notification.curItem}`
+            : NOTIFICATION_COPY.eventLabel}
+        </h3>
         <span
           className="inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold"
           style={{ backgroundColor: badgeStyle.backgroundColor, color: badgeStyle.color }}

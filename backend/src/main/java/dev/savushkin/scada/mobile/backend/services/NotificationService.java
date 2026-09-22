@@ -50,15 +50,18 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserAssignmentRepository userAssignmentRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final CurItemResolver curItemResolver;
 
     public NotificationService(
             NotificationRepository notificationRepository,
             UserAssignmentRepository userAssignmentRepository,
-            ApplicationEventPublisher eventPublisher
+            ApplicationEventPublisher eventPublisher,
+            CurItemResolver curItemResolver
     ) {
         this.notificationRepository = notificationRepository;
         this.userAssignmentRepository = userAssignmentRepository;
         this.eventPublisher = eventPublisher;
+        this.curItemResolver = curItemResolver;
     }
 
     /**
@@ -104,7 +107,7 @@ public class NotificationService {
         }
 
         // 3. Активация
-        return activate(unitId, ProductionNotification.activate(unitId, userIdValue), userIdValue);
+        return activate(unitId, ProductionNotification.activate(unitId, userIdValue, resolveCurItem(unitId)), userIdValue);
     }
 
     /**
@@ -139,7 +142,7 @@ public class NotificationService {
             return new ToggleResult.AlreadyActiveByOther(unitId, existing.creatorId());
         }
 
-        return activate(unitId, ProductionNotification.activateAsMachine(unitId, machineId), machineId);
+        return activate(unitId, ProductionNotification.activateAsMachine(unitId, machineId, resolveCurItem(unitId)), machineId);
     }
 
     /**
@@ -158,7 +161,7 @@ public class NotificationService {
                     unitId, existing.creatorId(), existing.creatorType());
             return false;
         }
-        activate(unitId, ProductionNotification.activateAsMachine(unitId, machineId), machineId);
+        activate(unitId, ProductionNotification.activateAsMachine(unitId, machineId, resolveCurItem(unitId)), machineId);
         log.info("Batch-end signal: machine notification ACTIVATED unitId='{}'", unitId);
         return true;
     }
@@ -199,6 +202,10 @@ public class NotificationService {
      */
     public @NonNull Optional<ProductionNotification> getActiveNotification(@NonNull String unitId) {
         return notificationRepository.findActiveByUnitId(unitId);
+    }
+
+    private String resolveCurItem(String unitId) {
+        return curItemResolver.resolveCurItem(unitId);
     }
 
     private ToggleResult activate(String unitId, ProductionNotification notification, String actorId) {

@@ -25,7 +25,8 @@ public record NotificationWorkflowResponseDTO(
         @Nullable Instant acceptedAt,
         @Nullable Instant completedAt,
         @Nullable Instant cancelledAt,
-        long version
+        long version,
+        @Nullable String curItem
 ) {
     /**
      * Базовый маппинг без обогащения именами (unitName/creatorName/acceptedByName = null).
@@ -54,6 +55,7 @@ public record NotificationWorkflowResponseDTO(
                 notification.acceptedAt(),
                 notification.completedAt(),
                 notification.cancelledAt(),
-                notification.version());
+                notification.version(),
+                notification.curItem());
     }
 }

@@ -187,7 +187,8 @@ function notificationTag(unitId) {
 
 function buildNotificationTitle(payload) {
   const unitName = payload.unitName || payload.unitId;
-  return `Последняя партия: ${unitName}`;
+  const curItem = payload.curItem ? ` ${payload.curItem}` : '';
+  return `Последняя партия${curItem}: ${unitName}`;
 }
 
 function buildNotificationBody(payload) {

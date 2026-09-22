@@ -42,15 +42,18 @@ public class WorkshopService {
     private final InstanceSnapshotRepository snapshotRepo;
     private final DeviceCompositionService deviceCompositionService;
     private final UnitErrorStore unitErrorStore;
+    private final CurItemResolver curItemResolver;
 
     public WorkshopService(PrintSrvTopologyRepository topologyRepo,
                            InstanceSnapshotRepository snapshotRepo,
                            DeviceCompositionService deviceCompositionService,
-                           UnitErrorStore unitErrorStore) {
+                           UnitErrorStore unitErrorStore,
+                           CurItemResolver curItemResolver) {
         this.topologyRepo = topologyRepo;
         this.snapshotRepo = snapshotRepo;
         this.deviceCompositionService = deviceCompositionService;
         this.unitErrorStore = unitErrorStore;
+        this.curItemResolver = curItemResolver;
         log.info("WorkshopService initialized");
     }
 
@@ -221,41 +224,8 @@ public class WorkshopService {
             return formatErrorEvent(errors);
         }
 
-        String curItem = resolveCurItem(instanceId);
+        String curItem = curItemResolver.resolveCurItem(instanceId);
         return curItem != null ? curItem : "Нет данных";
-    }
-
-    private @Nullable String resolveCurItem(@NonNull String instanceId) {
-        PrintSrvInstance inst = topologyRepo.findByInstanceId(instanceId).orElse(null);
-        if (inst == null) {
-            return null;
-        }
-
-        DeviceSnapshot lineSnapshot = findSnapshotByDeviceName(instanceId, inst.lineDeviceName());
-        String lineCurItem = extractCurItem(lineSnapshot);
-        if (lineCurItem != null) {
-            return lineCurItem;
-        }
-
-        DeviceComposition composition = deviceCompositionService.getComposition(instanceId);
-        if (!composition.printers().isEmpty()) {
-            String firstPrinter = composition.printers().getFirst();
-            DeviceSnapshot printerSnapshot = findSnapshotByDeviceName(instanceId, firstPrinter);
-            String printerCurItem = extractCurItem(printerSnapshot);
-            if (printerCurItem != null) {
-                return printerCurItem;
-            }
-        }
-
-        return null;
-    }
-
-    private static @Nullable String extractCurItem(@Nullable DeviceSnapshot snapshot) {
-        if (snapshot == null || snapshot.units().isEmpty()) {
-            return null;
-        }
-        UnitSnapshot unit = snapshot.units().values().iterator().next();
-        return nullIfBlank(unit.properties().getCurItem().orElse(null));
     }
 
     private static @NonNull String formatErrorEvent(@NonNull List<DeviceError> errors) {

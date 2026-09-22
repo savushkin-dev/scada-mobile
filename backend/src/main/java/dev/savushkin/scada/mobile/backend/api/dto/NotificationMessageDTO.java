@@ -38,6 +38,8 @@ import dev.savushkin.scada.mobile.backend.domain.model.ProductionNotification;
  * @param creatorName Полное имя (ФИО) работника, создавшего уведомление.
  * @param active     {@code true} — уведомление активно; {@code false} — снято.
  * @param timestamp  ISO-8601 время события (UTC).
+ * @param curItem    Значение CurItem (текущая партия/изделие), зафиксированное при активации;
+ *                   {@code null} для старых записей и при недоступности значения.
  */
 public record NotificationMessageDTO(
         String type,
@@ -54,7 +56,8 @@ public record NotificationMessageDTO(
         @Nullable String acceptedBy,
         @Nullable String acceptedByName,
         @Nullable String acceptedAt,
-        long version
+        long version,
+        @Nullable String curItem
 ) {
     /**
      * Создаёт сообщение об активном (созданном) уведомлении.
@@ -69,7 +72,7 @@ public record NotificationMessageDTO(
             String timestamp
     ) {
         return new NotificationMessageDTO("NOTIFICATION", unitId, unitDbId, unitName, creatorId, creatorName,
-            true, timestamp, unitId, null, NotificationStatus.PENDING, null, null, null, 0L);
+            true, timestamp, unitId, null, NotificationStatus.PENDING, null, null, null, 0L, null);
     }
 
     /**
@@ -85,7 +88,7 @@ public record NotificationMessageDTO(
             String timestamp
     ) {
         return new NotificationMessageDTO("NOTIFICATION", unitId, unitDbId, unitName, creatorId, creatorName,
-            false, timestamp, unitId, null, NotificationStatus.CANCELLED, null, null, null, 0L);
+            false, timestamp, unitId, null, NotificationStatus.CANCELLED, null, null, null, 0L, null);
     }
 
     public static NotificationMessageDTO workflow(
@@ -103,6 +106,7 @@ public record NotificationMessageDTO(
                 || notification.status() == NotificationStatus.IN_PROGRESS,
             timestamp, unitId, notification.notificationId(), notification.status(),
             notification.acceptedBy(), acceptedByName, notification.acceptedAt() == null
-                ? null : notification.acceptedAt().toString(), notification.version());
+                ? null : notification.acceptedAt().toString(), notification.version(),
+            notification.curItem());
     }
 }

@@ -112,7 +112,8 @@ public class InMemoryNotificationStore implements NotificationRepository {
                     id, notification.unitId(), notification.creatorId(), notification.creatorType(),
                     notification.status(), notification.active(), notification.activatedAt(),
                     notification.deactivatedAt(), notification.acceptedBy(), notification.acceptedAt(),
-                    notification.completedAt(), notification.cancelledAt(), notification.version());
+                    notification.completedAt(), notification.cancelledAt(), notification.version(),
+                    notification.curItem());
             store.put(id, withId);
             return withId;
         }

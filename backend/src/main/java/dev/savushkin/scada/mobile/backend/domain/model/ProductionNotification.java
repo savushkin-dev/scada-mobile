@@ -31,6 +31,8 @@ import java.time.Instant;
  * @param active          {@code true} — уведомление активно; {@code false} — деактивировано.
  * @param activatedAt     Время активации (ISO-8601 / {@link Instant}).
  * @param deactivatedAt   Время деактивации ({@code null} пока активно).
+ * @param curItem         Значение CurItem (текущая партия/изделие) на момент активации;
+ *                        {@code null}, если на момент активации значение было недоступно.
  */
 public record ProductionNotification(
     Long notificationId,
@@ -45,7 +47,8 @@ public record ProductionNotification(
     Instant acceptedAt,
     Instant completedAt,
     Instant cancelledAt,
-    long version
+    long version,
+    String curItem
 ) {
     public ProductionNotification(
         String unitId,
@@ -55,10 +58,22 @@ public record ProductionNotification(
         Instant activatedAt,
         Instant deactivatedAt
     ) {
+        this(unitId, creatorId, creatorType, active, activatedAt, deactivatedAt, null);
+    }
+
+    public ProductionNotification(
+        String unitId,
+        String creatorId,
+        NotificationCreatorType creatorType,
+        boolean active,
+        Instant activatedAt,
+        Instant deactivatedAt,
+        String curItem
+    ) {
     this(null, unitId, creatorId, creatorType,
         active ? NotificationStatus.PENDING : NotificationStatus.COMPLETED,
         active, activatedAt, deactivatedAt, null, null,
-        active ? null : deactivatedAt, active ? null : deactivatedAt, 0L);
+        active ? null : deactivatedAt, active ? null : deactivatedAt, 0L, curItem);
     }
 
     /**
@@ -69,8 +84,20 @@ public record ProductionNotification(
      * @return Новое активное уведомление с текущим временем активации.
      */
     public static ProductionNotification activate(String unitId, String creatorId) {
+        return activate(unitId, creatorId, null);
+    }
+
+    /**
+     * Создаёт новое активное уведомление от работника с фиксацией текущей партии.
+     *
+     * @param unitId    Идентификатор аппарата.
+     * @param creatorId Идентификатор работника-создателя.
+     * @param curItem   Значение CurItem на момент активации (может быть {@code null}).
+     * @return Новое активное уведомление с текущим временем активации.
+     */
+    public static ProductionNotification activate(String unitId, String creatorId, String curItem) {
         return new ProductionNotification(unitId, creatorId, NotificationCreatorType.USER,
-                true, Instant.now(), null);
+                true, Instant.now(), null, curItem);
     }
 
     /**
@@ -81,8 +108,20 @@ public record ProductionNotification(
      * @return Новое активное уведомление с текущим временем активации.
      */
     public static ProductionNotification activateAsMachine(String unitId, String machineId) {
+        return activateAsMachine(unitId, machineId, null);
+    }
+
+    /**
+     * Создаёт новое активное уведомление от автомата (СКАДА) с фиксацией текущей партии.
+     *
+     * @param unitId    Идентификатор аппарата.
+     * @param machineId PrintSrv instance id автомата (субъект machine-JWT).
+     * @param curItem   Значение CurItem на момент активации (может быть {@code null}).
+     * @return Новое активное уведомление с текущим временем активации.
+     */
+    public static ProductionNotification activateAsMachine(String unitId, String machineId, String curItem) {
         return new ProductionNotification(unitId, machineId, NotificationCreatorType.MACHINE,
-                true, Instant.now(), null);
+                true, Instant.now(), null, curItem);
     }
 
     /**
@@ -99,7 +138,7 @@ public record ProductionNotification(
         Instant now = Instant.now();
         return new ProductionNotification(notificationId, unitId, creatorId, creatorType,
                 NotificationStatus.IN_PROGRESS, true, activatedAt, deactivatedAt,
-                userId, now, completedAt, cancelledAt, version + 1);
+                userId, now, completedAt, cancelledAt, version + 1, curItem);
     }
 
     public ProductionNotification complete(String actorId) {
@@ -110,7 +149,7 @@ public record ProductionNotification(
         Instant now = Instant.now();
         return new ProductionNotification(notificationId, unitId, creatorId, creatorType,
                 NotificationStatus.COMPLETED, false, activatedAt, now,
-                acceptedBy, acceptedAt, now, cancelledAt, version + 1);
+                acceptedBy, acceptedAt, now, cancelledAt, version + 1, curItem);
     }
 
     public ProductionNotification cancel(String actorId) {
@@ -121,7 +160,7 @@ public record ProductionNotification(
         Instant now = Instant.now();
         return new ProductionNotification(notificationId, unitId, creatorId, creatorType,
                 NotificationStatus.CANCELLED, false, activatedAt, now,
-                acceptedBy, acceptedAt, completedAt, now, version + 1);
+                acceptedBy, acceptedAt, completedAt, now, version + 1, curItem);
     }
 
     private void requireStatus(NotificationStatus expected, String operation) {

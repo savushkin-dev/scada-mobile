@@ -27,6 +27,7 @@ export const NotificationWorkflowEntrySchema = z.object({
   completedAt: z.string().nullable(),
   cancelledAt: z.string().nullable(),
   version: z.number(),
+  curItem: z.string().nullable().optional(),
 });
 
 export type NotificationWorkflowEntry = z.infer<typeof NotificationWorkflowEntrySchema>;

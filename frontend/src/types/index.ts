@@ -107,6 +107,8 @@ export interface NotificationData {
   /** Время отмены (для карточек истории со статусом CANCELLED). */
   cancelledAt?: string | null;
   version?: number;
+  /** Партия/изделие (CurItem), зафиксированная при активации уведомления. */
+  curItem?: string | null;
 }
 
 // ── Merged view types (topology + status, используются компонентами) ──

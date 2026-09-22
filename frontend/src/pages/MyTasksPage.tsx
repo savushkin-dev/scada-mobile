@@ -44,6 +44,7 @@ function toNotificationData(
     completedAt: entry.completedAt,
     cancelledAt: entry.cancelledAt,
     version: entry.version,
+    curItem: entry.curItem ?? null,
   };
 }
 
