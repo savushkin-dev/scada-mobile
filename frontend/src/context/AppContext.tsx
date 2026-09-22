@@ -172,6 +172,7 @@ function reducer(state: AppState, action: Action): AppState {
           acceptedByName: action.msg.acceptedByName ?? null,
           acceptedAt: action.msg.acceptedAt ?? null,
           version: action.msg.version,
+          curItem: action.msg.curItem ?? null,
         });
       } else {
         next.delete(uid);
@@ -194,6 +195,7 @@ function reducer(state: AppState, action: Action): AppState {
             acceptedByName: msg.acceptedByName ?? null,
             acceptedAt: msg.acceptedAt ?? null,
             version: msg.version,
+            curItem: msg.curItem ?? null,
           });
         }
       }

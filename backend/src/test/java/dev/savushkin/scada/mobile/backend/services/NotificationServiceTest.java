@@ -31,6 +31,7 @@ class NotificationServiceTest {
     private NotificationRepository notificationRepository;
     private UserAssignmentRepository userAssignmentRepository;
     private ApplicationEventPublisher eventPublisher;
+    private CurItemResolver curItemResolver;
     private NotificationService service;
 
     @BeforeEach
@@ -38,7 +39,8 @@ class NotificationServiceTest {
         notificationRepository = mock(NotificationRepository.class);
         userAssignmentRepository = mock(UserAssignmentRepository.class);
         eventPublisher = mock(ApplicationEventPublisher.class);
-        service = new NotificationService(notificationRepository, userAssignmentRepository, eventPublisher);
+        curItemResolver = mock(CurItemResolver.class);
+        service = new NotificationService(notificationRepository, userAssignmentRepository, eventPublisher, curItemResolver);
     }
 
     // ─── Работник (USER) ─────────────────────────────────────────────────
@@ -67,6 +69,29 @@ class NotificationServiceTest {
         assertThat(saved.creatorType()).isEqualTo(NotificationCreatorType.USER);
         assertThat(saved.creatorId()).isEqualTo("42");
         verify(eventPublisher).publishEvent(any(NotificationStateChangedEvent.class));
+    }
+
+    @Test
+    void activationCapturesCurrentCurItem() {
+        when(userAssignmentRepository.canSendNotification(42L, UNIT_ID)).thenReturn(true);
+        when(notificationRepository.findActiveByUnitId(UNIT_ID)).thenReturn(Optional.empty());
+        when(curItemResolver.resolveCurItem(UNIT_ID)).thenReturn("1605 | 147 | 19.08.2025");
+
+        ToggleResult result = service.toggleNotification(UNIT_ID, 42L);
+
+        assertThat(result).isInstanceOf(ToggleResult.Activated.class);
+        assertThat(captureSaved().curItem()).isEqualTo("1605 | 147 | 19.08.2025");
+    }
+
+    @Test
+    void activationWithoutCurItemLeavesItNull() {
+        when(userAssignmentRepository.canSendNotification(42L, UNIT_ID)).thenReturn(true);
+        when(notificationRepository.findActiveByUnitId(UNIT_ID)).thenReturn(Optional.empty());
+        when(curItemResolver.resolveCurItem(UNIT_ID)).thenReturn(null);
+
+        service.toggleNotification(UNIT_ID, 42L);
+
+        assertThat(captureSaved().curItem()).isNull();
     }
 
     @Test
@@ -215,7 +240,8 @@ class NotificationServiceTest {
                 notification.creatorType(), notification.status(), notification.active(),
                 notification.activatedAt(), notification.deactivatedAt(),
                 notification.acceptedBy(), notification.acceptedAt(),
-                notification.completedAt(), notification.cancelledAt(), notification.version());
+                notification.completedAt(), notification.cancelledAt(), notification.version(),
+                notification.curItem());
     }
 
     private void stubNotification(ProductionNotification notification) {
@@ -332,7 +358,7 @@ class NotificationServiceTest {
         ProductionNotification acceptedMine = persisted(pendingMine.accept("77"));
         ProductionNotification pendingOtherUnit = new ProductionNotification(
                 1002L, "hassia2", "43", NotificationCreatorType.USER, NotificationStatus.PENDING,
-                true, pendingMine.activatedAt(), null, null, null, null, null, 0L);
+                true, pendingMine.activatedAt(), null, null, null, null, null, 0L, null);
         when(notificationRepository.findAllActive())
                 .thenReturn(List.of(pendingMine, acceptedMine, pendingOtherUnit));
         when(userAssignmentRepository.getSubscribedUnitIds(77L)).thenReturn(Set.of(UNIT_ID));

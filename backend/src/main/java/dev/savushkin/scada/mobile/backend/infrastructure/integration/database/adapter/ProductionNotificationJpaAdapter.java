@@ -141,6 +141,7 @@ public class ProductionNotificationJpaAdapter implements NotificationRepository 
             entity.setAcceptedAt(toLocalDateTime(notification.acceptedAt()));
             entity.setCompletedAt(toLocalDateTime(notification.completedAt()));
             entity.setCancelledAt(toLocalDateTime(notification.cancelledAt()));
+            entity.setCurItem(notification.curItem());
             ProductionNotificationEntity persisted = notificationRepository.save(entity);
             saved[0] = toDomain(persisted).orElse(notification);
         });
@@ -175,7 +176,8 @@ public class ProductionNotificationJpaAdapter implements NotificationRepository 
                         toInstant(entity.getAcceptedAt()),
                         toInstant(entity.getCompletedAt()),
                         toInstant(entity.getCancelledAt()),
-                        entity.getVersion()
+                        entity.getVersion(),
+                        entity.getCurItem()
                 ));
     }
 

@@ -64,4 +64,12 @@ public class ProductionNotificationEntity {
     @Version
     @Column(name = "version", nullable = false)
     private long version;
+
+    /**
+     * Значение CurItem (текущая партия/изделие), зафиксированное при активации.
+     * {@code null} для записей, созданных до появления поля, либо если значение
+     * на момент активации было недоступно.
+     */
+    @Column(name = "cur_item")
+    private String curItem;
 }
