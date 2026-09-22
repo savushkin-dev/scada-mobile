@@ -301,6 +301,18 @@ public class MockStateSimulator {
         }
 
         String st = props.getOrDefault("ST", "0");
+
+        // Счётчик «последней партии»: имитация нажатия кнопки на автомате —
+        // инкремент с вероятностью finishBatchIncrementProbability,
+        // циклически 1→100→1, как в markserver (markserver-libs PR #43).
+        // Независимо от ST: кнопку могут нажать и на остановленной линии.
+        if (random.nextDouble() < mockProperties.getFinishBatchIncrementProbability()) {
+            int current = parseIntOrDefault(props.get("FinishBatch"), 0);
+            int next = current >= 100 ? 1 : current + 1;
+            state.setProperty(device, "FinishBatch", String.valueOf(next));
+            log.debug("[{}] {} — FinishBatch incremented to {}", instanceId, device, next);
+        }
+
         if (!"1".equals(st)) {
             return;
         }
@@ -451,6 +463,18 @@ public class MockStateSimulator {
      */
     private boolean shouldErrorClear() {
         return random.nextDouble() < mockProperties.getErrorClearProbability();
+    }
+
+    /** Безопасный парсинг int-строки с дефолтом при null/не-числе. */
+    private static int parseIntOrDefault(String value, int defaultValue) {
+        if (value == null || value.isBlank()) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(value.trim());
+        } catch (NumberFormatException e) {
+            return defaultValue;
+        }
     }
 
     /**

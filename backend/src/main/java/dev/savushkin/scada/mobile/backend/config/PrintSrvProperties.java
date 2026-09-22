@@ -64,12 +64,5 @@ public class PrintSrvProperties {
          */
         private String propertyName = "FinishBatch";
 
-        /**
-         * Время жизни MACHINE-уведомления «последняя партия» в минутах:
-         * счётчик не несёт сигнала «конец», поэтому уведомление снимается
-         * автоматически по таймауту.
-         */
-        private long notificationTtlMinutes = 10;
-
     }
 }
