@@ -41,13 +41,80 @@ The overall pipeline: an event on the equipment → reading via PrintSrv → the
   </tr>
   <tr>
     <td align="center">
-      <b>3️⃣ Machine details</b><br>
+      <b>3️⃣ Machines inside a workshop</b><br>
+      <img src="screenshots/список_автоматов_внутри_цеха.png" alt="Machines inside a workshop" width="230"/>
+    </td>
+    <td align="center">
+      <b>4️⃣ Notifying responsible employees</b><br>
+      <img src="screenshots/список_автоматов_внутри_цеха_в_состоянии_отобвинутой_карточки_автомата_чтобы_вызвать_уведомления_всем_ответственным_сотрудникам.png" alt="Machine card pressed to notify all responsible employees" width="230"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <b>5️⃣ Machine details, Batch tab</b><br>
       <img src="screenshots/unit_details_batch.png" alt="Machine details, Batch tab" width="230"/>
     </td>
     <td align="center">
-      <b>4️⃣ Notifications</b><br>
+      <b>6️⃣ Batch tab with notification on</b><br>
+      <img src="screenshots/экран_деталей_автомата_вкладка_партия_с_включенным_уведомлением.png" alt="Machine details, Batch tab with notification enabled" width="230"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <b>7️⃣ Devices tab</b><br>
+      <img src="screenshots/экран_деталей_автомата_вкладка_устройства.png" alt="Machine details, Devices tab" width="230"/>
+    </td>
+    <td align="center">
+      <b>8️⃣ Command queue tab</b><br>
+      <img src="screenshots/экран_деталей_автомата_вкладка_очередь.png" alt="Machine details, command queue tab" width="230"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <b>9️⃣ Errors tab, no errors</b><br>
+      <img src="screenshots/экран_деталей_автомата_вкладка_ошибки_без_ошибок.png" alt="Machine details, Errors tab with no active errors" width="230"/>
+    </td>
+    <td align="center">
+      <b>🔟 Errors tab, one active error</b><br>
+      <img src="screenshots/экран_деталей_автомата_вкладка_ошибки_с_одной_активной_ошибкой.png" alt="Machine details, Errors tab with one active error" width="230"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <b>1️⃣1️⃣ Notification confirmation</b><br>
+      <img src="screenshots/overlay-окно_с_подтверждением_желания_снять_или_отправить_уведомление.png" alt="Overlay confirming resolving or sending a notification" width="230"/>
+    </td>
+    <td align="center">
+      <b>1️⃣2️⃣ Notifications tab</b><br>
       <img src="screenshots/notifications_tab.png" alt="Notifications tab" width="230"/>
     </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <b>1️⃣3️⃣ Colleague notifications (empty)</b><br>
+      <img src="screenshots/вкладка_уведомлений_от_других_сотрудников_без_уведомлений.png" alt="Notifications from other employees, empty state" width="230"/>
+    </td>
+    <td align="center">
+      <b>1️⃣4️⃣ Sign-in screen</b><br>
+      <img src="screenshots/экран_входа.png" alt="Sign-in screen" width="230"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <b>1️⃣5️⃣ User profile page</b><br>
+      <img src="screenshots/страница_пользователя.png" alt="User profile page" width="230"/>
+    </td>
+    <td align="center">
+      <b>1️⃣6️⃣ User notification settings</b><br>
+      <img src="screenshots/страница_пользователя_настройки_уведомлений.png" alt="User profile page, notification settings" width="230"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <b>1️⃣7️⃣ Admin panel: home page</b><br>
+      <img src="screenshots/админ_панель_главная_страница.png" alt="Admin panel, home page" width="230"/>
+    </td>
+    <td></td>
   </tr>
 </table>
 
