@@ -171,6 +171,16 @@ export const dataProvider: DataProvider = {
         data = {
           ...data,
           catalogIds: devices.map((d: any) => d.catalogId),
+          // Per-unit раскладка устройств (редактор в форме автомата).
+          deviceLinks: devices.map((d: any) => ({
+            id: d.id,
+            catalogId: d.catalogId,
+            displayName: d.displayName ?? '',
+            groupLabel: d.groupLabel ?? '',
+            displayOrder: d.displayOrder ?? 0,
+            showCounters: d.showCounters === true,
+            scadaPrefix: d.scadaPrefix ?? '',
+          })),
         };
       }
 
@@ -240,11 +250,39 @@ export const dataProvider: DataProvider = {
     }
 
     const url = `${baseUrl}/${resource}/${encodeURIComponent(params.id)}`;
+    // deviceLinks — раскладка устройств, живёт на /admin/devices, а не на units.
+    const { deviceLinks, ...unitData } = (params.data ?? {}) as Record<string, unknown>;
     return httpClient(url, {
       method: 'PUT',
-      body: JSON.stringify(params.data),
+      body: JSON.stringify(unitData),
       headers: new Headers({ 'Content-Type': 'application/json' }),
-    }).then(({ json }) => ({ data: json }));
+    }).then(async ({ json }) => {
+      // После сохранения автомата (syncDevices на backend) — сохранить per-unit
+      // раскладку существующих связей. Новые связи (свежие catalogIds) получат
+      // дефолтную раскладку и редактируются при следующем открытии формы.
+      if (resource === 'units' && Array.isArray(deviceLinks)) {
+        await Promise.all(
+          deviceLinks
+            .filter((link: any) => typeof link?.id === 'number')
+            .map((link: any) =>
+              httpClient(`${baseUrl}/devices/${link.id}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                  unitId: Number(params.id),
+                  catalogId: link.catalogId,
+                  displayName: link.displayName || null,
+                  groupLabel: link.groupLabel || null,
+                  displayOrder: link.displayOrder ?? 0,
+                  showCounters: link.showCounters === true,
+                  scadaPrefix: link.scadaPrefix || null,
+                }),
+                headers: new Headers({ 'Content-Type': 'application/json' }),
+              })
+            )
+        );
+      }
+      return { data: json };
+    });
   },
 
   updateMany: (resource, params) => {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useListContext } from 'react-admin';
+import { useGetList, useListContext } from 'react-admin';
 import { AdminListContainer } from '../ui/AdminListContainer';
 import { MobileCardList } from '../ui/MobileCardList';
 import { DesktopDataTable } from '../ui/DesktopDataTable';
@@ -11,6 +11,7 @@ import { DeviceCatalogCreate } from './DeviceCatalog';
 import { RoundedInput } from '../ui/RoundedInput';
 import { AdminChip } from '../ui/AdminChip';
 import { ReferenceSelect } from '../ui/ReferenceSelect';
+import { IOSSwitch } from '../ui/IOSSwitch';
 import { formatEmpty } from '../ui/formatEmpty';
 import { useNameMap } from '../ui/useNameMap';
 import { IconUnits } from '../ui/icons';
@@ -28,6 +29,19 @@ interface Unit {
   active: boolean;
   deviceNames?: string[];
   catalogIds?: number[];
+  deviceLinks?: DeviceLink[];
+}
+
+/** Per-unit раскладка устройства (связь автомат ↔ справочник). */
+interface DeviceLink {
+  /** ID связи на backend; отсутствует у только что добавленных устройств. */
+  id?: number;
+  catalogId: number;
+  displayName: string;
+  groupLabel: string;
+  displayOrder: number;
+  showCounters: boolean;
+  scadaPrefix: string;
 }
 
 export const UnitList = () => {
@@ -187,6 +201,109 @@ function UnitLeftFields({
   );
 }
 
+/**
+ * Редактор per-unit раскладки устройств: имя на экране, группа, порядок,
+ * счётчики, SCADA-префикс. Данные — record.deviceLinks (загружаются в
+ * dataProvider.getOne('units') из GET /admin/devices?unitId=), сохранение —
+ * PUT /admin/devices/{id} в dataProvider.update('units').
+ * Пустые строки трактуются backend как NULL (значения по умолчанию).
+ */
+function UnitDeviceLayoutEditor({
+  record,
+  onChange,
+}: {
+  record: Record<string, unknown>;
+  onChange: (field: string, value: unknown) => void;
+}) {
+  const catalogIds = (record.catalogIds as number[]) ?? [];
+  const links = (record.deviceLinks as DeviceLink[]) ?? [];
+  const { data: catalog } = useGetList('device-catalog', {
+    pagination: { page: 1, perPage: 1000 },
+    sort: { field: 'id', order: 'ASC' },
+  });
+
+  if (catalogIds.length === 0) return null;
+
+  const catalogById = new Map<number, Record<string, unknown>>();
+  for (const item of catalog ?? []) catalogById.set(Number(item.id), item);
+
+  const updateLink = (catalogId: number, patch: Partial<DeviceLink>) => {
+    const existing = links.find((l) => l.catalogId === catalogId);
+    const base: DeviceLink = existing ?? {
+      catalogId,
+      displayName: '',
+      groupLabel: '',
+      displayOrder: 0,
+      showCounters: false,
+      scadaPrefix: '',
+    };
+    const rest = links.filter((l) => l.catalogId !== catalogId);
+    onChange('deviceLinks', [...rest, { ...base, ...patch }]);
+  };
+
+  return (
+    <div>
+      <div className="mb-1.5 text-xs font-semibold uppercase tracking-[0.05em] text-[#74777f]">
+        Раскладка устройств
+      </div>
+      <div className="space-y-3">
+        {catalogIds.map((catalogId) => {
+          const link = links.find((l) => l.catalogId === catalogId);
+          const item = catalogById.get(catalogId);
+          const catalogName = (item?.name as string) ?? String(catalogId);
+          const catalogCode = (item?.code as string) ?? '';
+          return (
+            <div
+              key={catalogId}
+              className="rounded-[14px] border-[1.5px] border-[#e8eaed] bg-white p-3"
+            >
+              <div className="mb-2 text-sm font-bold text-[#1a1c1e]">
+                {catalogCode ? `${catalogCode} — ${catalogName}` : catalogName}
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <RoundedInput
+                  label="Имя на экране"
+                  value={link?.displayName ?? ''}
+                  placeholder={catalogName}
+                  onChange={(e) => updateLink(catalogId, { displayName: e.target.value })}
+                />
+                <RoundedInput
+                  label="Группа"
+                  value={link?.groupLabel ?? ''}
+                  placeholder="по умолчанию"
+                  onChange={(e) => updateLink(catalogId, { groupLabel: e.target.value })}
+                />
+                <RoundedInput
+                  label="Порядок"
+                  type="number"
+                  value={link?.displayOrder ?? 0}
+                  onChange={(e) =>
+                    updateLink(catalogId, { displayOrder: Number(e.target.value) || 0 })
+                  }
+                />
+                <RoundedInput
+                  label="SCADA-префикс"
+                  value={link?.scadaPrefix ?? ''}
+                  placeholder="авто"
+                  onChange={(e) => updateLink(catalogId, { scadaPrefix: e.target.value })}
+                />
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <IOSSwitch
+                  scale="compact"
+                  checked={link?.showCounters === true}
+                  onChange={(e) => updateLink(catalogId, { showCounters: e.target.checked })}
+                />
+                <span className="text-sm text-[#1a1c1e]">Счётчики</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function UnitRightFields({
   record,
   onChange,
@@ -239,6 +356,9 @@ function UnitRightFields({
         onAddNew={() => setCreatingDevice(true)}
         addNewLabel="Добавить устройство"
       />
+      {/* Раскладка устройств — только в режиме редактирования: в форме создания
+          автомата связей устройств ещё нет (создаются backend'ом при сохранении). */}
+      {record.id != null && <UnitDeviceLayoutEditor record={record} onChange={onChange} />}
       {creatingWorkshop && (
         <CreateRecordOverlay
           resource="workshops"

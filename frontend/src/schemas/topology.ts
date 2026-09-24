@@ -31,6 +31,24 @@ export const UnitsTopologySchema = z.array(UnitTopologySchema);
 
 // ── GET /workshops/{id}/units/{unitId}/devices/topology ───────────────
 
+/** Группа устройств в раскладке автомата (per-unit конфиг на backend). */
+export const DeviceGroupSchema = z.object({
+  /** Заголовок группы: имя автомата, «Поток», «Поток 2», «Агрегация» и т.п. */
+  label: z.string(),
+  /** Порядок группы при отрисовке (первая группа — машинная). */
+  order: z.number().int(),
+  /** Коды устройств внутри группы, в порядке отображения. */
+  codes: z.array(z.string()),
+});
+
+/** Per-unit мета-информация об устройстве (имя на экране + признак счётчиков). */
+export const DeviceMetaSchema = z.object({
+  /** Отображаемое имя с учётом per-unit переопределения. */
+  displayName: z.string(),
+  /** Показывать ли блок «Считано/Несчитано» на карточке. */
+  showCounters: z.boolean(),
+});
+
 export const DevicesTopologySchema = z.object({
   unitId: z.string(),
   workshopId: z.number().int().positive(),
@@ -49,10 +67,19 @@ export const DevicesTopologySchema = z.object({
   deviceNames: z.record(z.string(), z.string()),
   /** Отображаемые имена типов устройств: код типа → device_types.name */
   typeNames: z.record(z.string(), z.string()),
+  /**
+   * Раскладка устройств по группам (per-unit конфиг на backend).
+   * Опционально: при отсутствии вкладка «Устройства» рисует legacy-группы по типам.
+   */
+  groups: z.array(DeviceGroupSchema).optional().default([]),
+  /** Per-unit мета устройств: код → { displayName, showCounters }. */
+  deviceMeta: z.record(z.string(), DeviceMetaSchema).optional().default({}),
 });
 
 // ── Выводимые типы ────────────────────────────────────────────────────
 
 export type WorkshopTopology = z.infer<typeof WorkshopTopologySchema>;
 export type UnitTopology = z.infer<typeof UnitTopologySchema>;
+export type DeviceGroup = z.infer<typeof DeviceGroupSchema>;
+export type DeviceMeta = z.infer<typeof DeviceMetaSchema>;
 export type DevicesTopology = z.infer<typeof DevicesTopologySchema>;
