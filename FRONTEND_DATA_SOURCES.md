@@ -209,6 +209,7 @@
 
 - `CamEanChecker1..4` не имеют отдельной группы в текущем контракте frontend и логично попадают в `checkerCams`
 - для другого аппарата backend не должен хардкодить этот набор; его нужно собирать из фактического `Line.LineDevices` и связанных unit-конфигов
+- актуальный контракт дополнен per-unit раскладкой устройств: `groups` (группы «машина»/«Поток N») и `deviceMeta` (имя на экране + признак счётчиков) настраиваются в админке per-unit (`unit_devices`: `display_name`, `group_label`, `display_order`, `show_counters`, `scada_prefix`). Основание и дефолты групп — [PRINTSRV_UI_MAP.md](PRINTSRV_UI_MAP.md)
 
 ---
 
