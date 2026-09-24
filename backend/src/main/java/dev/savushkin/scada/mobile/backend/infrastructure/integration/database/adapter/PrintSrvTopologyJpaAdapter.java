@@ -208,6 +208,7 @@ public class PrintSrvTopologyJpaAdapter implements PrintSrvTopologyRepository {
                                         .append('|').append(d.getDisplayOrder())
                                         .append('|').append(d.isShowCounters())
                                         .append('|').append(d.getScadaPrefix())
+                                        .append('|').append(d.isHidden())
                                         .append(';'));
                     });
 

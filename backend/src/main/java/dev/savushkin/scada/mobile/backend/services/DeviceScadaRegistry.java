@@ -47,6 +47,7 @@ public class DeviceScadaRegistry {
      * @param showCounters   показывать счётчики
      * @param scadaPrefix    настроенный scada-префикс (NULL → вычислять)
      * @param typeCode       код типа устройства (NULL, если тип не назначен)
+     * @param hidden         скрыто с экрана (не участвует в группах/счётчиках UI)
      */
     public record DeviceEntry(
             @NonNull String code,
@@ -56,7 +57,8 @@ public class DeviceScadaRegistry {
             int displayOrder,
             boolean showCounters,
             @Nullable String scadaPrefix,
-            @Nullable String typeCode
+            @Nullable String typeCode,
+            boolean hidden
     ) {
         public @Nullable String effectiveDisplayName() {
             if (displayName != null && !displayName.isBlank()) {
@@ -180,7 +182,8 @@ public class DeviceScadaRegistry {
                 device.getDisplayOrder(),
                 device.isShowCounters(),
                 device.getScadaPrefix(),
-                typeCode
+                typeCode,
+                device.isHidden()
         );
     }
 

@@ -53,6 +53,14 @@ public class DeviceEntity {
     private String scadaPrefix;
 
     /**
+     * Скрыть устройство с экрана (топология/группы/счётчики), не удаляя связь.
+     * Удалённая связь была бы возвращена auto-discovery, если устройство есть в runtime.
+     * Опрос и ошибки устройства продолжают работать — флаг влияет только на отображение.
+     */
+    @Column(name = "hidden", nullable = false)
+    private boolean hidden;
+
+    /**
      * Возвращает ID аппарата для сериализации JSON (React Admin ожидает unitId).
      */
     public Long getUnitId() {

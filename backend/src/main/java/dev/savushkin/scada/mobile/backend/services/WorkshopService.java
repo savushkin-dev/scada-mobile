@@ -135,28 +135,44 @@ public class WorkshopService {
         // Per-unit раскладка: группы устройств и мета (имена, счётчики)
         DeviceScadaRegistry.DeviceLayout layout = deviceScadaRegistry.loadLayout(instanceId);
         Map<String, String> scadaPrefixByCode = new LinkedHashMap<>();
+        Set<String> hiddenCodes = new HashSet<>();
         for (DeviceScadaRegistry.DeviceEntry entry : layout.entries()) {
+            if (entry.hidden()) {
+                hiddenCodes.add(entry.code());
+            }
             String prefix = deviceScadaRegistry.resolveScadaPrefix(instanceId, entry.code());
             if (prefix != null) {
                 scadaPrefixByCode.put(entry.code(), prefix);
             }
         }
 
+        // Скрытые устройства не попадают ни в один вид топологии (legacy-массивы,
+        // имена, группы, мета) — флаг влияет только на отображение, опрос идёт.
+        Map<String, String> displayNames = new LinkedHashMap<>(inst.deviceDisplayNames());
+        displayNames.keySet().removeAll(hiddenCodes);
+
         return Optional.of(new UnitDeviceTopologyDTO(
                 inst.instanceId(),
                 inst.workshopId(),
                 resolveUnitName(inst),
                 new DeviceGroupsDTO(
-                        composition.printers(),
-                        composition.aggregationCams(),
-                        composition.aggregationBoxCams(),
-                        composition.checkerCams()
+                        withoutHidden(composition.printers(), hiddenCodes),
+                        withoutHidden(composition.aggregationCams(), hiddenCodes),
+                        withoutHidden(composition.aggregationBoxCams(), hiddenCodes),
+                        withoutHidden(composition.checkerCams(), hiddenCodes)
                 ),
-                inst.deviceDisplayNames(),
+                displayNames,
                 inst.typeDisplayNames(),
                 deviceGroupService.buildGroups(layout, scadaPrefixByCode),
                 deviceGroupService.buildDeviceMeta(layout)
         ));
+    }
+
+    private static @NonNull List<String> withoutHidden(@NonNull List<String> codes, @NonNull Set<String> hiddenCodes) {
+        if (hiddenCodes.isEmpty()) {
+            return codes;
+        }
+        return codes.stream().filter(c -> !hiddenCodes.contains(c)).toList();
     }
 
     /**

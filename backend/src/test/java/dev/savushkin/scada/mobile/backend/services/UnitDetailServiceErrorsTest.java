@@ -52,7 +52,7 @@ class UnitDetailServiceErrorsTest {
         when(compositionService.getRuntimeComposition(INSTANCE_ID)).thenReturn(null);
 
         DeviceEntry entry = new DeviceEntry(
-                "CamAgregation", "CamAgregation", "Камера 41", null, 0, true, null, "aggregation_cam");
+                "CamAgregation", "CamAgregation", "Камера 41", null, 0, true, null, "aggregation_cam", false);
         DeviceLayout layout = new DeviceLayout(INSTANCE_ID, "Hassia 5", List.of(entry));
         when(registry.loadLayout(INSTANCE_ID)).thenReturn(layout);
         when(registry.resolveScadaPrefixes(eq(INSTANCE_ID), anyString())).thenReturn(List.of("Dev041"));

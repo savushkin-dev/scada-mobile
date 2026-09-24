@@ -127,7 +127,7 @@ public class DeviceCounterResolver {
         DeviceLayout layout = deviceScadaRegistry.loadLayout(instanceId);
         LinkedHashSet<String> candidates = new LinkedHashSet<>();
         layout.entries().stream()
-                .filter(DeviceEntry::showCounters)
+                .filter(e -> e.showCounters() && !e.hidden())
                 .sorted(Comparator.comparingInt(DeviceEntry::displayOrder).thenComparing(DeviceEntry::code))
                 .map(DeviceEntry::code)
                 .forEach(candidates::add);

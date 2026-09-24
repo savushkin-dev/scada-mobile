@@ -87,7 +87,7 @@ class DeviceGroupServiceTest {
     void deviceMetaUsesOverrideAndCountersFlag() {
         DeviceLayout layout = new DeviceLayout("hassia5", "Hassia 5", List.of(
                 new DeviceEntry("CamAgregation", "CamAgregation", "Камера 41",
-                        null, 0, true, "Dev041", "aggregation_cam"),
+                        null, 0, true, "Dev041", "aggregation_cam", false),
                 entry("CamAgregationBox", "aggregation_box_cam", 1, "Dev042", false, null)));
 
         Map<String, DeviceMetaDTO> meta = groupService.buildDeviceMeta(layout);
@@ -98,8 +98,28 @@ class DeviceGroupServiceTest {
         assertThat(meta.get("CamAgregationBox").showCounters()).isFalse();
     }
 
+    @Test
+    void hiddenDevicesAreExcludedFromGroupsAndMeta() {
+        DeviceLayout layout = new DeviceLayout("hassia4", "Hassia 4", List.of(
+                entry("CamAgregation", "checker_cam", 0, "Dev041", true, null),
+                entry("CamChecker", "checker_cam", 1, null, false, null, true)));
+
+        List<DeviceGroupDTO> groups = groupService.buildGroups(layout, Map.of("CamAgregation", "Dev041"));
+        Map<String, DeviceMetaDTO> meta = groupService.buildDeviceMeta(layout);
+
+        List<String> allCodes = groups.stream().flatMap(g -> g.codes().stream()).toList();
+        assertThat(allCodes).containsExactly("CamAgregation");
+        assertThat(meta).containsOnlyKeys("CamAgregation");
+    }
+
     private static DeviceEntry entry(String code, String typeCode, int order,
                                      String scadaPrefix, boolean showCounters, String groupLabel) {
-        return new DeviceEntry(code, code, null, groupLabel, order, showCounters, scadaPrefix, typeCode);
+        return entry(code, typeCode, order, scadaPrefix, showCounters, groupLabel, false);
+    }
+
+    private static DeviceEntry entry(String code, String typeCode, int order,
+                                     String scadaPrefix, boolean showCounters, String groupLabel,
+                                     boolean hidden) {
+        return new DeviceEntry(code, code, null, groupLabel, order, showCounters, scadaPrefix, typeCode, hidden);
     }
 }

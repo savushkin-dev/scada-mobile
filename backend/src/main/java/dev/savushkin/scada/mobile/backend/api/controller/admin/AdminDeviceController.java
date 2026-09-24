@@ -2,6 +2,7 @@ package dev.savushkin.scada.mobile.backend.api.controller.admin;
 
 import dev.savushkin.scada.mobile.backend.domain.model.ChangeAction;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceChangedEvent;
+import dev.savushkin.scada.mobile.backend.services.ScadaKeyMapper;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceCatalogEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.UnitEntity;
@@ -54,6 +55,21 @@ public class AdminDeviceController {
         device.setUnit(unit);
         device.setCatalog(catalog);
         applyLayout(device, request);
+        // Незаданные поля — дефолты раскладки (как у auto-discovery).
+        if (request.displayOrder() == null) {
+            device.setDisplayOrder((int) deviceRepository.countByUnit_Id(unit.getId()));
+        }
+        if (request.showCounters() == null) {
+            String typeCode = catalog.getType() != null ? catalog.getType().getCode() : null;
+            device.setShowCounters(ScadaKeyMapper.defaultShowCounters(typeCode, catalog.getCode()));
+        }
+        if (request.scadaPrefix() == null || request.scadaPrefix().isBlank()) {
+            String typeCode = catalog.getType() != null ? catalog.getType().getCode() : null;
+            if (typeCode != null) {
+                device.setScadaPrefix(ScadaKeyMapper.defaultPrefix(typeCode, catalog.getCode(),
+                        (int) deviceRepository.countByUnit_IdAndCatalog_Type_Code(unit.getId(), typeCode)));
+            }
+        }
 
         DeviceEntity saved = deviceRepository.save(device);
         eventPublisher.publishEvent(new DeviceChangedEvent(saved.getId(), null, null, ChangeAction.CREATE));
@@ -103,6 +119,7 @@ public class AdminDeviceController {
         device.setDisplayOrder(request.displayOrder() != null ? request.displayOrder() : 0);
         device.setShowCounters(Boolean.TRUE.equals(request.showCounters()));
         device.setScadaPrefix(nullIfBlank(request.scadaPrefix()));
+        device.setHidden(Boolean.TRUE.equals(request.hidden()));
     }
 
     private static String nullIfBlank(String value) {
@@ -116,7 +133,8 @@ public class AdminDeviceController {
             String groupLabel,
             Integer displayOrder,
             Boolean showCounters,
-            String scadaPrefix
+            String scadaPrefix,
+            Boolean hidden
     ) {
     }
 }

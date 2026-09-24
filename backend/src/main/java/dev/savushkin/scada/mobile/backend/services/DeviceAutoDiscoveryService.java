@@ -161,14 +161,11 @@ public class DeviceAutoDiscoveryService {
      */
     private void applyLayoutDefaults(DeviceEntity device, DeviceCatalogEntity catalog) {
         Long unitId = device.getUnit().getId();
-        device.setDisplayOrder((int) deviceRepository.countByUnit_Id(unitId));
-        String typeCode = catalog.getType() != null ? catalog.getType().getCode() : null;
-        if (typeCode == null) {
-            return;
-        }
-        device.setShowCounters(ScadaKeyMapper.defaultShowCounters(typeCode, catalog.getCode()));
-        int indexInType = (int) deviceRepository.countByUnit_IdAndCatalog_Type_Code(unitId, typeCode);
-        device.setScadaPrefix(ScadaKeyMapper.defaultPrefix(typeCode, catalog.getCode(), indexInType));
+        DeviceLayoutDefaults.apply(device, catalog,
+                deviceRepository.countByUnit_Id(unitId),
+                catalog.getType() != null
+                        ? deviceRepository.countByUnit_IdAndCatalog_Type_Code(unitId, catalog.getType().getCode())
+                        : 0);
     }
 
     /**

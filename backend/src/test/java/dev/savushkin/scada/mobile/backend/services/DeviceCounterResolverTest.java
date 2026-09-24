@@ -116,6 +116,6 @@ class DeviceCounterResolverTest {
     }
 
     private static DeviceEntry entry(String code, String typeCode, int order, boolean showCounters) {
-        return new DeviceEntry(code, code, null, null, order, showCounters, null, typeCode);
+        return new DeviceEntry(code, code, null, null, order, showCounters, null, typeCode, false);
     }
 }

@@ -85,6 +85,9 @@ public class DeviceGroupService {
         List<DeviceEntry> sorted = new ArrayList<>(layout.entries());
         sorted.sort(Comparator.comparingInt(DeviceEntry::displayOrder).thenComparing(DeviceEntry::code));
         for (DeviceEntry entry : sorted) {
+            if (entry.hidden()) {
+                continue; // скрытые устройства на экран не выводятся
+            }
             byLabel.computeIfAbsent(resolveGroupLabel(layout, entry, scadaPrefixByCode),
                     k -> new ArrayList<>()).add(entry);
         }
@@ -122,6 +125,9 @@ public class DeviceGroupService {
     public @NonNull Map<String, DeviceMetaDTO> buildDeviceMeta(@NonNull DeviceLayout layout) {
         Map<String, DeviceMetaDTO> meta = new LinkedHashMap<>();
         for (DeviceEntry entry : layout.entries()) {
+            if (entry.hidden()) {
+                continue;
+            }
             meta.put(entry.code(), new DeviceMetaDTO(entry.effectiveDisplayName(), entry.showCounters()));
         }
         return Map.copyOf(meta);

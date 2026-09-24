@@ -180,6 +180,7 @@ export const dataProvider: DataProvider = {
             displayOrder: d.displayOrder ?? 0,
             showCounters: d.showCounters === true,
             scadaPrefix: d.scadaPrefix ?? '',
+            hidden: d.hidden === true,
           })),
         };
       }
@@ -260,10 +261,17 @@ export const dataProvider: DataProvider = {
       // После сохранения автомата (syncDevices на backend) — сохранить per-unit
       // раскладку существующих связей. Новые связи (свежие catalogIds) получат
       // дефолтную раскладку и редактируются при следующем открытии формы.
+      // Снятые чипы backend уже удалил через syncDevices — PUT по ним дал бы 404.
       if (resource === 'units' && Array.isArray(deviceLinks)) {
+        const keptCatalogIds = new Set(
+          (Array.isArray(unitData.catalogIds) ? unitData.catalogIds : []).map(Number)
+        );
         await Promise.all(
           deviceLinks
-            .filter((link: any) => typeof link?.id === 'number')
+            .filter(
+              (link: any) =>
+                typeof link?.id === 'number' && keptCatalogIds.has(Number(link.catalogId))
+            )
             .map((link: any) =>
               httpClient(`${baseUrl}/devices/${link.id}`, {
                 method: 'PUT',
@@ -275,6 +283,7 @@ export const dataProvider: DataProvider = {
                   displayOrder: link.displayOrder ?? 0,
                   showCounters: link.showCounters === true,
                   scadaPrefix: link.scadaPrefix || null,
+                  hidden: link.hidden === true,
                 }),
                 headers: new Headers({ 'Content-Type': 'application/json' }),
               })
