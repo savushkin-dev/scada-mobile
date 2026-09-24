@@ -24,14 +24,16 @@ public final class RuntimeTagMapper {
             Map<String, String> scadaProperties,
             @Nullable String scadaPrefix
     ) {
+        // Fallback «Считано» — Succeeded, а не Total: CounterGeneral ≈ Succeeded
+        // (Total = Succeeded + Failed завышает «Считано»), см. PRINTSRV_UI_MAP.md §2.
         String scadaRead = value(scadaProperties, scadaPrefix, "CounterGeneral");
         String scadaUnread = value(scadaProperties, scadaPrefix, "CounterMissing");
-        String read = firstPresent(scadaRead, cameraProperties.get("Total"));
+        String read = firstPresent(scadaRead, cameraProperties.get("Succeeded"));
         String unread = firstPresent(scadaUnread, cameraProperties.get("Failed"));
         return new CounterResolution(
                 read,
                 unread,
-                scadaRead != null ? "scada:" + scadaPrefix + "CounterGeneral" : "device:Total",
+                scadaRead != null ? "scada:" + scadaPrefix + "CounterGeneral" : "device:Succeeded",
                 scadaUnread != null ? "scada:" + scadaPrefix + "CounterMissing" : "device:Failed"
         );
     }
@@ -58,6 +60,16 @@ public final class RuntimeTagMapper {
         return key != null && (key.startsWith("Dev")
                 || key.startsWith("CMSDev")
                 || key.startsWith("LineDev"));
+    }
+
+    /**
+     * Признак известного не-error суффикса (счётчики, состояние) — такие ключи
+     * не должны попадать в диагностику «неизвестный error-ключ».
+     */
+    public static boolean hasKnownNonErrorSuffix(@Nullable String key) {
+        return key != null && (key.endsWith("CounterGeneral")
+                || key.endsWith("CounterMissing")
+                || key.endsWith("ST"));
     }
 
     public static boolean isActiveFlag(@Nullable String value) {

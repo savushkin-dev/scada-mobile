@@ -23,6 +23,36 @@ public class DeviceEntity {
     private DeviceCatalogEntity catalog;
 
     /**
+     * Per-unit переопределение имени устройства (NULL → device_catalog.name).
+     */
+    @Column(name = "display_name")
+    private String displayName;
+
+    /**
+     * Per-unit метка группы («Поток 2», «Агрегация»); NULL → группа по правилам умолчания.
+     */
+    @Column(name = "group_label")
+    private String groupLabel;
+
+    /**
+     * Порядок отображения внутри группы.
+     */
+    @Column(name = "display_order", nullable = false)
+    private int displayOrder;
+
+    /**
+     * Показывать ли счётчики «Считано/Несчитано» устройству.
+     */
+    @Column(name = "show_counters", nullable = false)
+    private boolean showCounters;
+
+    /**
+     * Scada-префикс устройства (Dev041, LineDev011); NULL → вычислять по ScadaKeyMapper.
+     */
+    @Column(name = "scada_prefix")
+    private String scadaPrefix;
+
+    /**
      * Возвращает ID аппарата для сериализации JSON (React Admin ожидает unitId).
      */
     public Long getUnitId() {
@@ -45,8 +75,21 @@ public class DeviceEntity {
         return catalog != null ? catalog.getName() : null;
     }
 
+    /**
+     * Эффективное отображаемое имя: per-unit переопределение, иначе имя каталога.
+     */
     public String getDisplayName() {
+        if (displayName != null && !displayName.isBlank()) {
+            return displayName;
+        }
         return catalog != null ? catalog.getName() : null;
+    }
+
+    /**
+     * Сырое per-unit переопределение имени (NULL, если не задано).
+     */
+    public String getDisplayNameOverride() {
+        return displayName;
     }
 
     public DeviceTypeEntity getType() {

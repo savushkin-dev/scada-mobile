@@ -195,6 +195,20 @@ public class PrintSrvTopologyJpaAdapter implements PrintSrvTopologyRepository {
                         inst.typeDisplayNames().entrySet().stream()
                                 .sorted(Map.Entry.comparingByKey())
                                 .forEach(e -> sb.append("tn:").append(e.getKey()).append('=').append(e.getValue()).append(';'));
+                        // Per-unit раскладка (имена, группы, порядок, счётчики, префиксы)
+                        // тоже участвует в хэше — иначе смена раскладки не меняла бы ETag
+                        // и клиенты получали бы 304 с устаревшими группами устройств.
+                        deviceRepository.findByUnit_PrintsrvInstanceId(inst.instanceId()).stream()
+                                .filter(d -> d.getCatalog() != null)
+                                .sorted(Comparator.comparing(DeviceEntity::getCode,
+                                        Comparator.nullsFirst(Comparator.naturalOrder())))
+                                .forEach(d -> sb.append("dl:").append(d.getCode())
+                                        .append('=').append(d.getDisplayNameOverride())
+                                        .append('|').append(d.getGroupLabel())
+                                        .append('|').append(d.getDisplayOrder())
+                                        .append('|').append(d.isShowCounters())
+                                        .append('|').append(d.getScadaPrefix())
+                                        .append(';'));
                     });
 
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

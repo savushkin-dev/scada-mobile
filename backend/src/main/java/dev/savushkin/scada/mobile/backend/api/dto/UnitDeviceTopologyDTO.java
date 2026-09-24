@@ -1,5 +1,6 @@
 package dev.savushkin.scada.mobile.backend.api.dto;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -14,9 +15,13 @@ import java.util.Map;
  * @param unitId      уникальный идентификатор аппарата (instanceId)
  * @param workshopId  идентификатор цеха-владельца
  * @param unit        отображаемое название аппарата/линии
- * @param devices     сгруппированный список устройств PrintSrv (коды)
- * @param deviceNames отображаемые имена устройств из справочника (код → device_catalog.name)
+ * @param devices     сгруппированный список устройств PrintSrv (коды);
+ *                    deprecated — сохранён для обратной совместимости, использовать {@code groups}
+ * @param deviceNames отображаемые имена устройств из справочника (код → device_catalog.name);
+ *                    deprecated — использовать {@code deviceMeta}
  * @param typeNames   отображаемые имена типов устройств (код типа → device_types.name)
+ * @param groups      группы устройств для вкладки «Устройства» (группа машины первой)
+ * @param deviceMeta  per-unit мета устройств: код → (displayName, showCounters)
  */
 public record UnitDeviceTopologyDTO(
         String unitId,
@@ -24,6 +29,8 @@ public record UnitDeviceTopologyDTO(
         String unit,
         DeviceGroupsDTO devices,
         Map<String, String> deviceNames,
-        Map<String, String> typeNames
+        Map<String, String> typeNames,
+        List<DeviceGroupDTO> groups,
+        Map<String, DeviceMetaDTO> deviceMeta
 ) {
 }

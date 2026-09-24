@@ -53,6 +53,7 @@ public class AdminDeviceController {
         DeviceEntity device = new DeviceEntity();
         device.setUnit(unit);
         device.setCatalog(catalog);
+        applyLayout(device, request);
 
         DeviceEntity saved = deviceRepository.save(device);
         eventPublisher.publishEvent(new DeviceChangedEvent(saved.getId(), null, null, ChangeAction.CREATE));
@@ -73,6 +74,7 @@ public class AdminDeviceController {
 
         device.setUnit(unit);
         device.setCatalog(catalog);
+        applyLayout(device, request);
 
         DeviceEntity saved = deviceRepository.save(device);
         eventPublisher.publishEvent(new DeviceChangedEvent(saved.getId(), null, null, ChangeAction.UPDATE));
@@ -91,9 +93,30 @@ public class AdminDeviceController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Применяет per-unit раскладку устройства (имя, группа, порядок, счётчики, scada-префикс).
+     * Пустые строки трактуются как NULL — сброс к значениям по умолчанию.
+     */
+    private static void applyLayout(DeviceEntity device, DeviceRequest request) {
+        device.setDisplayName(nullIfBlank(request.displayName()));
+        device.setGroupLabel(nullIfBlank(request.groupLabel()));
+        device.setDisplayOrder(request.displayOrder() != null ? request.displayOrder() : 0);
+        device.setShowCounters(Boolean.TRUE.equals(request.showCounters()));
+        device.setScadaPrefix(nullIfBlank(request.scadaPrefix()));
+    }
+
+    private static String nullIfBlank(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
     public record DeviceRequest(
             @NotNull Long unitId,
-            @NotNull Long catalogId
+            @NotNull Long catalogId,
+            String displayName,
+            String groupLabel,
+            Integer displayOrder,
+            Boolean showCounters,
+            String scadaPrefix
     ) {
     }
 }
