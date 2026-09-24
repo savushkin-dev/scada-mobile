@@ -579,7 +579,15 @@ public class UnitDetailService {
             } else {
                 // Обычный checker (CamChecker, CamBatch, CamPacker, …)
                 // Читает поля устройства напрямую; профильные ошибки приходят через scada.
-                result.add(buildSingleCamStatusDirect(camName, camRaw));
+                // Если у устройства есть scada-префикс (настроенный или name-based,
+                // например misclassified CamAgregation или Trepko CamChecker→Dev03) —
+                // читаем scada-first, как камеру агрегации.
+                String devKey = deviceScadaRegistry.resolveScadaPrefix(instanceId, camName);
+                if (devKey != null) {
+                    result.add(buildSingleCamStatus(camName, camRaw, devKey, scadaRaw));
+                } else {
+                    result.add(buildSingleCamStatusDirect(camName, camRaw));
+                }
             }
         }
         return result;
