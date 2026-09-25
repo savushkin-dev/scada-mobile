@@ -20,6 +20,12 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      // Стандартный паттерн «деструктуризация для исключения поля» в тестах:
+      // const { secret: _omit, ...rest } = fixture — _omit сознательно не используется.
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', ignoreRestSiblings: true },
+      ],
     },
   }
 );
