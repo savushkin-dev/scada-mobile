@@ -60,12 +60,14 @@ export const WorkshopList = () => {
                 render: (workshop) => workshop.id,
                 className: 'w-16',
                 filterKey: 'id',
+                sortKey: 'id',
               },
               {
                 key: 'name',
                 header: 'Название',
                 render: (workshop) => workshop.name,
                 filterKey: 'name',
+                sortKey: 'name',
               },
               {
                 key: 'actions',

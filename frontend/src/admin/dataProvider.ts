@@ -278,7 +278,9 @@ export const dataProvider: DataProvider = {
                 body: JSON.stringify({
                   unitId: Number(params.id),
                   catalogId: link.catalogId,
-                  displayName: link.displayName || null,
+                  // «Имя на экране» снято с UI: сбрасываем переопределение,
+                  // на клиенте имя берётся из названия устройства справочника.
+                  displayName: null,
                   groupLabel: link.groupLabel || null,
                   displayOrder: link.displayOrder ?? 0,
                   showCounters: link.showCounters === true,
