@@ -6,6 +6,7 @@ import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.PrintSrvMapper;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.printsrv.dto.QueryAllResponseDTO;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -27,7 +28,11 @@ import java.util.*;
  *       {@code Failed} и {@code BatchFailed}.</li>
  *   <li><b>Line</b> — если {@code ST=1} (активна), счётчик в {@code CurItem} растёт;
  *       флаг {@code Error} появляется с вероятностью {@code errorFlipProbability}
- *       и снимается с вероятностью {@code errorClearProbability}.</li>
+ *       и снимается с вероятностью {@code errorClearProbability}; при установке
+ *       {@code Error=1} заполняется человекочитаемый {@code ErrorMessage},
+ *       при снятии — очищается.</li>
+ *   <li><b>CamEanChecker{N}</b> — как checker-камеры; в scada флаги ошибок
+ *       пишутся по префиксу {@code Dev0(70+N)} (071–074), см. {@code ScadaKeyMapper}.</li>
  *   <li><b>Принтеры</b> — если {@code ST=1}, инкрементируется {@code CurItem}.</li>
  *   <li><b>SCADA</b> — булевые (0/1) флаги ошибок устройств
  *       ({@code Dev041Connection}, {@code Dev041Fail}, …, {@code LineDev011Error})
@@ -56,7 +61,7 @@ public class MockStateSimulator {
 
     private static final Logger log = LoggerFactory.getLogger(MockStateSimulator.class);
 
-    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
 
     private final MockPrintSrvClientRegistry registry;
     private final MockPrintSrvProperties mockProperties;
@@ -291,11 +296,14 @@ public class MockStateSimulator {
         if ("1".equals(currentError)) {
             if (shouldErrorClear()) {
                 state.setProperty(device, "Error", "0");
+                state.setProperty(device, "ErrorMessage", "");
                 log.trace("[{}] {} — Error cleared", instanceId, device);
             }
         } else {
             if (shouldErrorAppear()) {
                 state.setProperty(device, "Error", "1");
+                // Человекочитаемый текст, как в реальном ErrorMessage PrintSrv
+                state.setProperty(device, "ErrorMessage", "Нет кодов маркировки!");
                 log.trace("[{}] {} — Error set", instanceId, device);
             }
         }
@@ -322,7 +330,7 @@ public class MockStateSimulator {
         String updatedCurItem = incrementCurItemCounter(curItem);
         state.setProperty(device, "CurItem", updatedCurItem);
 
-        // Обновляем время последнего чтения (HH:mm:ss)
+        // Обновляем время последнего чтения (как в реальных логах: yyyy-MM-dd HH:mm:ss.SSS)
         state.setProperty(device, "LastReadTime", LocalTime.now().format(TIME_FMT));
     }
 
@@ -363,7 +371,14 @@ public class MockStateSimulator {
         int boxCamIndex = 0;
 
         for (String device : deviceNames) {
-            if (device.startsWith("CamAgregationBox")) {
+            if (device.startsWith("CamEanChecker")) {
+                // CamEanChecker{N} → Dev0(70+N), см. ScadaKeyMapper.eanCheckerScadaPrefix
+                String devPrefix = eanCheckerScadaPrefix(device);
+                if (devPrefix != null) {
+                    lineErr |= tickScadaErrorFlags(state, scadaDevice, scadaProps, devPrefix,
+                            CAM_ERROR_SUFFIXES, instanceId, activeErrorCount);
+                }
+            } else if (device.startsWith("CamAgregationBox")) {
                 String devPrefix = "Dev%03d".formatted(42 + boxCamIndex * 2);
                 lineErr |= tickScadaErrorFlags(state, scadaDevice, scadaProps, devPrefix,
                         CAM_ERROR_SUFFIXES, instanceId, activeErrorCount);
@@ -390,6 +405,21 @@ public class MockStateSimulator {
     }
 
     // ─── Внутренние хелперы ─────────────────────────────────────────────────
+
+    /**
+     * Возвращает scada-префикс для {@code CamEanChecker{N}}: {@code "CamEanChecker1"} → {@code "Dev071"}.
+     * Зеркало {@code ScadaKeyMapper.eanCheckerScadaPrefix} (устройство без суффикса/с нечисловым
+     * суффиксом маппится не поддерживается — возвращает {@code null}).
+     */
+    private static @Nullable String eanCheckerScadaPrefix(String device) {
+        String suffix = device.substring("CamEanChecker".length());
+        try {
+            int num = Integer.parseInt(suffix);
+            return "Dev%03d".formatted(70 + num);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
 
     /**
      * Обрабатывает одну группу error-флагов ({@code devPrefix + suffix})
