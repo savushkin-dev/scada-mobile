@@ -5,7 +5,9 @@ import dev.savushkin.scada.mobile.backend.application.ports.InstanceSnapshotRepo
 import dev.savushkin.scada.mobile.backend.application.ports.PrintSrvTopologyRepository;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceComposition;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceError;
+import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
+import dev.savushkin.scada.mobile.backend.domain.model.UnitSnapshot;
 import dev.savushkin.scada.mobile.backend.domain.model.Workshop;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.UnitErrorStore;
 import org.jspecify.annotations.NonNull;
@@ -151,6 +153,17 @@ public class WorkshopService {
         Map<String, String> displayNames = new LinkedHashMap<>(inst.deviceDisplayNames());
         displayNames.keySet().removeAll(hiddenCodes);
 
+        // Live-обогащение меты: текущая партия устройства из runtime-тега curitem.
+        // Устройства без тега (или без снапшота) получают null.
+        Map<String, DeviceMetaDTO> deviceMeta = new LinkedHashMap<>();
+        for (Map.Entry<String, DeviceMetaDTO> e
+                : deviceGroupService.buildDeviceMeta(layout).entrySet()) {
+            String currentBatch = firstUnitNamedProp(snapshotRepo.get(instanceId, e.getKey()),
+                    u -> u.properties().getCurItem().orElse(null));
+            deviceMeta.put(e.getKey(), new DeviceMetaDTO(
+                    e.getValue().displayName(), e.getValue().showCounters(), currentBatch));
+        }
+
         return Optional.of(new UnitDeviceTopologyDTO(
                 inst.instanceId(),
                 inst.workshopId(),
@@ -164,7 +177,7 @@ public class WorkshopService {
                 displayNames,
                 inst.typeDisplayNames(),
                 deviceGroupService.buildGroups(layout, scadaPrefixByCode),
-                deviceGroupService.buildDeviceMeta(layout)
+                deviceMeta
         ));
     }
 
@@ -173,6 +186,19 @@ public class WorkshopService {
             return codes;
         }
         return codes.stream().filter(c -> !hiddenCodes.contains(c)).toList();
+    }
+
+    /**
+     * Извлекает именованное поле из первого юнита снапшота устройства.
+     */
+    private static @Nullable String firstUnitNamedProp(
+            @Nullable DeviceSnapshot snapshot,
+            java.util.function.Function<UnitSnapshot, @Nullable String> extractor
+    ) {
+        if (snapshot == null || snapshot.units().isEmpty()) {
+            return null;
+        }
+        return extractor.apply(snapshot.units().values().iterator().next());
     }
 
     /**

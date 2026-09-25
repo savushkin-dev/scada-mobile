@@ -250,9 +250,12 @@ public class MockStateSimulator {
             return;
         }
 
-        String curItem = props.getOrDefault("CurItem", "");
+        // Регистр ключа нестабилен: CurItem у Line/BatchQueue, curitem у камер/принтеров
+        boolean lowerCaseKey = !props.containsKey("CurItem") && props.containsKey("curitem");
+        String curItemKey = lowerCaseKey ? "curitem" : "CurItem";
+        String curItem = props.getOrDefault(curItemKey, "");
         String updated = incrementCurItemCounter(curItem);
-        state.setProperty(device, "CurItem", updated);
+        state.setProperty(device, curItemKey, updated);
     }
 
     // ─── Scada (агрегированные флаги ошибок устройств) ─────────────────────
@@ -326,9 +329,12 @@ public class MockStateSimulator {
         }
 
         // Инкрементируем первый числовой токен в CurItem
-        String curItem = props.getOrDefault("CurItem", "");
+        // (регистр ключа: CurItem у Line, curitem у части установок)
+        boolean lowerCaseCurItem = !props.containsKey("CurItem") && props.containsKey("curitem");
+        String curItemKey = lowerCaseCurItem ? "curitem" : "CurItem";
+        String curItem = props.getOrDefault(curItemKey, "");
         String updatedCurItem = incrementCurItemCounter(curItem);
-        state.setProperty(device, "CurItem", updatedCurItem);
+        state.setProperty(device, curItemKey, updatedCurItem);
 
         // Обновляем время последнего чтения (как в реальных логах: yyyy-MM-dd HH:mm:ss.SSS)
         state.setProperty(device, "LastReadTime", LocalTime.now().format(TIME_FMT));

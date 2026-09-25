@@ -73,18 +73,37 @@ class DeviceCounterResolverTest {
     }
 
     @Test
-    void explicitCounterDisableIsHonored() {
-        // У аппарата есть записи устройств, но ни одного show_counters=true —
-        // это намеренный запрет, fallback на камеры агрегации не применяется.
-        givenLayout(entry("CamAgregation", "aggregation_cam", 0, false));
+    void explicitCounterDisableIsHonoredForNonAggregationDevices() {
+        // Намеренный запрет счётчиков сохраняется для устройств, не попадающих
+        // под правило умолчаний (не CamAgregation* и не aggregation_cam).
+        givenLayout(entry("CamChecker", "checker_cam", 0, false));
         when(compositionService.getComposition(INSTANCE_ID))
-                .thenReturn(new DeviceComposition(List.of(), List.of("CamAgregation"), List.of(), List.of()));
-        givenSnapshot("CamAgregation", Map.of("Succeeded", "70", "Failed", "3"));
+                .thenReturn(new DeviceComposition(List.of(), List.of(), List.of(), List.of("CamChecker")));
+        givenSnapshot("CamChecker", Map.of("Succeeded", "70", "Failed", "3"));
 
         DeviceCounterResolver.UnitCounters counters = resolver.resolveUnitCounters(INSTANCE_ID);
 
         assertThat(counters.read()).isEqualTo("0");
         assertThat(counters.unread()).isEqualTo("0");
+    }
+
+    @Test
+    void fallsBackToDefaultRuleWhenLayoutHasNoShowCountersEntries() {
+        // Регрессия «0 / 0» на карточке Grunwald 5: раскладка существует,
+        // но ни одна запись не помечена show_counters=true — для камер агрегации
+        // счётчики должны разрешаться правилом умолчаний (как во вкладке деталей).
+        givenLayout(
+                entry("CamChecker", "checker_cam", 0, false),
+                entry("CamAgregation", "aggregation_cam", 1, false));
+        when(compositionService.getComposition(INSTANCE_ID))
+                .thenReturn(new DeviceComposition(List.of(), List.of("CamAgregation"), List.of(), List.of("CamChecker")));
+        givenSnapshot("CamAgregation", Map.of("Succeeded", "70", "Failed", "3"));
+        givenSnapshot("CamChecker", Map.of("Succeeded", "5", "Failed", "0"));
+
+        DeviceCounterResolver.UnitCounters counters = resolver.resolveUnitCounters(INSTANCE_ID);
+
+        assertThat(counters.read()).isEqualTo("70");
+        assertThat(counters.unread()).isEqualTo("3");
     }
 
     @Test

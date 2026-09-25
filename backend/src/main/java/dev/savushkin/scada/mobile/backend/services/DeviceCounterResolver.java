@@ -119,19 +119,34 @@ public class DeviceCounterResolver {
     // ─── Private helpers ────────────────────────────────────────────────────
 
     /**
-     * Кандидаты на агрегированные счётчики: устройства с show_counters
-     * (по display_order). Состав аппарата используется только когда у аппарата
-     * вообще нет записей устройств — тогда явный запрет счётчиков считаем намеренным.
+     * Кандидаты на агрегированные счётчики (по приоритету):
+     * <ol>
+     *   <li>устройства с show_counters=true (по display_order);</li>
+     *   <li>если таких нет — записи раскладки, попадающие под правило умолчаний
+     *       ({@code CamAgregation*} / тип {@code aggregation_cam}): защита от
+     *       случайного show_counters=false при наличии раскладки (симптом —
+     *       «0 / 0» на карточке при живых счётчиках в деталях);</li>
+     *   <li>если записей вообще нет — камеры агрегации из состава аппарата.</li>
+     * </ol>
      */
     private @NonNull List<String> counterCandidates(@NonNull String instanceId) {
         DeviceLayout layout = deviceScadaRegistry.loadLayout(instanceId);
         LinkedHashSet<String> candidates = new LinkedHashSet<>();
+        Comparator<DeviceEntry> byOrder = Comparator
+                .comparingInt(DeviceEntry::displayOrder).thenComparing(DeviceEntry::code);
         layout.entries().stream()
                 .filter(e -> e.showCounters() && !e.hidden())
-                .sorted(Comparator.comparingInt(DeviceEntry::displayOrder).thenComparing(DeviceEntry::code))
+                .sorted(byOrder)
                 .map(DeviceEntry::code)
                 .forEach(candidates::add);
-        if (candidates.isEmpty() && layout.entries().isEmpty()) {
+        if (candidates.isEmpty()) {
+            layout.entries().stream()
+                    .filter(e -> !e.hidden() && ScadaKeyMapper.defaultShowCounters(e.typeCode(), e.code()))
+                    .sorted(byOrder)
+                    .map(DeviceEntry::code)
+                    .forEach(candidates::add);
+        }
+        if (candidates.isEmpty()) {
             DeviceComposition composition = compositionService.getComposition(instanceId);
             candidates.addAll(composition.aggregationCams());
         }

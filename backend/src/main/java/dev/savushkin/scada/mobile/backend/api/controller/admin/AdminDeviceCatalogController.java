@@ -72,9 +72,8 @@ public class AdminDeviceCatalogController {
         if (catalogRepository.findByCode(request.code()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Устройство с таким кодом уже существует");
         }
-        if (catalogRepository.findByName(request.name()).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Устройство с таким названием уже существует");
-        }
+        // Уникальность name не проверяется: разные по коду устройства
+        // могут иметь одинаковое название (V20 сняла соответствующий constraint).
 
         DeviceCatalogEntity catalog = new DeviceCatalogEntity();
         catalog.setType(type);
@@ -104,9 +103,7 @@ public class AdminDeviceCatalogController {
         if (!catalog.getCode().equals(request.code()) && catalogRepository.findByCode(request.code()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Устройство с таким кодом уже существует");
         }
-        if (!catalog.getName().equals(request.name()) && catalogRepository.findByName(request.name()).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Устройство с таким названием уже существует");
-        }
+        // Проверка уникальности name сознательно отсутствует (см. create).
 
         catalog.setType(type);
         catalog.setCode(request.code());

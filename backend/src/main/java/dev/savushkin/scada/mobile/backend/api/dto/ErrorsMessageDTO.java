@@ -2,6 +2,7 @@ package dev.savushkin.scada.mobile.backend.api.dto;
 
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
@@ -61,7 +62,8 @@ public record ErrorsMessageDTO(
      * @param propertyDesc ключ свойства из {@code scada} (例 {@code "Dev041Dublicate"})
      * @param value        значение флага ({@code "1"} — активна, {@code "0"} — нет)
      * @param description  человекочитаемое описание ошибки (例 {@code "Одинаковые коды маркировки"})
+     * @param occurredAt   ISO-8601 local date-time первой активации ошибки, {@code null} если неизвестно
      */
     public record DeviceErrorFlag(String objectName, String propertyDesc, String value,
-                                  String description) {}
+                                  String description, @Nullable String occurredAt) {}
 }
