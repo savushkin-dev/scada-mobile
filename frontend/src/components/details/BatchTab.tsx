@@ -4,7 +4,6 @@ import {
   BATCH_EXPANDED_SECTION_STYLE,
   BATCH_PRIMARY_FIELDS,
   BOOLEAN_LABEL,
-  DOMAIN_DEFAULTS,
   DOMAIN_FLAGS,
   UI_COPY,
 } from '../../config';
@@ -22,7 +21,7 @@ import type { LineStatusPayload } from '../../types';
  */
 
 function val(v: string | number | undefined | null): string {
-  if (v === null || v === undefined) return DOMAIN_DEFAULTS.emptyValue;
+  if (v === null || v === undefined || String(v).trim() === '') return '—';
   return String(v);
 }
 

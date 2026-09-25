@@ -84,6 +84,8 @@ public record DevicesStatusMessageDTO(
      * @param unread       количество несчитанных / ошибочных кодов
      * @param st           {@code "0"} — ошибки нет, {@code "1"} — ошибка есть
      * @param error        код ошибки ({@code "0"} — нет ошибки)
+     * @param batch        текущая партия устройства (тег {@code curitem}, формат
+     *                     {@code "маркировка | партия | дата"}), {@code null} если тега нет
      * @param disconnected {@code true} — устройство есть в БД, но отсутствует в runtime
      */
     public record CameraStatus(
@@ -92,6 +94,7 @@ public record DevicesStatusMessageDTO(
             @Nullable String unread,
             @Nullable String st,
             @Nullable String error,
+            @Nullable String batch,
             boolean disconnected
     ) {}
 }

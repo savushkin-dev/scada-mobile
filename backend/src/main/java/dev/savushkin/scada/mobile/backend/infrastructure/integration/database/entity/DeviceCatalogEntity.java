@@ -5,9 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Table(name = "device_catalog", uniqueConstraints = {
-        @UniqueConstraint(name = "uc_device_catalog_name", columnNames = {"name"})
-})
+@Table(name = "device_catalog")
 @Getter
 @Setter
 public class DeviceCatalogEntity {

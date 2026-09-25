@@ -84,15 +84,15 @@ export const QUEUE_SECONDARY_TEXT_STYLE: CSSProperties = {
 };
 
 export const LOGS_ACTIVE_TITLE_STYLE: CSSProperties = {
-  color: UI_PALETTE.critical,
+  color: UI_PALETTE.brandText,
 };
 
 export const LOGS_EMPTY_SUCCESS_STYLE: CSSProperties = {
   textAlign: 'center',
-  color: UI_PALETTE.success,
-  padding: '16px 0',
-  fontWeight: 600,
-  fontSize: '0.9rem',
+  color: UI_PALETTE.mutedText,
+  padding: '20px 0',
+  fontWeight: 400,
+  fontSize: '0.88rem',
 };
 
 export const LOGS_ERROR_NAME_STYLE: CSSProperties = {

@@ -8,6 +8,7 @@ import dev.savushkin.scada.mobile.backend.domain.model.DeviceSnapshot;
 import dev.savushkin.scada.mobile.backend.domain.model.PrintSrvInstance;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitProperties;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitSnapshot;
+import dev.savushkin.scada.mobile.backend.api.dto.ErrorsMessageDTO;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.UnitErrorStore;
 import dev.savushkin.scada.mobile.backend.services.DeviceScadaRegistry.DeviceEntry;
 import dev.savushkin.scada.mobile.backend.services.DeviceScadaRegistry.DeviceLayout;
@@ -33,13 +34,14 @@ class UnitDetailServiceErrorsTest {
     private final DeviceCompositionService compositionService = mock(DeviceCompositionService.class);
     private final DeviceScadaRegistry registry = mock(DeviceScadaRegistry.class);
     private final DeviceCounterResolver counterResolver = mock(DeviceCounterResolver.class);
+    private final UnitErrorStore unitErrorStore = new UnitErrorStore();
 
     private UnitDetailService service;
 
     @BeforeEach
     void setUp() {
         service = new UnitDetailService(
-                topologyRepo, snapshotRepo, new UnitErrorStore(), compositionService,
+                topologyRepo, snapshotRepo, unitErrorStore, compositionService,
                 registry, counterResolver, new DeviceGroupService());
 
         PrintSrvInstance inst = new PrintSrvInstance(
@@ -98,6 +100,19 @@ class UnitDetailServiceErrorsTest {
         givenScadaFlags(Map.of("Dev099Connection", "1"));
 
         assertThat(service.extractActiveErrors(INSTANCE_ID)).isEmpty();
+    }
+
+    @Test
+    void errorsStatusIncludesOccurredAtFromStore() {
+        givenScadaFlags(Map.of("Dev041Connection", "1"));
+        unitErrorStore.update(INSTANCE_ID, service.extractActiveErrors(INSTANCE_ID));
+
+        ErrorsMessageDTO message = service.buildErrorsStatus(INSTANCE_ID);
+
+        assertThat(message.payload().deviceErrors()).hasSize(1);
+        assertThat(message.payload().deviceErrors().getFirst().occurredAt()).isNotNull();
+        assertThat(message.payload().deviceErrors().getFirst().occurredAt())
+                .matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*");
     }
 
     private void givenScadaFlags(Map<String, String> flags) {

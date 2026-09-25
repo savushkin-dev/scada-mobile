@@ -372,6 +372,8 @@ export const DeviceErrorSchema = z.object({
   propertyDesc: z.string(),
   value: z.string(),
   description: z.string().optional(),
+  /** Время возникновения ошибки (ISO local date-time), если известно. */
+  occurredAt: z.string().nullable().optional(),
 });
 
 export const LogEntrySchema = z.object({

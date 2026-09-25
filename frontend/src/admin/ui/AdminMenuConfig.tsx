@@ -42,5 +42,5 @@ export const adminReferenceItems: AdminMenuItem[] = [
   { name: 'roles', label: 'Роли', icon: <IconRoles size={20} /> },
   { name: 'workshops', label: 'Цеха', icon: <IconWorkshops size={20} /> },
   { name: 'device-types', label: 'Типы устройств', icon: <IconDeviceTypes size={20} /> },
-  { name: 'device-catalog', label: 'Справочник устройств', icon: <IconDevices size={20} /> },
+  { name: 'device-catalog', label: 'Устройства', icon: <IconDevices size={20} /> },
 ];

@@ -132,7 +132,8 @@ public class UnitDetailService {
         if (RuntimeTagMapper.hasActiveError(scadaRaw, devKey)) {
             error = "1";
         }
-        return new DevicesStatusMessageDTO.CameraStatus(camName, read, unread, st, error, false);
+        String batch = camRaw.get("curitem");
+        return new DevicesStatusMessageDTO.CameraStatus(camName, read, unread, st, error, batch, false);
     }
 
     /**
@@ -149,6 +150,7 @@ public class UnitDetailService {
                 camRaw.get("Failed"),
                 camRaw.get("ST"),
                 camRaw.get("Error"),
+                camRaw.get("curitem"),
                 false
         );
     }
@@ -268,7 +270,10 @@ public class UnitDetailService {
                         e.objectName(),
                         e.propertyDesc(),
                         "1",
-                        e.description()))
+                        e.description(),
+                        e.occurredAt() != null
+                                ? e.occurredAt().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                                : null))
                 .toList();
 
         return ErrorsMessageDTO.of(
@@ -512,7 +517,7 @@ public class UnitDetailService {
         for (int i = 0; i < camNames.size(); i++) {
             String camName = camNames.get(i);
             if (!runtimeDevices.contains(camName)) {
-                result.add(new DevicesStatusMessageDTO.CameraStatus(camName, null, null, null, null, true));
+                result.add(new DevicesStatusMessageDTO.CameraStatus(camName, null, null, null, null, null, true));
                 continue;
             }
             Map<String, String> camRaw = firstUnitRawProperties(snapshotRepo.get(instanceId, camName));
@@ -536,7 +541,7 @@ public class UnitDetailService {
         for (int i = 0; i < camNames.size(); i++) {
             String camName = camNames.get(i);
             if (!runtimeDevices.contains(camName)) {
-                result.add(new DevicesStatusMessageDTO.CameraStatus(camName, null, null, null, null, true));
+                result.add(new DevicesStatusMessageDTO.CameraStatus(camName, null, null, null, null, null, true));
                 continue;
             }
             Map<String, String> camRaw = firstUnitRawProperties(snapshotRepo.get(instanceId, camName));
@@ -562,7 +567,7 @@ public class UnitDetailService {
         List<DevicesStatusMessageDTO.CameraStatus> result = new ArrayList<>(camNames.size());
         for (String camName : camNames) {
             if (!runtimeDevices.contains(camName)) {
-                result.add(new DevicesStatusMessageDTO.CameraStatus(camName, null, null, null, null, true));
+                result.add(new DevicesStatusMessageDTO.CameraStatus(camName, null, null, null, null, null, true));
                 continue;
             }
 

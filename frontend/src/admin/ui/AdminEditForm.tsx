@@ -22,8 +22,6 @@ interface AdminEditFormProps {
         onChange: (field: string, value: unknown) => void;
         slot?: 'left' | 'right';
       }) => ReactNode);
-  /** Дополнительные действия рядом с кнопкой "Сохранить" (только для single layout). */
-  extraActions?: ReactNode | ((record: Record<string, unknown>) => ReactNode);
   /** Дополнительные пункты меню "Доп. параметры" (перед "Удалить"). */
   menuItems?: ActionMenuItem[] | ((record: Record<string, unknown>) => ActionMenuItem[]);
   /** Начальная ширина левой панели в процентах (только для two-column). */
@@ -66,7 +64,6 @@ export function AdminEditForm({
   title,
   layout = 'single',
   children,
-  extraActions,
   menuItems,
   defaultLeftWidth,
   leftCardTitle = 'Основная информация',
@@ -232,19 +229,6 @@ export function AdminEditForm({
         <AdminCard className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div ref={formRef} className="flex-1 overflow-y-auto">
             {renderChildren()}
-          </div>
-          <div className="mt-3 flex items-center justify-between border-t border-[#f0f0f0] pt-3 lg:mt-4">
-            <div className="flex items-center gap-2">
-              <PillButton
-                icon={<IconSave size={18} />}
-                onClick={handleSave}
-                disabled={!isDirty || saving}
-                className="h-9 px-4"
-              >
-                {saving ? 'Сохранение...' : 'Сохранить'}
-              </PillButton>
-              {typeof extraActions === 'function' ? extraActions(values) : extraActions}
-            </div>
           </div>
         </AdminCard>
       )}

@@ -104,6 +104,7 @@ export const UserList = () => {
                 render: (user) => user.id,
                 className: 'w-12',
                 filterKey: 'id',
+                sortKey: 'id',
               },
               {
                 key: 'code',
@@ -111,12 +112,14 @@ export const UserList = () => {
                 render: (user) => user.code,
                 className: 'w-24',
                 filterKey: 'code',
+                sortKey: 'code',
               },
               {
                 key: 'fullName',
                 header: 'ФИО',
                 render: (user) => user.fullName,
                 filterKey: 'fullName',
+                sortKey: 'fullName',
               },
               {
                 key: 'role',

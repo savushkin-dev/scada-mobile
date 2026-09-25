@@ -38,7 +38,7 @@ interface DeviceLink {
   /** ID связи на backend; отсутствует у только что добавленных устройств. */
   id?: number;
   catalogId: number;
-  displayName: string;
+  displayName: string | null;
   groupLabel: string;
   displayOrder: number;
   showCounters: boolean;
@@ -48,8 +48,11 @@ interface DeviceLink {
 
 export const UnitList = () => {
   const { navigateToEdit, toggleActive, deleteRecord } = useRowActions();
-  const { data } = useListContext<Unit>();
+  const { data, sort } = useListContext<Unit>();
+  // Серверная сортировка (клик по заголовку колонки) — приоритет; локальная
+  // группировка активных сверху применяется только к сортировке по умолчанию.
   const records = [...(data ?? [])].sort((left, right) => {
+    if (sort.field !== 'id') return 0;
     if (left.active !== right.active) return left.active ? -1 : 1;
     return left.name.localeCompare(right.name, 'ru', { sensitivity: 'base' });
   });
@@ -115,23 +118,33 @@ export const UnitList = () => {
                 render: (unit) => unit.id,
                 className: 'w-12',
                 filterKey: 'id',
+                sortKey: 'id',
               },
-              { key: 'name', header: 'Название', render: (unit) => unit.name, filterKey: 'name' },
+              {
+                key: 'name',
+                header: 'Название',
+                render: (unit) => unit.name,
+                filterKey: 'name',
+                sortKey: 'name',
+              },
               {
                 key: 'workshop',
                 header: 'Цех',
                 filterKey: 'workshopId',
+                sortKey: 'workshop.id',
                 render: (unit) => <WorkshopName id={unit.workshopId} />,
               },
               {
                 key: 'printsrv',
                 header: 'PrintSrv ID',
                 filterKey: 'printsrvInstanceId',
+                sortKey: 'printsrvInstanceId',
                 render: (unit) => unit.printsrvInstanceId,
               },
               {
                 key: 'host',
                 header: 'Хост',
+                sortKey: 'printsrvHost',
                 render: (unit) => unit.printsrvHost,
                 filterKey: 'printsrvHost',
               },
@@ -139,6 +152,7 @@ export const UnitList = () => {
                 key: 'port',
                 header: 'Порт',
                 filterKey: 'printsrvPort',
+                sortKey: 'printsrvPort',
                 render: (unit) => unit.printsrvPort,
                 className: 'w-16',
               },
@@ -204,11 +218,14 @@ function UnitLeftFields({
 }
 
 /**
- * Редактор per-unit раскладки устройств: имя на экране, группа, порядок,
- * счётчики, SCADA-префикс. Данные — record.deviceLinks (загружаются в
+ * Per-unit раскладка устройства (группа, SCADA-префикс, счётчики,
+ * скрытость). Данные — record.deviceLinks (загружаются в
  * dataProvider.getOne('units') из GET /admin/devices?unitId=), сохранение —
  * PUT /admin/devices/{id} в dataProvider.update('units').
- * Пустые строки трактуются backend как NULL (значения по умолчанию).
+ * Порядок (displayOrder) больше не редактируется — отправляется как загружен
+ * бэкендом; «имя на экране» (displayName) снято с UI и при сохранении
+ * сбрасывается в NULL — на клиенте имя берётся из названия устройства
+ * справочника.
  */
 function UnitDeviceLayoutEditor({
   record,
@@ -260,7 +277,7 @@ function UnitDeviceLayoutEditor({
     const existing = links.find((l) => l.catalogId === catalogId);
     const base: DeviceLink = existing ?? {
       catalogId,
-      displayName: '',
+      displayName: null,
       groupLabel: '',
       displayOrder: 0,
       showCounters: false,
@@ -297,26 +314,12 @@ function UnitDeviceLayoutEditor({
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <RoundedInput
-                  label="Имя на экране"
-                  value={link?.displayName ?? ''}
-                  placeholder={catalogName}
-                  onChange={(e) => updateLink(catalogId, { displayName: e.target.value })}
-                />
-                <RoundedInput
                   label="Группа"
                   value={link?.groupLabel ?? ''}
                   placeholder={
                     defaultGroupLabel ? `по умолчанию: ${defaultGroupLabel}` : 'по умолчанию'
                   }
                   onChange={(e) => updateLink(catalogId, { groupLabel: e.target.value })}
-                />
-                <RoundedInput
-                  label="Порядок"
-                  type="number"
-                  value={link?.displayOrder ?? 0}
-                  onChange={(e) =>
-                    updateLink(catalogId, { displayOrder: Number(e.target.value) || 0 })
-                  }
                 />
                 <RoundedInput
                   label="SCADA-префикс"
@@ -402,6 +405,7 @@ function UnitRightFields({
         label="Устройства"
         reference="device-catalog"
         optionText="name"
+        optionSecondary="code"
         multiple
         value={(record.catalogIds as number[]) ?? []}
         onChange={(v) => onChange('catalogIds', v ?? [])}

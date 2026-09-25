@@ -166,7 +166,7 @@ public class MockPrintSrvClient implements PrintSrvClient {
                 .cmdSuccess(p.get("cmdsuccess"))
                 .st(p.get("ST"))
                 .batchId(p.get("batchId"))
-                .curItem(p.get("CurItem"))
+                .curItem(firstPresent(p, "CurItem", "curitem"))
                 .batchIdCodesQueue(p.get("batchIdCodesQueue"))
                 .setBatchId(p.get("setBatchID"))
                 .devChangeBatch(p.get("devChangeBatch"))
@@ -184,6 +184,21 @@ public class MockPrintSrvClient implements PrintSrvClient {
                 .enableErrors(p.get("enableErrors"))
                 .rawProperties(p)  // все ключи, включая camera-специфичные (Total, Failed, kd, …)
                 .build();
+    }
+
+    /**
+     * Возвращает значение первого присутствующего ключа.
+     * Регистр ключей в XML-конфигурациях PrintSrv нестабилен:
+     * {@code CurItem} у Line/BatchQueue, {@code curitem} у камер и принтеров.
+     */
+    private static String firstPresent(Map<String, String> p, String... keys) {
+        for (String key : keys) {
+            String value = p.get(key);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     /**

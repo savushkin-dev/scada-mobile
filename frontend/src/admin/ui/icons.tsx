@@ -98,6 +98,10 @@ export function IconChevronDown(props: NamedIconProps) {
   return <AdminIcon name="chevron-down" {...props} />;
 }
 
+export function IconChevronUp(props: NamedIconProps) {
+  return <AdminIcon name="chevron-up" {...props} />;
+}
+
 export function IconMenu(props: NamedIconProps) {
   return <AdminIcon name="menu" {...props} />;
 }

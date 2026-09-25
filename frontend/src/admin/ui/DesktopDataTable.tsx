@@ -1,6 +1,7 @@
 import { formatEmpty } from './formatEmpty';
-import { IconFilter, IconPowerOff } from './icons';
+import { IconChevronDown, IconChevronUp, IconFilter, IconPowerOff } from './icons';
 import { useRef, useState, type ReactNode } from 'react';
+import { useListContext } from 'react-admin';
 import { useTableFilters } from '../filters/TableFilterContext';
 import { ColumnFilterControl } from './ColumnFilterControl';
 import { Popover } from './Popover';
@@ -16,6 +17,12 @@ interface Column<T> {
    * появляется кнопка вызова выпадающего фильтра.
    */
   filterKey?: string;
+  /**
+   * Имя сортируемого поля сущности (как в backend Pageable).
+   * Если задано — клик по заголовку переключает сортировку ASC/DESC;
+   * порядок и направление отображаются стрелкой в шапке.
+   */
+  sortKey?: string;
 }
 
 interface DesktopDataTableProps<T> {
@@ -33,6 +40,7 @@ export function DesktopDataTable<T>({
   isActive,
 }: DesktopDataTableProps<T>) {
   const showStatus = isActive != null;
+  const { sort, setSort } = useListContext();
 
   const statusColumn: Column<T> = {
     key: 'inactive-indicator',
@@ -58,7 +66,13 @@ export function DesktopDataTable<T>({
                   key={col.key}
                   className="whitespace-nowrap pb-3 pt-1 text-left text-xs font-semibold uppercase tracking-[0.05em] text-[#74777f]"
                 >
-                  <HeaderCell header={col.header} filterKey={col.filterKey} />
+                  <HeaderCell
+                    header={col.header}
+                    filterKey={col.filterKey}
+                    sortKey={col.sortKey}
+                    sort={sort}
+                    setSort={setSort}
+                  />
                 </th>
               ))}
             </tr>
@@ -93,32 +107,102 @@ export function DesktopDataTable<T>({
   );
 }
 
-/** Заголовок колонки с опциональным выпадающим фильтром (открывается кликом по шапке). */
-function HeaderCell({ header, filterKey }: { header: ReactNode; filterKey?: string }) {
+/**
+ * Заголовок колонки: кликабельная сортировка (sortKey) + опциональный
+ * выпадающий фильтр (filterKey, открывается отдельной кнопкой-иконкой).
+ */
+function HeaderCell({
+  header,
+  filterKey,
+  sortKey,
+  sort,
+  setSort,
+}: {
+  header: ReactNode;
+  filterKey?: string;
+  sortKey?: string;
+  sort: { field: string; order: 'ASC' | 'DESC' };
+  setSort: (sort: { field: string; order: 'ASC' | 'DESC' }) => void;
+}) {
   const ctx = useTableFilters();
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLButtonElement>(null);
 
   const field = filterKey ? ctx?.fields.find((f) => f.key === filterKey) : undefined;
-  if (!ctx || !field) return <>{header}</>;
+
+  const isSorted = sortKey != null && sort.field === sortKey;
+  const sortActive = isSorted && sortKey !== 'id';
+  const handleSortClick = () => {
+    if (!sortKey) return;
+    setSort({ field: sortKey, order: isSorted && sort.order === 'ASC' ? 'DESC' : 'ASC' });
+  };
+
+  if (!ctx || !field) {
+    if (!sortKey) return <>{header}</>;
+    return (
+      <button
+        type="button"
+        onClick={handleSortClick}
+        className="group/header inline-flex cursor-pointer items-center gap-1 uppercase"
+      >
+        <span>{header}</span>
+        {isSorted ? (
+          sort.order === 'ASC' ? (
+            <IconChevronUp size={14} className="flex-none text-[#4285f4]" />
+          ) : (
+            <IconChevronDown size={14} className="flex-none text-[#4285f4]" />
+          )
+        ) : (
+          <IconChevronDown
+            size={14}
+            className="flex-none text-[#e0e2e5] transition-colors group-hover/header:text-[#74777f]"
+          />
+        )}
+      </button>
+    );
+  }
 
   const isActive = ctx.filterValues.f?.[field.key] !== undefined;
 
   return (
-    <>
+    <span className="inline-flex items-center gap-1">
+      {sortKey ? (
+        <button
+          type="button"
+          onClick={handleSortClick}
+          className={`group/header inline-flex cursor-pointer items-center gap-1 uppercase ${
+            sortActive ? 'text-[#4285f4]' : ''
+          }`}
+        >
+          <span>{header}</span>
+          {isSorted ? (
+            sort.order === 'ASC' ? (
+              <IconChevronUp size={14} className="flex-none text-[#4285f4]" />
+            ) : (
+              <IconChevronDown size={14} className="flex-none text-[#4285f4]" />
+            )
+          ) : (
+            <IconChevronDown
+              size={14}
+              className="flex-none text-[#e0e2e5] transition-colors group-hover/header:text-[#74777f]"
+            />
+          )}
+        </button>
+      ) : (
+        <span className="uppercase">{header}</span>
+      )}
       <button
         ref={anchorRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={`Фильтр: ${field.label}`}
         aria-expanded={open}
-        className="group/header inline-flex cursor-pointer items-center gap-1 uppercase"
+        className="inline-flex cursor-pointer items-center"
       >
-        <span>{header}</span>
         <IconFilter
           size={14}
           className={`flex-none transition-colors ${
-            isActive ? 'text-[#4285f4]' : 'text-[#c4c7cc] group-hover/header:text-[#74777f]'
+            isActive ? 'text-[#4285f4]' : 'text-[#c4c7cc] hover:text-[#74777f]'
           }`}
         />
       </button>
@@ -126,6 +210,6 @@ function HeaderCell({ header, filterKey }: { header: ReactNode; filterKey?: stri
         <span className="mb-2 block text-xs font-semibold text-[#1a1c1e]">{field.label}</span>
         <ColumnFilterControl field={field} onApplied={() => setOpen(false)} />
       </Popover>
-    </>
+    </span>
   );
 }
