@@ -142,7 +142,8 @@ Backend (Spring Boot, готово и используется):
 Docker:
 
 - `make docker-prod-up` — поднять docker-стек в prod-режиме (использует `PROD_ENV_FILE`, по умолчанию `.env.prod.local`).
-- `make docker-prod-down` — остановить prod-стек.
+- `make docker-prod-down` — остановить prod-стек без удаления контейнеров (`docker compose stop`, быстрый рестарт).
+- `make docker-prod-recreate` — полностью удалить контейнеры стека (`docker compose down`): данные в volume и образы сохраняются, контейнеры пересоздадутся при следующем `up`. Нужна «на всякий случай», не для обычных обновлений.
 - `make docker-ps` — показать статус контейнеров.
 
 Примечания:

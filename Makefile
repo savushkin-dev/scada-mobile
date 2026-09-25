@@ -33,7 +33,7 @@ endif
 
 .PHONY: help back-run back-stop back-wait back-logs back-run-prod front-install front-dev front-build db-seed db-seed-prod
 .PHONY: bwa-init bwa-build-apk
-.PHONY: docker-prod-up docker-prod-down docker-ps
+.PHONY: docker-prod-up docker-prod-down docker-prod-recreate docker-ps
 
 DOCKER_COMPOSE_FILE := -f docker-compose.yml
 PROD_ENV_FILE ?= .env.prod.local
@@ -51,9 +51,10 @@ help:
 	@echo "  make back-run-prod  - run backend [prod profile, port from SCADA_MOBILE_BACKEND_PORT, Swagger disabled]"
 	@echo ""
 	@echo "Docker:"
-	@echo "  make docker-prod-up   - start docker stack (prod mode) (env: PROD_ENV_FILE=.env.prod.local)"
-	@echo "  make docker-prod-down - stop docker stack (prod mode)"
-	@echo "  make docker-ps        - show container status for the active stack"
+	@echo "  make docker-prod-up       - start docker stack (prod mode) (env: PROD_ENV_FILE=.env.prod.local)"
+	@echo "  make docker-prod-down     - stop docker stack without removing containers (fast restart)"
+	@echo "  make docker-prod-recreate - fully remove stack containers (data volumes and images are kept)"
+	@echo "  make docker-ps            - show container status for the active stack"
 	@echo "  make db-seed          - seed dev database via docker exec (container: $(SEED_DB_CONTAINER_DEV), env: SEED_DB_NAME, SEED_DB_USER, SEED_DB_PASSWORD)"
 	@echo "  make db-seed-prod     - seed production database (container: $(SEED_DB_CONTAINER_PROD), workshops/units/device_types from env vars)"
 	@echo ""
@@ -233,6 +234,9 @@ docker-prod-up:
 	@exit 1
 
 docker-prod-down:
+	cmd /C "docker compose --env-file $(PROD_ENV_ACTIVE_FILE) $(DOCKER_COMPOSE_FILE) stop"
+
+docker-prod-recreate:
 	cmd /C "docker compose --env-file $(PROD_ENV_ACTIVE_FILE) $(DOCKER_COMPOSE_FILE) down"
 
 docker-ps:
@@ -253,6 +257,9 @@ docker-prod-up:
 	docker-compose $(DOCKER_COMPOSE_FILE) --env-file "$(PROD_ENV_FILE)" up -d --build
 
 docker-prod-down:
+	docker compose --env-file "$(PROD_ENV_ACTIVE_FILE)" $(DOCKER_COMPOSE_FILE) stop
+
+docker-prod-recreate:
 	docker compose --env-file "$(PROD_ENV_ACTIVE_FILE)" $(DOCKER_COMPOSE_FILE) down
 
 docker-ps:
