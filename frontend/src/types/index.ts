@@ -14,7 +14,13 @@ import type { AlertError } from '../schemas';
 // ── Типы, выведенные из Zod-схем (единственный источник правды) ───────
 
 // topology (REST API)
-export type { WorkshopTopology, UnitTopology, DevicesTopology } from '../schemas';
+export type {
+  WorkshopTopology,
+  UnitTopology,
+  DeviceGroup,
+  DeviceMeta,
+  DevicesTopology,
+} from '../schemas';
 
 // live WebSocket (/ws/live)
 export type {

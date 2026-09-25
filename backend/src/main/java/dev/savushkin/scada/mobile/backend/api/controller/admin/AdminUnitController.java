@@ -6,6 +6,7 @@ import dev.savushkin.scada.mobile.backend.domain.model.ChangeAction;
 import dev.savushkin.scada.mobile.backend.domain.model.DeviceChangedEvent;
 import dev.savushkin.scada.mobile.backend.domain.model.UnitChangedEvent;
 import dev.savushkin.scada.mobile.backend.domain.model.UserNotificationSettingsChangedEvent;
+import dev.savushkin.scada.mobile.backend.services.DeviceLayoutDefaults;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.adapter.PrintSrvTopologyJpaAdapter;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceCatalogEntity;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.entity.DeviceEntity;
@@ -218,6 +219,15 @@ public class AdminUnitController {
             DeviceEntity device = new DeviceEntity();
             device.setUnit(unit);
             device.setCatalog(catalog);
+            // Те же дефолты раскладки, что и у auto-discovery (порядок в конец,
+            // счётчики и scada-префикс по правилам ScadaKeyMapper).
+            DeviceLayoutDefaults.apply(device, catalog,
+                    currentDevices.size(),
+                    currentDevices.stream()
+                            .filter(d -> d.getCatalog() != null && d.getCatalog().getType() != null
+                                    && catalog.getType() != null
+                                    && catalog.getType().getCode().equals(d.getCatalog().getType().getCode()))
+                            .count());
             DeviceEntity saved = deviceRepository.save(device);
             eventPublisher.publishEvent(new DeviceChangedEvent(saved.getId(), null, null, ChangeAction.CREATE));
         }
