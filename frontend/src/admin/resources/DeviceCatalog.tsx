@@ -31,7 +31,7 @@ export const DeviceCatalogList = () => {
 
   return (
     <AdminListContainer
-      title="Справочник устройств"
+      title="Устройства"
       records={records}
       filterFields={DEVICE_CATALOG_FILTER_FIELDS}
     >

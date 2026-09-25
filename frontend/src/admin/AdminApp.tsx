@@ -79,7 +79,7 @@ export function AdminApp() {
       />
       <Resource
         name="device-catalog"
-        options={{ label: 'Справочник устройств' }}
+        options={{ label: 'Устройства' }}
         list={() => (
           <List actions={false} pagination={false}>
             <DeviceCatalogList />
