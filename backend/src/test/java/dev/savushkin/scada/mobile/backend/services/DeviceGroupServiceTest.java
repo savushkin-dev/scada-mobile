@@ -36,8 +36,9 @@ class DeviceGroupServiceTest {
         assertThat(groups).extracting(DeviceGroupDTO::label)
                 .containsExactly("Grunwald 11", "Поток 1", "Поток 2");
         assertThat(groups).extracting(DeviceGroupDTO::order).containsExactly(0, 1, 2);
+        // Машинная группа отсортирована по имени: CamEanChecker1/2 < Printer11/12
         assertThat(groups.get(0).codes()).containsExactly(
-                "Printer11", "Printer12", "CamEanChecker1", "CamEanChecker2");
+                "CamEanChecker1", "CamEanChecker2", "Printer11", "Printer12");
         assertThat(groups.get(1).codes()).containsExactly("CamAgregation1", "CamAgregationBox1");
         assertThat(groups.get(2).codes()).containsExactly("CamAgregation2", "CamAgregationBox2");
     }

@@ -29,14 +29,18 @@ import java.util.regex.Pattern;
  *   <li>ручной {@code group_label} переопределяет любое правило умолчания.</li>
  * </ul>
  *
- * <p>Группа машины всегда первая; остальные группы — по минимальному
- * {@code display_order} участников, при равенстве — по метке.
+ * <p>Группа машины всегда первая; остальные группы и устройства внутри групп —
+ * в лексикографическом порядке (русская локаль).
  */
 @Service
 public class DeviceGroupService {
 
     private static final Pattern DEV_PREFIX_NUMBER = Pattern.compile("Dev(\\d+)");
     private static final Pattern CAM_CHECKER_NUMBER = Pattern.compile("CamChecker(\\d*)");
+
+    /** Лексикографическое сравнение имён/меток по-русски («Камера 41» < «Камера 42» < «Принтер 2»). */
+    private static final java.text.Collator NAME_COLLATOR =
+            java.text.Collator.getInstance(java.util.Locale.forLanguageTag("ru"));
 
     private static final String TYPE_PRINTER = "printer";
     private static final String TYPE_AGGREGATION_CAM = "aggregation_cam";
@@ -82,23 +86,23 @@ public class DeviceGroupService {
             @NonNull Map<String, String> scadaPrefixByCode
     ) {
         Map<String, List<DeviceEntry>> byLabel = new LinkedHashMap<>();
-        List<DeviceEntry> sorted = new ArrayList<>(layout.entries());
-        sorted.sort(Comparator.comparingInt(DeviceEntry::displayOrder).thenComparing(DeviceEntry::code));
-        for (DeviceEntry entry : sorted) {
+        for (DeviceEntry entry : layout.entries()) {
             if (entry.hidden()) {
                 continue; // скрытые устройства на экран не выводятся
             }
             byLabel.computeIfAbsent(resolveGroupLabel(layout, entry, scadaPrefixByCode),
                     k -> new ArrayList<>()).add(entry);
         }
+        // Алфавитный порядок (русская локаль) — отдельно внутри КАЖДОЙ группы,
+        // не сквозной: «Камера 41», «Камера 42», «Принтер 2» в «Потоке».
+        byLabel.values().forEach(entries ->
+                entries.sort(Comparator.comparing(DeviceEntry::effectiveDisplayName, NAME_COLLATOR)));
 
         String machineLabel = layout.unitDisplayName();
         // Группа машины всегда первая, даже если пуста (стабильный порядок на экране)
         byLabel.computeIfAbsent(machineLabel, k -> new ArrayList<>());
-        // Группы после машинной — по минимальному display_order участника, затем по метке
-        Map<String, List<DeviceEntry>> tail = new TreeMap<>(
-                Comparator.<String>comparingInt(label -> byLabel.get(label).getFirst().displayOrder())
-                        .thenComparing(label -> label));
+        // Группы после машинной — в лексикографическом порядке меток («Поток», «Поток 2»)
+        Map<String, List<DeviceEntry>> tail = new TreeMap<>(NAME_COLLATOR);
         List<Map.Entry<String, List<DeviceEntry>>> ordered = new ArrayList<>();
         byLabel.forEach((label, entries) -> {
             if (label.equals(machineLabel)) {
