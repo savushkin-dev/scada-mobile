@@ -47,6 +47,8 @@ export const DeviceMetaSchema = z.object({
   displayName: z.string(),
   /** Показывать ли блок «Считано/Несчитано» на карточке. */
   showCounters: z.boolean(),
+  /** Текущая партия устройства ("1605 | 328 | 25.09.2026"), если известна. */
+  currentBatch: z.string().nullable().optional(),
 });
 
 export const DevicesTopologySchema = z.object({

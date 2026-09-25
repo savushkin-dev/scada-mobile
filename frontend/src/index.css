@@ -227,7 +227,7 @@
   }
   .kv-key {
     color: var(--clr-text-muted);
-    flex: 1;
+    flex-shrink: 0;
     padding-right: 10px;
     font-size: 0.82rem;
     font-weight: 400;
@@ -235,13 +235,18 @@
   /*
     Значения — самая важная информация на экране терминала 4.2":
     чуть крупнее и жирнее остального текста строки.
+    Строка одна: длинные значения ужимаются ellipsis, не переносятся
+    и не налезают на label.
   */
   .kv-val {
     font-weight: 600;
     font-size: 0.92rem;
     text-align: right;
-    flex: 1.5;
-    word-break: break-word;
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     color: #1a1c1e;
   }
 
@@ -359,10 +364,9 @@
 
   .error-item {
     padding: 10px 12px;
-    border-left: 4px solid var(--clr-crit-border);
     background: var(--clr-crit-bg);
     margin-bottom: 8px;
-    border-radius: 0 16px 16px 0;
+    border-radius: 16px;
   }
 
   /*
