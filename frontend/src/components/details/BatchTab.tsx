@@ -4,7 +4,6 @@ import {
   BATCH_EXPANDED_SECTION_STYLE,
   BATCH_PRIMARY_FIELDS,
   BOOLEAN_LABEL,
-  DOMAIN_DEFAULTS,
   DOMAIN_FLAGS,
   UI_COPY,
 } from '../../config';
@@ -22,7 +21,7 @@ import type { LineStatusPayload } from '../../types';
  */
 
 function val(v: string | number | undefined | null): string {
-  if (v === null || v === undefined) return DOMAIN_DEFAULTS.emptyValue;
+  if (v === null || v === undefined || String(v).trim() === '') return '—';
   return String(v);
 }
 
@@ -52,7 +51,7 @@ export function BatchTab() {
 
   return (
     <TabContentState isLoading={isLoading} error={error} skeleton={<BatchTabSkeleton />}>
-      <div className="card p-5 card-static mb-4 zebra-list">
+      <div className="card p-4 card-static mb-3 zebra-list">
         <div className="card-title flex items-center gap-2">
           <img src="/assets/box.svg" alt="" aria-hidden="true" className="h-5 w-5" />
           {UI_COPY.batchTitle}

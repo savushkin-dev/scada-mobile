@@ -110,6 +110,7 @@ public class DeviceAutoDiscoveryService {
                 DeviceEntity device = new DeviceEntity();
                 device.setUnit(unit);
                 device.setCatalog(catalog);
+                applyLayoutDefaults(device, catalog);
                 DeviceEntity saved = deviceRepository.save(device);
                 changed = true;
                 // Клиенты получают новую связь по WS без перезагрузки страницы
@@ -151,6 +152,20 @@ public class DeviceAutoDiscoveryService {
         if (changed) {
             topologyAdapter.invalidateETag();
         }
+    }
+
+    /**
+     * Заполняет дефолты раскладки для новой связи unit_devices:
+     * scada-префикс по типу и индексу внутри типа (правила ScadaKeyMapper),
+     * show_counters для камер агрегации, display_order — в конец списка.
+     */
+    private void applyLayoutDefaults(DeviceEntity device, DeviceCatalogEntity catalog) {
+        Long unitId = device.getUnit().getId();
+        DeviceLayoutDefaults.apply(device, catalog,
+                deviceRepository.countByUnit_Id(unitId),
+                catalog.getType() != null
+                        ? deviceRepository.countByUnit_IdAndCatalog_Type_Code(unitId, catalog.getType().getCode())
+                        : 0);
     }
 
     /**

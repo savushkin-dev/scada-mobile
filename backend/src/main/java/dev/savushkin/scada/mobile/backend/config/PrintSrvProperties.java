@@ -20,6 +20,7 @@ public class PrintSrvProperties {
 
     private PollingProperties polling = new PollingProperties();
     private SocketProperties socket = new SocketProperties();
+    private BatchEndProperties batchEnd = new BatchEndProperties();
 
     // ─── getters / setters ────────────────────────────────────────────────────
 
@@ -42,6 +43,26 @@ public class PrintSrvProperties {
     public static class SocketProperties {
         private int connectTimeoutMs = 5000;
         private int readTimeoutMs = 5000;
+
+    }
+
+    // ─── Nested: batch-end ───────────────────────────────────────────────────
+
+    @Setter
+    @Getter
+    public static class BatchEndProperties {
+        /**
+         * Имя устройства-источника сигнала «последняя партия».
+         */
+        private String deviceName = "Line";
+
+        /**
+         * Имя свойства-счётчика «последней партии». Markserver инкрементирует
+         * его при получении команды {@code LINE_CMD_FINISH_BATCH (113)}
+         * (значение циклически меняется 1→100→1), поэтому срабатывание
+         * детектируется по <em>изменению</em> значения между poll-циклами.
+         */
+        private String propertyName = "FinishBatch";
 
     }
 }

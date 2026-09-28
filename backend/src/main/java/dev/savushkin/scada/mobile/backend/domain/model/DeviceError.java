@@ -1,5 +1,9 @@
 package dev.savushkin.scada.mobile.backend.domain.model;
 
+import org.jspecify.annotations.Nullable;
+
+import java.time.LocalDateTime;
+
 /**
  * Доменная запись одной активной ошибки устройства.
  *
@@ -21,6 +25,17 @@ package dev.savushkin.scada.mobile.backend.domain.model;
  *                     (例 {@code "Dev041Dublicate"}).
  * @param description  Человекочитаемое описание ошибки
  *                     (例 {@code "Одинаковые коды маркировки"}).
+ * @param occurredAt   Момент, когда ошибка впервые стала активной (local date-time),
+ *                     или {@code null}, если время ещё не зафиксировано
+ *                     (назначается {@code UnitErrorStore} при первом появлении).
  */
-public record DeviceError(String objectName, String propertyDesc, String description) {
+public record DeviceError(String objectName, String propertyDesc, String description,
+                          @Nullable LocalDateTime occurredAt) {
+
+    /**
+     * Создаёт запись без зафиксированного времени возникновения.
+     */
+    public DeviceError(String objectName, String propertyDesc, String description) {
+        this(objectName, propertyDesc, description, null);
+    }
 }

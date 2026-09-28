@@ -4,8 +4,12 @@ import dev.savushkin.scada.mobile.backend.domain.model.DeviceError;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -42,12 +46,45 @@ public class UnitErrorStore {
      * @param unitId идентификатор аппарата
      * @param errors актуальный список активных ошибок (может быть пустым)
      */
+    /**
+     * unitId → (propertyDesc → момент первой активации ошибки).
+     * Время фиксируется один раз при переходе флага 0→1 и не меняется,
+     * пока ошибка остаётся активной; при снятии флага запись удаляется.
+     */
+    private final ConcurrentHashMap<String, Map<String, LocalDateTime>> occurredAtByUnit = new ConcurrentHashMap<>();
+
+    /**
+     * Обновляет список активных ошибок для аппарата.
+     *
+     * <p>Если {@code errors} пустой — запись удаляется из store
+     * (освобождение памяти и явная семантика «нет ошибок»).
+     *
+     * <p>Для каждой ошибки назначается {@code occurredAt}: сохраняется ранее
+     * зафиксированное время, если ошибка с тем же {@code propertyDesc} уже была
+     * активна, иначе — текущий момент (переход 0→1).
+     *
+     * @param unitId идентификатор аппарата
+     * @param errors актуальный список активных ошибок (может быть пустым)
+     */
     public void update(@NonNull String unitId, @NonNull List<DeviceError> errors) {
         if (errors.isEmpty()) {
             store.remove(unitId);
-        } else {
-            store.put(unitId, List.copyOf(errors));
+            occurredAtByUnit.remove(unitId);
+            return;
         }
+        Map<String, LocalDateTime> prev = occurredAtByUnit.getOrDefault(unitId, Collections.emptyMap());
+        Map<String, LocalDateTime> next = new HashMap<>();
+        List<DeviceError> enriched = new ArrayList<>(errors.size());
+        for (DeviceError error : errors) {
+            LocalDateTime occurredAt = error.occurredAt() != null
+                    ? error.occurredAt()
+                    : prev.getOrDefault(error.propertyDesc(), LocalDateTime.now());
+            next.put(error.propertyDesc(), occurredAt);
+            enriched.add(new DeviceError(error.objectName(), error.propertyDesc(),
+                    error.description(), occurredAt));
+        }
+        occurredAtByUnit.put(unitId, Collections.unmodifiableMap(next));
+        store.put(unitId, List.copyOf(enriched));
     }
 
     /**

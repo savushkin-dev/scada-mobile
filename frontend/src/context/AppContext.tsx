@@ -166,6 +166,13 @@ function reducer(state: AppState, action: Action): AppState {
           creatorName: creatorName ?? null,
           eventType: action.msg.eventType ?? null,
           timestamp,
+          notificationId: action.msg.notificationId,
+          status: action.msg.status ?? (active ? 'PENDING' : 'CANCELLED'),
+          acceptedBy: action.msg.acceptedBy ?? null,
+          acceptedByName: action.msg.acceptedByName ?? null,
+          acceptedAt: action.msg.acceptedAt ?? null,
+          version: action.msg.version,
+          curItem: action.msg.curItem ?? null,
         });
       } else {
         next.delete(uid);
@@ -182,6 +189,13 @@ function reducer(state: AppState, action: Action): AppState {
             creatorName: msg.creatorName ?? null,
             eventType: msg.eventType ?? null,
             timestamp: msg.timestamp,
+            notificationId: msg.notificationId,
+            status: msg.status ?? (msg.active ? 'PENDING' : 'CANCELLED'),
+            acceptedBy: msg.acceptedBy ?? null,
+            acceptedByName: msg.acceptedByName ?? null,
+            acceptedAt: msg.acceptedAt ?? null,
+            version: msg.version,
+            curItem: msg.curItem ?? null,
           });
         }
       }
@@ -576,20 +590,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const result: Record<string, Unit[]> = {};
     for (const [workshopId, topologies] of Object.entries(state.unitTopologyByWorkshop)) {
       const statusMap = state.unitStatusByWorkshop[workshopId] ?? {};
-      result[workshopId] = topologies.map((t) => {
-        const status = statusMap[t.id];
-        return {
-          id: t.id,
-          workshopId: t.workshopId,
-          unit: t.unit,
-          event: status?.event ?? DOMAIN_DEFAULTS.noDataEvent,
-          // statusReady = false пока UNITS_STATUS от WS ещё не пришёл для этого аппарата.
-          // Позволяет UnitCard показывать серый цвет вместо жёлтого при старте.
-          statusReady: t.id in statusMap,
-          cameraRead: status?.cameraRead ?? null,
-          cameraUnread: status?.cameraUnread ?? null,
-        };
-      });
+      result[workshopId] = topologies
+        .map((t) => {
+          const status = statusMap[t.id];
+          return {
+            id: t.id,
+            workshopId: t.workshopId,
+            unit: t.unit,
+            event: status?.event ?? DOMAIN_DEFAULTS.noDataEvent,
+            // statusReady = false пока UNITS_STATUS от WS ещё не пришёл для этого аппарата.
+            // Позволяет UnitCard показывать серый цвет вместо жёлтого при старте.
+            statusReady: t.id in statusMap,
+            cameraRead: status?.cameraRead ?? null,
+            cameraUnread: status?.cameraUnread ?? null,
+          };
+        })
+        .sort((left, right) => left.unit.localeCompare(right.unit, 'ru', { sensitivity: 'base' }));
     }
     return result;
   }, [state.unitTopologyByWorkshop, state.unitStatusByWorkshop]);

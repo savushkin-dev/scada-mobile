@@ -52,8 +52,15 @@ export const RoleList = () => {
                 render: (role) => role.id,
                 className: 'w-16',
                 filterKey: 'id',
+                sortKey: 'id',
               },
-              { key: 'name', header: 'Название', render: (role) => role.name, filterKey: 'name' },
+              {
+                key: 'name',
+                header: 'Название',
+                render: (role) => role.name,
+                filterKey: 'name',
+                sortKey: 'name',
+              },
               {
                 key: 'actions',
                 header: '',

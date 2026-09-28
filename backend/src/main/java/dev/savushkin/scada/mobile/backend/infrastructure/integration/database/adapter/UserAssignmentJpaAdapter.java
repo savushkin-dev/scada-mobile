@@ -1,7 +1,7 @@
 package dev.savushkin.scada.mobile.backend.infrastructure.integration.database.adapter;
 
+import dev.savushkin.scada.mobile.backend.application.ports.NotificationSettingsRepository;
 import dev.savushkin.scada.mobile.backend.application.ports.UserAssignmentRepository;
-import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UnitJpaRepository;
 import dev.savushkin.scada.mobile.backend.infrastructure.integration.database.repository.UserAssignmentJpaRepository;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
@@ -11,20 +11,21 @@ import java.util.Set;
 /**
  * JPA-реализация {@link UserAssignmentRepository} — привязки пользователей к аппаратам из PostgreSQL.
  * <p>
- * Данные хранятся в таблице {@code user_unit_assignments}.
- * Бизнес-логика в {@code NotificationService} не зависит от конкретной реализации порта.
+ * Данные о закреплении (кто может отправлять уведомления) хранятся в таблице {@code user_unit_assignments}.
+ * Подписка на получение "Вызов"-уведомлений хранится в {@code user_notification_settings}
+ * и читается через {@link NotificationSettingsRepository}.
  */
 @Component
 @Primary
 public class UserAssignmentJpaAdapter implements UserAssignmentRepository {
 
     private final UserAssignmentJpaRepository assignmentRepository;
-    private final UnitJpaRepository unitRepository;
+    private final NotificationSettingsRepository notificationSettingsRepository;
 
     public UserAssignmentJpaAdapter(UserAssignmentJpaRepository assignmentRepository,
-                                    UnitJpaRepository unitRepository) {
+                                      NotificationSettingsRepository notificationSettingsRepository) {
         this.assignmentRepository = assignmentRepository;
-        this.unitRepository = unitRepository;
+        this.notificationSettingsRepository = notificationSettingsRepository;
     }
 
     @Override
@@ -32,9 +33,16 @@ public class UserAssignmentJpaAdapter implements UserAssignmentRepository {
         return assignmentRepository.existsActiveAssignment(userId, unitId);
     }
 
+    /**
+     * Возвращает аппараты, на уведомления "Вызов" от которых подписан работник.
+     * <p>
+     * Используется для фильтрации WebSocket-рассылок и входящих задач.
+     * Не путать с {@link #getAssignedUnitIds()} — закрепление определяет право
+     * <i>отправлять</i> уведомление.
+     */
     @Override
     public Set<String> getSubscribedUnitIds(long userId) {
-        return resolveAssignedPrintSrvIds(userId);
+        return notificationSettingsRepository.findAndroidCallEnabledPrintSrvUnitIds(userId);
     }
 
     @Override

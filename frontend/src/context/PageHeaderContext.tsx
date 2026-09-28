@@ -1,12 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { createContext, useContext, useLayoutEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 
 /**
@@ -19,7 +11,6 @@ export interface PageHeaderConfig {
   title: string;
   subtitle?: string;
   variant?: 'default' | 'compact';
-  onBack?: (() => void) | undefined;
 }
 
 interface PageHeaderContextValue {
@@ -49,8 +40,8 @@ export function usePageHeaderContext(): PageHeaderContextValue {
 /**
  * Хук для декларативного управления шапкой из любой страницы.
  *
- * Обновляет заголовок, подзаголовок, вариант и кнопку «назад»
- * единственного экземпляра `<PageHeader />` в RootLayout.
+ * Обновляет заголовок, подзаголовок и вариант единственного
+ * экземпляра `<PageHeader />` в RootLayout.
  *
  * Использует `useLayoutEffect`, чтобы шапка обновлялась синхронно
  * до отрисовки кадра — без визуального мерцания при смене страницы.
@@ -59,27 +50,11 @@ export function usePageHeaderContext(): PageHeaderContextValue {
 export function usePageHeader(
   title: string,
   subtitle?: string,
-  variant?: 'default' | 'compact',
-  onBack?: (() => void) | undefined
+  variant?: 'default' | 'compact'
 ): void {
   const { setConfig } = usePageHeaderContext();
 
-  // Стабильная обёртка: ref всегда хранит актуальный колбэк,
-  // а обёртка читает его при вызове — stale-closure невозможен.
-  // Эффект перезапускается только при смене title/subtitle/variant
-  // или при появлении/исчезновении onBack (hasBack).
-  const onBackRef = useRef(onBack);
-  onBackRef.current = onBack;
-
-  const hasBack = !!onBack;
-  const stableBack = useCallback(() => onBackRef.current?.(), []);
-
   useLayoutEffect(() => {
-    setConfig({
-      title,
-      subtitle,
-      variant,
-      onBack: hasBack ? stableBack : undefined,
-    });
-  }, [title, subtitle, variant, hasBack, stableBack, setConfig]);
+    setConfig({ title, subtitle, variant });
+  }, [title, subtitle, variant, setConfig]);
 }

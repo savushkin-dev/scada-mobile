@@ -5,6 +5,12 @@ import type { ReactNode } from 'react';
 interface ReferenceSelectProps {
   reference: string;
   optionText: string;
+  /**
+   * Вторичное поле записи, добавляемое в подпись опции в скобках:
+   * «Название (Код)». Используется для справочников с неуникальными
+   * названиями (например, device-catalog: name + code).
+   */
+  optionSecondary?: string;
   optionValue?: string;
   label?: ReactNode;
   value: string | number | (string | number)[] | null;
@@ -21,6 +27,7 @@ interface ReferenceSelectProps {
 export function ReferenceSelect({
   reference,
   optionText,
+  optionSecondary,
   optionValue = 'id',
   ...props
 }: ReferenceSelectProps) {
@@ -29,10 +36,14 @@ export function ReferenceSelect({
     sort: { field: optionText, order: 'ASC' },
   });
 
-  const options = (data ?? []).map((item: Record<string, unknown>) => ({
-    id: item[optionValue] as string | number,
-    label: String(item[optionText] ?? item[optionValue]),
-  }));
+  const options = (data ?? []).map((item: Record<string, unknown>) => {
+    const primary = String(item[optionText] ?? item[optionValue]);
+    const secondary = optionSecondary ? item[optionSecondary] : undefined;
+    return {
+      id: item[optionValue] as string | number,
+      label: secondary != null && secondary !== '' ? `${primary} (${secondary})` : primary,
+    };
+  });
 
   if (isLoading) {
     return (

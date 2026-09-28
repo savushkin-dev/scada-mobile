@@ -11,6 +11,7 @@ import dev.savushkin.scada.mobile.backend.api.dto.UnitsStatusMessageDTO;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveAlertStore;
 import dev.savushkin.scada.mobile.backend.infrastructure.store.ActiveNotificationStore;
 import dev.savushkin.scada.mobile.backend.services.NotificationSettingsService;
+import dev.savushkin.scada.mobile.backend.application.ports.UserAssignmentRepository;
 import dev.savushkin.scada.mobile.backend.services.WorkshopService;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
@@ -75,7 +76,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
     private final ActiveAlertStore alertStore;
     private final ActiveNotificationStore notificationStore;
     private final WorkshopService workshopService;
-    private final NotificationSettingsService notificationSettingsService;
+    private final UserAssignmentRepository userAssignmentRepository;
     private final ObjectMapper objectMapper;
 
     /**
@@ -92,13 +93,13 @@ public class LiveWsHandler extends TextWebSocketHandler {
             ActiveAlertStore alertStore,
             ActiveNotificationStore notificationStore,
             WorkshopService workshopService,
-            NotificationSettingsService notificationSettingsService,
+            UserAssignmentRepository userAssignmentRepository,
             ObjectMapper objectMapper
     ) {
         this.alertStore = alertStore;
         this.notificationStore = notificationStore;
         this.workshopService = workshopService;
-        this.notificationSettingsService = notificationSettingsService;
+        this.userAssignmentRepository = userAssignmentRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -206,10 +207,18 @@ public class LiveWsHandler extends TextWebSocketHandler {
     }
 
     /**
-     * Рассылает {@code NOTIFICATION} всем подключённым клиентам.
+     * Рассылает {@code NOTIFICATION} клиентам, которым разрешено видеть уведомление:
+     * подписчикам аппарата по флагу "Вызов" ({@code user_notification_settings})
+     * и создателю уведомления.
      * <p>
-     * Аналог {@link #broadcastAlert(String)} — используется {@code StatusBroadcaster}
-     * для немедленной рассылки при toggle-событии.
+     * Создатель получает дельту всегда, независимо от своих настроек оповещений:
+     * иначе его собственная сессия не узнает о смене состояния и не обновит
+     * кнопку, список уведомлений и иконку.
+     * <p>
+     * Machine-сессии (СКАДА) получают уведомления всех аппаратов и фильтруют их
+     * на своей стороне.
+     * <p>
+     * Используется {@code StatusBroadcaster} для немедленной рассылки при toggle-событии.
      *
      * @param notification сериализованный {@link dev.savushkin.scada.mobile.backend.api.dto.NotificationMessageDTO}
      */
@@ -222,7 +231,9 @@ public class LiveWsHandler extends TextWebSocketHandler {
                 allSessions.remove(session);
                 continue;
             }
-            if (!isNotificationAllowed(session, notification.unitId())) {
+            if (!isMachineSession(session)
+                    && !isCreator(session, notification)
+                    && !isNotificationAllowed(session, notification.unitId())) {
                 continue;
             }
             try {
@@ -357,18 +368,23 @@ public class LiveWsHandler extends TextWebSocketHandler {
     }
 
     /**
-     * Отправляет снимок всех активных производственных уведомлений новому клиенту.
+     * Отправляет снимок активных производственных уведомлений, видимых новому клиенту:
+     * по подпискам аппаратов по флагу "Вызов" ({@code user_notification_settings})
+     * плюс созданные им самим.
+     * Machine-сессии (СКАДА) получают полный снимок и фильтруют его на своей стороне.
      * Вызывается сразу после {@code ALERT_SNAPSHOT} при установке соединения.
      */
     private void sendNotificationSnapshot(WebSocketSession session) {
         try {
-            Set<String> allowedUnitIds = resolveAllowedNotificationUnits(session);
-            List<NotificationMessageDTO> allNotifications = notificationStore.getAll();
-            List<NotificationMessageDTO> filtered = allowedUnitIds.isEmpty()
-                    ? List.of()
-                    : allNotifications.stream()
-                        .filter(n -> allowedUnitIds.contains(n.unitId()))
+            List<NotificationMessageDTO> filtered;
+            if (isMachineSession(session)) {
+                filtered = notificationStore.getAll();
+            } else {
+                Set<String> allowedUnitIds = resolveAllowedNotificationUnits(session);
+                filtered = notificationStore.getAll().stream()
+                        .filter(n -> allowedUnitIds.contains(n.unitId()) || isCreator(session, n))
                         .toList();
+            }
             var snapshotMsg = NotificationSnapshotMessageDTO.of(filtered);
             sendMessageSafely(session, objectMapper.writeValueAsString(snapshotMsg));
             log.debug("WS /live: sent NOTIFICATION_SNAPSHOT, notifications={}, id={}",
@@ -379,6 +395,22 @@ public class LiveWsHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * {@code true}, если сессия аутентифицирована machine-JWT (автомат / СКАДА).
+     */
+    private boolean isMachineSession(WebSocketSession session) {
+        Object raw = session.getAttributes().get(WebSocketJwtInterceptor.ATTR_SUBJECT_TYPE);
+        return "machine".equals(raw);
+    }
+
+    /**
+     * PrintSrv instance id автомата для machine-сессии; {@code null} для пользовательских.
+     */
+    private String machineUnitId(WebSocketSession session) {
+        Object raw = session.getAttributes().get(WebSocketJwtInterceptor.ATTR_MACHINE_UNIT);
+        return raw instanceof String text && !text.isBlank() ? text : null;
+    }
+
     private Set<String> resolveAllowedNotificationUnits(WebSocketSession session) {
         OptionalLong userId = resolveUserId(session);
         if (userId.isEmpty()) {
@@ -387,7 +419,7 @@ public class LiveWsHandler extends TextWebSocketHandler {
         }
 
         long numericUserId = userId.getAsLong();
-        Set<String> enabled = notificationSettingsService.getAndroidCallEnabledPrintSrvUnitIds(numericUserId);
+        Set<String> enabled = userAssignmentRepository.getSubscribedUnitIds(numericUserId);
         if (enabled.isEmpty()) {
             return Set.of();
         }
@@ -398,6 +430,20 @@ public class LiveWsHandler extends TextWebSocketHandler {
     private boolean isNotificationAllowed(WebSocketSession session, String unitId) {
         Set<String> allowed = resolveAllowedNotificationUnits(session);
         return !allowed.isEmpty() && allowed.contains(unitId);
+    }
+
+    /**
+     * Проверяет, является ли пользователь сессии создателем уведомления.
+     * Создатель всегда видит собственное уведомление, даже если не включал
+     * оповещения для этого аппарата.
+     */
+    private boolean isCreator(WebSocketSession session, NotificationMessageDTO notification) {
+        String creatorId = notification.creatorId();
+        if (creatorId == null || creatorId.isBlank()) {
+            return false;
+        }
+        OptionalLong userId = resolveUserId(session);
+        return userId.isPresent() && creatorId.equals(Long.toString(userId.getAsLong()));
     }
 
     private OptionalLong resolveUserId(WebSocketSession session) {

@@ -156,11 +156,17 @@ function useReferenceOptions(field: FilterFieldConfig): FilterFieldOption[] {
     if (field.options) return field.options;
     if (!isReference || !data) return [];
     const text = field.optionText ?? 'name';
-    return data.map((record) => ({
-      value: String(record.id),
-      label: String((record as Record<string, unknown>)[text] ?? record.id),
-    }));
-  }, [field.options, field.optionText, isReference, data]);
+    return data.map((record) => {
+      const primary = String((record as Record<string, unknown>)[text] ?? record.id);
+      const secondary = field.optionSecondary
+        ? (record as Record<string, unknown>)[field.optionSecondary]
+        : undefined;
+      return {
+        value: String(record.id),
+        label: secondary != null && secondary !== '' ? `${primary} (${secondary})` : primary,
+      };
+    });
+  }, [field.options, field.optionText, field.optionSecondary, isReference, data]);
 }
 
 function EnumControl({
@@ -253,17 +259,12 @@ function SearchSelectControl({
     }
   };
 
-  const visible = options.filter((o) =>
-    o.label.toLowerCase().includes(query.trim().toLowerCase())
-  );
+  const visible = options.filter((o) => o.label.toLowerCase().includes(query.trim().toLowerCase()));
 
   return (
     <div className="flex flex-col gap-2">
       <div className="relative">
-        <IconSearch
-          size={16}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-[#74777f]"
-        />
+        <IconSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#74777f]" />
         <input
           type="text"
           value={query}

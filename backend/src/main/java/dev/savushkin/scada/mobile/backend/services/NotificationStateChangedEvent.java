@@ -24,6 +24,9 @@ public record NotificationStateChangedEvent(
         /** Уведомление активировано (появилось). */
         ACTIVATED,
         /** Уведомление деактивировано (снято создателем). */
-        DEACTIVATED
+        DEACTIVATED,
+        ACCEPTED,
+        COMPLETED,
+        CANCELLED
     }
 }

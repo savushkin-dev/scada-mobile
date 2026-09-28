@@ -5,7 +5,7 @@ import { matchPath, useLocation, useNavigate } from 'react-router-dom';
  * Служебные страницы, которые не должны накапливаться в истории.
  * При нажатии «назад» с них происходит пропуск до ближайшей неслужебной страницы.
  */
-const TRANSIENT_ROUTES = new Set(['/profile', '/notifications', '/login']);
+const TRANSIENT_ROUTES = new Set(['/profile', '/notifications', '/tasks', '/login']);
 
 function isTransientRoute(pathname: string): boolean {
   for (const route of TRANSIENT_ROUTES) {
@@ -25,6 +25,9 @@ function isTransientRoute(pathname: string): boolean {
  * возвращается родитель предыдущей неслужебной страницы.
  */
 function getHierarchicalParent(pathname: string): string | null {
+  // /notifications/tasks — структурно вложен в /notifications.
+  if (pathname === '/notifications/tasks') return '/notifications';
+
   // Служебные страницы — пропускаем, возвращаем маркер для дальнейшей обработки
   if (isTransientRoute(pathname)) {
     return '_SKIP_TRANSIENT_';
@@ -54,7 +57,7 @@ function getHierarchicalParent(pathname: string): string | null {
  * - /workshops/:id            → назад → /
  * - /workshops/:id/units/:uid → любая вкладка → назад → /workshops/:id
  *   независимо от того, сколько раз пользователь переключал вкладки
- *   или нажимал кнопку «←» в шапке (которая добавляет запись в историю).
+ *   (переключение вкладок добавляет записи в историю).
  *
  * Для корневой страницы (/) хук не вмешивается и позволяет платформе
  * выполнить дефолтное действие (выход из TWA / закрытие вкладки браузера).
@@ -99,8 +102,8 @@ export function useHardwareBackGuard(): void {
       // (нормальный flow с чистой историей) — не вмешиваемся.
       if (poppedTo === parent) return;
 
-      // История «загрязнена» (например, накопились дубли после переходов
-      // кнопкой «←» в шапке или пользователь открыл глубокую ссылку).
+      // История «загрязнена» (например, накопились дубли после переключения
+      // вкладок или пользователь открыл глубокую ссылку).
       // Заменяем текущую запись правильным иерархическим родителем.
       navigate(parent, { replace: true });
     };

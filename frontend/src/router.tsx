@@ -9,6 +9,8 @@
  *   /workshops/:workshopId/units/:unitId/devices     → DevicesTab
  *   /workshops/:workshopId/units/:unitId/queue       → QueueTab
  *   /workshops/:workshopId/units/:unitId/logs        → LogsTab
+ *   /notifications                                   → NotificationsPage
+ *   /notifications/tasks                             → MyTasksPage (вложен в Уведомления)
  *
  * Архитектурно:
  *   - RootLayout содержит единственный экземпляр PageHeader;
@@ -54,6 +56,11 @@ const NotificationsPage = lazy(async () => {
   return { default: module.NotificationsPage };
 });
 
+const MyTasksPage = lazy(async () => {
+  const module = await import('./pages/MyTasksPage');
+  return { default: module.MyTasksPage };
+});
+
 const ChangePasswordPage = lazy(async () => {
   const module = await import('./pages/ChangePasswordPage');
   return { default: module.ChangePasswordPage };
@@ -84,9 +91,23 @@ const LogsTab = lazy(async () => {
   return { default: module.LogsTab };
 });
 
+/*
+  Индикатор загрузки ленивого чанка маршрута.
+  Спиннер — чистый CSS (border + animate-spin), без inline SVG.
+  Визуально повторяет boot-splash из index.html, чтобы переход
+  «загрузка бандла → загрузка чанка» был бесшовным для пользователя.
+*/
 const routeFallback = (
-  <section className="px-4 py-6 text-center text-[#74777F] text-sm sm:px-6 lg:px-8">
-    Loading...
+  <section
+    className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-6"
+    role="status"
+    aria-live="polite"
+  >
+    <div
+      className="h-8 w-8 animate-spin rounded-full border-[3px] border-[#e8eaed] border-t-[#3b82f6]"
+      aria-hidden="true"
+    />
+    <p className="text-sm text-[#74777F]">Загрузка…</p>
   </section>
 );
 
@@ -121,6 +142,16 @@ export const router = createBrowserRouter([
           {
             path: 'notifications',
             element: withSuspense(<NotificationsPage />),
+            children: [
+              {
+                path: 'tasks',
+                element: withSuspense(<MyTasksPage />),
+              },
+            ],
+          },
+          {
+            path: 'tasks',
+            element: <Navigate to="/notifications/tasks" replace />,
           },
           {
             path: 'change-password',

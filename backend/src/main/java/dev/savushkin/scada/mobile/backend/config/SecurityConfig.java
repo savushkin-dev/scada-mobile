@@ -61,15 +61,18 @@ public class SecurityConfig {
     private final AuthenticationEntryPoint authenticationEntryPoint;
     private final AccessDeniedHandler accessDeniedHandler;
     private final TemporaryPasswordFilter temporaryPasswordFilter;
+    private final MachineTokenRevocationFilter machineTokenRevocationFilter;
 
     public SecurityConfig(JwtProperties jwtProperties,
                           AuthenticationEntryPoint authenticationEntryPoint,
                           AccessDeniedHandler accessDeniedHandler,
-                          TemporaryPasswordFilter temporaryPasswordFilter) {
+                          TemporaryPasswordFilter temporaryPasswordFilter,
+                          MachineTokenRevocationFilter machineTokenRevocationFilter) {
         this.jwtProperties = jwtProperties;
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.accessDeniedHandler = accessDeniedHandler;
         this.temporaryPasswordFilter = temporaryPasswordFilter;
+        this.machineTokenRevocationFilter = machineTokenRevocationFilter;
     }
 
     @Bean
@@ -93,7 +96,8 @@ public class SecurityConfig {
                 // не поддерживается в Spring Boot 4 / Spring Security 7
                 auth.requestMatchers("/api/v1.0.0/auth/login",
                                  "/api/v1.0.0/auth/logout",
-                                 "/api/v1.0.0/auth/refresh").permitAll();
+                                 "/api/v1.0.0/auth/refresh",
+                                 "/api/v1.0.0/machine/register").permitAll();
                 // Actuator health — для Kubernetes probes
                 auth.requestMatchers("/actuator/health").permitAll();
                 // WebSocket handshake — auth через отдельный interceptor
@@ -117,8 +121,11 @@ public class SecurityConfig {
                 .accessDeniedHandler(accessDeniedHandler)
             )
 
+            // Отклоняем отозванные/незарегистрированные machine-токены (СКАДА)
+            .addFilterAfter(machineTokenRevocationFilter, BearerTokenAuthenticationFilter.class)
+
             // Блокируем доступ с временным паролем ко всему, кроме смены пароля
-            .addFilterAfter(temporaryPasswordFilter, BearerTokenAuthenticationFilter.class);
+            .addFilterAfter(temporaryPasswordFilter, MachineTokenRevocationFilter.class);
 
         return http.build();
     }

@@ -110,14 +110,16 @@ export function createManagedWs(options: ManagedWsOptions): ManagedWsConnection 
    */
   function handleFailure(): void {
     failedAttempts++;
-    if (failedAttempts === 1) {
-      // Первый разрыв — тихо переподключаемся, показываем skeleton
-      options.onReconnecting?.();
-    } else if (failedAttempts === errorThreshold) {
-      // Порог исчерпан — сигнализируем ошибку пользователю
+    if (failedAttempts === errorThreshold) {
+      // Порог исчерпан — сигнализируем ошибку пользователю.
+      // Проверка идёт первой: при errorThresholdAttempts=1 первый же разрыв
+      // сразу приводит к onError, а не к «тихому» onReconnecting.
       options.onError?.(
         classifyError(new TypeError('WebSocket connection failed'), options.source ?? 'unknown')
       );
+    } else if (failedAttempts === 1) {
+      // Первый разрыв (порог ещё не исчерпан) — тихо переподключаемся, показываем skeleton
+      options.onReconnecting?.();
     }
     // При failedAttempts > threshold продолжаем фоновые попытки без дополнительных
     // вызовов onError — заголовок с ошибкой уже показан.

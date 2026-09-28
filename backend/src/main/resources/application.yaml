@@ -13,6 +13,8 @@ scada:
 #
 # polling.fixed-delay-ms — задержка между polling-проходами каждого worker.
 # socket.* — таймауты TCP-соединения с PrintSrv.
+# batch-end.device-name — устройство, в свойстве которого детектор ищет счётчик «последней партии».
+# batch-end.property-name — имя свойства-счётчика; срабатывание — по изменению значения.
 # ─────────────────────────────────────────────────────────────────────────────
 printsrv:
   polling:
@@ -21,6 +23,13 @@ printsrv:
   socket:
     connect-timeout-ms: 5000
     read-timeout-ms: 5000
+  # Сигнал «последняя партия» (событийный): markserver инкрементирует счётчик
+  # в свойстве FinishBatch при получении команды LINE_CMD_FINISH_BATCH (113).
+  # Детектор активирует MACHINE-уведомление по изменению счётчика; снятие —
+  # только вручную сотрудником через UI, автоснятия нет.
+  batch-end:
+    device-name: Line
+    property-name: FinishBatch
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CORS — общая политика для всех профилей.
@@ -65,6 +74,8 @@ jwt:
   refresh-secret: "${SCADA_MOBILE_JWT_REFRESH_SECRET:}"
   access-expiration-minutes: 1440
   refresh-expiration-days: 7
+  # Сохраняется для обратной совместимости конфигурации старого issuer.
+  machine-token-expiration-days: ${SCADA_MOBILE_JWT_MACHINE_TOKEN_EXPIRATION_DAYS:365}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Админ-уведомления — retention прочитанных записей и порог бездействия сотрудников.

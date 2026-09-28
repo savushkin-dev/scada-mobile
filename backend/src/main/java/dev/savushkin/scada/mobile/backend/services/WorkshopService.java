@@ -42,15 +42,27 @@ public class WorkshopService {
     private final InstanceSnapshotRepository snapshotRepo;
     private final DeviceCompositionService deviceCompositionService;
     private final UnitErrorStore unitErrorStore;
+    private final CurItemResolver curItemResolver;
+    private final DeviceScadaRegistry deviceScadaRegistry;
+    private final DeviceGroupService deviceGroupService;
+    private final DeviceCounterResolver deviceCounterResolver;
 
     public WorkshopService(PrintSrvTopologyRepository topologyRepo,
                            InstanceSnapshotRepository snapshotRepo,
                            DeviceCompositionService deviceCompositionService,
-                           UnitErrorStore unitErrorStore) {
+                           UnitErrorStore unitErrorStore,
+                           CurItemResolver curItemResolver,
+                           DeviceScadaRegistry deviceScadaRegistry,
+                           DeviceGroupService deviceGroupService,
+                           DeviceCounterResolver deviceCounterResolver) {
         this.topologyRepo = topologyRepo;
         this.snapshotRepo = snapshotRepo;
         this.deviceCompositionService = deviceCompositionService;
         this.unitErrorStore = unitErrorStore;
+        this.curItemResolver = curItemResolver;
+        this.deviceScadaRegistry = deviceScadaRegistry;
+        this.deviceGroupService = deviceGroupService;
+        this.deviceCounterResolver = deviceCounterResolver;
         log.info("WorkshopService initialized");
     }
 
@@ -121,19 +133,72 @@ public class WorkshopService {
             return Optional.empty();
         }
         DeviceComposition composition = deviceCompositionService.getComposition(instanceId);
+
+        // Per-unit раскладка: группы устройств и мета (имена, счётчики)
+        DeviceScadaRegistry.DeviceLayout layout = deviceScadaRegistry.loadLayout(instanceId);
+        Map<String, String> scadaPrefixByCode = new LinkedHashMap<>();
+        Set<String> hiddenCodes = new HashSet<>();
+        for (DeviceScadaRegistry.DeviceEntry entry : layout.entries()) {
+            if (entry.hidden()) {
+                hiddenCodes.add(entry.code());
+            }
+            String prefix = deviceScadaRegistry.resolveScadaPrefix(instanceId, entry.code());
+            if (prefix != null) {
+                scadaPrefixByCode.put(entry.code(), prefix);
+            }
+        }
+
+        // Скрытые устройства не попадают ни в один вид топологии (legacy-массивы,
+        // имена, группы, мета) — флаг влияет только на отображение, опрос идёт.
+        Map<String, String> displayNames = new LinkedHashMap<>(inst.deviceDisplayNames());
+        displayNames.keySet().removeAll(hiddenCodes);
+
+        // Live-обогащение меты: текущая партия устройства из runtime-тега curitem.
+        // Устройства без тега (или без снапшота) получают null.
+        Map<String, DeviceMetaDTO> deviceMeta = new LinkedHashMap<>();
+        for (Map.Entry<String, DeviceMetaDTO> e
+                : deviceGroupService.buildDeviceMeta(layout).entrySet()) {
+            String currentBatch = firstUnitNamedProp(snapshotRepo.get(instanceId, e.getKey()),
+                    u -> u.properties().getCurItem().orElse(null));
+            deviceMeta.put(e.getKey(), new DeviceMetaDTO(
+                    e.getValue().displayName(), e.getValue().showCounters(), currentBatch));
+        }
+
         return Optional.of(new UnitDeviceTopologyDTO(
                 inst.instanceId(),
                 inst.workshopId(),
                 resolveUnitName(inst),
                 new DeviceGroupsDTO(
-                        composition.printers(),
-                        composition.aggregationCams(),
-                        composition.aggregationBoxCams(),
-                        composition.checkerCams()
+                        withoutHidden(composition.printers(), hiddenCodes),
+                        withoutHidden(composition.aggregationCams(), hiddenCodes),
+                        withoutHidden(composition.aggregationBoxCams(), hiddenCodes),
+                        withoutHidden(composition.checkerCams(), hiddenCodes)
                 ),
-                inst.deviceDisplayNames(),
-                inst.typeDisplayNames()
+                displayNames,
+                inst.typeDisplayNames(),
+                deviceGroupService.buildGroups(layout, scadaPrefixByCode),
+                deviceMeta
         ));
+    }
+
+    private static @NonNull List<String> withoutHidden(@NonNull List<String> codes, @NonNull Set<String> hiddenCodes) {
+        if (hiddenCodes.isEmpty()) {
+            return codes;
+        }
+        return codes.stream().filter(c -> !hiddenCodes.contains(c)).toList();
+    }
+
+    /**
+     * Извлекает именованное поле из первого юнита снапшота устройства.
+     */
+    private static @Nullable String firstUnitNamedProp(
+            @Nullable DeviceSnapshot snapshot,
+            java.util.function.Function<UnitSnapshot, @Nullable String> extractor
+    ) {
+        if (snapshot == null || snapshot.units().isEmpty()) {
+            return null;
+        }
+        return extractor.apply(snapshot.units().values().iterator().next());
     }
 
     /**
@@ -146,7 +211,7 @@ public class WorkshopService {
                 .filter(inst -> inst.workshopId() == workshopId)
                 .map(inst -> {
                     String instanceId = inst.instanceId();
-                    CameraCounters counters = resolveCameraCounters(instanceId);
+                    DeviceCounterResolver.UnitCounters counters = deviceCounterResolver.resolveUnitCounters(instanceId);
                     return new UnitStatusDTO(
                             instanceId,
                             inst.workshopId(),
@@ -167,7 +232,7 @@ public class WorkshopService {
             return Optional.empty();
         }
 
-        CameraCounters counters = resolveCameraCounters(instanceId);
+        DeviceCounterResolver.UnitCounters counters = deviceCounterResolver.resolveUnitCounters(instanceId);
         return Optional.of(new UnitStatusDTO(
                 inst.instanceId(),
                 inst.workshopId(),
@@ -221,41 +286,8 @@ public class WorkshopService {
             return formatErrorEvent(errors);
         }
 
-        String curItem = resolveCurItem(instanceId);
+        String curItem = curItemResolver.resolveCurItem(instanceId);
         return curItem != null ? curItem : "Нет данных";
-    }
-
-    private @Nullable String resolveCurItem(@NonNull String instanceId) {
-        PrintSrvInstance inst = topologyRepo.findByInstanceId(instanceId).orElse(null);
-        if (inst == null) {
-            return null;
-        }
-
-        DeviceSnapshot lineSnapshot = findSnapshotByDeviceName(instanceId, inst.lineDeviceName());
-        String lineCurItem = extractCurItem(lineSnapshot);
-        if (lineCurItem != null) {
-            return lineCurItem;
-        }
-
-        DeviceComposition composition = deviceCompositionService.getComposition(instanceId);
-        if (!composition.printers().isEmpty()) {
-            String firstPrinter = composition.printers().getFirst();
-            DeviceSnapshot printerSnapshot = findSnapshotByDeviceName(instanceId, firstPrinter);
-            String printerCurItem = extractCurItem(printerSnapshot);
-            if (printerCurItem != null) {
-                return printerCurItem;
-            }
-        }
-
-        return null;
-    }
-
-    private static @Nullable String extractCurItem(@Nullable DeviceSnapshot snapshot) {
-        if (snapshot == null || snapshot.units().isEmpty()) {
-            return null;
-        }
-        UnitSnapshot unit = snapshot.units().values().iterator().next();
-        return nullIfBlank(unit.properties().getCurItem().orElse(null));
     }
 
     private static @NonNull String formatErrorEvent(@NonNull List<DeviceError> errors) {
@@ -281,127 +313,6 @@ public class WorkshopService {
         return value;
     }
 
-    /**
-     * Счётчики камер для отображения на карточке аппарата.
-     * <p>
-     * Алгоритм (приоритет cameraRead, затем cameraUnread):
-     * <ol>
-     *   <li>Собираем все камеры: aggregationCams + aggregationBoxCams + checkerCams (кроме EAN-чекеров).</li>
-     *   <li>Фаза 1 — ищем первую камеру с ненулевым cameraRead (Total ≠ 0). Если нашли — возвращаем (read, unread) этой камеры.</li>
-     *   <li>Фаза 2 — если все read = 0, ищем первую камеру с ненулевым cameraUnread (Failed ≠ 0). Если нашли — возвращаем (read, unread) этой камеры.</li>
-     *   <li>Fallback — если все значения нулевые или камер нет — возвращаем ("0", "0").</li>
-     * </ol>
-     */
-    private CameraCounters resolveCameraCounters(String instanceId) {
-        DeviceComposition composition = deviceCompositionService.getComposition(instanceId);
-
-        List<String> allCameras = new ArrayList<>();
-        allCameras.addAll(composition.aggregationCams());
-        allCameras.addAll(composition.aggregationBoxCams());
-        allCameras.addAll(composition.checkerCams());
-
-        CameraCounters fallbackZero = new CameraCounters("0", "0");
-
-        if (allCameras.isEmpty()) {
-            return fallbackZero;
-        }
-
-        // Фаза 1: ищем первую камеру с ненулевым cameraRead (Total)
-        for (String camName : allCameras) {
-            if (ScadaKeyMapper.isEanChecker(camName)) {
-                continue;
-            }
-            CameraCounters counters = readCameraCounters(instanceId, camName);
-            if (counters != null && isNonZero(counters.read())) {
-                return counters;
-            }
-        }
-
-        // Фаза 2: все read = 0 — ищем первую камеру с ненулевым cameraUnread (Failed)
-        for (String camName : allCameras) {
-            if (ScadaKeyMapper.isEanChecker(camName)) {
-                continue;
-            }
-            CameraCounters counters = readCameraCounters(instanceId, camName);
-            if (counters != null && isNonZero(counters.unread())) {
-                return counters;
-            }
-        }
-
-        // Фаза 3: fallback — все значения нулевые, берём первую доступную камеру или ("0", "0")
-        for (String camName : allCameras) {
-            if (ScadaKeyMapper.isEanChecker(camName)) {
-                continue;
-            }
-            CameraCounters counters = readCameraCounters(instanceId, camName);
-            if (counters != null) {
-                return counters;
-            }
-        }
-
-        return fallbackZero;
-    }
-
-    /**
-     * Читает счётчики (Total/Failed) из снапшота конкретной камеры.
-     * Возвращает null, если снапшот недоступен.
-     */
-    private @Nullable CameraCounters readCameraCounters(String instanceId, String camName) {
-        DeviceSnapshot snapshot = findSnapshotByDeviceName(instanceId, camName);
-        if (snapshot == null || snapshot.units().isEmpty()) {
-            return null;
-        }
-        UnitSnapshot unit = snapshot.units().values().iterator().next();
-        Map<String, String> raw = unit.properties().getRawProperties();
-        String read = nullIfBlank(raw.get("Total"));
-        String unread = nullIfBlank(raw.get("Failed"));
-        return new CameraCounters(read, unread);
-    }
-
-    /**
-     * Проверяет, что строковое значение счётчика не null, не пустое и не равно нулю.
-     * Учитывает форматы "0", "0.0", "0,0".
-     */
-    private static boolean isNonZero(@Nullable String value) {
-        if (value == null || value.isBlank()) {
-            return false;
-        }
-        String normalized = value.trim().replace(',', '.');
-        try {
-            double d = Double.parseDouble(normalized);
-            return d != 0.0;
-        } catch (NumberFormatException e) {
-            // Нечисловое значение считаем ненулевым (например, ошибочная строка)
-            return true;
-        }
-    }
-
-    private record CameraCounters(@Nullable String read, @Nullable String unread) {
-    }
-
-    private @NonNull String getLineDeviceName(@NonNull String instanceId) {
-        return topologyRepo.findByInstanceId(instanceId)
-                .map(PrintSrvInstance::lineDeviceName)
-                .orElse("Line");
-    }
-
-    /**
-     * Ищет snapshot устройства сначала по точному имени, затем case-insensitive.
-     * Это защищает API-слой от вариаций регистра имён устройств у разных PrintSrv.
-     */
-    private @Nullable DeviceSnapshot findSnapshotByDeviceName(@NonNull String instanceId, @NonNull String deviceName) {
-        DeviceSnapshot exact = snapshotRepo.get(instanceId, deviceName);
-        if (exact != null) {
-            return exact;
-        }
-
-        for (Map.Entry<String, DeviceSnapshot> entry : snapshotRepo.getAllForInstance(instanceId).entrySet()) {
-            if (entry.getKey().equalsIgnoreCase(deviceName)) {
-                return entry.getValue();
-            }
-        }
-        return null;
-    }
 
     /**
      * Защитный fallback для API-контракта topology:

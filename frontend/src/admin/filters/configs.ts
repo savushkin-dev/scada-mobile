@@ -42,6 +42,7 @@ export const UNIT_FILTER_FIELDS: FilterFieldConfig[] = [
     type: 'search-select',
     reference: 'device-catalog',
     optionText: 'name',
+    optionSecondary: 'code',
   },
   { key: 'active', label: 'Статус', type: 'bool', options: ACTIVE_OPTIONS },
 ];

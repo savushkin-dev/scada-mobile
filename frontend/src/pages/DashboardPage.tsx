@@ -71,7 +71,7 @@ export function DashboardPage() {
 
   return (
     <section data-scroll style={PAGE_FADE_SECTION_STYLE}>
-      <main className="px-4 space-y-4 pb-10 sm:px-6 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 lg:grid-cols-3 lg:px-8">
+      <main className="px-3 space-y-3 pb-6 sm:px-6 md:grid md:grid-cols-2 md:gap-4 md:space-y-0 lg:grid-cols-3 lg:px-8">
         {isErrorState ? (
           <p className="text-center text-[#74777F] py-10 text-[0.88rem] col-span-full">
             {getErrorBodyMessage(pageError)}

@@ -49,8 +49,16 @@ public final class PrintSrvInstancePoller {
     /**
      * Последнее известное состояние доступности инстанса.
      * Нужен для детекции перехода reachable -> unreachable.
+     *
+     * <p>Инициализируется {@code true} намеренно: считаем, что до создания поллера
+     * инстанс был доступен. Тогда первый же неуспешный poll засчитывается как
+     * изменение доступности → публикуется {@link PrintSrvInstancePolledEvent}
+     * (через {@link PollResult#shouldPublishLiveUpdate()}), и слушатели — в том
+     * числе {@code LineBatchEndDetector} — получают шанс сверить состояние.
+     * Без этого при старте бэкенда с недоступным инстансом событие не публиковалось
+     * бы никогда, и сигнал «последняя партия» оставался бы зависшим.
      */
-    private boolean wasReachable;
+    private boolean wasReachable = true;
 
     /**
      * Package-private: создаётся только через {@link PrintSrvPollerFactory}.

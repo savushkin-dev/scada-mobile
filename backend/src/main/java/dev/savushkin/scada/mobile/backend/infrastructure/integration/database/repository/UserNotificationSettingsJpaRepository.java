@@ -39,16 +39,27 @@ public interface UserNotificationSettingsJpaRepository extends JpaRepository<Use
             """)
     @NonNull List<UserNotificationSettingsEntity> findByUserId(@Param("userId") Long userId);
 
+    /**
+     * Возвращает PrintSrv-идентификаторы активных аппаратов, на уведомления "Вызов"
+     * от которых подписан пользователь.
+     * <p>
+     * Семантика совпадает с {@link dev.savushkin.scada.mobile.backend.services.NotificationSettingsService#getSettingsSnapshot}:
+     * отсутствие настройки для пары (user, unit) означает, что оба флага включены
+     * (умолчание "Вызов" = true). Если же есть активная настройка, проверяется
+     * флаг {@code androidCallNotificationsEnabled}.
+     */
     @RestResource(exported = false)
     @Query("""
             select distinct u.printsrvInstanceId
-            from UserNotificationSettingsEntity s
-            join s.unit u
-            where s.user.id = :userId
-              and s.active = true
-              and s.androidCallNotificationsEnabled = true
-              and u.active = true
+            from UnitEntity u
+            left join UserNotificationSettingsEntity s
+                   on s.unit.id = u.id and s.user.id = :userId
+            where u.active = true
               and u.printsrvInstanceId is not null
+              and (
+                  s.id is null
+                  or (s.active = true and s.androidCallNotificationsEnabled = true)
+              )
             """)
     @NonNull Set<String> findAndroidCallEnabledPrintsrvUnitIdsByUserId(@Param("userId") Long userId);
 

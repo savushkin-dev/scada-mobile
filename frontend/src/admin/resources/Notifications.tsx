@@ -225,12 +225,14 @@ export function NotificationList() {
                 key: 'type',
                 header: 'Тип',
                 filterKey: 'type',
+                sortKey: 'type',
                 render: (note) => typeLabel(note.type),
               },
               {
                 key: 'severity',
                 header: 'Важность',
                 filterKey: 'severity',
+                sortKey: 'severity',
                 render: (note) => (
                   <StatusPill variant={severityVariant(note.severity)}>{note.severity}</StatusPill>
                 ),
@@ -239,24 +241,28 @@ export function NotificationList() {
                 key: 'instance',
                 header: 'Автомат',
                 filterKey: 'instanceId',
+                sortKey: 'instanceId',
                 render: (note) => note.instanceId ?? '—',
               },
               {
                 key: 'device',
                 header: 'Устройство',
                 filterKey: 'deviceCode',
+                sortKey: 'deviceCode',
                 render: (note) => note.deviceCode ?? '—',
               },
               {
                 key: 'message',
                 header: 'Сообщение',
                 filterKey: 'message',
+                sortKey: 'message',
                 render: (note) => note.message,
               },
               {
                 key: 'time',
                 header: 'Время',
                 filterKey: 'createdAt',
+                sortKey: 'createdAt',
                 render: (note) => new Date(note.createdAt).toLocaleString('ru-RU'),
               },
               {

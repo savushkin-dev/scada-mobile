@@ -72,6 +72,16 @@ export const ALERT_VIBRATION_PATTERN = [350, 120, 350, 120, 550] as const;
  */
 export const ALERT_VIBRATION_COOLDOWN_MS = 2_500;
 
+/**
+ * Паттерн вибрации для входящего "Вызов"-уведомления:
+ * короткий двойной импульс, чтобы получатель его почувствовал.
+ */
+export const NOTIFICATION_VIBRATION_PATTERN = [200, 80, 200] as const;
+/**
+ * Минимальный интервал между вибрациями от "Вызов"-уведомлений.
+ */
+export const NOTIFICATION_VIBRATION_COOLDOWN_MS = 2_500;
+
 export const HTTP_STATUS = Object.freeze({
   unauthorized: 401,
   forbidden: 403,
@@ -87,12 +97,6 @@ export const UI_ANIMATION = Object.freeze({
 
 export const UI_BEHAVIOR = Object.freeze({
   emptyCollectionSize: 0,
-  // ~80px scroll to go from fully expanded to icon-only state.
-  fabCollapseDistancePx: 80,
-  // Ignore tiny scroll noise from inertial/bounce physics.
-  fabScrollNoiseThresholdPx: 0.75,
-  // Visual smoothing per animation frame (0..1).
-  fabCollapseSmoothing: 0.35,
   fabSentResetDelayMs: 2_000,
   detailsBottomPaddingPx: 80,
   dashboardSkeletonCount: 3,

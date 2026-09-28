@@ -36,10 +36,12 @@ public interface UserAssignmentRepository {
     boolean canSendNotification(long userId, @NonNull String unitId);
 
     /**
-     * Возвращает множество аппаратов, на уведомления от которых подписан работник.
+     * Возвращает множество аппаратов, на уведомления "Вызов" от которых подписан работник.
      * <p>
-     * Используется для фильтрации {@code NOTIFICATION_SNAPSHOT} — клиент получает
-     * только релевантные уведомления.
+     * Источником подписки служат настройки уведомлений пользователя
+     * ({@code user_notification_settings.android_call_notifications_enabled}).
+     * Используется для фильтрации {@code NOTIFICATION_SNAPSHOT} и входящих задач —
+     * клиент получает только релевантные уведомления.
      *
      * @param userId Идентификатор работника.
      * @return Неизменяемое множество идентификаторов аппаратов.

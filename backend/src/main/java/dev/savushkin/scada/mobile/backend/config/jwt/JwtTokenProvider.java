@@ -37,6 +37,14 @@ public class JwtTokenProvider {
 
     private static final Logger log = LoggerFactory.getLogger(JwtTokenProvider.class);
 
+    /** Claim с типом субъекта токена: {@value #SUBJECT_TYPE_USER} или {@value #SUBJECT_TYPE_MACHINE}. */
+    public static final String SUBJECT_TYPE_CLAIM = "subject_type";
+    /** Субъект — работник предприятия (фронтенд). Значение по умолчанию для токенов без claim. */
+    public static final String SUBJECT_TYPE_USER = "user";
+    /** Субъект — автомат / СКАДА (machine-JWT). */
+    public static final String SUBJECT_TYPE_MACHINE = "machine";
+    public static final String MACHINE_UNIT_ID_CLAIM = "unitId";
+
     private final JwtProperties jwtProperties;
 
     public JwtTokenProvider(JwtProperties jwtProperties) {
@@ -63,6 +71,7 @@ public class JwtTokenProvider {
         var builder = Jwts.builder()
                 .subject(Long.toString(userId))
                 .claim("role", role)
+                .claim(SUBJECT_TYPE_CLAIM, SUBJECT_TYPE_USER)
                 .id(UUID.randomUUID().toString())
                 .issuer("scada-mobile")
                 .audience().add("scada-mobile-api").and()
@@ -74,6 +83,76 @@ public class JwtTokenProvider {
         }
 
         return builder.signWith(getAccessKey(), SignatureAlgorithm.HS256).compact();
+    }
+
+    // ── Machine Token (СКАДА) ─────────────────────────────────────────────
+
+    /**
+     * Генерирует долгоживущий machine-токен (JWT) для автомата / СКАДА.
+     * <p>
+     * Claims:
+     * <ul>
+     *   <li>{@code sub} — PrintSrv instance id автомата (напр. {@code "hassia1"});</li>
+     *   <li>{@code subject_type} = {@value #SUBJECT_TYPE_MACHINE};</li>
+     *   <li>{@code role} = {@code "MACHINE"} (authorities: {@code ROLE_MACHINE});</li>
+    *   <li>{@code jti} — уникальный идентификатор токена;</li>
+     * </ul>
+     *
+     * @param printsrvInstanceId PrintSrv instance id автомата (subject токена)
+     * @param expirationDays     срок жизни токена в днях
+    * @return токен вместе с {@code jti} и временем истечения
+     */
+    public @NonNull MachineToken generateMachineToken(@NonNull String printsrvInstanceId, long expirationDays) {
+        Instant now = Instant.now();
+        Instant expiry = now.plus(expirationDays, ChronoUnit.DAYS);
+        String jti = UUID.randomUUID().toString();
+
+        String token = Jwts.builder()
+                .subject(printsrvInstanceId)
+                .claim("role", "MACHINE")
+                .claim("typ", SUBJECT_TYPE_MACHINE)
+                .claim(SUBJECT_TYPE_CLAIM, SUBJECT_TYPE_MACHINE)
+                .id(jti)
+                .issuer("scada-mobile")
+                .audience().add("scada-mobile-api").and()
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(expiry))
+                .signWith(getAccessKey(), SignatureAlgorithm.HS256)
+                .compact();
+
+        return new MachineToken(token, jti, expiry);
+    }
+
+    public @NonNull MachineToken generateAutoProvisionedMachineToken(@NonNull String printsrvInstanceId, long unitId) {
+        Instant now = Instant.now();
+        Instant expiry = Instant.parse("2030-12-31T23:59:59Z");
+        String jti = UUID.randomUUID().toString();
+
+        String token = Jwts.builder()
+                .subject(printsrvInstanceId)
+                .claim(MACHINE_UNIT_ID_CLAIM, unitId)
+                .claim("role", "MACHINE")
+                .claim("typ", SUBJECT_TYPE_MACHINE)
+                .claim(SUBJECT_TYPE_CLAIM, SUBJECT_TYPE_MACHINE)
+                .id(jti)
+                .issuer("scada-mobile")
+                .audience().add("scada-mobile-api").and()
+                .issuedAt(Date.from(now))
+                .expiration(Date.from(expiry))
+                .signWith(getAccessKey(), SignatureAlgorithm.HS256)
+                .compact();
+
+        return new MachineToken(token, jti, expiry);
+    }
+
+    /**
+     * Сгенерированный machine-токен с метаданными для регистрации в БД.
+     *
+     * @param token     подписанный JWT
+     * @param jti       уникальный идентификатор токена (claim {@code jti})
+     * @param expiresAt время истечения токена
+     */
+    public record MachineToken(String token, String jti, Instant expiresAt) {
     }
 
     /**

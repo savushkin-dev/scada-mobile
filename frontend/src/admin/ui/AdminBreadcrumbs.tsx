@@ -5,7 +5,7 @@ const REFERENCE_LABELS: Record<string, string> = {
   roles: 'Роли',
   workshops: 'Цеха',
   'device-types': 'Типы устройств',
-  'device-catalog': 'Справочник устройств',
+  'device-catalog': 'Устройства',
 };
 
 const OPERATIONAL_BACK_LABELS: Record<string, string> = {

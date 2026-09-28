@@ -57,12 +57,20 @@ export const DeviceList = () => {
                 render: (device) => device.id,
                 className: 'w-12',
                 filterKey: 'id',
+                sortKey: 'id',
               },
-              { key: 'code', header: 'Код', render: (device) => device.code, filterKey: 'code' },
+              {
+                key: 'code',
+                header: 'Код',
+                render: (device) => device.code,
+                filterKey: 'code',
+                sortKey: 'catalog.code',
+              },
               {
                 key: 'displayName',
                 header: 'Отображаемое имя',
                 filterKey: 'displayName',
+                sortKey: 'catalog.name',
                 render: (device) => device.displayName,
               },
               {

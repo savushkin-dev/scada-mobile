@@ -14,7 +14,13 @@ import type { AlertError } from '../schemas';
 // ── Типы, выведенные из Zod-схем (единственный источник правды) ───────
 
 // topology (REST API)
-export type { WorkshopTopology, UnitTopology, DevicesTopology } from '../schemas';
+export type {
+  WorkshopTopology,
+  UnitTopology,
+  DeviceGroup,
+  DeviceMeta,
+  DevicesTopology,
+} from '../schemas';
 
 // live WebSocket (/ws/live)
 export type {
@@ -96,6 +102,19 @@ export interface NotificationData {
   timestamp: string | null;
   /** Тип события уведомления (например, "Последняя партия"). */
   eventType: string | null;
+  notificationId?: number | null;
+  status?: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | null;
+  acceptedBy?: string | null;
+  /** Полное имя (ФИО) работника, принявшего уведомление в работу. */
+  acceptedByName?: string | null;
+  acceptedAt?: string | null;
+  /** Время завершения (для карточек истории со статусом COMPLETED). */
+  completedAt?: string | null;
+  /** Время отмены (для карточек истории со статусом CANCELLED). */
+  cancelledAt?: string | null;
+  version?: number;
+  /** Партия/изделие (CurItem), зафиксированная при активации уведомления. */
+  curItem?: string | null;
 }
 
 // ── Merged view types (topology + status, используются компонентами) ──

@@ -31,7 +31,7 @@ export const DeviceCatalogList = () => {
 
   return (
     <AdminListContainer
-      title="Справочник устройств"
+      title="Устройства"
       records={records}
       filterFields={DEVICE_CATALOG_FILTER_FIELDS}
     >
@@ -74,9 +74,22 @@ export const DeviceCatalogList = () => {
                 render: (item) => item.id,
                 className: 'w-12',
                 filterKey: 'id',
+                sortKey: 'id',
               },
-              { key: 'code', header: 'Код', render: (item) => item.code, filterKey: 'code' },
-              { key: 'name', header: 'Название', render: (item) => item.name, filterKey: 'name' },
+              {
+                key: 'code',
+                header: 'Код',
+                render: (item) => item.code,
+                filterKey: 'code',
+                sortKey: 'code',
+              },
+              {
+                key: 'name',
+                header: 'Название',
+                render: (item) => item.name,
+                filterKey: 'name',
+                sortKey: 'name',
+              },
               {
                 key: 'type',
                 header: 'Тип',

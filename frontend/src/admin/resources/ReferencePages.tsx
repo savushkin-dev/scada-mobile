@@ -33,7 +33,7 @@ const resourceMap: Record<
     create: DeviceTypeCreate,
   },
   'device-catalog': {
-    label: 'Справочник устройств',
+    label: 'Устройства',
     list: DeviceCatalogList,
     edit: DeviceCatalogEdit,
     create: DeviceCatalogCreate,

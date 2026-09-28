@@ -21,7 +21,6 @@ export const APP_BRAND = Object.freeze({
 
 export const UI_COPY = Object.freeze({
   noData: 'Нет данных',
-  backButtonAriaLabel: 'Назад',
   retryAction: 'Повторить',
   workshopSubtitle: 'Цех',
   workshopTotalUnitsLabel: 'Аппаратов/Линий',
@@ -39,8 +38,6 @@ export const UI_COPY = Object.freeze({
   statusWorking: 'В работе',
   statusStopped: 'Остановлен',
   activeErrorsTitle: 'Активные ошибки',
-  eventLogTitle: 'Журнал событий',
-  eventLogEmpty: 'Журнал пуст',
   errorFallbackTitle: 'Что-то пошло не так',
   errorFallbackReload: 'Перезагрузить',
   fabActionLabel: 'Последняя партия',
@@ -48,7 +45,6 @@ export const UI_COPY = Object.freeze({
   fabAriaLabel: 'Сообщить: партия последняя',
   fabDefaultIcon: '/assets/bell.svg',
   fabSentIcon: '✅',
-  backIcon: '←',
   retryIcon: '⚠',
   /**
    * Фиксированный ярлык индикатора ошибки в шапке приложения.
@@ -102,9 +98,6 @@ export const UI_PALETTE = Object.freeze({
   retryBackground: '#FFF0F0',
   retryBorder: '#FFCDD2',
   retryText: '#B71C1C',
-  softBlue: '#F0F7FF',
-  neutralSurface: '#EDEEF0',
-  neutralText: '#5F6368',
   fabIdle: '#F97316',
   white: '#FFFFFF',
   warning: '#F59E0B',

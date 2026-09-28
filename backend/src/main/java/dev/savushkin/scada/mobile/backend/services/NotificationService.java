@@ -2,14 +2,20 @@ package dev.savushkin.scada.mobile.backend.services;
 
 import dev.savushkin.scada.mobile.backend.application.ports.NotificationRepository;
 import dev.savushkin.scada.mobile.backend.application.ports.UserAssignmentRepository;
+import dev.savushkin.scada.mobile.backend.domain.model.NotificationCreatorType;
+import dev.savushkin.scada.mobile.backend.domain.model.NotificationStatus;
 import dev.savushkin.scada.mobile.backend.domain.model.ProductionNotification;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -20,16 +26,19 @@ import java.util.Set;
  *
  * <h3>Поток данных</h3>
  * <ol>
- *   <li>REST-контроллер получает {@code POST /line/{unitId}/last-batch} с {@code X-User-Id}.</li>
- *   <li>Вызывается {@link #toggleNotification} — доменная логика toggle.</li>
+ *   <li>REST-контроллер получает {@code POST /line/{unitId}/last-batch} с пользовательским
+ *       или machine-JWT (СКАДА).</li>
+ *   <li>Вызывается {@link #toggleNotification} (работник) или
+ *       {@link #toggleMachineNotification} (автомат) — доменная логика toggle.</li>
  *   <li>При изменении состояния публикуется {@link NotificationStateChangedEvent}.</li>
  *   <li>Event listener ({@code StatusBroadcaster}) обновляет WS-projection store и рассылает.</li>
  * </ol>
  *
  * <h3>Инварианты</h3>
  * <ul>
- *   <li>Нельзя отправить уведомление от аппарата, к которому работник не закреплён → {@link NotificationAccessDeniedException}.</li>
- *   <li>Деактивировать уведомление может только создатель → {@link NotificationAlreadyActiveByOtherException}.</li>
+ *   <li>Работник не может отправить уведомление от аппарата, к которому не закреплён → {@link NotificationAccessDeniedException}.</li>
+ *   <li>Автомат (СКАДА) может управлять только собственным аппаратом (проверяется контроллером по sub токена).</li>
+ *   <li>Деактивировать уведомление может только создатель → {@link ToggleResult.AlreadyActiveByOther} (HTTP 409).</li>
  *   <li>На один аппарат не более одного активного уведомления (toggle semantically).</li>
  * </ul>
  */
@@ -41,15 +50,18 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final UserAssignmentRepository userAssignmentRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final CurItemResolver curItemResolver;
 
     public NotificationService(
             NotificationRepository notificationRepository,
             UserAssignmentRepository userAssignmentRepository,
-            ApplicationEventPublisher eventPublisher
+            ApplicationEventPublisher eventPublisher,
+            CurItemResolver curItemResolver
     ) {
         this.notificationRepository = notificationRepository;
         this.userAssignmentRepository = userAssignmentRepository;
         this.eventPublisher = eventPublisher;
+        this.curItemResolver = curItemResolver;
     }
 
     /**
@@ -85,13 +97,7 @@ public class NotificationService {
         if (existing != null) {
             if (existing.creatorId().equals(userIdValue)) {
                 // Тот же создатель → deactivate
-                ProductionNotification deactivated = existing.deactivate();
-                notificationRepository.save(deactivated);
-                eventPublisher.publishEvent(
-                        new NotificationStateChangedEvent(unitId, deactivated,
-                                NotificationStateChangedEvent.EventType.DEACTIVATED));
-                log.info("Notification deactivated: unitId='{}' by userId='{}'", unitId, userIdValue);
-                return new ToggleResult.Deactivated(unitId);
+                return deactivate(unitId, existing, userIdValue);
             } else {
                 // Другой создатель → нельзя деактивировать
                 log.warn("Notification already active by other: unitId='{}', creator='{}', requester='{}'",
@@ -101,13 +107,127 @@ public class NotificationService {
         }
 
         // 3. Активация
-        ProductionNotification activated = ProductionNotification.activate(unitId, userIdValue);
-        notificationRepository.save(activated);
+        return activate(unitId, ProductionNotification.activate(unitId, userIdValue, resolveCurItem(unitId)), userIdValue);
+    }
+
+    /**
+     * Toggle-операция от автомата (СКАДА) с machine-JWT.
+     * <p>
+     * Отличия от {@link #toggleNotification(String, long)}:
+     * <ul>
+     *   <li>Проверка прав по {@code user_unit_assignments} не выполняется — автомат
+     *       действует от собственного имени; принадлежность токена аппарату валидируется
+     *       контроллером (sub токена обязан совпадать с аппаратом из пути запроса).</li>
+     *   <li>Создатель — автомат ({@link NotificationCreatorType#MACHINE}),
+     *       {@code creatorId} = PrintSrv instance id автомата.</li>
+     * </ul>
+     * Инвариант «деактивировать может только создатель» сохраняется: снять уведомление,
+     * установленное работником (или наоборот), нельзя — результат {@link ToggleResult.AlreadyActiveByOther}.
+     *
+     * @param unitId    Идентификатор аппарата (PrintSrv instance id).
+     * @param machineId PrintSrv instance id автомата из machine-JWT (sub).
+     * @return Результат toggle-операции.
+     */
+    public ToggleResult toggleMachineNotification(@NonNull String unitId, @NonNull String machineId) {
+        ProductionNotification existing = notificationRepository.findActiveByUnitId(unitId)
+                .orElse(null);
+
+        if (existing != null) {
+            if (existing.creatorType() == NotificationCreatorType.MACHINE
+                    && existing.creatorId().equals(machineId)) {
+                return deactivate(unitId, existing, machineId);
+            }
+            log.warn("Notification already active by other: unitId='{}', creator='{}', requester=machine '{}'",
+                    unitId, existing.creatorId(), machineId);
+            return new ToggleResult.AlreadyActiveByOther(unitId, existing.creatorId());
+        }
+
+        return activate(unitId, ProductionNotification.activateAsMachine(unitId, machineId, resolveCurItem(unitId)), machineId);
+    }
+
+    /**
+     * Активация «последней партии» от СКАДА (сигнал из polling-потока).
+     * Идемпотентна: при уже активном уведомлении любого создателя — no-op.
+     *
+     * @param unitId    Идентификатор аппарата (PrintSrv instance id).
+     * @param machineId PrintSrv instance id автомата (creatorId MACHINE-уведомления).
+     * @return {@code true}, если уведомление было создано этим вызовом.
+     */
+    public boolean activateMachineNotificationIfAbsent(@NonNull String unitId, @NonNull String machineId) {
+        ProductionNotification existing = notificationRepository.findActiveByUnitId(unitId)
+                .orElse(null);
+        if (existing != null) {
+            log.debug("Batch-end signal ignored: unitId='{}' already active by '{}' ({})",
+                    unitId, existing.creatorId(), existing.creatorType());
+            return false;
+        }
+        activate(unitId, ProductionNotification.activateAsMachine(unitId, machineId, resolveCurItem(unitId)), machineId);
+        log.info("Batch-end signal: machine notification ACTIVATED unitId='{}'", unitId);
+        return true;
+    }
+
+    /**
+     * Снятие «последней партии», поставленной автоматом (сигнал из polling-потока).
+     * Снимает только уведомление с {@code creatorType = MACHINE} и
+     * {@code creatorId = machineId}; уведомление работника (USER) и чужие
+     * MACHINE-уведомления — не трогает.
+     *
+     * @param unitId    Идентификатор аппарата (PrintSrv instance id).
+     * @param machineId PrintSrv instance id автомата (creatorId MACHINE-уведомления).
+     * @return {@code true}, если уведомление было снято этим вызовом.
+     */
+    public boolean deactivateMachineNotificationIfPresent(@NonNull String unitId, @NonNull String machineId) {
+        ProductionNotification existing = notificationRepository.findActiveByUnitId(unitId)
+                .orElse(null);
+        if (existing == null) {
+            return false;
+        }
+        if (existing.creatorType() != NotificationCreatorType.MACHINE
+                || !existing.creatorId().equals(machineId)) {
+            log.debug("Batch-end off ignored: unitId='{}' active by '{}' ({}) — not ours",
+                    unitId, existing.creatorId(), existing.creatorType());
+            return false;
+        }
+        deactivate(unitId, existing, machineId);
+        log.info("Batch-end signal: machine notification DEACTIVATED unitId='{}'", unitId);
+        return true;
+    }
+
+    /**
+     * Возвращает текущее активное состояние «последняя партия» по аппарату.
+     * Используется REST GET-эндпоинтом — единым источником истины для фронтенда и СКАДА.
+     *
+     * @param unitId Идентификатор аппарата (PrintSrv instance id).
+     * @return Активное уведомление или {@code Optional.empty()}, если флаг не установлен.
+     */
+    public @NonNull Optional<ProductionNotification> getActiveNotification(@NonNull String unitId) {
+        return notificationRepository.findActiveByUnitId(unitId);
+    }
+
+    private String resolveCurItem(String unitId) {
+        return curItemResolver.resolveCurItem(unitId);
+    }
+
+    private ToggleResult activate(String unitId, ProductionNotification notification, String actorId) {
+        ProductionNotification persisted = notificationRepository.save(notification);
+        if (persisted == null) {
+            persisted = notification;
+        }
         eventPublisher.publishEvent(
-                new NotificationStateChangedEvent(unitId, activated,
+            new NotificationStateChangedEvent(unitId, persisted,
                         NotificationStateChangedEvent.EventType.ACTIVATED));
-        log.info("Notification activated: unitId='{}' by userId='{}'", unitId, userIdValue);
-        return new ToggleResult.Activated(unitId, userIdValue);
+        log.info("Notification activated: unitId='{}' by '{}'", unitId, actorId);
+        return new ToggleResult.Activated(unitId, persisted.creatorId(), persisted.notificationId());
+    }
+
+    private ToggleResult deactivate(String unitId, ProductionNotification existing, String actorId) {
+        ProductionNotification deactivated = existing.deactivate();
+        notificationRepository.save(deactivated);
+        eventPublisher.publishEvent(
+                new NotificationStateChangedEvent(unitId, deactivated,
+                        NotificationStateChangedEvent.EventType.DEACTIVATED));
+        log.info("Notification deactivated: unitId='{}' by '{}'", unitId, actorId);
+        return new ToggleResult.Deactivated(unitId);
     }
 
     /**
@@ -126,6 +246,72 @@ public class NotificationService {
         return userAssignmentRepository.getSubscribedUnitIds(userId);
     }
 
+    public ProductionNotification acceptNotification(long notificationId, long userId) {
+        ProductionNotification notification = findNotification(notificationId);
+        if (!userAssignmentRepository.getSubscribedUnitIds(userId).contains(notification.unitId())) {
+            throw new NotificationAccessDeniedException(Long.toString(userId), notification.unitId());
+        }
+        return transition(notification, notification.accept(Long.toString(userId)),
+                NotificationStateChangedEvent.EventType.ACCEPTED);
+    }
+
+    public ProductionNotification completeNotification(long notificationId, long userId) {
+        ProductionNotification notification = findNotification(notificationId);
+        String actorId = Long.toString(userId);
+        if (!actorId.equals(notification.creatorId()) && !actorId.equals(notification.acceptedBy())) {
+            throw new NotificationAccessDeniedException(actorId, notification.unitId());
+        }
+        return transition(notification, notification.complete(actorId),
+                NotificationStateChangedEvent.EventType.COMPLETED);
+    }
+
+    public ProductionNotification cancelNotification(long notificationId, long userId) {
+        ProductionNotification notification = findNotification(notificationId);
+        String actorId = Long.toString(userId);
+        if (!actorId.equals(notification.creatorId())) {
+            throw new NotificationAccessDeniedException(actorId, notification.unitId());
+        }
+        return transition(notification, notification.cancel(actorId),
+                NotificationStateChangedEvent.EventType.CANCELLED);
+    }
+
+    public List<ProductionNotification> getSentHistory(long userId) {
+        return notificationRepository.findAllByCreatorId(Long.toString(userId));
+    }
+
+    public List<ProductionNotification> getSentHistory(long userId, Collection<NotificationStatus> statuses, Pageable pageable) {
+        return notificationRepository.findAllByCreatorIdAndStatusIn(Long.toString(userId), statuses, pageable);
+    }
+
+    public List<ProductionNotification> getExecutorHistory(long userId) {
+        return notificationRepository.findAllAcceptedBy(Long.toString(userId));
+    }
+
+    public List<ProductionNotification> getExecutorHistory(long userId, Collection<NotificationStatus> statuses, Pageable pageable) {
+        return notificationRepository.findAllAcceptedByAndStatusIn(Long.toString(userId), statuses, pageable);
+    }
+
+    public List<ProductionNotification> getIncoming(long userId) {
+        Set<String> subscribedUnits = userAssignmentRepository.getSubscribedUnitIds(userId);
+        return notificationRepository.findAllActive().stream()
+                .filter(notification -> notification.status() == NotificationStatus.PENDING)
+                .filter(notification -> subscribedUnits.contains(notification.unitId()))
+                .toList();
+    }
+
+    private ProductionNotification findNotification(long notificationId) {
+        return notificationRepository.findByNotificationId(notificationId)
+                .orElseThrow(() -> new NotificationNotFoundException(notificationId));
+    }
+
+    private ProductionNotification transition(ProductionNotification current,
+                                               ProductionNotification next,
+                                               NotificationStateChangedEvent.EventType type) {
+        notificationRepository.save(next);
+        eventPublisher.publishEvent(new NotificationStateChangedEvent(next.unitId(), next, type));
+        return next;
+    }
+
     // ─── Toggle result sealed hierarchy ────────────────────────────────
 
     /**
@@ -133,7 +319,7 @@ public class NotificationService {
      */
     public sealed interface ToggleResult {
 
-        record Activated(String unitId, String creatorId) implements ToggleResult {}
+        record Activated(String unitId, String creatorId, Long notificationId) implements ToggleResult {}
         record Deactivated(String unitId) implements ToggleResult {}
         record AlreadyActiveByOther(String unitId, String existingCreatorId) implements ToggleResult {}
     }
@@ -158,6 +344,12 @@ public class NotificationService {
         public NotificationAlreadyActiveByOtherException(String unitId, String existingCreatorId) {
             super("Уведомление на аппарате '%s' уже активно пользователем '%s'"
                     .formatted(unitId, existingCreatorId));
+        }
+    }
+
+    public static class NotificationNotFoundException extends RuntimeException {
+        public NotificationNotFoundException(long notificationId) {
+            super("Уведомление '%s' не найдено".formatted(notificationId));
         }
     }
 }

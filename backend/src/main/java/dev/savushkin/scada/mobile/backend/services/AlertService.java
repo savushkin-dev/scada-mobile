@@ -37,11 +37,14 @@ public class AlertService {
 
     private final PrintSrvTopologyRepository topologyRepo;
     private final UnitErrorStore unitErrorStore;
+    private final UnitMappingService unitMappingService;
 
     public AlertService(PrintSrvTopologyRepository topologyRepo,
-                        UnitErrorStore unitErrorStore) {
+                        UnitErrorStore unitErrorStore,
+                        UnitMappingService unitMappingService) {
         this.topologyRepo = topologyRepo;
         this.unitErrorStore = unitErrorStore;
+        this.unitMappingService = unitMappingService;
     }
 
     /**
@@ -122,9 +125,12 @@ public class AlertService {
                 .map(e -> new AlertErrorDTO(e.objectName(), 0, e.description()))
                 .toList();
 
+        Long unitDbId = unitMappingService.findUnitIdByPrintSrvInstanceId(inst.instanceId()).orElse(null);
+
         return Optional.of(AlertMessageDTO.active(
                 workshop.id(),
                 inst.instanceId(),
+                unitDbId,
                 inst.displayName(),
                 SEVERITY_CRITICAL,
                 alertErrors,

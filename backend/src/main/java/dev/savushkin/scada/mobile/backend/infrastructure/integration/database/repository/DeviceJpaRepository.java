@@ -27,6 +27,12 @@ public interface DeviceJpaRepository extends JpaRepository<DeviceEntity, Long>, 
     boolean existsByUnit_IdAndCatalog_Id(Long unitId, Long catalogId);
 
     @RestResource(exported = false)
+    long countByUnit_Id(Long unitId);
+
+    @RestResource(exported = false)
+    long countByUnit_IdAndCatalog_Type_Code(Long unitId, String typeCode);
+
+    @RestResource(exported = false)
     @Query("""
             select d
             from DeviceEntity d

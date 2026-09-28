@@ -60,31 +60,39 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
   const [settingsStatus, setSettingsStatus] = useState<LoadStatus>('idle');
   const [settingsError, setSettingsError] = useState<AppError | null>(null);
 
-  const refreshProfile = useCallback(async () => {
-    if (!userId) return;
-    try {
-      const data = await fetchUserProfile();
-      setProfile(data);
-      setProfileStatus('ready');
-      setProfileError(null);
-    } catch (error) {
-      setProfileStatus((prev) => (prev === 'ready' ? prev : 'error'));
-      setProfileError(classifyError(error, 'profile'));
-    }
-  }, [userId]);
+  const refreshProfile = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!userId) return;
+      try {
+        const data = await fetchUserProfile(signal);
+        setProfile(data);
+        setProfileStatus('ready');
+        setProfileError(null);
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return;
+        setProfileStatus((prev) => (prev === 'ready' ? prev : 'error'));
+        setProfileError(classifyError(error, 'profile'));
+      }
+    },
+    [userId]
+  );
 
-  const refreshSettings = useCallback(async () => {
-    if (!userId || isAdmin) return;
-    try {
-      const data = await fetchNotificationSettings();
-      setSettings(data);
-      setSettingsStatus('ready');
-      setSettingsError(null);
-    } catch (error) {
-      setSettingsStatus((prev) => (prev === 'ready' ? prev : 'error'));
-      setSettingsError(classifyError(error, 'notification-settings'));
-    }
-  }, [userId, isAdmin]);
+  const refreshSettings = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!userId || isAdmin) return;
+      try {
+        const data = await fetchNotificationSettings(signal);
+        setSettings(data);
+        setSettingsStatus('ready');
+        setSettingsError(null);
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return;
+        setSettingsStatus((prev) => (prev === 'ready' ? prev : 'error'));
+        setSettingsError(classifyError(error, 'notification-settings'));
+      }
+    },
+    [userId, isAdmin]
+  );
 
   // Первоначальная загрузка (REST) — дальше состояние живёт на WS-событиях.
   useEffect(() => {
@@ -98,8 +106,11 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const profileController = new AbortController();
+    const settingsController = new AbortController();
+
     setProfileStatus('loading');
-    void refreshProfile();
+    void refreshProfile(profileController.signal);
 
     // Администратору блок настроек уведомлений не нужен (issue #38) — не грузим.
     if (isAdmin) {
@@ -107,8 +118,13 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
       setSettingsStatus('idle');
     } else {
       setSettingsStatus('loading');
-      void refreshSettings();
+      void refreshSettings(settingsController.signal);
     }
+
+    return () => {
+      profileController.abort();
+      settingsController.abort();
+    };
   }, [userId, isAdmin, refreshProfile, refreshSettings]);
 
   const applyLocalSetting = useCallback((updated: NotificationSetting) => {

@@ -25,7 +25,8 @@ REST отдает статические данные, которые меняю
 | `GET /users/me` | Профиль пользователя | ETag |
 | `GET /notifications/settings` | Настройки уведомлений | ETag |
 | `PUT /notifications/settings` | Обновление настроек | — |
-| `POST /line/{unitId}/last-batch` | Переключение уведомления | — |
+| `POST /line/{unitId}/last-batch` | Переключение уведомления (user-JWT или machine-JWT) | — |
+| `GET /line/{unitId}/last-batch` | Текущее состояние «последняя партия» (user-JWT или machine-JWT) | — |
 | `GET /health/live` | Liveness проба | — |
 | `GET /health/ready` | Readiness проба | — |
 | `POST /auth/login` | Вход | — |

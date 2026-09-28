@@ -32,6 +32,8 @@ export const AlertWsMessageSchema = z.object({
   type: z.literal('ALERT'),
   workshopId: z.number().int().positive(),
   unitId: z.union([z.string(), z.number()]),
+  /** ID аппарата в БД (units.unit_id), используется для сопоставления с настройками уведомлений. */
+  unitDbId: z.union([z.string(), z.number()]).nullable().optional(),
   /** Читаемое название аппарата (для отображения в карточках). */
   unitName: z.string(),
   severity: AlertSeveritySchema,
@@ -72,12 +74,22 @@ export const AlertSnapshotMessageSchema = z.object({
 export const NotificationWsMessageSchema = z.object({
   type: z.literal('NOTIFICATION'),
   unitId: z.string(),
+  /** ID аппарата в БД (units.unit_id), используется для сопоставления с настройками уведомлений. */
+  unitDbId: z.union([z.string(), z.number()]).nullable().optional(),
   unitName: z.string(),
   creatorId: z.string().nullable(),
   creatorName: z.string().nullable().optional(),
   eventType: z.string().nullable().optional(),
   active: z.boolean(),
   timestamp: z.string().nullable(),
+  notificationId: z.number().nullable().optional(),
+  status: z.enum(['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']).nullable().optional(),
+  acceptedBy: z.string().nullable().optional(),
+  acceptedByName: z.string().nullable().optional(),
+  acceptedAt: z.string().nullable().optional(),
+  version: z.number().optional(),
+  /** Текущая партия/изделие (CurItem), зафиксированная при активации уведомления. */
+  curItem: z.string().nullable().optional(),
 });
 
 /** NOTIFICATION_SNAPSHOT — начальный срез при WS-коннекте */
@@ -360,6 +372,8 @@ export const DeviceErrorSchema = z.object({
   propertyDesc: z.string(),
   value: z.string(),
   description: z.string().optional(),
+  /** Время возникновения ошибки (ISO local date-time), если известно. */
+  occurredAt: z.string().nullable().optional(),
 });
 
 export const LogEntrySchema = z.object({
