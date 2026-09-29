@@ -8,11 +8,18 @@ services:
   prometheus:
     image: prom/prometheus:v3.2.1
     container_name: scada-loadtest-prometheus
+    # Prometheus НЕ разворачивает env-переменные в конфиге — подставляем
+    # порт backend'а через sed перед стартом (placeholder @LOAD_BACKEND_PORT@,
+    # значение из $LOAD_BACKEND_PORT, по умолчанию 8081).
+    entrypoint: ["/bin/sh", "-c"]
     command:
-      - --config.file=/etc/prometheus/prometheus.yml
-      - --storage.tsdb.retention.time=2d
-      # remote-write receiver — чтобы k6 мог писать метрики (k6 -o experimental-prometheus-rw)
-      - --web.enable-remote-write-receiver
+      - >-
+        sed "s/@LOAD_BACKEND_PORT@/$${LOAD_BACKEND_PORT}/"
+        /etc/prometheus/prometheus.yml > /tmp/prometheus.resolved.yml &&
+        exec /bin/prometheus
+        --config.file=/tmp/prometheus.resolved.yml
+        --storage.tsdb.retention.time=2d
+        --web.enable-remote-write-receiver
     ports:
       - "${LOAD_MON_PROM_PORT:-9090}:9090"
     environment:
