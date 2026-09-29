@@ -10,7 +10,7 @@ scrape_configs:
     static_configs:
       - targets:
           # backend стенда на хосте (make load-back-run); на сервере — адрес сервера
-          - host.docker.internal:8081
+          - host.docker.internal:${LOAD_BACKEND_PORT:-8081}
         labels:
           app: scada-mobile-backend
           env: loadtest

@@ -28,6 +28,9 @@ LOAD_BACKEND_PID := .backend-loadtest.pid
 LOAD_BACKUP_DIR := load-tests/backups
 LOAD_RESULTS_DIR := load-tests/results
 LOAD_MON_COMPOSE := load-tests/monitoring/docker-compose.yml
+# Порты мониторинга (переопределять, если на сервере 9090/3000 заняты)
+LOAD_MON_PROM_PORT ?= 9090
+LOAD_MON_GRAF_PORT ?= 3000
 LOAD_SEED_SQL ?= scripts/seed_notifications.sql scripts/seed_loadtest_users.sql
 
 # Локальный файл с автогенерируемыми dev JWT-секретами (игнорируется git через .env.*)
@@ -503,9 +506,11 @@ load-spike:
 # k6 может писать метрики в Prometheus: K6_OUT="-o experimental-prometheus-rw"
 # с K6_PROMETHEUS_RW_SERVER_URL=http://localhost:9090/api/v1/write
 load-mon-up:
-	@docker compose -f "$(LOAD_MON_COMPOSE)" up -d
-	@echo "Prometheus: http://localhost:9090 (target: host.docker.internal:$(LOAD_BACKEND_PORT))"
-	@echo "Grafana:    http://localhost:3000 (admin/admin, dashboard 'SCADA Loadtest (backend)')"
+	@LOAD_MON_PROM_PORT='$(LOAD_MON_PROM_PORT)' LOAD_MON_GRAF_PORT='$(LOAD_MON_GRAF_PORT)' \
+		LOAD_BACKEND_PORT='$(LOAD_BACKEND_PORT)' \
+		docker compose -f "$(LOAD_MON_COMPOSE)" up -d
+	@echo "Prometheus: http://localhost:$(LOAD_MON_PROM_PORT) (target: host.docker.internal:$(LOAD_BACKEND_PORT))"
+	@echo "Grafana:    http://localhost:$(LOAD_MON_GRAF_PORT) (admin/admin, dashboard 'SCADA Loadtest (backend)')"
 
 load-mon-down:
 	@docker compose -f "$(LOAD_MON_COMPOSE)" down

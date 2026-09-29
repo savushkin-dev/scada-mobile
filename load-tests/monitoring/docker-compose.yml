@@ -14,7 +14,10 @@ services:
       # remote-write receiver — чтобы k6 мог писать метрики (k6 -o experimental-prometheus-rw)
       - --web.enable-remote-write-receiver
     ports:
-      - "9090:9090"
+      - "${LOAD_MON_PROM_PORT:-9090}:9090"
+    environment:
+      # Prometheus подставляет в prometheus.yml (там $LOAD_BACKEND_PORT)
+      LOAD_BACKEND_PORT: ${LOAD_BACKEND_PORT:-8081}
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
@@ -27,7 +30,7 @@ services:
     image: grafana/grafana:11.5.2
     container_name: scada-loadtest-grafana
     ports:
-      - "3000:3000"
+      - "${LOAD_MON_GRAF_PORT:-3000}:3000"
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro

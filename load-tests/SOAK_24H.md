@@ -16,7 +16,8 @@
   (установка k6: https://grafana.com/docs/k6/latest/set-up/install-k6/)
 - Свободные порты: `5433` (postgres), `8081` (backend), `9090` (Prometheus),
   `3000` (Grafana). Если заняты — переопределяются переменными
-  `LOAD_DB_PORT` / `LOAD_BACKEND_PORT` (см. Makefile).
+  `LOAD_DB_PORT` / `LOAD_BACKEND_PORT` / `LOAD_MON_PROM_PORT` / `LOAD_MON_GRAF_PORT`
+  (см. Makefile).
 - ~2 ГБ свободной памяти и ~5 ГБ диска (логи + метрики Prometheus за сутки).
 - **Важно:** это изолированный стенд со своей БД на 5433. Прод не трогаем.
 
