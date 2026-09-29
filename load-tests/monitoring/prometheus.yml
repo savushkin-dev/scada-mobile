@@ -9,8 +9,9 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets:
-          # backend стенда на хосте (make load-back-run); на сервере — адрес сервера
-          - host.docker.internal:${LOAD_BACKEND_PORT:-8081}
+          # backend стенда на хосте (make load-back-run); порт — env LOAD_BACKEND_PORT
+          # (задаётся в docker-compose.yml; синтаксис :- не поддерживается Prometheus)
+          - host.docker.internal:${LOAD_BACKEND_PORT}
         labels:
           app: scada-mobile-backend
           env: loadtest
