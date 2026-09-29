@@ -23,6 +23,11 @@ ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id,
                                    is_active = EXCLUDED.is_active,
                                    password_temporary = EXCLUDED.password_temporary;
 
+-- После явных вставок users (1, 2) последовательность SERIAL отстаёт:
+-- bootstrap-миграции уже брали значения из неё, и следующий nextval даст
+-- user_id, занятый явной вставкой выше (duplicate key на pk_users).
+SELECT setval(pg_get_serial_sequence('users', 'user_id'), (SELECT COALESCE(MAX(user_id), 1) FROM users));
+
 -- Администратор для тестового стенда: код 10000, пароль password1.
 -- Upsert по code (users.code UNIQUE): если пользователь с кодом 10000 уже
 -- существует (например, создан bootstrap'ом при первом запуске), его пароль
