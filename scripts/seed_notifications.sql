@@ -140,8 +140,8 @@ INSERT INTO device_catalog (type_id, code, name)
 SELECT DISTINCT dt.type_id, sd.device_code, sd.display_name
 FROM seed_devices sd
 JOIN device_types dt ON dt.code = sd.type_code
-ON CONFLICT (name) DO UPDATE SET type_id = EXCLUDED.type_id,
-                                 code = EXCLUDED.code;
+ON CONFLICT (code) DO UPDATE SET type_id = EXCLUDED.type_id,
+                                 name = EXCLUDED.name;
 
 INSERT INTO unit_devices (unit_id, catalog_id)
 SELECT u.unit_id, dc.catalog_id
