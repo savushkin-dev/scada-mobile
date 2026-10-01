@@ -219,3 +219,7 @@ backend/logs/*
 
 # Playwright MCP snapshots
 .playwright-mcp/
+
+# Load-test artifacts (backups, k6 results)
+load-tests/backups/
+load-tests/results/

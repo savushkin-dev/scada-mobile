@@ -152,6 +152,19 @@ Docker:
 - По умолчанию `make back-run` использует dev-профиль и порт `8080`.
 - Для prod-режима порт и секреты обязательны в `PROD_ENV_FILE` (`SCADA_MOBILE_BACKEND_PORT`, `SCADA_MOBILE_JWT_ACCESS_SECRET`, `SCADA_MOBILE_JWT_REFRESH_SECRET`).
 
+Нагрузочное тестирование (эпик #51, стенд изолирован от dev — подробности в `load-tests/README.md`):
+
+- `make load-up` — поднять стенд целиком: postgres на `5433` + backend на `8081` в профиле `loadtest` (prod-like логи + mock PrintSrv), с миграциями и сидами (топология + 500 пользователей `20001..20500` / `password`).
+- `make load-down` — остановить backend и удалить контейнер postgres стенда (volume остаётся).
+- `make load-db-backup` — pg_dump стенд-БД в `load-tests/backups/` (обязательно перед прогонами).
+- `make load-db-restore FILE=...` — восстановить стенд-БД из дампа.
+- `make load-db-reset` — удалить контейнер и volume (чистый лист).
+- `make load-back-run` / `load-back-stop` / `load-back-wait` / `load-back-logs` — управление backend стенда.
+- `make load-k6 SCRIPT=load-tests/k6/<script>.js [BASE_URL=.. STAGES=..]` — прогон k6-скрипта (summary пишется в `load-tests/results/`); скрипты: `auth-login.js`, `rest-topology.js`, `ws-live.js`, `ws-unit.js`, `combined.js` (комбинированный production-like, 4 сценария: 70% /ws/live, 20% /ws/unit, 8% REST, 2% auth).
+- `make load-smoke` — smoke-тест (combined.js, 5 VU / 2 мин), обязательный sanity-check перед большими прогонами.
+- `make load-spike` — spike-тест (ws-live.js, 0→500 VU за 10 сек — сценарий «начало смены»).
+- `make load-mon-up` / `load-mon-down` — мониторинг стенда (Prometheus `:9090`, Grafana `:3000`, дашборд «SCADA Loadtest (backend)»); метрики WS-сессий: `scada_ws_*`.
+
 Frontend:
 
 - `make front-install` — установить зависимости фронтенда.
