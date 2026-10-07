@@ -40,5 +40,5 @@ public interface ProductionNotificationJpaRepository extends JpaRepository<Produ
             @NonNull Pageable pageable);
 
     @RestResource(exported = false)
-    long deleteByActivatedAtBefore(@NonNull LocalDateTime cutoff);
+    long deleteByActiveFalseAndActivatedAtBefore(@NonNull LocalDateTime cutoff);
 }

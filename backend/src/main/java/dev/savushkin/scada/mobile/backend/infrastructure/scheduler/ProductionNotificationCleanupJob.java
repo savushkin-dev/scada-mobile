@@ -12,10 +12,12 @@ import java.time.LocalDateTime;
 /**
  * Периодическое удаление старых производственных уведомлений.
  * <p>
- * Запускается каждый день в 02:30 ночи и удаляет записи, созданные
- * (активированные) раньше 24 часов. Это предотвращает бесконечный рост
- * таблицы {@code production_notifications}, поскольку история отправленных
- * и принятых задач накапливается быстро.
+ * Запускается каждый день в 02:30 ночи и удаляет <b>неактивные</b> записи, созданные
+ * (активированные) раньше 24 часов. Активные уведомления (PENDING / IN_PROGRESS) никогда
+ * не удаляются: незакрытая задача не должна испаряться из БД, а их удаление без события
+ * перехода состояния рассинхронизирует WS-прожекцию ({@code ActiveNotificationStore})
+ * с перманентным состоянием — клиенты продолжат получать «фантомные» уведомления,
+ * на которые невозможно ответить (accept/complete падает с «не найдено»).
  */
 @Component
 public class ProductionNotificationCleanupJob {
@@ -32,7 +34,8 @@ public class ProductionNotificationCleanupJob {
     }
 
     /**
-     * Удаляет производственные уведомления старше 24 часов.
+     * Удаляет неактивные производственные уведомления старше 24 часов.
+     * Активные уведомления не трогаются.
      * <p>
      * Расписание: каждый день в 02:30.
      */
@@ -41,7 +44,7 @@ public class ProductionNotificationCleanupJob {
     public void cleanupOldNotifications() {
         LocalDateTime cutoff = LocalDateTime.now().minusHours(RETENTION_HOURS);
         log.debug("Starting production notifications cleanup, cutoff={}", cutoff);
-        long deleted = notificationRepository.deleteByActivatedAtBefore(cutoff);
+        long deleted = notificationRepository.deleteByActiveFalseAndActivatedAtBefore(cutoff);
         log.info("Production notifications cleanup completed, cutoff={}, deleted={}", cutoff, deleted);
     }
 }
